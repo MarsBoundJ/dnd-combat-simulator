@@ -247,7 +247,7 @@ def treantmonk_target_ac(level: int) -> int:
 | 2 | MONK Damage 2024 | Monk | 🔴 Pending |
 | 3 | ROGUE Damage 2024 | Rogue (True Strike build) | 🔴 Pending |
 | 4 | FIGHTER Damage 2024 | Fighter | ✅ Complete |
-| 5 | BARBARIAN Damage 2024 | Barbarian | 🔴 Pending |
+| 5 | BARBARIAN Damage 2024 | Barbarian | ✅ Complete |
 | 6 | SWORD AND SHIELD | Fighter variant | ✅ Complete (in Video 4) |
 | 7 | PALADIN Damage 2024 | Paladin | 🔴 Pending |
 | 8 | Paladin TWO WEAPON FIGHTING | Paladin variant | 🔴 Pending |
@@ -501,15 +501,64 @@ is not fully confident in the results.
 
 ---
 
-### Barbarian
+### Barbarian — Base Greatsword (2024)
 
-`[PENDING — Video 5: "BARBARIAN Damage 2024 Player's Handbook"]`
+**Source:** Video 5 — "BARBARIAN Damage 2024 Player's Handbook"  
+**Build:** Greatsword (Graze mastery) "quality of life build — BA stays free", no subclass  
+**Starting stats (confirmed):** STR 17, CON 16 (DEX/INT/WIS/CHA unspecified)  
+**Background:** Farmer (STR +2, CON +1, Tough origin feat)  
+**ASIs:** Great Weapon Master L4 (STR 18), STR+2 L8 (STR 20), Mage Slayer L12 (DEX+1),
+Speedy L16 (DEX+1), Boon of Irresistible Offense L19 (STR 21)  
+**No subclass**  
+**Assumptions (confirmed from screenshots):** 4 combats/LR, 4 rounds/combat, 1 SR,
+no outside advantage, Target AC 14 scaling +1 at L4/5/8/9/13/17,
+Rage used on round 1 when available, Reckless Attack always used,
+GWM bonus action on crits only, Brutal Strike math done at each level —
+included in DPR only when it exceeds normal Reckless Attack damage  
+**Average DPR across 20 levels: 33.4 (667.7/20 — confirmed on screen)**
+
+**Key mechanics (Barbarian-specific):**
+- **Reckless Attack (L2):** Always has advantage → 84% hit, 10% crit, Graze on 16% miss
+- **Rage bonus:** +2 at L1, +3 at L9, +4 at L16
+- **Brutal Strike (L9):** Forgo advantage on one attack for +1d10 damage
+  (scales to 2d10 at L17, gains 2 effect options at L13/17).
+  When Brutal Strike used: Reckless attack is normal (60% hit), BA attack drops to 14% (×0.75)
+- **Graze scaling:** = STR modifier + Rage bonus (3→4→5→6→7)
+- **GWM taken at L4** (earlier than Fighter's L6), applying immediately with Reckless advantage
 
 ```python
-BARBARIAN_DPR = {
-    level: None for level in range(1, 21)
+BARBARIAN_GREATSWORD_DPR = {
+    1:  8.8,   # 2d6+3+2 (12,7): 12x0.60=7.2, 7x0.05=0.4, Graze 3x0.40=1.2
+    2:  11.3,  # Reckless Attack: 12x0.84=10.1, 7x0.10=0.7, Graze 3x0.16=0.5
+    3:  11.3,
+    4:  14.8,  # STR+4, Graze 4, GWM+2: 2d6+4+2+2 (15,7), BA 10%x0.75=0.9
+    5:  28.7,  # Extra Attack: 13.9x2=27.8+BA 0.9
+    6:  31.1,  # GWM+3, BA 19%x0.75
+    7:  31.1,
+    8:  33.5,  # STR+5 (20), Graze 5: 2d6+5+2+3 (17,7), BA attack included
+    9:  36.9,  # Rage+3, GWM+4, Brutal Strike 1d10 available (taken when higher)
+    10: 36.9,
+    11: 36.9,
+    12: 36.9,
+    13: 38.6,  # GWM+5, Brutal Strike gains Disadv/no-opp-attack or +5-to-hit options
+    14: 38.6,
+    15: 38.6,
+    16: 40.3,  # Rage+4
+    17: 44.3,  # GWM+6, Brutal Strike now 2d10 + 2 options on a hit
+    18: 44.3,
+    19: 47.7,  # Boon of Irresistible Offense (STR 21, crit +21); without Brutal Strike: 46.6
+    20: 57.1,  # STR+7, Graze 7, base 70% hit/91% adv; without Brutal Strike: 54.3
 }
+# Career average: 667.7 / 20 = 33.4 (confirmed on screen)
 ```
+
+**Engine notes:**
+- Barbarian DPR is consistently higher than Fighter at T1–T2 due to permanent Reckless
+  advantage from L2. No level spike comparable to Fighter's L11.
+- Brutal Strike is an optional trade — engine should model both paths and take max,
+  matching Treantmonk's methodology.
+- At L20, Barbarian base (33.4 career) is below Fighter base (36.2 career) despite
+  stronger T1–T2 performance. Fighter's L11 triple-attack spike is decisive.
 
 ---
 
