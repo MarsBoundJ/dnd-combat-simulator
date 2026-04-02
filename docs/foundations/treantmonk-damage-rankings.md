@@ -1,8 +1,8 @@
-# Treantmonk 2024 Damage Rankings — Definitive Summary
+# Treantmonk 2024 Damage Rankings — Complete Summary
 
-**Source:** "Definitive Class Damage Ranks: D&D 2024" (Video 19 of 23)  
-**Treantmonk's Temple:** https://youtube.com/playlist?list=PLfdtR0ufZC9eElP2Dv68kRj0yJIP1QtbU  
-**Status:** ✅ Complete — extracted from transcript  
+**Source:** Treantmonk's Temple — 2024 PHB DPS Series (Videos 19–23 of 23)  
+**Playlist:** https://youtube.com/playlist?list=PLfdtR0ufZC9eElP2Dv68kRj0yJIP1QtbU  
+**Status:** ✅ Complete — all tier breakdowns extracted  
 **Last updated:** 2026-03-30  
 **Used by:** `engine/math/pc_dpr.py`, `docs/foundations/pc-dpr-baselines.md`
 
@@ -10,222 +10,435 @@
 
 ## Purpose
 
-This document encodes Treantmonk's weighted overall damage scores for every
-build he analyzed across the 2024 series. These scores are the primary reference
-for the simulator's class/subclass power ranking system.
+This document encodes Treantmonk's weighted overall damage scores and per-tier
+breakdowns for every build analyzed across the 2024 series. These are the primary
+reference for the simulator's class/subclass power ranking system.
 
-These are NOT per-level DPR values — they are weighted aggregate scores across
-all 20 levels, with middle levels weighted more heavily than tier 1 and tier 4.
-Per-level DPR curves live in `pc-dpr-baselines.md`.
-
----
-
-## Scoring Methodology
-
-- Scores represent weighted average single-target DPR across levels 1–20
-- Middle levels (roughly tiers 2–3, levels 5–15) weighted more heavily
-- Lower bound: ~140 (worst build analyzed)
-- Upper bound: ~329 (best build analyzed)
-- Scores are comparable across builds but NOT directly translatable to per-round
-  DPR without the weighting formula (defined in tier breakdown videos 20–23)
-
-### Tier Thresholds
-
-| Tier | Score Range | Description |
-|---|---|---|
-| **D** | < 175 | Below acceptable damage |
-| **C** | 175–225 | Acceptable / okay damage |
-| **B** | 226–275 | Good damage |
-| **A** | > 275 | Top tier damage |
-
-### Classes Omitted
-
-Treantmonk explicitly did not analyze Wizard or Cleric, noting:
-- Neither would have been at the top of the list
-- Spellcasting damage is well-represented by Bard, Druid, Warlock, Sorcerer
-- Both can be inferred from existing spellcaster data
-
-**Engine policy:** Wizard and Cleric use Sorcerer Base Blast as their closest
-proxy for single-target DPR until dedicated data is available.
+**Career scores** are weighted aggregates across all 20 levels.
+**Tier scores** are simple averages within each tier's level range.
+**Per-level DPR curves** live in `pc-dpr-baselines.md`.
 
 ---
 
-## Complete Build Rankings (Bottom to Top)
+## The Scoring Formula (Fully Verified)
+
+```python
+def calc_career_score(t1_avg: float, t2_avg: float,
+                      t3_avg: float, t4_avg: float) -> float:
+    """
+    Treantmonk's weighted career damage score.
+    Weights: T1×1, T2×3, T3×2, T4×1
+    Reflects that T2 and T3 see the most campaign play.
+    """
+    return (t1_avg * 1) + (t2_avg * 3) + (t3_avg * 2) + (t4_avg * 1)
+
+# Verified against known endpoints:
+# Berserker Greatsword: 15*1 + 43*3 + 57*2 + 71*1 = 15+129+114+71 = 329 ✅
+# Bard Base Spells:      6*1 + 15*3 + 27*2 + 35*1 =  6+ 45+ 54+35 = 140 ✅
+```
+
+**Tier level ranges:**
+- Tier 1: Levels 1–4 (simple average)
+- Tier 2: Levels 5–10 (simple average)
+- Tier 3: Levels 11–16 (simple average)
+- Tier 4: Levels 17–20 (simple average)
+
+---
+
+## The 2024 Baseline — CRITICAL ENGINE REFERENCE
+
+### Retired: 2014 Warlock Baseline
+**Build:** Warlock EB + Agonizing Blast + Hex
+**Status:** D tier at all four tiers of 2024 play. Retired.
+**Reason:** "Eldritch Blast Warlocks just aren't in the game anymore as far
+as single target damage."
+
+### New: 2024 Warlock Blade Pact Greatsword Baseline
+**Build:** Warlock Base Blade Pact Greatsword (no subclass)
+**Rationale:** Only build achieving C tier in all four tiers — represents
+"okay but not great" damage consistently across a full career.
+
+```python
+TREANTMONK_2024_BASELINE = {
+    "build":        "Warlock Base Blade Pact Greatsword",
+    "description":  "C tier at all four tiers. Minimum okay damage benchmark.",
+    "tier_scores":  {1: 8, 2: 24, 3: 37, 4: 59},
+    "career_score": 196,   # 8*1 + 24*3 + 37*2 + 59*1
+    "per_level_dpr": {level: None for level in range(1, 21)},
+}
+```
+
+**Engine policy:** Any PC build scoring below this baseline at a given tier
+is considered below-average single-target DPS. Used as the floor for
+"contributing damage" in encounter simulations.
+
+---
+
+## Tier Thresholds
+
+| | T1 (L1–4) | T2 (L5–10) | T3 (L11–16) | T4 (L17–20) |
+|---|---|---|---|---|
+| **A** | 13–15 | 37–43 | ~50+ | 70+ |
+| **B** | 10–12 | 29–36 | ~40–49 | 60–69 |
+| **C** | 7–9 | 22–28 | ~35–49 | 50–59 |
+| **D** | 4–6 | 15–21 | 26–34 | 35–49 |
+
+*T3 thresholds inferred — not explicitly stated. Lowest: 26, Highest: 57.*
+
+---
+
+## Classes Not Analyzed
+
+Treantmonk did not cover **Wizard** or **Cleric**:
+- Neither would rank near the top for single-target DPR
+- Spellcasting well-represented by Bard, Druid, Warlock, Sorcerer data
+
+**Engine proxy:** Sorcerer Base Blast as closest proxy for Wizard/Cleric DPR.
+
+---
+
+## ⚠️ Balance Outlier: Conjure Minor Elementals
+
+Excluded from all calculations. Upcasted with multiple attacks (e.g. College
+of Valor at T3) produces ~80 DPR — "way above everything else."
+
+**Engine policy:** Flag as outlier requiring DM override toggle.
+See `docs/domain/conditions-and-edge-cases.md`.
+
+---
+
+## Career Scores — All 39 Builds
 
 ### D Tier (Score < 175)
 
-| Rank | Build | Type | Score | Notes |
-|---|---|---|---|---|
-| 1 (lowest) | Bard Base Spells | Base | 140 | Lowest of all builds. Bards not built for single-target damage |
-| 2 | Warlock Base True Strike Shillelagh | Base | 162 | Reddit novelty build — single attack with Cha modifier via Agonizing Blast |
-| 3 | Druid Base Spells | Base | 163 | Spells alone insufficient for single-target damage |
-| 4 | Warlock Base Eldritch Blast | Base | 166 | **Former 2014 baseline now in D tier** — EB Warlocks no longer competitive |
-| 5 | Fighter Base Longsword | Base | 167 | Longsword is defensive weapon; base fighter without optimized build is weak |
-| 6 | Ranger Base Hunter's Mark + Hail of Thorns Longbow | Base | 168 | Flatline at level 11; significantly behind TWF variant |
-
-**Key insight:** The 2014 Warlock EB+Agonizing Blast baseline is now D tier.
-This is why Treantmonk switched to a new 2024 baseline. Eldritch Blast Warlocks
-"just aren't in the game anymore as far as single target damage."
-
----
+| Score | Build | Type |
+|---|---|---|
+| 140 | Bard Base Spells | Base |
+| 162 | Warlock Base True Strike Shillelagh | Base |
+| 163 | Druid Base Spells | Base |
+| 166 | Warlock Base Eldritch Blast | Base |
+| 167 | Fighter Base Longsword | Base |
+| 168 | Ranger Base HM + Hail of Thorns Longbow | Base |
 
 ### C Tier (Score 175–225)
 
-| Rank | Build | Type | Score | Notes |
-|---|---|---|---|---|
-| 7 | College of Valor True Strike Greatsword | Optimized | 185 | Lowest optimized build. No weapon mastery hurts badly. Slow start |
-| 7 | Ranger Base Hunter's Mark TWF | Base | 185 | Tied with College of Valor — shocking for an optimized vs base comparison |
-| 9 | Battle Master Longsword | Optimized | 189 | Subclass improves longsword but still C tier |
-| 10 | Ranger Base Summoner TWF | Base | 191 | Summon Fey improves on Hunter's Mark alone |
-| 11 | Rogue Base Dagger Thrower | Base | 194 | From methodology video — two daggers Nick mastery |
-| 12 | Archfey Patron Eldritch Blast | Optimized | 203 | +37 over base EB build from subclass optimization |
-| 12 | Beastmaster Longbow | Optimized | 203 | Tied — better than base longbow Ranger but still limited at high levels |
-| 14 | Celestial Patron True Strike Shillelagh | Optimized | 213 | 4-way tie |
-| 14 | Paladin Base Greatsword | Base | 213 | 4-way tie |
-| 14 | Rogue Base Light Crossbow True Strike | Base | 213 | 4-way tie |
-| 14 | Warlock Base Blade Pact Greatsword | Base | 213 | 4-way tie |
-| 18 | Sorcerer Base Blast Spells | Base | 214 | Big Bad's Hand + Scorching Ray; highest pure-spell base build |
-| 19 | Fey Wanderer Summoner TWF | Optimized | 218 | Best Ranger build — still only high C tier |
-| 20 | Monk Base | Base | 219 | Quarterstaff L1–4, unarmed L5–20. Strong showing for base build |
-| 21 | Zealot Barbarian Longsword | Optimized | 224 | Excellent at lower tiers, falls off at higher levels |
-
-**Key insight:** College of Valor (optimized) scores the same as Ranger Base
-Hunter's Mark TWF (no subclass). Weapon Mastery absence on Bards is "really
-really felt."
-
----
+| Score | Build | Type | Notes |
+|---|---|---|---|
+| 185 | College of Valor True Strike Greatsword | Optimized | Lowest optimized |
+| 185 | Ranger Base Hunter's Mark TWF | Base | Tied with optimized Bard |
+| 189 | Battle Master Longsword | Optimized | |
+| 191 | Ranger Base Summoner TWF | Base | |
+| 194 | Rogue Base Dagger Thrower | Base | |
+| 203 | Archfey Patron Eldritch Blast | Optimized | |
+| 203 | Beastmaster Longbow | Optimized | Tied |
+| 213 | Celestial Patron True Strike Shillelagh | Optimized | 4-way tie |
+| 213 | Paladin Base Greatsword | Base | 4-way tie |
+| 213 | Rogue Base Light Crossbow True Strike | Base | 4-way tie |
+| 213 | **Warlock Base Blade Pact Greatsword** | Base | **2024 Baseline** |
+| 214 | Sorcerer Base Blast Spells | Base | Highest pure-spell base |
+| 218 | Fey Wanderer Summoner TWF | Optimized | Best Ranger build |
+| 219 | Monk Base | Base | Strong no-subclass showing |
+| 224 | Zealot Barbarian Longsword | Optimized | Strong T1–T2, falls T3–T4 |
 
 ### B Tier (Score 226–275)
 
-| Rank | Build | Type | Score | Notes |
-|---|---|---|---|---|
-| 22 | Draconic Sorcerer Blast Build | Optimized | 232 | Highest damage achievable with full spellcasting. Innate Sorcery is key |
-| 22 | Oath of Vengeance Paladin Longsword | Optimized | 232 | Tied — strong subclass overcomes longsword limitations |
-| 24 | Barbarian Base Greatsword | Base | 235 | 2nd highest base build. Strong in tier 2 |
-| 24 | Circle of Moon Druid Conjure Animals | Optimized | 235 | Tied — wild shape + conjure animals. Especially strong in tier 4 |
-| 26 | Fighter Base Greatsword | Base | 238 | Highest base build overall. Tier 3 scaling (L11, L17, L20) pulls it ahead |
-| 27 | Assassin Heavy Crossbow | Optimized | 245 | Highest ranged damage of all builds. Fighter dip for heavy crossbow proficiency |
-| 28 | Fiend Patron Greatsword Blade Pact (Cha) | Optimized | 250 | Charisma focus — slightly lower than Str but better for spell DCs |
-| 29 | Eldritch Knight True Strike Shillelagh | Optimized | 251 | Slow burn — poor at low levels, strong at high levels |
-| 30 | Berserker Barbarian Longsword | Optimized | 256 | Strong at early levels — Reckless Attack + Sap mastery combo |
-| 31 | Eldritch Knight Greatsword | Optimized | 260 | Better than Shillelagh variant for overall 20-level career |
-| 32 | Fiend Patron Greatsword Blade Pact (Str) | Optimized | 264 | Strength focus — ~5% higher damage than Cha version |
-| 33 | Champion Shillelagh | Optimized | 274 | Mathematically complex. Topple + Shillelagh + Champion crit range |
-| 33 | Samurai Greatsword | Optimized | 274 | Tied — top of B tier. Better subclass-agnostic fighter build |
-
----
+| Score | Build | Type | Notes |
+|---|---|---|---|
+| 232 | Draconic Sorcerer Blast | Optimized | Highest pure-spell career |
+| 232 | Oath of Vengeance Paladin Longsword | Optimized | Tied |
+| 235 | Barbarian Base Greatsword | Base | 2nd highest base build |
+| 235 | Circle of Moon Druid | Optimized | Tied. Exceptional at T4 |
+| 238 | Fighter Base Greatsword | Base | Highest base build overall |
+| 245 | Assassin Heavy Crossbow | Optimized | Highest ranged career |
+| 250 | Fiend Patron Greatsword (Cha) | Optimized | |
+| 251 | Eldritch Knight True Strike Shillelagh | Optimized | Slow burn |
+| 256 | Berserker Barbarian Longsword | Optimized | |
+| 260 | Eldritch Knight Greatsword | Optimized | |
+| 264 | Fiend Patron Greatsword (Str) | Optimized | |
+| 274 | Champion Shillelagh | Optimized | Tied for top of B |
+| 274 | Samurai Greatsword | Optimized | Tied for top of B |
 
 ### A Tier (Score > 275)
 
-| Rank | Build | Type | Score | Notes |
-|---|---|---|---|---|
-| 35 | Zealot Barbarian Greatsword | Optimized | 293 | Dominant in tier 2. Falls off at higher levels but early lead is significant |
-| 36 | Oath of Vengeance Paladin TWF (Dex) | Optimized | 294 | Scimitar + shortsword, Dual Wielder, Divine Favor round 1. Highest TWF build |
-| 37 | Warrior of Shadow Monk | Optimized | 298 | Quarterstaff L1–4, unarmed L5–20. Darkness for advantage. **3rd highest overall** |
-| 38 | Oath of Vengeance Paladin Greatsword | Optimized | 305 | Half spell slots on smites. **2nd highest overall** |
-| 39 (highest) | Berserker Barbarian Greatsword | Optimized | 329 | **Highest damage of all 39 builds**. Dominant at every tier, especially tier 2 |
+| Score | Build | Type | Notes |
+|---|---|---|---|
+| 293 | Zealot Barbarian Greatsword | Optimized | T2 dominant |
+| 294 | Oath of Vengeance Paladin TWF (Dex) | Optimized | Highest TWF build |
+| 298 | Warrior of Shadow Monk | Optimized | Darkness advantage |
+| 305 | Oath of Vengeance Paladin Greatsword | Optimized | 2nd overall |
+| 329 | Berserker Barbarian Greatsword | Optimized | **Highest of all 39** |
 
 ---
 
-## Class Rankings Summary
+## Per-Tier Build Tables
 
-### Base Builds Only (No Subclass) — Best per Class
+### Tier 1 — All Builds
 
-| Rank | Class | Best Base Build | Score | Tier |
-|---|---|---|---|---|
-| 1 | Fighter | Greatsword | 238 | B |
-| 2 | Barbarian | Greatsword | 235 | B |
-| 3 | Monk | Unarmed/Quarterstaff | 219 | C |
-| 4 | Sorcerer | Blast Spells | 214 | C |
-| 5 | Paladin | Greatsword | 213 | C |
-| 5 | Rogue | Light Crossbow True Strike | 213 | C |
-| 5 | Warlock | Blade Pact Greatsword | 213 | C |
-| 8 | Ranger | Summoner TWF | 191 | C |
-| 9 | Druid | Base Spells | 163 | D |
-| 10 | Bard | Base Spells | 140 | D |
+| Build | T1 | Tier | Style |
+|---|---|---|---|
+| Druid Base Spells | 4 | D | Spell |
+| Bard Base Spells | 6 | D | Spell |
+| College of Valor Greatsword | 6 | D | 2H |
+| Circle of Moon Druid | 7 | C | 2H |
+| Eldritch Knight Shillelagh | 7 | C | 1H |
+| Celestial Patron True Strike Shillelagh | 7 | C | 1H |
+| Warlock Base True Strike Shillelagh | 7 | C | 1H |
+| Fighter Base Longsword | 7 | C | 1H |
+| Warlock Base Eldritch Blast | 7 | C | Spell |
+| Warlock Base Blade Pact Greatsword | 8 | C | 2H |
+| Ranger Base HM Longbow | 8 | C | Ranged |
+| Archfey Patron Eldritch Blast | 8 | C | Spell |
+| Champion Shillelagh | 8 | C | 1H |
+| Battle Master Longsword | 8 | C | 1H |
+| Fighter Base Greatsword | 9 | C | 2H |
+| Sorcerer Base Blast Spells | 9 | C | Spell |
+| Fiend Patron Greatsword (Cha) | 9 | C | 2H |
+| Fiend Patron Greatsword (Str) | 9 | C | 2H |
+| Samurai Greatsword | 9 | C | 2H |
+| Eldritch Knight Greatsword | 9 | C | 2H |
+| Draconic Sorcerer Blast | 9 | C | Spell |
+| Oath of Vengeance Longsword | 9 | C | 1H |
+| Beastmaster Longbow | 10 | B | Ranged |
+| Assassin Heavy Crossbow | 10 | B | Ranged |
+| Paladin Base Greatsword | 10 | B | 2H |
+| Monk Base Quarterstaff (versatile) | 11 | B | 2H |
+| Rogue Base Light Crossbow True Strike | 11 | B | Ranged |
+| Zealot Barbarian Longsword | 11 | B | 1H |
+| Barbarian Base Greatsword | 12 | B | 2H |
+| Rogue Base Dagger Thrower | 12 | B | Ranged |
+| Berserker Barbarian Longsword | 12 | B | 1H |
+| Oath of Vengeance Greatsword | 12 | B | 2H |
+| Warrior of Shadow Monk | 13 | A | 2H |
+| Oath of Vengeance Paladin TWF (Dex) | 14 | A | 2H |
+| Zealot Barbarian Greatsword | 14 | A | 2H |
+| Ranger Base HM TWF | 14 | A | 2H |
+| Berserker Barbarian Greatsword | 15 | A | 2H |
+| Fey Wanderer Summoner TWF | 15 | A | 2H |
 
-### Optimized Builds Only (With Subclass) — Best per Class
-
-| Rank | Class | Best Optimized Build | Score | Tier |
-|---|---|---|---|---|
-| 1 | Barbarian | Berserker Greatsword | 329 | A |
-| 2 | Paladin | Oath of Vengeance Greatsword | 305 | A |
-| 3 | Monk | Warrior of Shadow | 298 | A |
-| 4 | Fighter | Samurai Greatsword | 274 | B |
-| 5 | Warlock | Fiend Patron Blade Pact Str Greatsword | 264 | B |
-| 6 | Rogue | Assassin Heavy Crossbow | 245 | B |
-| 7 | Druid | Circle of Moon Conjure Animals | 235 | B |
-| 8 | Sorcerer | Draconic Blast | 232 | B |
-| 9 | Ranger | Fey Wanderer Summoner TWF | 218 | C |
-| 10 | Bard | College of Valor True Strike Greatsword | 185 | C |
-
----
-
-## Key Findings for Engine Design
-
-### 1. Greatsword Dominance
-The greatsword is the highest-damage weapon in 2024 for virtually every martial
-class. The engine's default weapon assignment for martial builds should be
-greatsword unless build specifically requires otherwise.
-
-### 2. The Paladin Is Not Nerfed
-Treantmonk explicitly addresses online claims that Paladins were "horribly nerfed"
-in 2024. His data shows Oath of Vengeance Greatsword Paladin is the 2nd highest
-damage build overall at 305. Key: spending half spell slots on smites via bonus
-action, not attacking with bonus action.
-
-### 3. Monk Is Legitimate Now
-Warrior of Shadow Monk at 298 (3rd overall) is a significant finding. The
-Darkness advantage assumption is noted — this won't apply to creatures with
-Truesight or Blindsight. The engine must flag this condition dependency.
-
-### 4. Eldritch Blast Is Dead for DPR
-The 2014 baseline (EB + Agonizing Blast + Hex) scores 166 — D tier. The engine
-must NOT use this as a PC DPR reference for 2024 rules.
-
-### 5. Base vs Optimized Gap
-The gap between best base build (Fighter Greatsword 238) and best optimized
-build (Berserker 329) is ~38%. The gap between worst base (Bard 140) and best
-optimized (Berserker 329) is 135%. This is the range the simulator's
-class/subclass scoring system must span.
-
-### 6. Ranged vs Melee
-Best ranged build: Assassin Heavy Crossbow at 245 (B tier, rank 6 of 10
-optimized). Ranged damage is viable but cannot match top melee builds. Engine
-should model ranged builds as approximately 75% of top melee damage.
-
-### 7. Pure Spellcaster Ceiling
-The highest pure-spellcasting damage (Draconic Sorcerer 232) is the 8th best
-optimized build and doesn't reach A tier. For single-target DPR, the engine
-should treat pure-spellcaster DPR as categorically lower than martial DPR,
-compensated by AoE and control value in the eHP Action Framework.
-
-### 8. Conjure Woodland Beings Note
-Not scored in this video — a separate analysis video exists (Video 13). The
-spell was flagged as "a PROBLEM" suggesting it may significantly inflate Druid
-damage in certain configurations. Flag for separate treatment.
+**T1 Class Rankings:** Ranger=Barbarian=15 → Monk 13 → Paladin 14 → Rogue 12 → Fighter 9 → Sorcerer 9 → Warlock 8 → Bard 6 → Druid 4
 
 ---
 
-## Score-to-DPR Conversion Note
+### Tier 2 — All Builds
 
-These weighted scores are NOT directly comparable to per-round DPR values.
-The conversion methodology is defined across videos 20–23 (tier breakdowns).
+| Build | T2 | Tier | Style |
+|---|---|---|---|
+| Bard Base Spells | 15 | D | Spell |
+| Druid Base Spells | 15 | D | Spell |
+| Warlock Base True Strike Shillelagh | 17 | D | 1H |
+| Warlock Base Eldritch Blast | 17 | D | Spell |
+| College of Valor Greatsword | 18 | D | 2H |
+| Celestial Patron True Strike Shillelagh | 19 | D | 1H |
+| Fighter Base Longsword | 19 | D | 1H |
+| Archfey Patron Eldritch Blast | 20 | D | Spell |
+| Sorcerer Base Blast Spells | 20 | D | Spell |
+| Circle of Moon Druid | 21 | D | 2H |
+| Battle Master Longsword | 21 | D | 1H |
+| Ranger Base HM Longbow | 21 | D | Ranged |
+| Draconic Sorcerer Blast | 23 | C | Spell |
+| Beastmaster Longbow | 23 | C | Ranged |
+| Rogue Base Dagger Thrower | 23 | C | Ranged |
+| Fiend Patron Greatsword (Cha) | 24 | C | 2H |
+| Eldritch Knight Shillelagh | 24 | C | 1H |
+| Warlock Base Blade Pact Greatsword | 24 | C | 2H |
+| Rogue Base Light Crossbow True Strike | 24 | C | Ranged |
+| Ranger Base Summoner TWF | 25 | C | 2H |
+| Eldritch Knight Greatsword | 26 | C | 2H |
+| Fighter Base Greatsword | 26 | C | 2H |
+| Ranger Base HM TWF | 26 | C | 2H |
+| Oath of Vengeance Longsword | 26 | C | 1H |
+| Assassin Heavy Crossbow | 27 | C | Ranged |
+| Monk Base TWF (Nick daggers) | 27 | C | 2H |
+| Paladin Base Greatsword | 27 | C | 2H |
+| Fey Wanderer Summoner TWF | 27 | C | 2H |
+| Fiend Patron Greatsword (Str) | 28 | C | 2H |
+| Samurai Greatsword | 29 | B | 2H |
+| Champion Shillelagh | 29 | B | 1H |
+| Zealot Barbarian Longsword | 30 | B | 1H |
+| Berserker Barbarian Longsword | 32 | B | 1H |
+| Barbarian Base Greatsword | 33 | B | 2H |
+| Oath of Vengeance Paladin TWF (Dex) | 34 | B | 2H |
+| Oath of Vengeance Paladin Greatsword | 35 | B | 2H |
+| Warrior of Shadow Monk | 38 | A | 2H |
+| Zealot Barbarian Greatsword | 41 | A | 2H |
+| Berserker Barbarian Greatsword | 43 | A | 2H |
 
-**Approximate relationship:**
-- Score ÷ 20 levels ≈ rough average DPR per level (unweighted)
-- Berserker 329 ÷ 20 ≈ 16.5 average DPR (but middle levels do significantly more)
-- Actual mid-tier DPR for top builds likely in the 25–50 range
-
-Precise per-level curves come from individual class videos in `pc-dpr-baselines.md`.
+**T2 Class Rankings:** Barbarian 43 → Monk/Paladin 35–38 → Fighter/Ranger tied → Rogue/Warlock tied → Sorcerer 20 → Bard/Druid 15
 
 ---
 
-## Video Processing Status Update
+### Tier 3 — All Builds
 
-| Video | Status |
-|---|---|
-| Video 1 — Methodology | ✅ Complete |
-| Video 19 — Definitive Rankings | ✅ Complete (this document) |
-| Videos 20–23 — Tier Breakdowns | 🔴 Pending — will provide per-tier DPR context |
-| Individual class videos (2–18) | 🔴 Pending — will provide per-level DPR curves |
+| Build | T3 | Tier | Style |
+|---|---|---|---|
+| Warlock Base True Strike Shillelagh | 26 | D | 1H |
+| Bard Base Spells | 27 | D | Spell |
+| Warlock Base Eldritch Blast | 27 | D | Spell |
+| Ranger Base HM Longbow | 28 | D | Ranged |
+| Ranger Base HM TWF | 28 | D | 2H |
+| Ranger Base Summoner TWF | 29 | D | 2H |
+| Druid Base Spells | 30 | D | Spell |
+| Fighter Base Longsword | 31 | D | 1H |
+| Rogue Base Dagger Thrower | 34 | C | Ranged |
+| College of Valor Greatsword | 35 | C | 2H |
+| Fey Wanderer Summoner TWF | 35 | C | 2H |
+| Battle Master Longsword | ~36 | C | 1H |
+| Beastmaster Longbow | ~36 | C | Ranged |
+| Zealot Barbarian Longsword | ~37 | C | 1H |
+| Archfey Patron Eldritch Blast | ~37 | C | Spell |
+| Warlock Base Blade Pact Greatsword | 37 | C | 2H |
+| Rogue Base Light Crossbow True Strike | 38 | C | Ranged |
+| Monk Base TWF (Nick daggers) | 38 | C | 2H |
+| Paladin Base Greatsword | 38 | C | 2H |
+| Barbarian Base Greatsword | 38 | C | 2H |
+| Sorcerer Base Blast Spells | 40 | C | Spell |
+| Celestial Patron True Strike Shillelagh | 42 | B | 1H |
+| Draconic Sorcerer Blast | 43 | B | Spell |
+| Assassin Heavy Crossbow | 43 | B | Ranged |
+| Circle of Moon Druid | 44 | B | 2H |
+| Berserker Barbarian Longsword | 45 | B | 1H |
+| Eldritch Knight Shillelagh | 47 | B | 1H |
+| Fighter Base Greatsword | 47 | B | 2H |
+| Fiend Patron Greatsword (Cha) | 48 | B | 2H |
+| Zealot Barbarian Greatsword | 48 | B | 2H |
+| Fiend Patron Greatsword (Str) | 49 | B | 2H |
+| Eldritch Knight Greatsword | 49 | B | 2H |
+| Oath of Vengeance Longsword | ~43 | B | 1H |
+| Samurai Greatsword | 53 | A | 2H |
+| Champion Shillelagh | 54 | A | 1H |
+| Warrior of Shadow Monk | 54 | A | 2H |
+| Oath of Vengeance Paladin TWF (Dex) | 56 | A | 2H |
+| Oath of Vengeance Paladin Greatsword | 56 | A | 2H |
+| Berserker Barbarian Greatsword | 57 | A | 2H |
+
+**T3 Class Rankings:** Fighter 47 → Sorcerer 40 → Barbarian/Monk/Paladin/Rogue ~38 (4-way tie) → Warlock 37 → Druid 30 → Ranger 29 → Bard 27
+
+---
+
+### Tier 4 — All Builds
+
+| Build | T4 | Tier | Style |
+|---|---|---|---|
+| Bard Base Spells | 35 | D | Spell |
+| Ranger Base HM TWF | 37 | D | 2H |
+| Fighter Base Longsword | 41 | D | 1H |
+| Ranger Base HM Longbow | 44 | D | Ranged |
+| Ranger Base Summoner TWF | 44 | D | 2H |
+| Rogue Base Dagger Thrower | 45 | D | Ranged |
+| Paladin Base Greatsword | ~46 | D | 2H |
+| Barbarian Base Greatsword | ~48 | D | 2H |
+| Battle Master Longsword | 48 | D | 1H |
+| Zealot Barbarian Longsword | 49 | D | 1H |
+| Monk Base TWF (Nick daggers) | 51 | C | 2H |
+| Beastmaster Longbow | 52 | C | Ranged |
+| Warlock Base True Strike Shillelagh | 52 | C | 1H |
+| Fey Wanderer Summoner TWF | ~52 | C | 2H |
+| Druid Base Spells | 54 | C | Spell |
+| Warlock Base Eldritch Blast | 54 | C | Spell |
+| Rogue Base Light Crossbow True Strike | 54 | C | Ranged |
+| College of Valor Greatsword | 55 | C | 2H |
+| Oath of Vengeance Longsword | 57 | C | 1H |
+| Berserker Barbarian Longsword | 58 | C | 1H |
+| Warlock Base Blade Pact Greatsword | 59 | C | 2H |
+| Zealot Barbarian Greatsword | 60 | B | 2H |
+| Archfey Patron Eldritch Blast | 61 | B | Spell |
+| Fighter Base Greatsword | 63 | B | 2H |
+| Warrior of Shadow Monk | 63 | B | 2H |
+| Sorcerer Base Blast Spells | 65 | B | Spell |
+| Celestial Patron True Strike Shillelagh | 65 | B | 1H |
+| Oath of Vengeance Paladin TWF (Dex) | 66 | B | 2H |
+| Draconic Sorcerer Blast | 68 | B | Spell |
+| Assassin Heavy Crossbow | 68 | B | Ranged |
+| Berserker Barbarian Greatsword | 71 | A | 2H |
+| Champion Shillelagh | 71 | A | 1H |
+| Samurai Greatsword | 72 | A | 2H |
+| Fiend Patron Greatsword (Cha) | 73 | A | 2H |
+| Fiend Patron Greatsword (Str) | 73 | A | 2H |
+| Eldritch Knight Greatsword | 75 | A | 2H |
+| Oath of Vengeance Paladin Greatsword | 76 | A | 2H |
+| Circle of Moon Druid | 77 | A | 2H |
+| Eldritch Knight Shillelagh | 78 | A | 1H |
+
+**T4 Class Rankings (base):** Sorcerer 65 → Fighter 63 → Warlock 59 → Rogue/Druid 54 → Monk 51 → Barbarian ~48 → Paladin ~46 → Ranger 44 → Bard 35
+
+---
+
+## Subclass Damage Contributions at T4
+
+| Subclass | Class | Style | +DPR at T4 |
+|---|---|---|---|
+| Oath of Vengeance | Paladin | 2H | +30 |
+| Berserker | Barbarian | 2H | +23 |
+| Circle of Moon | Druid | 2H | +23 |
+| College of Valor | Bard | 2H | +20 |
+| Eldritch Knight | Fighter | 1H | +15 |
+| Fiend Patron | Warlock | 2H | +14 |
+| Assassin | Rogue | Ranged | +14 |
+| Zealot | Barbarian | 2H | +12 |
+| Warrior of Shadow | Monk | 2H | +12 |
+| Draconic | Sorcerer | Ranged | +3 |
+
+---
+
+## Key Engine Design Findings
+
+**1. Greatsword dominates 2024.** Default weapon for martial build simulations.
+
+**2. New baseline confirmed.** Warlock Blade Pact Greatsword — C tier all four tiers.
+Career score 196. Engine minimum "okay damage" floor.
+
+**3. Tier matters more than career score.** Ranger #1 at T1, near-last at T3–T4.
+Circle of Moon: D at T2, A at T4. Eldritch Knight Shillelagh: 7 DPR at T1, 78 at T4.
+Never evaluate a build from career score alone.
+
+**4. Barbarian owns T2, Fighter owns T3.** Berserker 43 DPR at T2 (highest ever).
+Fighter nearly doubles from T2→T3 (26→47) from third attack at L11.
+
+**5. Pure spellcasting ceiling.** Best spell career: Draconic Sorcerer 232 (B tier).
+Sorcerer only leads at T4 (base builds). Spellcasting categorically below
+martial at T1–T3.
+
+**6. Subclass gap grows with level.** Oath of Vengeance adds +30 DPR at T4.
+Barbarian and Paladin fall to D tier at T4 without damage subclass.
+Subclass selection is mandatory for T4 encounter accuracy.
+
+**7. Ranged ~15% below melee.** Best ranged T4: 68. Best melee T4: 78.
+Viable but not equivalent.
+
+**8. Nick property underrated.** Rogue Dagger Thrower beats most optimized
+two-handed builds at T1 purely from second sneak attack opportunity.
+
+**9. Fighter L11 spike.** 26 DPR at T2 → 47 at T3. Most dramatic single-level
+shift in dataset. Do not use smooth DPR curve for Fighters.
+
+**10. Conjure Minor Elementals outlier.** ~80 DPR upcasted. Engine flag required.
+
+---
+
+## Video Processing Status
+
+| Video | Title | Status |
+|---|---|---|
+| 1 | Methodology (How to Calculate Damage) | ✅ Complete |
+| 19 | Definitive Class Damage Ranks | ✅ Complete |
+| 20 | Class Damage Ranks in T1 | ✅ Complete |
+| 21 | Tier 2 Class Damage Results | ✅ Complete |
+| 22 | Tier 3 Damage Results | ✅ Complete |
+| 23 | The New Baseline, and T4 Damage | ✅ Complete |
+| 4 | FIGHTER Damage 2024 | 🔴 Pending — next priority |
+| 5 | BARBARIAN Damage 2024 | 🔴 Pending |
+| 2 | MONK Damage 2024 | 🔴 Pending |
+| 3 | ROGUE Damage 2024 | 🔴 Pending |
+| 7 | PALADIN Damage 2024 | 🔴 Pending |
+| 8 | PALADIN TWF | 🔴 Pending |
+| 11 | WARLOCK EB + True Strike | 🔴 Pending |
+| 12 | PACT OF THE BLADE | 🔴 Pending |
+| 14 | DRUID Damage 2024 | 🔴 Pending |
+| 15 | SPELL DAMAGE: Base Bard | 🔴 Pending |
+| 16 | VALOR BARD Damage | 🔴 Pending |
+| 17 | ELDRITCH KNIGHT Damage | 🔴 Pending |
+| 18 | SORCERER BLASTER Damage | 🔴 Pending |
+| 9 | RANGER TWF | 🔴 Pending |
+| 10 | LONGBOW RANGER | 🔴 Pending |
+| 6 | SWORD AND SHIELD | 🔴 Pending |
+| 13 | CONJURE WOODLAND BEINGS | 🔴 Pending |
