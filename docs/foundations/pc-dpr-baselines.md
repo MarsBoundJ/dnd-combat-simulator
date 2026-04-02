@@ -100,7 +100,28 @@ Short version: Finished Book's 65% governs encounter XP calculations; Treantmonk
 attack_damage = damage_mean * hit_probability
 ```
 
-#### Step 2 — Critical Hit Bonus (always calculated separately)
+**Studied Attacks — Exact Formula (confirmed from screenshots):**
+
+For attacks 2+ after a miss on the previous attack:
+```
+hit_prob  = (p_hit_adv × p_miss_prev) + (p_hit_normal × p_hit_prev)
+crit_prob = (p_crit_normal × p_miss_prev) + (p_crit_adv × p_hit_prev)
+```
+
+At 60% base hit chance, the per-attack cascade is:
+- Attack 1: 60% hit, 5% crit
+- Attack 2: 70% hit, 7% crit
+- Attack 3: 67% hit, 7% crit
+- Attack 4: 68% hit, 7% crit
+
+**Approximation (used in all builds):** All attacks after attack 1 use
+68% hit / 7% crit once Studied Attacks is in play (L13+).
+
+```python
+STUDIED_ATTACKS_HIT_PROB = 0.68   # simplified approximation
+STUDIED_ATTACKS_CRIT_PROB = 0.07  # simplified approximation
+# Apply from level 13 onward to all attacks except the first
+```
 ```python
 crit_bonus = crit_dice_mean * 0.05
 ```
@@ -323,11 +344,17 @@ ROGUE_TRUE_STRIKE_DPR = {
 ### Fighter — Base Greatsword (2024)
 
 **Source:** Video 4 — "FIGHTER Damage 2024 Player's Handbook"  
-**Build:** Greatsword (Graze mastery), Defense combat style, STR primary  
-**Feats:** Mage Slayer L4 (+STR 18), Great Weapon Master L6, Charger L8 (+STR 20),  
-Heavy Armor Master / Speedy / Alert (no damage), Epic Boon of Irresistible Offense L19  
+**Build:** Greatsword (Graze mastery) "quality of life build — BA stays free", Defense combat style  
+**Starting stats (confirmed):** STR 17, CON 16 (DEX/INT/WIS/CHA unspecified)  
+**Background:** Farmer (STR +2, CON +1, Tough origin feat)  
+**ASIs:** Mage Slayer L4 (STR 18), Great Weapon Master L6 (STR 19), Charger L8 (STR 20),
+Heavy Armor Master L12 (CON 17), Speedy L14 (CON 18), Alert L16,
+Boon of Irresistible Offense L19 (STR 21)  
 **No subclass**  
-**Average DPR across 20 levels: 36.2**
+**Assumptions (confirmed from screenshots):** 4 combats/LR, 4 rounds/combat, 1 SR,
+no outside advantage, Target AC 14 scaling +1 at L4/5/8/9/13/17,
+GWM bonus action on crits only, Charger 50% of the time  
+**Average DPR across 20 levels: 36.2 (723.9/20 — confirmed on screen)**
 
 **Key mechanics:**
 - Graze mastery adds ~15% DPR (guaranteed miss damage = ability modifier)
@@ -338,27 +365,28 @@ Heavy Armor Master / Speedy / Alert (no damage), Epic Boon of Irresistible Offen
 
 ```python
 FIGHTER_GREATSWORD_DPR = {
-    1:  7.8,   # Graze contributing 1.2 of total
-    2:  8.8,   # Action Surge
+    1:  7.8,   # 2d6+3 (10.0,7.0): 10.0x0.60=6.0, 7.0x0.05=0.4, Graze 3x0.4=1.2
+    2:  8.8,   # Action Surge 1 of 8 rounds: 7.8/8=1.0
     3:  8.8,
-    4:  9.7,   # STR +4, Mage Slayer
-    5:  19.4,  # Extra Attack
-    6:  24.3,  # GWM (+3 prof), BA attack 10% of rounds
+    4:  9.7,   # STR+4 (18): 2d6+4, attack 8.6+AS 8.6/8=1.1
+    5:  19.4,  # Extra Attack: 8.6x2=17.2+AS 17.2/8=2.2
+    6:  24.3,  # GWM+3: 2d6+7 (14.0,7.0), attack 20.8+BA 0.9+AS 20.8/8=2.6
     7:  24.3,
-    8:  28.2,  # Charger, STR +5
-    9:  29.4,  # GWM scales to +4
+    8:  28.2,  # STR+5 (20), Charger: 2d6+8 (15.0,7.0), attack 22.8+BA 1.0+AS 2.9+Charger 1.5
+    9:  29.4,  # GWM+4: 2d6+9 (16.0,7.0), attack 24.0+BA 1.0+AS 2.9+Charger 1.5
     10: 29.4,
-    11: 43.3,  # Extra Attack x2 — MAJOR SPIKE. BA attack 14% of rounds
+    11: 43.3,  # Extra Attack x2: 3 attacks, 12x3=36.0+BA 1.3+AS 36.0/8=4.5+Charger 1.5
     12: 43.3,
-    13: 48.4,  # Studied Attacks, GWM scales further
+    13: 48.4,  # GWM+5, Studied Attacks, BA 18%: attack 40.0+BA 1.9+AS 40.0/8=5.0+Charger 1.5
     14: 48.4,
     15: 48.4,
     16: 48.4,
-    17: 55.7,  # Second Action Surge
+    17: 55.7,  # AS x2 (1 of 4 rounds), GWM+6: 2d6+11 (18.0,7.0), attack 41.8+BA 1.9+AS 41.8/4=10.5+Charger 1.5
     18: 55.7,
-    19: 60.9,  # Epic Boon of Irresistible Offense (crit damage +)
-    20: 81.3,  # Extra Attack x3 (fourth attack)
+    19: 60.9,  # Boon of Irresistible Offense (STR 21, crit damage +21)
+    20: 81.3,  # Extra Attack x3 (4 attacks): attack 61.6+BA 2.8+AS 61.6/4=15.4+Charger 1.5
 }
+# Career average: 723.9 / 20 = 36.2 (confirmed on screen)
 ```
 
 **Engine note — L11 spike:** Fighter DPR at L5 is 19.4. At L11 it is 43.3 — a 2.2×
@@ -370,32 +398,38 @@ Model it as a step function with discrete jumps at L5, L11, L17, L20.
 ### Fighter — Sword and Board (2024)
 
 **Source:** Video 4 — shown as cautionary example, not primary DPR reference  
-**Build:** Longsword (Sap mastery — defensive), Shield, Dueling +2  
+**Build:** Longsword (Sap mastery), Shield, Dueling +2, no subclass  
+**Starting stats (confirmed):** STR 17, DEX 14, CON 16, INT 8, WIS 10, CHA 8  
+**Background:** Farmer (STR +2, CON +1, Tough origin feat)  
+**ASIs:** Sentinel L4 (STR 18), Charger L6 (STR 19), Shield Master L8 (STR 20),
+Heavy Armor Master L12 (CON 17), Speedy L14 (CON 18), Alert L16,
+Boon of Combat Prowess L19 (STR 21)  
+**Assumptions:** Prone with Shield 60% on hit, Sentinel reaction 25%, Charger 50%  
 **Verdict:** Tracks the retired 2014 Warlock EB baseline. Not viable as a DPR build.  
 **Average DPR across 20 levels: ~24 (est.)**
 
 ```python
 FIGHTER_SWORD_BOARD_DPR = {
-    1:  5.9,
-    2:  6.6,
+    1:  5.9,   # 1d8+3+2: 9.5×0.60=5.7 + 4.5×0.05=0.2
+    2:  6.6,   # Action Surge 1 of 8 rounds: +5.9/8=0.7
     3:  6.6,
-    4:  8.9,   # STR +4, Sentinel (reaction 25%)
-    5:  16.2,  # Extra Attack
-    6:  17.7,  # Charger
+    4:  8.9,   # STR+4 (18), Sentinel reaction 25%: attack 6.5+AS 0.8+Sentinel 1.6
+    5:  16.2,  # Extra Attack: attack 13+AS 1.6+Sentinel 1.6
+    6:  17.7,  # Charger 1d8: 4.5x0.65x0.50=1.5
     7:  17.7,
-    8:  18.9,  # Shield Master (prone on hit 60%)
+    8:  18.9,  # STR+5 (20), Shield Master: prone on attack 2 = 0.60x0.60=36%
     9:  18.9,
     10: 18.9,
-    11: 27.2,  # Extra Attack x2
+    11: 27.2,  # Extra Attack x2: 3 attacks+AS 22.2/8=2.8+Sentinel 1.6+Charger 1.5
     12: 27.2,
-    13: 28.4,  # Studied Attacks
+    13: 28.4,  # Studied Attacks: Adv A2=58%, A3=52%; AS 23.6/8=3.0
     14: 28.4,
     15: 28.4,
     16: 28.4,
-    17: 31.4,  # Second Action Surge
+    17: 31.4,  # Action Surge x2: AS=6.0
     18: 31.4,
-    19: 40.4,  # Epic Boon of Combat Prowess (missed hit → hit)
-    20: 49.3,  # Extra Attack x3
+    19: 40.4,  # Boon of Combat Prowess (STR 21): 0.69x10.5=7.2+Sentinel 2.6+Charger 2.3
+    20: 49.3,  # Extra Attack x3: 4 attacks+AS 31.4/4=7.9+Sentinel 2.6+Charger 2.3+Prowess 8.2
 }
 ```
 
