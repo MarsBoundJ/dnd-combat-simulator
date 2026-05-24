@@ -1,7 +1,7 @@
 # CONTEXT.md — D&D Combat Simulator
 
 **Paste this file at the start of every AI session on this project.**  
-Last updated: 2026-03-30
+Last updated: 2026-05-24
 
 ---
 
@@ -53,25 +53,188 @@ Encoded in: `docs/foundations/ehp-action-framework.md` ✅ Complete
 
 ---
 
+## Cross-Project Architecture
+
+This sim is one half of a two-project architecture. The other half is
+**Trusight** (the `dnd-trends-index` repo) — a separate intelligence /
+measurement platform. The two have **opposite epistemic stances** toward the
+same source material: the sim *enumerates-then-selects* (collapses to one
+ruling per run); Trusight *measures-never-selects* (records distributions of
+how the community rules).
+
+Load-bearing architectural decisions governing the cross-project
+relationship — firewall layers, validation-oracle rules, §config engine
+conditions, legal posture, monetization architecture — live in an internal
+**architecture spine** document (project memory:
+`project_rules_substrate_architecture.md`). The engineering rules below are
+extracted from that spine for in-context use during sim development; the
+spine itself owns strategic context.
+
+---
+
+## Firewall Rules
+
+Four firewall layers govern what crosses between Trusight and this sim:
+
+1. **Epistemic** — Trusight records distributions-with-sentiment; the sim
+   collapses to one ruling per run. A Trusight-flavored rules dataset is
+   poison in the sim engine.
+2. **Data** — No raw dataset crosses, ever, in either direction. Only
+   summary signals (and even those are gated by the Validation-Oracle Rules
+   below — summary signals alone are necessary but radically insufficient).
+3. **Legal** — Game mechanics are not copyrightable (17 USC §102(b); *Baker
+   v. Selden*). The sim implements all subclasses (SRD + non-SRD) via
+   **clean-room functional reimplementation** in our own data model — no
+   transcribed WotC prose. *"SRD/Open5e only"* is a **sourcing rule**
+   governing ready-made-text ingestion, NOT a cap on which subclasses the
+   sim may model. Real names kept internally with a private real-name↔id map.
+4. **Vocabulary** — 4e-derived terms (Arcane/Divine/Primal source axis;
+   Striker/Defender/Controller/Leader roles; optimizer jargon like
+   "Striker/Brute") are internal-evaluation-only. Translate before any
+   external-facing surface.
+
+**Monetization architecture (Stage 3+):** Hybrid model. The sim ships SRD
+content bundled (CC-BY, free to redistribute with attribution); non-SRD
+content arrives via user-supplied port (typed in via a schema-validated
+form, or imported from where the user already licensed it — DDB / Roll20
+export). The sim **never** ships non-SRD content. Monetization is on the
+engine/analysis, not on content distribution. We do NOT pursue a
+DDB/Roll20-style licensed-reseller model (would require a WotC license).
+
+---
+
+## §Config Locked Design Conditions
+
+The combinatorial-config viability of bounded-parameter rulings is
+conditional on all 5 of these (cadre-confirmed; no engine code lands
+without them):
+
+1. **No flat switches.** Rulings = event-driven handlers / policy-objects,
+   each with an explicit declared **read-set / write-set /
+   event-subscription / applicability-scope** contract. (Event-bus /
+   interceptor pattern, borrowed from digital-MtG engines.)
+2. **Static dependency graph maintained.** Two rulings interact iff one
+   writes state the other reads, OR both write the same state, OR both
+   feed the same oracle output metric (eHP / hit-probability /
+   action-availability) — the third "output-interaction" edge is necessary;
+   pure data-flow analysis misses it.
+3. **Test per connected-component**, not globally. Reserve 3–4-way (NIST:
+   sometimes 4–6-way) testing for known dense hubs: **movement /
+   forced-movement / reach / cover / opportunity-attacks / reactions /
+   action-economy**.
+4. **Reaction-cascade termination guard** (hard correctness constraint).
+   D&D reactions trigger reactions (Mage Slayer → Shield → Counterspell).
+   Without a reaction stack + strict "once per turn / once per trigger"
+   severing, the simulator infinite-loops.
+5. **UX layer separated from engine layer.** Never expose hundreds of raw
+   toggles. Expose **Rule Bundles**: `RAW` / `Common-Table` / `Strict`.
+   The `Common-Table` bundle is exactly where Trusight's measurement layer
+   feeds back into the user-facing layer (community-prevalence informing
+   what "most tables do") — but it never silently mutates the engine
+   baseline; see Validation-Oracle Rules condition 3.
+
+---
+
+## Validation-Oracle Rules
+
+The sim's outputs eventually feed Trusight reports (internal at Stage 1,
+public at Stage 2+) as **one of two analytical inputs** alongside
+community-reception measurement. The relationship is ONE socio-technical
+decision surface with two analytical inputs and one human arbiter — govern
+it as one thing. Strict conditions:
+
+1. **eHP is a disclosed input axis, never a gate / filter / verdict.**
+   Outputs are distributions with named conditions, never scalars. The
+   interface presents eHP *as Dunn derived it* — opponent-dependent, with
+   the approximation band — never context-free.
+2. **No automated generate→test loop, ever.** Architectural prohibition,
+   not guideline. Auto-iterating proposals against oracle verdicts =
+   guaranteed Goodhart collapse (sterile, homogenized, "balanced but dead"
+   content; system trained to argue against fun).
+3. **Direction B is SEVERED.** Community-prevalence → sim-default-ruling
+   is forbidden. The sim stays **RAW-anchored, period.** "What real tables
+   do" may appear in Trusight's reporting *to humans*, and in the
+   `Common-Table` UI bundle as a user-selectable preset; it must never
+   silently mutate the normative engine's baseline.
+4. **Singular pre-assigned human arbiter** owns every math-vs-sentiment
+   conflict and records written rationale. Without this, both systems
+   become political shield-weapons.
+5. **eHP-as-gate is structurally misaligned with "good D&D"**, not merely
+   incomplete (Twilight Cleric / "balanced but dead" / commercially-loved
+   but mathematically-overtuned like Hexblade). Making eHP a binary gate
+   actively *selects against* the asymmetric/thematic/utility designs that
+   are commercially best.
+
+**On the 11 eHP limitations** (Action-economy blindness, Hard-control
+bypass, Burst-vs-sustain, Opponent-dependence, AC-vs-saves aggregation,
+Kiting/positional, Yo-yo HP, Adventuring-day pacing, Party-synergy
+invisibility, Non-combat utility, Player-skill ceiling): ~7 of 11
+**dissolve** under a full turn-by-turn simulation — they were critiques of
+*static / manually-computed* eHP. The residual ~4 are inherent
+conditionality (#4, #8, #11 — output is conditional on a named parameter,
+simulation makes the parameter explicit but cannot eliminate it) and scope
+(#10 non-combat utility — a combat sim is permanently silent there; a
+boundary, not a computation gap). The sim handles #10 via *imported expert
+utility ratings* as a disclosed input axis, never sim-computed.
+
+**Two technical riders:**
+- Control-eHP variance is dominated by the **enemy-behavior model** (Ammann
+  pillar), not dice. Reports must condition on a named enemy-behavior
+  profile.
+- Control payoff is **convex / threshold-shaped**. Closed-form EV
+  understates it systematically; **Sampled / Monte-Carlo mode is MANDATORY**
+  for control (the canonical case behind the "never mix EV and Sampled
+  modes" rule).
+
+---
+
 ## Current Project Status
 
 | Document | Status |
 |---|---|
-| `finished-book-summary.md` | ✅ Complete — full live-site audit March 2026 |
+| `finished-book-summary.md` | ✅ Complete |
 | `ammann-behavior-framework.md` | ✅ Complete |
 | `ehp-action-framework.md` | ✅ Complete |
 | `environment-system.md` | ✅ Complete |
-| `pillars-reconciliation.md` | 🟡 Next priority — all inputs now available |
 | `engine-design.md` | ✅ Complete |
 | `data-sources.md` | ✅ Complete |
+| `pc-dpr-baselines.md` | ✅ Methodology complete (7-step DPR engine encoded). Per-build per-level tables verified for 5/39 builds (Fighter ×3, Zealot Barb, Berserker Barb) — remaining 34 are re-categorized as *validation reference* data (not source); the sim computes its own DPR from the encoded methodology. |
+| `treantmonk-damage-rankings.md` | ✅ Complete — career scores + per-tier breakdowns for all 39 builds |
+| `pillars-reconciliation.md` | 🔴 **STUB** — the genuine blocker for engine code. Next substantive design step. |
 | `combat-state-model.md` | 🔴 Not started |
 | `conditions-and-edge-cases.md` | 🔴 Not started |
 | `foundry-integration.md` | 🔴 Not started |
 | `ai-decision-layer.md` | 🔴 Not started |
 | Any engine code | 🔴 Not started — `pillars-reconciliation.md` must come first |
 
-**Current phase:** Source of Truth documentation. `pillars-reconciliation.md`
-is the last doc blocking Phase 1 engine code.
+**Current phase:** `pillars-reconciliation.md` is the engine-code gate. Its
+draft needs Phil's policy input on Math-Wins / Behavior-Wins / Weighted-Blend
+per conflict class (targeting, retreat, ability selection, action economy).
+
+---
+
+## Known Assets
+
+External and sibling-repo resources the sim will consume; documented here
+so future sessions don't re-discover them.
+
+- **`dnd5eapi.co`** — CC-BY SRD content (334 monsters, 319 spells, 407
+  features, 237 equipment, 362 magic items, 12 classes, 9 races, 38 traits,
+  15 conditions, etc.). The ingestion path for bundled SRD content under
+  the Hybrid monetization model.
+- **`dnd-trends/1_raw/`** (sibling repo) — Existing inventory of every SRD
+  entity (names + URLs to the 5e API). Tells the sim exactly what to fetch
+  during the ingestion pipeline build.
+- **`dnd-trends-index.game_registry.subclasses`** (BigQuery, sibling
+  project) — 48-row registry of all PHB-2024 subclasses with `lineage_id`,
+  aliases, `lifecycle_status`, `is_srd`. The JOIN target for sim outputs
+  feeding Trusight reports (Stage 1+).
+- **YT transcripts** — 224 Treantmonk videos (June 2024 → May 2026)
+  transcribed + entity-extracted on local disk
+  (`~/yt_poc_data/treantmonk/`). Includes "How to Calculate Damage in D&D
+  2024" (video id `nLXbEFurCU4`) — the verbal source for the DPR
+  methodology encoded in `pc-dpr-baselines.md`. Likely also contains
+  spellcaster-DPR methodology not yet extracted.
 
 ---
 
@@ -79,36 +242,58 @@ is the last doc blocking Phase 1 engine code.
 
 1. **Docs-as-code** — all documentation lives in `/docs` in the repo.
 
-2. **Headless engine** — Python engine has no UI dependency. Foundry module is
-   a bridge only. ~300–500 lines of JavaScript.
+2. **Headless engine** — Python engine has no UI dependency. Foundry module
+   is a bridge only. ~300–500 lines of JavaScript.
 
-3. **XP formula** — exponential approximation (`1.077^(eAB-4 + eAC-12)`) is
-   the engine's internal truth. 2024 rules use no encounter multiplier.
+3. **XP formula** — exponential approximation (`1.077^(eAB-4 + eAC-12)`)
+   is the engine's internal truth. 2024 rules use no encounter multiplier.
 
-4. **Variability modes** — EV (expected value) mode for AI decisions; Sampled
-   mode for Monte Carlo. Never mixed in the same encounter run.
+4. **Variability modes** — EV (expected value) mode for AI decisions;
+   Sampled mode for Monte Carlo. Never mixed in the same encounter run.
 
 5. **Condition policy** — conditions resolved through eHP/eDPR adjustments.
    Targeting decisions governed by Ammann pillar.
 
-6. **eHP Action Framework** — unified evaluation function for all action types.
-   Every action scores as: offensive_ehp + defensive_ehp − opportunity_cost,
-   weighted by behavioral coefficients.
+6. **eHP Action Framework** — unified evaluation function for all action
+   types. Every action scores as: offensive_ehp + defensive_ehp −
+   opportunity_cost, weighted by behavioral coefficients.
 
 7. **Environment system** — `EnvironmentTemplate` is the stable interface.
-   Engine always receives a template object regardless of source (named registry,
-   custom DM sliders, Foundry scene data, or AI map analysis). Infinitely
-   extensible without touching engine code.
+   Engine always receives a template object regardless of source (named
+   registry, custom DM sliders, Foundry scene data, or AI map analysis).
+   Infinitely extensible without touching engine code.
 
 8. **Phase 1 scope** — single encounter simulation + outcome report +
-   environment templates. Web app, hosted infrastructure, and AI map analysis
-   are later phases.
+   environment templates. Web app, hosted infrastructure, and AI map
+   analysis are later phases.
 
-9. **Data sources** — Open5e API for Phase 1 development/testing. Foundry
-   runtime data for Phase 2. No copyrighted WotC content in the repo.
+9. **Data sources** — Open5e / 5e API for Phase 1 development/testing.
+   Foundry runtime data for Phase 2. **No copyrighted WotC content in the
+   repo** — clean-room reimplementation for non-SRD; CC-BY-attributed SRD
+   text where it's bundled.
 
 10. **AI decision layer** — MCTS vs rules-based not yet decided. See
-    `ai-decision-layer.md`.
+    `ai-decision-layer.md` (not yet drafted).
+
+11. **Hybrid monetization (Stage 3+).** Ship bundled SRD content; non-SRD
+    via user-supplied port. Monetization on the engine/analysis, not
+    content distribution. (See Firewall Rules above for legal substrate;
+    see Cross-Project Architecture for full posture in the spine doc.)
+
+12. **Clean-room reimplementation, file-first.** Subclass / spell / monster
+    definitions are versioned, schema-validated files in the repo. A form
+    UI is a thin editor over the file format, added later. Two-document
+    split: private source-reading worksheet (provenance + own-words
+    paraphrase = the clean-room audit trail) vs the shipped mechanical
+    definition (schema has no rules-text field by construction — clean-room
+    enforcement is structural, not advisory).
+
+13. **Two-tier content schema.** Tier 1 — declarative effect-primitives
+    (`extra_attack`, `stat_modifier`, `resource_pool`, etc.) parameterized
+    by a small vocabulary; covers ~80% of features. Tier 2 — custom
+    handler module for genuinely novel mechanics. Pattern borrowed from
+    MtG card-scripting engines (Forge / XMage). Each effect carries an
+    explicit read/write/event/scope contract (§Config condition 1).
 
 ---
 
@@ -121,30 +306,61 @@ is the last doc blocking Phase 1 engine code.
 | **Phase 3** | Multi-encounter day + dynamic difficulty adjustment + class/subclass Monte Carlo scoring |
 | **Phase 4** | Web app + user accounts + AI map analysis + extended 3p/homebrew content |
 
+**Re-prioritization note (May 2026):** The architecture-spine's
+validation-oracle ROI elevates Phase 3 (Monte Carlo class/subclass scoring)
+higher than its original ordering implied — Phase 3 produces the eHP power
+curves that the Hybrid published-reports stage consumes. Phase 1 still
+gates everything; the change is the rationale for Phase 3 being a
+near-term commercial driver, not an "eventually" item.
+
 ---
 
 ## Open Questions (Unresolved)
 
-- [ ] MCTS vs rules-based vs hybrid for monster AI decisions?
-- [ ] Data source for monster stat blocks — Open5e only, or D&D Beyond API?
-- [ ] Foundry VTT version to pin against?
-- [ ] Does the simulator target 2014 rules, 2024 rules, or both?
-- [ ] Legendary Actions / Lair Actions in initiative order?
+- [ ] MCTS vs rules-based vs hybrid for monster AI decisions (see
+      `ai-decision-layer.md` when drafted)
+- [ ] Foundry VTT version to pin against
+- [ ] Legendary Actions / Lair Actions in initiative order
 - [ ] Ambush/surprise round — how does `ambush_potential` translate to
       initiative mechanics?
 - [ ] Portal usage by AI — how does INT gate portal awareness?
-- [ ] Underwater combat rules — attack disadvantage, weapon/spell restrictions
-- [ ] Passive environmental damage — start of turn, end of turn, or on entry?
-- [ ] Bystander constraint (tavern brawl) — how does engine model self-restriction
-      of AoE near innocents?
+- [ ] Underwater combat rules — attack disadvantage, weapon/spell
+      restrictions
+- [ ] Passive environmental damage — start of turn, end of turn, or on
+      entry?
+- [ ] Bystander constraint (tavern brawl) — engine model of AoE
+      self-restriction near innocents
+- [ ] Spellcaster DPR methodology — `pc-dpr-baselines.md` currently encodes
+      martial single-target attack. Treantmonk *does* cover spell builds
+      (Sorcerer Blast, EB Warlock, Bard Spells, Druid Spells, etc.); the
+      methodology video transcript (`nLXbEFurCU4`) likely contains
+      spell-DPR coverage. Extract when engine reaches spellcaster scoring.
+- [ ] Schema design for subclass / spell / feat / monster definitions —
+      drafted after `pillars-reconciliation.md` lands.
+- [ ] 5e API → schema transform pipeline — fetch from `dnd5eapi.co`,
+      clean-room transform, store as bundled SRD assets in this repo.
+
+**Resolved since 2026-03-30:**
+- ~~Data source for monster stat blocks?~~ → Open5e / 5e API for Phase 1
+  (per `data-sources.md`).
+- ~~2014 vs 2024 vs both?~~ → 2024 (per all April DPR work and the
+  registry's `is_current_canonical` posture).
+- ~~Conditions handling?~~ → eHP / eDPR adjustments (decided Mar 30,
+  encoded in `ehp-action-framework.md`).
+- Monetization architecture → Hybrid (see Decision #11).
 
 ---
 
 ## Related Project
 
-**Arcane Analytics** (`dnd-trends-index`) — separate GCP-based Google Trends
-intelligence platform. Shares the D&D domain but is an entirely separate
-codebase. Do not mix concerns between the two repos.
+**Trusight** (the `dnd-trends-index` repo) — intelligence / measurement
+platform. Shares the D&D domain but is an entirely separate codebase,
+separate GCP project, separate legal profile. The four firewall layers
+above govern what crosses. The sim never holds Trusight intelligence data;
+Trusight never holds sim engine code.
+
+(Project formerly named "Arcane Analytics"; rebranded to "Trusight" May
+2026.)
 
 ---
 
@@ -152,6 +368,7 @@ codebase. Do not mix concerns between the two repos.
 
 - Checkpoint protocol: require complete raw output after each command.
 - Never batch instructions — one command at a time.
-- Verify writes with BigQuery MCP reads — do not accept fabricated confirmations.
-- Known failure modes: truncated output, unsolicited extra commands, fabricated
-  success reports.
+- Verify writes with BigQuery MCP reads — do not accept fabricated
+  confirmations.
+- Known failure modes: truncated output, unsolicited extra commands,
+  fabricated success reports.
