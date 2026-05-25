@@ -47,7 +47,8 @@ def check_retreat_trigger(actor: Actor, state: CombatState) -> dict | None:
     return None
 
 
-def generate_candidates(actor: Actor, state: CombatState) -> list[dict]:
+def generate_candidates(actor: Actor, state: CombatState,
+                         slot: str = "action") -> list[dict]:
     """Step 2: enumerate all legal (action × target) candidate tuples.
 
     Pulls from actor.template's actions; pairs each with reachable
@@ -60,10 +61,17 @@ def generate_candidates(actor: Actor, state: CombatState) -> list[dict]:
     Defensive candidates (heal/buff/control) ride on the same scoring
     path as offensive ones — `score_candidate` dispatches by action type
     to the appropriate eHP formula.
+
+    Args:
+      slot: which turn slot is being filled. Default 'action' enumerates
+        main-slot candidates (actions tagged `slot: 'action'` or untagged).
+        Pass 'bonus_action' to enumerate bonus-slot candidates. The runner
+        calls this twice per turn: once for the main slot, once for bonus.
     """
     candidates: list[dict] = []
     template = actor.template
-    actions = template.get("actions", [])
+    actions = [a for a in (template.get("actions") or [])
+                if a.get("slot", "action") == slot]
 
     enemies = [a for a in state.encounter.actors
                if a.side != actor.side and a.is_alive()]
@@ -154,15 +162,31 @@ def select_max(scored: list[tuple[float, dict]]) -> dict | None:
     return max(scored, key=lambda x: x[0])[1]
 
 
-def apply_action_economy(actor: Actor, chosen: dict, state: CombatState) -> dict:
+def apply_action_economy(actor: Actor, chosen: dict, state: CombatState,
+                           rng=None) -> dict | None:
     """Step 7: per-slot stochastic on optimal-vs-default.
 
-    SKELETON: always uses the chosen action (optimal preset). Real
-    implementation reads action_economy preset's per-slot percentages
-    (signature_bonus, tactical_bonus, OA_reaction, sophisticated_reaction)
-    and rolls per slot.
+    For the Main slot, this rolls vs `main_optimality` per the actor's
+    action_economy preset; on miss, the chosen candidate is replaced by
+    the actor's default attack (first weapon_attack) keeping the same target.
+
+    Bonus and Reaction slots are handled by the runner (it loops a separate
+    bonus-action turn after the main, gated by per-slot percentages from
+    `action_economy.should_use_bonus_action`).
+
+    The `rng` parameter is required when `chosen` is non-None. If omitted,
+    a module-default random is used (test convenience; production passes
+    the runner's seeded rng for reproducibility).
     """
-    return chosen
+    if chosen is None:
+        return None
+    # Lazy import: ai package depends on core.state (already imported here);
+    # this keeps action_economy out of the core package's import graph.
+    from engine.ai.action_economy import resolve_main_slot
+    if rng is None:
+        import random as _r
+        rng = _r.Random()
+    return resolve_main_slot(actor, chosen, state, rng)
 
 
 def execute(chosen: dict, state: CombatState, event_bus, primitives) -> None:
@@ -181,8 +205,13 @@ def execute(chosen: dict, state: CombatState, event_bus, primitives) -> None:
     else:
         _execute_single(chosen, state, event_bus, primitives)
 
-    # Mark main action used
-    actor.actions_used_this_turn["action"] = True
+    # Mark the right slot used — read the action's `slot` field (default 'action').
+    # Lets bonus_action / reaction tracking work without separate plumbing.
+    slot = action.get("slot", "action")
+    if slot in actor.actions_used_this_turn:
+        actor.actions_used_this_turn[slot] = True
+    else:
+        actor.actions_used_this_turn[slot] = True   # safe to add
 
 
 def _execute_single(chosen: dict, state: CombatState, event_bus, primitives) -> None:

@@ -59,6 +59,18 @@ from engine.ai.defensive_ehp import (
     defensive_ehp_defensive_buff,
     defensive_ehp_hard_control,
 )
+from engine.ai.action_economy import (
+    ACTION_ECONOMY_PRESETS,
+    resolve_action_economy_preset as resolve_action_economy_preset_with_shift,
+    resolve_percentages as resolve_action_economy_percentages,
+    get_percentages as get_action_economy_percentages,
+    find_default_action,
+    action_slot,
+    is_signature,
+    is_reactive_trigger,
+    resolve_main_slot,
+    should_use_bonus_action,
+)
 
 __all__ = [
     "score_candidates_v1",
@@ -82,4 +94,14 @@ __all__ = [
     "defensive_ehp_healing",
     "defensive_ehp_defensive_buff",
     "defensive_ehp_hard_control",
+    "ACTION_ECONOMY_PRESETS",
+    "resolve_action_economy_preset_with_shift",
+    "resolve_action_economy_percentages",
+    "get_action_economy_percentages",
+    "find_default_action",
+    "action_slot",
+    "is_signature",
+    "is_reactive_trigger",
+    "resolve_main_slot",
+    "should_use_bonus_action",
 ]

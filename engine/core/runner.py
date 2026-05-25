@@ -160,7 +160,11 @@ class EncounterRunner:
         state.recurring_saves = remaining
 
     def _run_actor_turn(self, actor: Actor, state: CombatState) -> None:
-        """Execute one actor's turn via the decision pipeline."""
+        """Execute one actor's turn via the decision pipeline.
+
+        Two slots per turn (Action + Bonus Action). Reactions are
+        triggered, not turn-scheduled — deferred to a future PR.
+        """
         # Step 0: resolve effective profile
         profile = pipeline.resolve_effective_profile(actor, state)
         # Step 1: retreat trigger
@@ -169,17 +173,54 @@ class EncounterRunner:
             actor.is_fled = True
             state.event_log.append({"event": "fled", "actor": actor.id})
             return
-        # Step 2-6: decision pipeline
-        candidates = pipeline.generate_candidates(actor, state)
+
+        # ---- Main slot ----
+        self._run_slot(actor, state, slot="action")
+
+        # ---- Bonus slot ----
+        # Skip if the main slot killed the actor or terminated the encounter.
+        if actor.is_alive() and not state.terminated:
+            self._run_slot(actor, state, slot="bonus_action")
+
+    def _run_slot(self, actor: Actor, state: CombatState, slot: str) -> None:
+        """Execute one turn slot (action or bonus_action) via the
+        candidate-scoring pipeline. The Action Economy dial gates:
+
+          - Main slot: optimality roll may downgrade the chosen action
+            to the actor's default attack.
+          - Bonus slot: per-action signature/tactical rate may skip the
+            slot entirely.
+        """
+        candidates = pipeline.generate_candidates(actor, state, slot=slot)
+        if not candidates:
+            return
         candidates = pipeline.apply_hard_filters(candidates, actor, state)
         candidates = pipeline.apply_forced_choices(candidates, actor, state)
         scored = pipeline.score_candidates(candidates, actor, state)
         chosen = pipeline.select_max(scored)
-        # Step 7: action economy
-        chosen = pipeline.apply_action_economy(actor, chosen, state) if chosen else None
-        # Step 8: execute
-        if chosen:
-            pipeline.execute(chosen, state, self.event_bus, self.primitives)
+        if chosen is None:
+            return
+
+        if slot == "action":
+            # Main slot: optimality roll may swap to default attack.
+            chosen = pipeline.apply_action_economy(actor, chosen, state,
+                                                     rng=self.rng)
+        else:
+            # Bonus slot: roll whether to use it at all (per signature /
+            # tactical rate of the chosen bonus action).
+            from engine.ai.action_economy import should_use_bonus_action
+            if not should_use_bonus_action(actor, chosen["action"], self.rng):
+                state.event_log.append({"event": "bonus_action_skipped",
+                                          "actor": actor.id,
+                                          "candidate": chosen["action"].get("id")})
+                return
+
+        pipeline.execute(chosen, state, self.event_bus, self.primitives)
+        if chosen.get("downgraded_from"):
+            state.event_log.append({"event": "action_downgraded",
+                                      "actor": actor.id,
+                                      "from": chosen["downgraded_from"],
+                                      "to": chosen["action"].get("id")})
 
     def run(self, seed: int | None = None) -> CombatState:
         """Run the encounter to termination. Returns final CombatState."""
