@@ -75,7 +75,8 @@ def _cmd_encounter(args: argparse.Namespace) -> int:
     if args.seed is not None:
         primitives_module.set_rng(random.Random(args.seed))
 
-    runner = EncounterRunner.new(encounter, seed=args.seed)
+    runner = EncounterRunner.new(encounter, seed=args.seed,
+                                  content_registry=registry)
     primitives_module.set_rng(runner.rng)        # share the RNG
     state = runner.run(seed=args.seed)
 

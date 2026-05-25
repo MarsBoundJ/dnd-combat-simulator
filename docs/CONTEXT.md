@@ -207,7 +207,8 @@ utility ratings* as a disclosed input axis, never sim-computed.
 | `conditions-and-edge-cases.md` | 🔴 Not started |
 | `foundry-integration.md` | 🔴 Not started |
 | `ai-decision-layer.md` | 🔴 Not started |
-| Engine skeleton | ✅ Phase 1 v0 (2026-05-25) — library-first Python; `engine/` package; 5 primitives implemented end-to-end; ~40 stubbed; CLI (`python -m engine`); smoke test (Fighter vs Goblin) passes; JSON report output. See `engine/README.md`. |
+| Engine skeleton | ✅ Phase 1 v0 (2026-05-25) — library-first Python; `engine/` package; CLI (`python -m engine`); smoke test (Fighter vs Goblin) passes; JSON report output. |
+| Primitives v1 | ✅ (2026-05-26) — 13 primitives now implemented (was 5). Q5 unified modifier system live in `engine/core/modifiers.py`; conditions actually affect gameplay (Blinded gives attackers advantage; Paralyzed auto-fails STR/DEX saves; etc.). `forced_save` + `recurring_save` for spells; `multiattack` for higher-CR monsters. 16 tests pass (4 smoke + 12 v1). See `engine/README.md`. |
 
 **Current phase:** Engine skeleton (Phase 1 v0) landed 2026-05-25 same day as
 pillars-reconciliation + schema-design-v1. Library-first Python; 5 primitives

@@ -126,19 +126,36 @@ def apply_action_economy(actor: Actor, chosen: dict, state: CombatState) -> dict
 
 
 def execute(chosen: dict, state: CombatState, event_bus, primitives) -> None:
-    """Step 8: dispatch chosen action through its primitive pipeline."""
+    """Step 8: dispatch chosen action through its primitive pipeline.
+
+    Special-cased: action.type == 'multiattack' loops the sub-attack
+    pipelines N times. Each sub-attack independently picks its target.
+    """
     if not chosen:
         return
+    actor = chosen["actor"]
+    action = chosen["action"]
+
+    if action.get("type") == "multiattack":
+        _execute_multiattack(actor, action, state, event_bus, primitives)
+    else:
+        _execute_single(chosen, state, event_bus, primitives)
+
+    # Mark main action used
+    actor.actions_used_this_turn["action"] = True
+
+
+def _execute_single(chosen: dict, state: CombatState, event_bus, primitives) -> None:
+    """Execute one action's primitive pipeline."""
     actor = chosen["actor"]
     target = chosen.get("target")
     action = chosen["action"]
 
-    # Set up scratch space for the attack pipeline
     state.current_attack = {
         "actor": actor,
         "target": target,
         "action": action,
-        "state": None,        # hit/miss/crit set by attack_roll
+        "state": None,
         "had_advantage": False,
         "had_disadvantage": False,
     }
@@ -147,15 +164,54 @@ def execute(chosen: dict, state: CombatState, event_bus, primitives) -> None:
         primitive_name = step["primitive"]
         params = step.get("params", {})
         when = step.get("when")
-        # Skeleton: check 'when' condition rudimentarily
         if when:
             cond = when.get("condition", "")
             if cond and not _evaluate_simple_condition(cond, state):
                 continue
         primitives.invoke(primitive_name, params, state, event_bus)
 
-    # Mark action used
-    actor.actions_used_this_turn["action"] = True
+
+def _execute_multiattack(actor, action: dict, state: CombatState,
+                         event_bus, primitives) -> None:
+    """Loop the attack pipeline N times for a multiattack action.
+
+    action shape:
+      type: multiattack
+      count: 2
+      sub_actions: [a_scimitar, a_shortbow]   # ids of attacks in actor.template.actions
+      target_per_attack: independent | same    # skeleton: same target (closest)
+    """
+    count = action.get("count", 1)
+    sub_action_ids = action.get("sub_actions", [])
+    if not sub_action_ids:
+        return
+
+    # Find the sub-actions in the actor's template
+    template_actions = actor.template.get("actions", [])
+    sub_actions_by_id = {a.get("id"): a for a in template_actions}
+
+    # Pick target: closest living enemy (skeleton)
+    enemies = [a for a in state.encounter.actors
+               if a.side != actor.side and a.is_alive()]
+    if not enemies:
+        return
+    target = enemies[0]  # skeleton: just the first
+
+    for i in range(count):
+        # If target died, pick next
+        if not target.is_alive():
+            remaining = [a for a in state.encounter.actors
+                         if a.side != actor.side and a.is_alive()]
+            if not remaining:
+                return
+            target = remaining[0]
+        sub_action_id = sub_action_ids[i % len(sub_action_ids)]
+        sub_action = sub_actions_by_id.get(sub_action_id)
+        if sub_action is None:
+            continue
+        sub_chosen = {"actor": actor, "target": target, "action": sub_action,
+                       "kind": "weapon_attack"}
+        _execute_single(sub_chosen, state, event_bus, primitives)
 
 
 def _evaluate_simple_condition(cond: str, state: CombatState) -> bool:
