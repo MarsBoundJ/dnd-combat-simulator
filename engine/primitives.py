@@ -1,19 +1,17 @@
 """Primitive library — engine handlers for every primitive declared
-in the schema. Implementations live here for the skeleton; if the library
-grows large, split into engine/primitives/<category>/<name>.py.
+in the schema.
 
-For the skeleton:
-  - 5 primitives implemented enough to run a Goblin vs Fighter encounter:
-      attack_roll, damage, apply_condition, heal, granted_action
-  - All others are STUBS that raise NotImplementedError with a clear
-    message. Implementing more primitives = unlocking more content.
+Phase 1 v1 (after primitives-v1 PR):
+  - 13 primitives implemented end-to-end:
+      attack_roll, damage, apply_condition, heal, granted_action,   (skeleton v0)
+      attack_modifier, save_modifier, d20_test_modifier,             (Q5 unified — keystone)
+      crit_modifier, crit_threshold_modifier,
+      forced_save, recurring_save, multiattack
+  - ~30 primitives still stubbed (raise NotImplementedError on invocation).
 
-Each primitive declares:
-  - name: stable identifier (referenced from YAML content)
-  - apply(params, state, event_bus): execute the effect
-
-The engine's PrimitiveRegistry holds them; `pipeline.execute()` looks
-them up by name and dispatches.
+Conditions now actually affect gameplay: apply_condition instantiates the
+condition's effect primitives onto the target's `active_modifiers` registry,
+and attack/save resolution consults the registry via engine/core/modifiers.py.
 """
 from __future__ import annotations
 
@@ -24,6 +22,7 @@ from dataclasses import dataclass
 
 from engine.core.state import CombatState, Actor, ability_modifier
 from engine.core.events import EventBus
+from engine.core import modifiers as _modifiers
 
 
 # ============================================================================
@@ -32,10 +31,6 @@ from engine.core.events import EventBus
 
 @dataclass
 class Primitive:
-    """A primitive: a named effect handler.
-
-    Each handler signature: (params: dict, state: CombatState, bus: EventBus) -> Any
-    """
     name: str
     handler: Callable[[dict, CombatState, EventBus], Any]
     implemented: bool = True
@@ -56,8 +51,7 @@ class PrimitiveRegistry:
         prim = self._registry[name]
         if not prim.implemented:
             raise NotImplementedError(
-                f"Primitive {name!r} is stubbed. "
-                f"Implementation deferred — see engine/primitives.py."
+                f"Primitive {name!r} is stubbed. Implementation deferred."
             )
         return prim.handler(params, state, event_bus)
 
@@ -77,7 +71,6 @@ _DICE_PATTERN = re.compile(r"(\d+)d(\d+)")
 
 
 def _roll_dice_expr(expr: str, rng: _random_module.Random) -> int:
-    """Roll a dice expression like '1d6' or '8d6'. Returns the total."""
     m = _DICE_PATTERN.fullmatch(expr.strip())
     if not m:
         raise ValueError(f"Invalid dice expression: {expr!r}")
@@ -85,59 +78,64 @@ def _roll_dice_expr(expr: str, rng: _random_module.Random) -> int:
     return sum(rng.randint(1, sides) for _ in range(count))
 
 
-def _max_dice_expr(expr: str) -> int:
-    """Max possible value of a dice expression — used for crit damage."""
-    m = _DICE_PATTERN.fullmatch(expr.strip())
-    if not m:
-        raise ValueError(f"Invalid dice expression: {expr!r}")
-    count, sides = int(m.group(1)), int(m.group(2))
-    return count * sides
-
-
 # ============================================================================
-# IMPLEMENTED PRIMITIVES (the 5 critical for skeleton smoke test)
+# IMPLEMENTED — Attack pipeline (v0 + v1 modifier consultation)
 # ============================================================================
 
 def _attack_roll(params: dict, state: CombatState, bus: EventBus) -> dict:
-    """Roll d20 + bonus vs target AC. Sets state.current_attack['state']."""
+    """Roll d20 + bonus vs target AC. Now consults active_modifiers."""
     actor: Actor = state.current_attack["actor"]
     target: Actor = state.current_attack["target"]
     bonus = params.get("bonus", 0)
     rng = _get_rng(state, bus)
 
-    # Get advantage / disadvantage from state (set by modifiers; default normal)
-    has_adv = state.current_attack.get("had_advantage", False)
-    has_dis = state.current_attack.get("had_disadvantage", False)
-    if has_adv and has_dis:
-        has_adv = has_dis = False  # cancel out per rules
+    # Query unified modifier registry for attack adjustments + crit changes
+    attack_mods = _modifiers.query_attack_modifiers(actor, target, state)
+    crit_mods = _modifiers.query_crit_modifiers(actor, target, state)
+    effective_ac = target.ac + attack_mods.ac_modifier
+    effective_bonus = bonus + attack_mods.attack_bonus_modifier
+    adv_state = attack_mods.net_advantage()
 
-    if has_adv:
+    if adv_state == "advantage":
         d20 = max(rng.randint(1, 20), rng.randint(1, 20))
-    elif has_dis:
+    elif adv_state == "disadvantage":
         d20 = min(rng.randint(1, 20), rng.randint(1, 20))
     else:
         d20 = rng.randint(1, 20)
 
-    total = d20 + bonus
-    is_crit = (d20 >= 20)        # Improved Critical etc. would lower this threshold
-    is_hit = is_crit or (total >= target.ac)
+    total = d20 + effective_bonus
+    is_crit = (d20 >= crit_mods.crit_threshold)
+    is_hit = is_crit or (total >= effective_ac)
+    # Forced crit (e.g., Paralyzed target within 5ft): only fires if hit
+    if is_hit and crit_mods.force_crit_if_hit:
+        is_crit = True
     attack_state = "crit" if is_crit else ("hit" if is_hit else "miss")
 
     state.current_attack["state"] = attack_state
     state.current_attack["d20"] = d20
     state.current_attack["total"] = total
+    state.current_attack["had_advantage"] = (adv_state == "advantage")
+    state.current_attack["had_disadvantage"] = (adv_state == "disadvantage")
+
     bus.emit("attack_roll", {"actor": actor, "target": target,
-                              "d20": d20, "total": total, "vs_ac": target.ac})
+                              "d20": d20, "total": total, "vs_ac": effective_ac,
+                              "advantage_state": adv_state})
     bus.emit("attack_resolved", {"actor": actor, "target": target,
                                   "state": attack_state, "d20": d20})
     state.event_log.append({"event": "attack_roll", "actor": actor.id,
                             "target": target.id, "d20": d20, "total": total,
-                            "vs_ac": target.ac, "result": attack_state})
+                            "vs_ac": effective_ac, "result": attack_state,
+                            "advantage_state": adv_state,
+                            "crit_threshold": crit_mods.crit_threshold})
+
+    # Lifetime: any per_single_attack modifiers on attacker / target expire
+    _modifiers.expire_modifiers(actor, {"attack_complete"})
+    _modifiers.expire_modifiers(target, {"attack_complete"})
+
     return {"state": attack_state, "d20": d20, "total": total}
 
 
 def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
-    """Roll damage dice + modifier, apply to target HP."""
     target: Actor = state.current_attack["target"]
     actor: Actor = state.current_attack["actor"]
     dice = params.get("dice")
@@ -150,19 +148,19 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
     if dice:
         rolled = _roll_dice_expr(dice, rng)
         if is_crit:
-            # 5e crit: roll damage dice twice (add an extra roll)
             rolled += _roll_dice_expr(dice, rng)
     else:
         rolled = 0
 
     total = rolled + modifier
 
-    # Apply resistance / vulnerability / immunity (simplified for skeleton)
-    if dmg_type in (target.template.get("damage_immunities") or []):
+    # Resistance / vulnerability / immunity (template-level)
+    template = target.template or {}
+    if dmg_type in (template.get("damage_immunities") or []):
         total = 0
-    elif dmg_type in (target.template.get("damage_resistances") or []):
+    elif dmg_type in (template.get("damage_resistances") or []):
         total = total // 2
-    elif dmg_type in (target.template.get("damage_vulnerabilities") or []):
+    elif dmg_type in (template.get("damage_vulnerabilities") or []):
         total = total * 2
 
     total = max(0, total)
@@ -185,24 +183,118 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
 
 
 def _apply_condition(params: dict, state: CombatState, bus: EventBus) -> None:
-    """Add a condition to the target's applied_conditions list."""
+    """Apply a condition + instantiate its effect primitives onto active_modifiers."""
     target: Actor = state.current_attack.get("target") or state.current_actor()
     actor: Actor = state.current_attack.get("actor") or state.current_actor()
     condition_id = params.get("condition_id") or params.get("condition")
     if not condition_id:
         raise ValueError("apply_condition requires condition_id or condition")
-    target.applied_conditions.append({
+
+    application = {
         "condition_id": condition_id,
         "source_id": actor.id if actor else None,
         "applied_at_round": state.round,
         "duration": params.get("duration"),
-    })
+    }
+    target.applied_conditions.append(application)
     state.event_log.append({"event": "condition_applied",
-                            "target": target.id, "condition": condition_id})
+                            "target": target.id, "condition": condition_id,
+                            "source": actor.id if actor else None})
+
+    # Instantiate the condition's effect primitives onto target.active_modifiers
+    _instantiate_condition_effects(target, application, state)
+
+
+def _instantiate_condition_effects(target: Actor, application: dict,
+                                    state: CombatState) -> None:
+    """Look up the condition definition and add its effects as active modifiers."""
+    registry = state.content_registry
+    if registry is None:
+        return  # no registry available; condition is a marker only
+    try:
+        cond_def = registry.get("condition", application["condition_id"])
+    except KeyError:
+        return  # condition not in registry; marker only
+
+    for effect in cond_def.get("effects") or []:
+        entry = {
+            "primitive": effect.get("primitive"),
+            "params": effect.get("params") or {},
+            "lifetime": "until_condition_ends",
+            "source": {
+                "type": "condition",
+                "condition_id": application["condition_id"],
+                "source_creature_id": application["source_id"],
+            },
+            "applied_at_round": state.round,
+            "owner_id": target.id,
+        }
+        target.active_modifiers.append(entry)
+
+    # Subordinate conditions (inheritance) — apply transitively
+    for inherited_id in cond_def.get("inherits_conditions") or []:
+        try:
+            inherited_def = registry.get("condition", inherited_id)
+        except KeyError:
+            continue
+        # Record inherited application (so the engine knows to expire it too)
+        sub_application = {
+            "condition_id": inherited_id,
+            "source_id": application["source_id"],
+            "applied_at_round": state.round,
+            "duration": application.get("duration"),
+            "parent_condition": application["condition_id"],
+        }
+        target.applied_conditions.append(sub_application)
+        for effect in inherited_def.get("effects") or []:
+            entry = {
+                "primitive": effect.get("primitive"),
+                "params": effect.get("params") or {},
+                "lifetime": "until_condition_ends",
+                "source": {
+                    "type": "condition",
+                    "condition_id": inherited_id,
+                    "source_creature_id": application["source_id"],
+                    "parent_condition": application["condition_id"],
+                },
+                "applied_at_round": state.round,
+                "owner_id": target.id,
+            }
+            target.active_modifiers.append(entry)
+
+
+def remove_condition(target: Actor, condition_id: str,
+                     source_creature_id: str | None = None) -> int:
+    """Remove a condition + its active modifiers from target.
+
+    Public helper used by recurring_save and other end-condition triggers.
+    Returns count of removed modifiers.
+    """
+    # Remove the condition application(s)
+    target.applied_conditions = [
+        a for a in target.applied_conditions
+        if not (a.get("condition_id") == condition_id
+                and (source_creature_id is None
+                     or a.get("source_id") == source_creature_id))
+    ]
+    # Also remove subordinate applications whose parent_condition matches
+    target.applied_conditions = [
+        a for a in target.applied_conditions
+        if a.get("parent_condition") != condition_id
+    ]
+    # Remove all active modifiers from this condition
+    removed = _modifiers.remove_modifiers_from_source(
+        target, "condition", condition_id, source_creature_id
+    )
+    # Remove subordinate-condition modifiers too
+    target.active_modifiers = [
+        m for m in target.active_modifiers
+        if (m.get("source") or {}).get("parent_condition") != condition_id
+    ]
+    return removed
 
 
 def _heal(params: dict, state: CombatState, bus: EventBus) -> dict:
-    """Heal target (default: current actor) by dice + modifier_source."""
     actor: Actor = state.current_actor()
     target: Actor = actor if params.get("target") in (None, "self") else None
     if target is None:
@@ -226,11 +318,6 @@ def _heal(params: dict, state: CombatState, bus: EventBus) -> dict:
 
 
 def _granted_action(params: dict, state: CombatState, bus: EventBus) -> None:
-    """Grant a free action (Disengage / Hide / Dodge / etc.) to current actor.
-
-    Skeleton: just records the grant in the event log. Real engine would
-    apply the action's effect (e.g., Disengage flag prevents OAs).
-    """
     actor: Actor = state.current_actor()
     kind = params.get("kind") or params.get("granted_action")
     state.event_log.append({"event": "granted_action",
@@ -238,23 +325,193 @@ def _granted_action(params: dict, state: CombatState, bus: EventBus) -> None:
 
 
 # ============================================================================
+# IMPLEMENTED — Q5 unified modifier primitives
+# ============================================================================
+#
+# These primitives REGISTER modifiers onto an actor's active_modifiers list.
+# They are invoked at apply-time (e.g., when a condition is applied, when a
+# feature grants a passive modifier, when Shield is cast as a reaction).
+# The engine consults the registry at attack_roll / save / d20-test time via
+# engine.core.modifiers.
+
+def _attack_modifier(params: dict, state: CombatState, bus: EventBus) -> None:
+    """Register an attack_modifier on the current target/actor."""
+    owner = _resolve_modifier_owner(params, state)
+    entry = _build_modifier_entry("attack_modifier", params, owner, state)
+    owner.active_modifiers.append(entry)
+
+
+def _save_modifier(params: dict, state: CombatState, bus: EventBus) -> None:
+    owner = _resolve_modifier_owner(params, state)
+    entry = _build_modifier_entry("save_modifier", params, owner, state)
+    owner.active_modifiers.append(entry)
+
+
+def _d20_test_modifier(params: dict, state: CombatState, bus: EventBus) -> None:
+    owner = _resolve_modifier_owner(params, state)
+    entry = _build_modifier_entry("d20_test_modifier", params, owner, state)
+    owner.active_modifiers.append(entry)
+
+
+def _crit_modifier(params: dict, state: CombatState, bus: EventBus) -> None:
+    owner = _resolve_modifier_owner(params, state)
+    entry = _build_modifier_entry("crit_modifier", params, owner, state)
+    owner.active_modifiers.append(entry)
+
+
+def _crit_threshold_modifier(params: dict, state: CombatState, bus: EventBus) -> None:
+    owner = _resolve_modifier_owner(params, state)
+    entry = _build_modifier_entry("crit_threshold_modifier", params, owner, state)
+    owner.active_modifiers.append(entry)
+
+
+def _resolve_modifier_owner(params: dict, state: CombatState) -> Actor:
+    """Determine which actor a modifier attaches to.
+
+    Defaults to current_actor (for self-targeting modifiers like Bless).
+    For modifiers from conditions, the owner is the condition's target —
+    handled by _instantiate_condition_effects, NOT by this function.
+    """
+    target = params.get("target", "self")
+    if target == "self":
+        actor = state.current_actor()
+        if actor is None and state.current_attack:
+            actor = state.current_attack.get("actor")
+        if actor is None:
+            raise ValueError("No owner resolvable for modifier")
+        return actor
+    raise ValueError(f"Unsupported modifier target: {target!r}")
+
+
+def _build_modifier_entry(primitive_name: str, params: dict, owner: Actor,
+                           state: CombatState) -> dict:
+    return {
+        "primitive": primitive_name,
+        "params": dict(params),  # copy, don't share
+        "lifetime": params.get("lifetime", "until_short_rest"),  # default conservative
+        "source": params.get("source") or {"type": "ad_hoc"},
+        "applied_at_round": state.round,
+        "owner_id": owner.id,
+    }
+
+
+# ============================================================================
+# IMPLEMENTED — Spell mechanics (forced_save, recurring_save)
+# ============================================================================
+
+def _forced_save(params: dict, state: CombatState, bus: EventBus) -> dict:
+    """Force the current target (or specified affected set) to make a save.
+
+    Params:
+      ability: 'strength' | 'dexterity' | 'constitution' | ...
+      dc: int OR dc_source: 'caster_spell_save_dc' OR 'fixed:N'
+      affected: 'current_target' (default) | 'all_creatures_in_area' (skeleton: just current_target)
+      on_fail: list of effect_primitives to invoke
+      on_success: list of effect_primitives to invoke (often empty / 'half')
+
+    Sets state.current_save with outcome for chained primitives to consume.
+    """
+    ability = params.get("ability", "dexterity")
+    dc = _resolve_dc(params, state)
+    rng = _get_rng(state, bus)
+
+    targets = _resolve_save_targets(params, state)
+    rolls = []
+    for target in targets:
+        # Query save modifiers
+        save_mods = _modifiers.query_save_modifiers(target, ability, state)
+        override = save_mods.net_outcome_override()
+
+        if override == "auto_fail":
+            outcome = "fail"
+            d20 = None
+            total = None
+        elif override == "auto_succeed":
+            outcome = "success"
+            d20 = None
+            total = None
+        else:
+            save_bonus = target.abilities.get(_short_ability(ability), {}).get("save", 0)
+            adv_state = save_mods.net_advantage()
+            if adv_state == "advantage":
+                d20 = max(rng.randint(1, 20), rng.randint(1, 20))
+            elif adv_state == "disadvantage":
+                d20 = min(rng.randint(1, 20), rng.randint(1, 20))
+            else:
+                d20 = rng.randint(1, 20)
+            total = d20 + save_bonus + save_mods.save_bonus_modifier
+            outcome = "success" if total >= dc else "fail"
+
+        rolls.append({"target_id": target.id, "outcome": outcome,
+                       "d20": d20, "total": total, "dc": dc,
+                       "ability": ability})
+        state.current_save = {"target": target, "outcome": outcome,
+                              "ability": ability, "dc": dc}
+        state.event_log.append({"event": "forced_save", "target": target.id,
+                                "ability": ability, "dc": dc,
+                                "d20": d20, "total": total, "outcome": outcome})
+
+        # Invoke on_fail or on_success sub-primitives (if specified inline)
+        if outcome == "fail":
+            for sub in params.get("on_fail") or []:
+                _invoke_subprimitive(sub, state, bus)
+        else:
+            for sub in params.get("on_success") or []:
+                _invoke_subprimitive(sub, state, bus)
+    return {"rolls": rolls}
+
+
+def _recurring_save(params: dict, state: CombatState, bus: EventBus) -> None:
+    """Register a recurring save check on a target at a named event.
+
+    Engine resolves these at the appropriate turn boundary (see runner.py).
+    """
+    target = state.current_attack.get("target") or state.current_actor()
+    actor = state.current_attack.get("actor") or state.current_actor()
+    entry = {
+        "target_id": target.id,
+        "source_id": actor.id if actor else None,
+        "ability": params.get("ability", "wisdom"),
+        "dc": _resolve_dc(params, state),
+        "trigger_event": params.get("trigger_event", "target_turn_end"),
+        "on_success": params.get("on_success", "end_spell_on_target"),
+        "condition_id": params.get("condition_id"),  # what to end if save succeeds
+        "applied_at_round": state.round,
+    }
+    state.recurring_saves.append(entry)
+
+
+# ============================================================================
+# IMPLEMENTED — multiattack (handled in pipeline.execute via type check)
+# ============================================================================
+#
+# The multiattack primitive itself is a marker; the actual N-attack loop is
+# implemented in engine/core/pipeline.py:execute(). When an action has
+# type=multiattack, execute() reads count + sub_actions and loops the pipeline.
+
+def _multiattack(params: dict, state: CombatState, bus: EventBus) -> None:
+    """Marker primitive — actual multi-attack loop is in pipeline.execute."""
+    # Nothing to do here; pipeline.execute reads action.type to detect this.
+    pass
+
+
+# ============================================================================
 # STUB PRIMITIVES — raise NotImplementedError when invoked
 # ============================================================================
 
 _STUB_PRIMITIVES = [
-    # Modifiers (unified per Q5)
-    "attack_modifier", "save_modifier", "speed_modifier", "damage_modifier",
-    "ability_check_modifier", "d20_test_modifier", "crit_modifier",
-    "crit_threshold_modifier", "death_save_threshold_modifier",
-    # Spell pipeline
-    "forced_save", "recurring_save", "persistent_aura", "triggered_save",
+    # Modifiers not yet implemented
+    "speed_modifier", "damage_modifier", "ability_check_modifier",
+    "death_save_threshold_modifier",
+    # Spell pipeline (besides forced_save / recurring_save)
+    "persistent_aura", "triggered_save",
     # Condition effects
     "sense_restriction", "movement_restriction", "action_restriction",
     "damage_resistance_grant", "condition_immunity_grant",
     "state_transition", "concentration_break", "visibility_state",
     "awareness_state", "state_flag",
     # Action / turn
-    "additional_action", "multiattack", "at_will_spell_grant",
+    "additional_action", "at_will_spell_grant",
     "free_cast_per_rest", "slot_recovery_partial",
     # Spellcasting infrastructure
     "spellcasting_enable", "cantrips_known_grant", "spell_grant",
@@ -280,47 +537,148 @@ def _stub_handler(name: str):
 # ============================================================================
 
 def _get_rng(state: CombatState, bus: EventBus) -> _random_module.Random:
-    """Lookup the runner's RNG via the bus (set during runner setup)."""
-    # The runner attaches itself to bus via a back-channel; for skeleton
-    # we fall back to a module-level RNG. The runner overwrites _rng below.
     return _rng
 
 
 def _resolve_modifier(source: str, actor: Actor) -> int:
-    """Resolve a modifier-source string like 'actor.fighter_level' or 'actor.con_mod'.
-
-    Skeleton: handles a tiny vocabulary. Real engine has a proper
-    expression evaluator.
-    """
     if source == "actor.con_mod":
         return ability_modifier(actor.abilities.get("con", {}).get("score", 10))
     if source == "actor.int_mod":
         return ability_modifier(actor.abilities.get("int", {}).get("score", 10))
     if source.startswith("actor.") and source.endswith("_level"):
-        # e.g., actor.fighter_level — look in template
         cls_name = source[len("actor."):-len("_level")]
         return actor.template.get("levels", {}).get(cls_name, 1)
     raise ValueError(f"Unknown modifier source: {source!r}")
 
 
-# Module-level RNG; runner overrides via set_rng() for determinism
+def _resolve_dc(params: dict, state: CombatState) -> int:
+    """Resolve a DC value from params."""
+    if "dc" in params:
+        return int(params["dc"])
+    dc_source = params.get("dc_source", "")
+    if dc_source == "caster_spell_save_dc":
+        # Skeleton: use current_attack.actor's spellcasting DC
+        # Fallback to a reasonable default (DC 13) if no caster info available
+        actor = state.current_attack.get("actor") or state.current_actor()
+        if actor:
+            # Try to compute: 8 + spellcasting_mod + PB
+            int_mod = ability_modifier(actor.abilities.get("int", {}).get("score", 10))
+            pb = actor.template.get("cr", {}).get("proficiency_bonus", 2)
+            return 8 + int_mod + pb
+        return 13
+    if dc_source.startswith("fixed:"):
+        return int(dc_source[len("fixed:"):])
+    return 13  # default
+
+
+def _resolve_save_targets(params: dict, state: CombatState) -> list[Actor]:
+    """Resolve the targets that must save."""
+    affected = params.get("affected", "current_target")
+    if affected == "current_target":
+        target = state.current_attack.get("target") or state.current_actor()
+        return [target] if target else []
+    if affected == "all_creatures_in_area":
+        # Skeleton: return all alive enemies of the current actor
+        actor = state.current_actor() or state.current_attack.get("actor")
+        if actor is None:
+            return []
+        return [a for a in state.encounter.actors
+                if a.side != actor.side and a.is_alive()]
+    return []
+
+
+def _short_ability(name: str) -> str:
+    """Convert 'strength' / 'dexterity' / etc. to short keys."""
+    mapping = {
+        "strength": "str", "dexterity": "dex", "constitution": "con",
+        "intelligence": "int", "wisdom": "wis", "charisma": "cha",
+    }
+    return mapping.get(name, name)
+
+
+def _invoke_subprimitive(sub: dict, state: CombatState, bus: EventBus) -> Any:
+    """Invoke a nested primitive call (e.g., on_fail inside forced_save)."""
+    primitive_name = sub.get("primitive")
+    if not primitive_name:
+        return None
+    # Look up via the module's registry — there's only one in the runner
+    handler = _PRIMITIVE_HANDLERS.get(primitive_name)
+    if handler is None:
+        raise KeyError(f"Subprimitive lookup failed: {primitive_name!r}")
+    return handler(sub.get("params") or {}, state, bus)
+
+
+# Module-level RNG
 _rng: _random_module.Random = _random_module.Random()
 
 
 def set_rng(rng: _random_module.Random) -> None:
-    """Allow the runner to inject a seeded RNG before running."""
     global _rng
     _rng = rng
 
 
+# ============================================================================
+# Registry assembly + handler lookup table for subprimitives
+# ============================================================================
+
+_PRIMITIVE_HANDLERS: dict[str, Callable] = {}
+
+
+def _populate_handler_table() -> None:
+    """Populate the subprimitive lookup table eagerly at module load.
+
+    Subprimitives (e.g., the on_fail array inside a forced_save call)
+    are dispatched via this table rather than through the PrimitiveRegistry,
+    so direct primitive calls (in tests + ad hoc) work even before a
+    registry exists.
+    """
+    global _PRIMITIVE_HANDLERS
+    _PRIMITIVE_HANDLERS = {
+        "attack_roll": _attack_roll,
+        "damage": _damage,
+        "apply_condition": _apply_condition,
+        "heal": _heal,
+        "granted_action": _granted_action,
+        "attack_modifier": _attack_modifier,
+        "save_modifier": _save_modifier,
+        "d20_test_modifier": _d20_test_modifier,
+        "crit_modifier": _crit_modifier,
+        "crit_threshold_modifier": _crit_threshold_modifier,
+        "forced_save": _forced_save,
+        "recurring_save": _recurring_save,
+        "multiattack": _multiattack,
+    }
+
+
 def _all_primitives() -> list[Primitive]:
-    return [
+    implemented = [
+        # v0 (skeleton)
         Primitive("attack_roll", _attack_roll, implemented=True),
         Primitive("damage", _damage, implemented=True),
         Primitive("apply_condition", _apply_condition, implemented=True),
         Primitive("heal", _heal, implemented=True),
         Primitive("granted_action", _granted_action, implemented=True),
-    ] + [
+        # v1 — Q5 unified modifiers
+        Primitive("attack_modifier", _attack_modifier, implemented=True),
+        Primitive("save_modifier", _save_modifier, implemented=True),
+        Primitive("d20_test_modifier", _d20_test_modifier, implemented=True),
+        Primitive("crit_modifier", _crit_modifier, implemented=True),
+        Primitive("crit_threshold_modifier", _crit_threshold_modifier, implemented=True),
+        # v1 — Spell mechanics
+        Primitive("forced_save", _forced_save, implemented=True),
+        Primitive("recurring_save", _recurring_save, implemented=True),
+        # v1 — Monster mechanics
+        Primitive("multiattack", _multiattack, implemented=True),
+    ]
+    # Populate handler lookup table for subprimitive invocations
+    global _PRIMITIVE_HANDLERS
+    _PRIMITIVE_HANDLERS = {p.name: p.handler for p in implemented}
+    stubs = [
         Primitive(name, _stub_handler(name), implemented=False)
         for name in _STUB_PRIMITIVES
     ]
+    return implemented + stubs
+
+
+# Populate the subprimitive lookup table at module import time.
+_populate_handler_table()

@@ -52,14 +52,36 @@ engine/
 
 ## What's implemented
 
-**5 primitives implemented end-to-end:**
-- `attack_roll` — d20 + bonus vs AC, with advantage/disadvantage support
-- `damage` — dice + modifier, crit doubling, resistance/vulnerability/immunity
-- `apply_condition` — adds entry to actor's `applied_conditions` array
-- `heal` — dice + modifier source, capped at HP max
-- `granted_action` — records granted action in event log (engine ignores effect for now)
+**13 primitives implemented end-to-end:**
 
-**~40 primitives stubbed.** They raise `NotImplementedError` with a clear message if invoked. Adding more = unlocking more content.
+*Skeleton v0:*
+- `attack_roll` — d20 + bonus vs AC; consults active modifiers for advantage/disadvantage/AC adjustments
+- `damage` — dice + modifier, crit doubling, resistance/vulnerability/immunity
+- `apply_condition` — adds entry to `applied_conditions` AND instantiates the condition's effect primitives onto target's `active_modifiers` registry (with subordinate-condition inheritance)
+- `heal` — dice + modifier source, capped at HP max
+- `granted_action` — records granted action in event log
+
+*Primitives v1 — Q5 unified modifiers (keystone — conditions now affect gameplay):*
+- `attack_modifier` — register attack-roll adjustment with a lifetime
+- `save_modifier` — register save adjustment (advantage/disadvantage/auto-fail/auto-succeed)
+- `d20_test_modifier` — generic d20-test modifier (Exhaustion, Poisoned, Frightened pattern)
+- `crit_modifier` — auto-crit conditions (Paralyzed within 5 ft)
+- `crit_threshold_modifier` — lower crit range (Improved Critical → 19+)
+
+*Primitives v1 — Spell mechanics:*
+- `forced_save` — target makes save vs DC; on_fail/on_success differential sub-primitives
+- `recurring_save` — register a turn-end save check on a target; success ends source condition (resolved by runner)
+
+*Primitives v1 — Monster mechanics:*
+- `multiattack` — marker primitive; pipeline.execute() loops N sub-attacks for type=multiattack actions
+
+**~30 primitives still stubbed.** They raise `NotImplementedError` with a clear message if invoked.
+
+## Modifier evaluation (`engine/core/modifiers.py`)
+
+The Q5 unified modifier system: every actor has an `active_modifiers` registry. At attack-roll / save / crit / d20-test time, the engine queries the registry, filters by matching `when` clause, and aggregates effects (advantage + disadvantage cancel; auto-fail trumps auto-succeed on saves; etc.).
+
+Modifier lifetime management is uniform — `per_single_attack` clears after attack; `until_actor_next_turn_start` clears at turn_start; `until_condition_ends` clears when the source condition is removed. One modifier registry; one expiration logic; same math regardless of source.
 
 ## Stage 1 (current) → Stage 2/3 (future)
 

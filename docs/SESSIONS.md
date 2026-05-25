@@ -5,6 +5,52 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-26 — Primitives v1 (Q5 unified modifiers + spell mechanics + multiattack)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Implemented the Q5 unified modifier system end-to-end. The keystone change: **conditions applied to an actor now actually affect gameplay** (Blinded gives attackers advantage; Paralyzed auto-fails STR/DEX saves; etc.).
+- New module `engine/core/modifiers.py` — active-modifier registry evaluator. Queries unified `attack_modifier` / `save_modifier` / `d20_test_modifier` / `crit_modifier` / `crit_threshold_modifier` entries with `when`-clause filtering and aggregation per D&D 5e rules (advantage + disadvantage cancel; auto-fail trumps; etc.). Skeleton-grade `when`-clause evaluator (atoms: target_is_self, attacker_is_self, attack_hits, position-based defaulted to TRUE since (0,0) coords throughout).
+- Modifier lifetime management uniform across sources: `per_single_attack` clears after attack; `until_actor_next_turn_start` clears at turn_start; `until_condition_ends` clears when source condition is removed via `remove_condition()`.
+- `apply_condition` now instantiates the condition's effect primitives onto target's `active_modifiers` (with subordinate-condition inheritance — Paralyzed → Incapacitated; Unconscious → Incapacitated + Prone). `_instantiate_condition_effects` helper handles the transitive application.
+- `remove_condition` cleans up modifiers (including subordinate-inheritance chain) by source.
+- `forced_save` primitive — target makes save vs DC; resolves on_fail / on_success sub-primitive arrays. DC sources: explicit `dc:` int, `dc_source: caster_spell_save_dc` (computes 8 + INT mod + PB), `fixed:N`.
+- `recurring_save` primitive — registers an entry in `state.recurring_saves`; runner resolves at the target's `turn_end` boundary. On success: `remove_condition` ends the source condition.
+- `multiattack` — special-cased in `pipeline.execute()`. Actions with `type: multiattack` loop N sub-attacks (referenced by sub_action_ids), each independently picks a target.
+- 12 new integration tests in `tests/test_primitives_v1.py`:
+  - Blinded target gives attacker advantage
+  - Blinded creature's own attacks have disadvantage
+  - Paralyzed auto-fails STR save / DEX save / does NOT auto-fail WIS save
+  - Paralyzed inherits Incapacitated (subordinate condition appears in applied_conditions)
+  - Crit threshold modifier lowers crit range (Champion Improved Critical → 19+)
+  - Multiattack runs N sub-attacks per turn (verified via attacks-per-round in event log)
+  - forced_save with high DC fails and applies on_fail sub-primitive (Frightened)
+  - recurring_save registers entry and is resolvable at turn_end
+  - remove_condition cleans up active_modifiers (Blinded)
+  - remove_condition cleans up inherited subordinate modifiers (Paralyzed → Incapacitated chain)
+- Test fixture `tests/fixtures/test_multiattack_encounter.yaml` — custom Test Dual Wielder creature with type=multiattack action.
+- All 16 tests pass (4 smoke + 12 v1).
+
+**Key decisions:**
+- **State carries content registry.** `CombatState` gets a `content_registry` field (optional). When `apply_condition` fires, it looks up the condition definition via registry and instantiates effects. If no registry, condition is a marker only (backward-compatible).
+- **Modifier lifetime uniformity.** The Q5 architectural commitment cashed out: one `attack_modifier` primitive handles Blinded, Shield, Bless, Bardic Inspiration via the lifetime parameter. The engine queries one registry; aggregates uniformly; doesn't care what type of source added the modifier.
+- **`when`-clause evaluator is skeleton-grade.** Handles a small vocabulary (target_is_self, attacker_is_self, position checks defaulted to TRUE). Real engine needs a proper expression evaluator. Documented as a known limitation.
+- **`recurring_save` resolved by runner**, not by event subscribers. The runner walks `state.recurring_saves` at each actor's turn_end. Simpler than coupling primitives to engine event flow.
+- **Multiattack special-cased in pipeline.execute**, not as a true primitive. The `multiattack` primitive itself is a marker; the actual loop is in `_execute_multiattack`. Pragmatic — the decision pipeline picks ONE action per turn; multiattack lets that action expand into N sub-attacks.
+- **`_PRIMITIVE_HANDLERS` lookup populated at module import**, not lazily on first registry build. Allows direct primitive calls (in tests + ad-hoc invocation) to find sub-primitives without going through PrimitiveRegistry.
+
+**Open items carried forward:**
+- [ ] Real AI decision layer — replace skeleton's "attack nearest enemy" with 5-step Ammann+eHP hybrid per `pillars-reconciliation.md` §7. Conditions now affect gameplay but AI doesn't EXPLOIT advantage / avoid disadvantage. The score_candidates() socket is ready.
+- [ ] Movement / positioning / line-of-sight / area-of-effect geometry. Skeleton still uses (0,0); position-based `when` clauses default to TRUE.
+- [ ] Remaining ~30 stubbed primitives. Next-highest-value: `speed_modifier` (movement effects from conditions), `damage_modifier` (resistance grants beyond template-level), `additional_action` (Action Surge), `persistent_aura` + `triggered_save` (Spirit Guardians end-to-end), `slot_recovery_partial` (Arcane Recovery).
+- [ ] Proper `when`-clause expression evaluator (Tier 1 dependency for richer conditions).
+- [ ] Concentration mechanics — auto CON save on damage when caster has active concentration spell.
+- [ ] PC schema (proper one, replacing inline-monster-template hack in smoke fixture).
+- [ ] Phase 2 Foundry bridge — when stage 2 timing is right.
+
+---
+
 ## Session: 2026-05-25 — Engine skeleton (Phase 1 v0) committed
 
 **Participants:** Phil, Claude

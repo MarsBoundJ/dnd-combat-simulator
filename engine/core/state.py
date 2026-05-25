@@ -99,6 +99,19 @@ class CombatState:
     # Per-current-attack scratch space (cleared between attacks)
     current_attack: dict = field(default_factory=dict)
 
+    # Per-current-save scratch space (used by forced_save / save_modifier)
+    current_save: dict = field(default_factory=dict)
+
+    # Content registry — lookup for condition definitions, spells, etc.
+    # Set by the runner via EncounterRunner.attach_content_registry().
+    # Optional: if None, condition application stores markers only (no effects fire).
+    content_registry: object | None = None
+
+    # Recurring-save callbacks registered against actor turn-end events.
+    # Entries: { target_id, condition_id, source_id, ability, dc, on_success, trigger_event }
+    # Resolved by runner at the appropriate turn boundary.
+    recurring_saves: list = field(default_factory=list)
+
     def current_actor(self) -> Actor | None:
         if not self.turn_order:
             return None
