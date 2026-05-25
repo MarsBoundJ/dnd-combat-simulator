@@ -5,6 +5,214 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-25 — Engine capabilities checkpoint doc
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Created `docs/engine-capabilities.md` — reader-facing capability
+  checkpoint after 3 consecutive substantial AI PRs (#6 targeting, #7
+  offensive eHP, #8 defensive eHP). Covers: what the AI can
+  demonstrate today (behavioral, not module-listing); decision
+  pipeline status per step; eHP framework coverage map; primitives
+  coverage; worked behavioral examples (goblin bullies wounded,
+  cleric heals dying ally, multiattack); test surface (103 tests
+  across 4 modules); honest roadmap gap list.
+- Refreshed `docs/CONTEXT.md` status table — added rows for
+  Offensive eHP scoring v1 (#7) and Defensive eHP scoring v1 (#8);
+  refreshed "Current phase" prose and "Next substantive steps" list.
+- Updated `docs/SESSIONS.md` — added entries for the two missing
+  PRs (#7 + #8) plus this checkpoint session.
+
+**Key decisions:**
+- **Engine-capabilities doc is reader-facing, not module-facing.**
+  Lead with what the AI demonstrably does; module locations are
+  pointer-table-only at the end. Keeps the doc useful for both Phil
+  picking next priorities and future Claude sessions starting cold.
+- **CONTEXT.md status table stays as the one-liner per work item;**
+  the new capabilities doc handles depth. Avoids both files trying
+  to be the same thing.
+- **No strategic / pitch / Trusight content** in the docs. Engine
+  repo is public; capabilities doc is engineering-progress only.
+
+**Open items carried forward:**
+- [ ] Pick next AI dial: Action Economy, Retreat, RP Constraints,
+  positioning, or offensive buff for allies. (See
+  `docs/engine-capabilities.md` §7 roadmap for ordered list.)
+
+---
+
+## Session: 2026-05-25 — Defensive eHP scoring v1 (PR #8)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Added the defensive side of the eHP framework. The AI now compares
+  offensive AND defensive options on a single expected-HP scale.
+- New module `engine/ai/defensive_ehp.py`:
+  - `desperation_multiplier` — healing low-HP allies worth more
+    (1.0 at full → 1.5 at 0 HP, linear below 50%).
+  - `expected_healing` — parses heal-primitive pipelines (dice +
+    fixed + modifier_source).
+  - `defensive_ehp_healing` — capped at the ally's missing HP.
+  - `estimate_dpr` — observable-proxy DPR estimate from a creature's
+    weapon_attack actions + multiattack count. Mirrors threat_score
+    discipline (no mental-stat introspection).
+  - `extract_buff_effect` + `defensive_ehp_defensive_buff` — scores
+    AC bonus + disadvantage-for-attacker shapes via `worst_enemy_DPR ×
+    Δmiss × EXPECTED_BUFF_ROUNDS` (2.5 per framework).
+  - `extract_control_intent` + `save_fail_probability` +
+    `defensive_ehp_hard_control` — recognizes `forced_save →
+    apply_condition` pipeline shape. Scores `enemy_DPR × p_fail ×
+    EXPECTED_CONTROL_ROUNDS × denial_fraction`. HARD_CONTROL_CONDITIONS
+    (paralyzed/stunned/petrified/unconscious/incapacitated) score
+    full denial (1.0); PARTIAL_CONTROL_CONDITIONS (restrained/blinded/
+    frightened/grappled/prone) score 0.2–0.5.
+- `engine/ai/ehp_scoring.py`: `score_candidate` now dispatches by
+  `action.type` to either offensive (this module) or defensive
+  (defensive_ehp) scoring functions.
+- `engine/core/pipeline.py`: `generate_candidates` extended to emit
+  `(heal × ally)`, `(defensive_buff × ally)`, `(hard_control × enemy)`
+  candidates alongside the existing `(weapon_attack × enemy)` +
+  `(multiattack)` candidates.
+- `engine/primitives.py`: `_heal` extended to support ally targets
+  via `params.target='ally'` (uses `current_attack.target`);
+  `_resolve_modifier` learns the remaining 4 ability mods
+  (str/dex/wis/cha — was just con/int). Pre-existing bug fixed: heal
+  `modifier_source` now resolves against the CASTER, not the heal
+  target (mattered for self-heal it matched; for ally-heal it would
+  have been wrong).
+- `engine/cli.py`: `_build_actor` accepts optional `hp_current` per
+  actor_spec so fixtures can spawn wounded allies for defensive-eHP
+  demos (clamped to `[0, hp_max]`).
+- New fixture `tests/fixtures/cleric_heals_ally_encounter.yaml`:
+  2 goblins + dying fighter (1 HP) + cleric (mace + Cure Wounds).
+  Headline behavior at seed 1: cleric's first action is `healed →
+  fighter_dying +10`, NOT a mace attack. Fighter survives and
+  contributes to PC victory.
+- 34 new tests in `tests/test_defensive_ehp.py`: desperation math,
+  healing eHP, DPR estimation, defensive buff, hard control,
+  candidate generation, dispatch routing, behavioral tests
+  (cleric-heals-dying-ally, AI-controls-high-DPR-enemy), and the
+  full-encounter integration test.
+- 103/103 tests pass total. 4/4 CLI fixtures clean.
+
+**Key decisions:**
+- **Split into separate `defensive_ehp.py` module**, not crammed
+  into `ehp_scoring.py`. Clean separation makes it obvious which
+  functions handle which side of the framework, and the dispatch
+  point in `score_candidate` becomes the only entanglement.
+- **Action types `heal` / `defensive_buff` / `hard_control` are
+  the discriminator** for both candidate generation (target-side
+  logic) and scoring (formula dispatch). Schema field, not pipeline
+  inspection.
+- **Healing capped at missing HP, not raw expected_healing.** The
+  framework formula is fine for analysis but for selection we want
+  the actual deliverable value. Same overkill discipline as
+  offensive eHP.
+- **DPR estimation uses observable proxies on templates** — same
+  no-cheating discipline as `_threat_score`. Worst-attacker DPR is
+  the stand-in for "expected ally damage taken next round" — a
+  conservative approximation appropriate for v1.
+- **Flat 2.5-round constant for buff/control duration.** Per
+  framework's EXPECTED_ENCOUNTER_ROUNDS baseline. Future-rounds
+  discounting + concentration-break risk modeling deferred.
+- **Soft control / movement denial deferred** to the positioning
+  PR. Defensible because no fixture needs it and the framework
+  formula explicitly requires `denial_fraction` based on enemy
+  position relative to targets.
+- **Offensive buff for allies (Bless) deferred** — math symmetric
+  to defensive buff, but needs cross-actor `attack_modifier` lookup
+  at score-time. Smaller scope; left for a focused follow-on.
+
+**Open items carried forward:**
+- [ ] Soft control / movement denial (needs positions).
+- [ ] Offensive buff for allies (Bless shape).
+- [ ] Debuff on enemy saves.
+- [ ] AoE multi-target optimization.
+- [ ] Concentration management (auto CON saves on damage; AI choice
+  of whether to break concentration to cast new spell).
+- [ ] Spell slot opportunity cost (needs slot tracking on actors).
+- [ ] Future-rounds discounting (flat 2.5 constant for now).
+- [ ] `self_preservation_coefficient` scaling on defensive eHP.
+
+---
+
+## Session: 2026-05-25 — Offensive eHP scoring v1 (PR #7)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Replaced the `+10/+5` preset-preference scoring in
+  `score_candidates_v1` with real offensive-eHP math.
+- New module `engine/ai/ehp_scoring.py`:
+  - `dice_mean`, `hit_probability`, `crit_probability` — pure math
+    helpers; nat-1 always misses, nat-20 always hits.
+  - `extract_attack_bonus` / `extract_damage_components` — pipeline
+    inspection (only counts damage steps gated by no condition or
+    by `attack_state == hit`; exotic conditional damage like sneak
+    attack deferred).
+  - `expected_damage_on_hit` — handles resistance / vulnerability /
+    immunity by damage type; folds crit-given-hit probability into
+    the dice portion only (modifier doesn't double under 5e rules).
+  - `offensive_ehp_single_attack` — `hit_prob × dmg_on_hit`, capped
+    at target HP (overkill cap on the upside).
+  - `offensive_ehp_multiattack` — sums sub-attacks with a running
+    overkill cap so later sub-attacks against a near-dead target
+    don't inflate the score.
+  - `aggression_coefficient` — per-archetype multiplier in [0.8, 1.5]
+    (cowardly_skirmisher 0.8 → berserker_fanatic 1.5).
+  - `score_candidate`, `best_action_against` — public API.
+- `engine/ai/decision_layer.py`: `score_candidates_v1` rewired —
+  score = `eHP × aggression + small preference bonuses`. The dial
+  preferences become tie-breakers, not the primary signal.
+- `engine/ai/ability_selection.py`: `_pick_tactical` now uses
+  `best_action_against` to pick the highest-EV attack against the
+  chosen target (was aliased to `default`). `_pick_optimal` aliases
+  to tactical (joint optimization across defensive options deferred).
+- 34 new tests in `tests/test_ehp_scoring.py`: pure-math helpers
+  (dice, hit/crit prob with adv/dis edge cases), expected damage
+  with resistance/vuln/immunity, eHP integration with overkill cap,
+  multiattack sums, aggression scaling, tactical preset picks
+  highest-EV attack, and the headline behavioral test that the AI
+  scores Blinded targets higher than equivalent non-blinded
+  targets without any special-cased "prefer Blinded" code.
+- 69/69 tests pass total (was 35; +34 new).
+
+**Key decisions:**
+- **eHP carries the signal; preset preferences become tie-breakers.**
+  `TARGET_PREFERENCE_BONUS = 2.0` and `ACTION_PREFERENCE_BONUS = 1.0`
+  — small enough not to overpower real eHP differences, large enough
+  to steer when eHP is close. This means archetypes stay meaningful
+  even though eHP math now does the heavy lifting.
+- **Overkill caps are mandatory.** A 50-damage swing at a 1-HP
+  target should score 1 eHP, not 50. Multiattack uses a *running*
+  cap across sub-attacks to avoid inflating the score after the
+  target's hypothetical HP is "spent."
+- **Crit folds into damage-on-hit, not into hit probability.** The
+  math: `mean_damage_on_hit = dice × (1 + p_crit_given_hit) + modifier`.
+  This is cleaner than scoring crit chance separately.
+- **AI exploits conditions via the unified modifier registry, no
+  special code.** Blinded target → `query_attack_modifiers` returns
+  advantage → `hit_probability` uses `1 - (1-p)^2` formula → eHP
+  rises → AI picks the Blinded target. Same path will work for
+  Restrained / Frightened / Prone when those modifiers attach.
+- **`tactical` preset works for real now;** `optimal` aliases to
+  tactical for v1. Real `optimal` will compare offensive vs defensive
+  options jointly (needs the defensive eHP layer — next PR).
+- **No spell slot opportunity cost yet** — no casters in fixtures.
+  Deferred to its own PR with proper slot tracking on actors.
+
+**Open items carried forward:**
+- [ ] Defensive eHP (heal / buff / control / debuff formulas).
+- [ ] Spell slot opportunity cost.
+- [ ] Future-rounds discounting + AoE multi-target optimization.
+- [ ] `self_preservation_coefficient` / `pack_tactics_bonus`.
+- [ ] Joint (target × ability) optimization for `optimal` preset
+  (needs defensive eHP first).
+
+---
+
 ## Session: 2026-05-26 — AI decision layer v1 (Targeting dial fully implemented)
 
 **Participants:** Phil, Claude
