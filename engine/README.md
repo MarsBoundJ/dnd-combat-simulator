@@ -77,6 +77,22 @@ engine/
 
 **~30 primitives still stubbed.** They raise `NotImplementedError` with a clear message if invoked.
 
+## AI decision layer (`engine/ai/`)
+
+Replaces the skeleton's "attack nearest enemy" with archetype-driven targeting.
+
+- `engine/ai/targeting.py` — 5 targeting presets fully implemented:
+  - `closest_enemy` — first in turn order (positions deferred)
+  - `weakest_target` — lowest current HP (cowardly skirmisher default)
+  - `most_dangerous` — highest threat-score (CR + attack bonus + caster signal)
+  - `caster_first` — prioritize spellcasters (apex predator default)
+  - `optimal_ehp` — degrades to caster_first until full eHP scoring lands
+- `engine/ai/ability_selection.py` — simple priority: multiattack > weapon_attack > first
+- `engine/ai/behavior_profile.py` — preset resolution from `behavior_profile.presets` and archetype defaults (per pillars-reconciliation §3)
+- **Universal finish-off rule** — INT ≥ 4 creatures deviate from preset to finish off near-death targets (HP_remaining < 15%)
+
+Wires into `engine/core/pipeline.py:score_candidates()` — the socket that was already waiting from the skeleton PR.
+
 ## Modifier evaluation (`engine/core/modifiers.py`)
 
 The Q5 unified modifier system: every actor has an `active_modifiers` registry. At attack-roll / save / crit / d20-test time, the engine queries the registry, filters by matching `when` clause, and aggregates effects (advantage + disadvantage cancel; auto-fail trumps auto-succeed on saves; etc.).

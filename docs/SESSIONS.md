@@ -5,6 +5,62 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-26 — AI decision layer v1 (Targeting dial fully implemented)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Created `engine/ai/` module — the AI decision layer's home. Replaces the skeleton "attack nearest enemy" with dial-driven archetype-aware targeting via the `score_candidates()` socket that was waiting in `pipeline.py` from the skeleton PR.
+- `engine/ai/targeting.py` — all 5 targeting presets per `pillars-reconciliation.md` §5.3:
+  - `closest_enemy` — first in turn order (positions deferred to a future PR)
+  - `weakest_target` — lowest current HP ("bullies the wounded"; cowardly skirmisher default)
+  - `most_dangerous` — highest observable threat score (CR × 10 + max attack bonus × 2 + caster signal +5)
+  - `caster_first` — prioritize spellcasters; falls back to most_dangerous if none visible
+  - `optimal_ehp` — degrades to caster_first behavior (full eHP joint optimization deferred)
+  - **Universal finish-off rule** — INT ≥ 4 creatures deviate from any preset to attack near-death targets (HP_remaining < 15%); mindless creatures (INT 1-3) don't have the awareness.
+- `engine/ai/ability_selection.py` — minimal v1 implementation:
+  - `default` preset prefers multiattack > weapon_attack > first listed
+  - `mindless` always picks first action
+  - `instinctive` prefers signature-flagged actions
+  - `tactical` and `optimal` degrade to `default` (full eHP scoring deferred)
+- `engine/ai/behavior_profile.py` — preset resolution with archetype defaults sourced from `pillars-reconciliation.md` §3:
+  - Explicit preset on `behavior_profile.presets` wins
+  - Falls back to archetype default (cowardly_skirmisher → weakest_target; apex_predator → caster_first; pack_hunter → most_dangerous; berserker_fanatic → most_dangerous; mindless_aggressor → closest_enemy)
+  - Hard-coded fallback (closest_enemy) when neither is present
+- `engine/ai/decision_layer.py` — public orchestration:
+  - `score_candidates_v1()` — the score_candidates socket implementation. Resolves the actor's dials, asks targeting + ability_selection for their preferred picks, scores candidates matching those picks higher (+10 for preferred target, +5 for preferred action).
+  - `select_action_v1()` — alternative API that picks directly via dial-driven AI (useful when generate_candidates is too restrictive).
+- Wired into `engine/core/pipeline.py`:
+  - `score_candidates()` now delegates to `engine.ai.decision_layer.score_candidates_v1` (lazy import to avoid circular dependency at module load).
+  - `generate_candidates()` expanded to include multiattack actions (previously only weapon_attack).
+- 19 new tests in `tests/test_ai_v1.py`:
+  - Unit tests per targeting preset (closest_enemy, weakest_target with dead-enemy handling, most_dangerous by attack-bonus and CR, caster_first with martial fallback, finish-off rule for INT 4+ and skip for INT 1-3)
+  - Behavior profile resolution (explicit preset > archetype default > fallback; multiple archetype verifications)
+  - Ability selection (default prefers multiattack, mindless picks first, instinctive picks signature)
+  - Integration: Goblin (cowardly_skirmisher) attacks wounded fighter (5 HP) before healthy fighter (28 HP)
+- New test fixture `tests/fixtures/two_pc_encounter.yaml` — Goblin + wounded fighter + healthy fighter, with goblin acting first.
+- All 35 tests pass total (4 smoke + 12 primitives_v1 + 19 ai_v1).
+
+**Key decisions:**
+- **Archetype defaults are tabulated in `behavior_profile.py`** — not embedded in content YAML. A creature can specify just an archetype string and inherit sensible dial defaults; or override individual dials explicitly. Matches pillars-reconciliation §3 / §5 design.
+- **Universal finish-off rule is applied across all presets**, not as a separate preset. Per §5.3 it's a modifier "applied across all non-mindless presets". The skeleton-grade implementation gates on INT ≥ 4.
+- **Threat score uses observable proxies** — no "cheating" via mental stat introspection. CR is a published creature attribute; attack bonus is visible from past actions; spellcaster status is detected from template structure (presence of spellcasting blocks / actions named "Spellcasting" / etc.).
+- **`optimal_ehp` degrades to `caster_first` for v1**, not raises NotImplementedError. Graceful degradation lets content using the optimal preset still function until eHP scoring lands. Documented as a known limitation.
+- **Ability Selection is minimal v1**. The multiattack > weapon_attack > first priority handles the common cases; eHP-scored ability selection (where Tactical preset picks based on expected damage × hit probability, accounting for resistance / target HP) is deferred to the eHP scoring PR.
+- **`score_candidates()` delegation via lazy import** — `engine.ai.decision_layer` imports from `engine.core.state`, which is itself imported by `engine.core.pipeline`. Lazy import inside the function body avoids the circular dependency without restructuring.
+
+**Open items carried forward:**
+- [ ] Full eHP scoring + behavioral coefficients in `score_candidates_v1`. Currently scoring is +10/+5/+0 for matching preferences; real implementation weighs eHP value × weighted preferences + forced choice weights + behavioral coefficients (aggression / self-preservation from archetype).
+- [ ] Action Economy dial (signature_bonus / tactical_bonus / OA / sophisticated reaction tiering per §5.4 + Phil's per-slot stochastic model).
+- [ ] Retreat dial (DMG p48 algorithm + 3 modes + 5 presets per §5.1).
+- [ ] RP Constraints (Hard Filter / Forced Choice / Weighted Preference per §6).
+- [ ] Full 3-level profile inheritance (archetype → faction → instance) + runtime override layer (Frightened / Dominate / Confusion) per §4.4.
+- [ ] Positioning / movement / reachability filters. Currently all creatures at (0,0); `closest_enemy` collapses to turn order.
+- [ ] Tactical ability selection with eHP scoring (highest expected damage attack against highest-eHP-contribution target).
+- [ ] AI should EXPLOIT conditions — attacking Blinded targets preferentially, avoiding attacking through disadvantage, etc. Currently conditions affect resolution but not selection. Requires the eHP scoring layer.
+
+---
+
 ## Session: 2026-05-26 — Primitives v1 (Q5 unified modifiers + spell mechanics + multiattack)
 
 **Participants:** Phil, Claude

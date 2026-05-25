@@ -50,8 +50,9 @@ def check_retreat_trigger(actor: Actor, state: CombatState) -> dict | None:
 def generate_candidates(actor: Actor, state: CombatState) -> list[dict]:
     """Step 2: enumerate all legal (action × target) candidate tuples.
 
-    Pulls from actor.template's actions, bonus_actions, and reactions;
-    pairs each with reachable targets.
+    Pulls from actor.template's actions; pairs each with reachable
+    targets. Multiattack actions are included as candidates (they pick
+    their own targets internally during pipeline.execute).
     """
     candidates: list[dict] = []
     template = actor.template
@@ -61,7 +62,8 @@ def generate_candidates(actor: Actor, state: CombatState) -> list[dict]:
                if a.side != actor.side and a.is_alive()]
 
     for action in actions:
-        if action.get("type") == "weapon_attack":
+        action_type = action.get("type")
+        if action_type == "weapon_attack":
             for enemy in enemies:
                 candidates.append({
                     "kind": "weapon_attack",
@@ -69,6 +71,17 @@ def generate_candidates(actor: Actor, state: CombatState) -> list[dict]:
                     "target": enemy,
                     "actor": actor,
                 })
+        elif action_type == "multiattack":
+            # Multiattack picks its own targets per sub-attack inside
+            # _execute_multiattack. Generate one candidate, scored as a
+            # single "do my multiattack" choice. Target is informational.
+            primary_target = enemies[0] if enemies else None
+            candidates.append({
+                "kind": "multiattack",
+                "action": action,
+                "target": primary_target,
+                "actor": actor,
+            })
     return candidates
 
 
@@ -92,19 +105,19 @@ def apply_forced_choices(candidates: list[dict], actor: Actor,
 
 def score_candidates(candidates: list[dict], actor: Actor,
                      state: CombatState) -> list[tuple[float, dict]]:
-    """Step 5: Utility AI single-scoring-stage. All considerations baked in.
+    """Step 5: Utility AI single-scoring-stage.
 
-    SKELETON: trivially score by proximity to target (closer = higher).
-    Real implementation invokes eHP scoring + RP weighted preferences +
-    behavioral coefficients per pillars-reconciliation.md §7.
+    Delegates to engine.ai.decision_layer.score_candidates_v1 which
+    consults the actor's targeting and ability-selection dial presets
+    (resolved from behavior_profile/archetype on the template) and
+    scores candidates that match the actor's preferences higher.
+
+    Full eHP scoring + RP weighted preferences + behavioral coefficients
+    per pillars-reconciliation.md §7 step 5 are deferred to follow-on PRs.
     """
-    scored: list[tuple[float, dict]] = []
-    for c in candidates:
-        # Skeleton: prefer the closest enemy
-        # (Real engine: eHP_value × weighted_prefs + forced_weights + behavior_coeffs)
-        score = 1.0  # all weapon attacks scored equally for now
-        scored.append((score, c))
-    return scored
+    # Lazy import to avoid potential circular dependency at module load
+    from engine.ai.decision_layer import score_candidates_v1
+    return score_candidates_v1(candidates, actor, state)
 
 
 def select_max(scored: list[tuple[float, dict]]) -> dict | None:
