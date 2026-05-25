@@ -1,19 +1,25 @@
 """Ability selection dial — pick which action the actor uses on its turn.
 
-v1 implementation is minimal: a priority order over action types
-(multiattack beats single weapon attacks; otherwise first listed).
-Full Ammann + eHP scoring per pillars-reconciliation.md §5.2 is
-deferred to the eHP-scoring PR.
+Preset behaviors:
 
-Preset behaviors (v1):
+| Preset       | Behavior                                                     |
+|--------------|--------------------------------------------------------------|
+| mindless     | Use the first action; never adapt.                           |
+| instinctive  | Prefer a signature action if flagged; else first.            |
+| default      | Prefer multiattack > weapon_attack > anything else.          |
+| tactical     | Pick the highest-eHP action against the chosen target.       |
+| optimal      | Same as tactical for v1 (joint (target × ability) optimization|
+|              | deferred until full eHP layer covers defensive/control eHP). |
 
-| Preset       | Behavior                                                    |
-|--------------|-------------------------------------------------------------|
-| mindless     | Use the first action; never adapt.                          |
-| instinctive  | Prefer a signature action if flagged; else first.           |
-| default      | Prefer multiattack > weapon_attack > anything else.         |
-| tactical     | Same as default for v1 (eHP-scored selection deferred).     |
-| optimal      | Same as default for v1 (joint optimization deferred).       |
+The `tactical` preset now consults `engine.ai.ehp_scoring.best_action_against`
+to evaluate every action's expected HP delivered vs the chosen target and
+pick the winner. This makes Tactical creatures actually exploit conditions:
+if the target is Blinded (attacker advantage), the action with the largest
+single-hit damage roll wins; against a Restrained target, similar logic.
+
+`optimal` will eventually be different (full eHP joint optimization across
+both target and action together, including defensive options). For v1 it
+shares the tactical implementation — documented limitation.
 """
 from __future__ import annotations
 
@@ -84,14 +90,32 @@ def _pick_default(actor: Actor, actions: list[dict], target: Actor | None,
 
 def _pick_tactical(actor: Actor, actions: list[dict], target: Actor | None,
                     state: CombatState) -> dict:
-    """v1: same as default. Tactical scoring with eHP is deferred."""
-    return _pick_default(actor, actions, target, state)
+    """Pick the highest-eHP action against the chosen target.
+
+    Delegates to ehp_scoring.best_action_against, which evaluates each
+    action via the offensive-eHP formula (hit_prob × damage_mean) including
+    active_modifier effects (advantage from Blinded, etc.). With no target
+    we fall back to the default priority.
+    """
+    # Lazy import — ehp_scoring imports modifiers which is heavyweight to
+    # load at package-init; keep this hot path light when not used.
+    from engine.ai.ehp_scoring import best_action_against
+
+    if target is None:
+        return _pick_default(actor, actions, target, state)
+    best = best_action_against(actor, target, state, actions)
+    return best if best is not None else _pick_default(actor, actions,
+                                                        target, state)
 
 
 def _pick_optimal(actor: Actor, actions: list[dict], target: Actor | None,
                    state: CombatState) -> dict:
-    """v1: same as default. Joint (target × ability) optimization deferred."""
-    return _pick_default(actor, actions, target, state)
+    """v1: same as tactical. Full joint (target × ability) optimization
+    deferred until the eHP layer includes defensive / control / healing
+    eHP formulas — at that point optimal can compare 'attack target A with
+    longsword' vs 'cast Hold Person on target B' on a single eHP scale.
+    """
+    return _pick_tactical(actor, actions, target, state)
 
 
 _PRESET_HANDLERS: dict[str, Callable[..., dict]] = {
