@@ -1,7 +1,7 @@
 # CONTEXT.md — D&D Combat Simulator
 
 **Paste this file at the start of every AI session on this project.**  
-Last updated: 2026-05-24
+Last updated: 2026-05-25
 
 ---
 
@@ -209,23 +209,39 @@ utility ratings* as a disclosed input axis, never sim-computed.
 | `ai-decision-layer.md` | 🔴 Not started |
 | Engine skeleton | ✅ Phase 1 v0 (2026-05-25) — library-first Python; `engine/` package; CLI (`python -m engine`); smoke test (Fighter vs Goblin) passes; JSON report output. |
 | Primitives v1 | ✅ (2026-05-26) — 13 primitives now implemented (was 5). Q5 unified modifier system live in `engine/core/modifiers.py`; conditions actually affect gameplay (Blinded gives attackers advantage; Paralyzed auto-fails STR/DEX saves; etc.). `forced_save` + `recurring_save` for spells; `multiattack` for higher-CR monsters. See `engine/README.md`. |
-| AI decision layer v1 | ✅ (2026-05-26) — Targeting dial fully implemented (`engine/ai/`): all 5 presets (`closest_enemy`, `weakest_target`, `most_dangerous`, `caster_first`, `optimal_ehp` graceful fallback), behavior_profile resolution with archetype defaults, universal finish-off rule. Goblins now bully wounded PCs; pack hunters target the dangerous fighter; apex predators target casters. Wired into `pipeline.score_candidates()`. 35 tests pass total (4 smoke + 12 primitives_v1 + 19 ai_v1). |
+| AI decision layer v1 | ✅ (2026-05-26) — Targeting dial fully implemented (`engine/ai/`): all 5 presets (`closest_enemy`, `weakest_target`, `most_dangerous`, `caster_first`, `optimal_ehp` graceful fallback), behavior_profile resolution with archetype defaults, universal finish-off rule. Goblins now bully wounded PCs; pack hunters target the dangerous fighter; apex predators target casters. Wired into `pipeline.score_candidates()`. |
+| Offensive eHP scoring v1 | ✅ (2026-05-25) — `engine/ai/ehp_scoring.py`. Replaces +10/+5 preset preferences with `expected_damage × hit_probability × aggression_coefficient`, with preset preferences as small tie-break bonuses. AI now exploits conditions organically (Blinded target → advantage → higher hit_prob → higher score, no special-cased logic). `tactical` ability preset works for real — picks highest-EV action against the chosen target. Overkill capped at target HP; per-archetype aggression in [0.8, 1.5]. PR #7. |
+| Defensive eHP scoring v1 | ✅ (2026-05-25) — `engine/ai/defensive_ehp.py`. Adds healing (desperation-weighted, missing-HP-capped), defensive buff (AC bonus + disadvantage-for-attacker via `worst_enemy_DPR × Δmiss × 2.5 rounds`), and hard control (`forced_save → apply_condition` recognized; `enemy_DPR × p_fail × 2.5 rounds × denial_fraction`; hard conditions score 1.0, partial conditions 0.2–0.5). Candidate generator extended to emit heal/buff candidates per ally + control candidates per enemy. New cleric-heals-dying-ally fixture proves end-to-end: cleric's first action is `healed → fighter_dying +10` (NOT a mace attack). 103 tests pass (4 smoke + 12 primitives_v1 + 19 ai_v1 + 34 ehp_scoring + 34 defensive_ehp). PR #8. |
+| Engine capabilities checkpoint | ✅ (2026-05-25) — `docs/engine-capabilities.md`. Reader-facing summary of what the engine can demonstrate today (decision pipeline status per step, eHP framework coverage map, behavioral worked examples, test surface, honest roadmap gap list). |
 
-**Current phase:** Engine skeleton (Phase 1 v0) landed 2026-05-25 same day as
-pillars-reconciliation + schema-design-v1. Library-first Python; 5 primitives
-implemented end-to-end (attack_roll, damage, apply_condition, heal, granted_action);
-~40 stubbed; CLI works; smoke test (Fighter vs Goblin) passes; JSON report output.
+**Current phase:** Engine skeleton (Phase 1 v0) landed 2026-05-25, followed by
+4 substantial PRs on the same day: primitives v1 (#5), targeting dial v1 (#6),
+offensive eHP v1 (#7), defensive eHP v1 (#8). The AI now drives a real
+5-step Ammann + eHP hybrid decision per `pillars-reconciliation.md` §7 —
+both offensive (attack/multiattack) and defensive (heal/buff/control)
+candidates score on a single eHP scale, and the cleric-heals-dying-ally
+fixture demonstrates the AI choosing Cure Wounds over a mace attack
+end-to-end. 13 primitives implemented; ~30 stubbed.
+
+**See `docs/engine-capabilities.md` for the full reader-facing capability
+checkpoint** — behavioral worked examples, decision-pipeline status per
+step, eHP framework coverage map, and the honest roadmap gap list.
 
 **Next substantive steps** (parallel, prioritize per use case):
-1. **Implement more primitives** — each unblocks more content. Highest-value next:
-   the unified modifier primitives (attack_modifier, save_modifier, speed_modifier),
-   forced_save, multiattack. Iterative work; no architectural re-design.
-2. **Full AI decision layer** — replace skeleton's "attack nearest" with the
-   5-step Ammann+eHP hybrid per `pillars-reconciliation.md` §7. Substantial but
-   contained to `engine/core/pipeline.py` + `engine/ai/*`.
-3. **Phase 2 Foundry bridge** — when Stage 2 timing is right. Thin JS module that
+1. **Action Economy dial** — per-slot stochastic between optimal-vs-default
+   (signature_bonus / tactical_bonus / OA reaction / sophisticated reaction
+   tiering per §5.4). Self-contained PR on `engine/ai/action_economy.py`.
+2. **Retreat dial** — DMG p48 algorithm + 3 modes + 5 presets per §5.1.
+   The `cowardly_skirmisher` archetype already declares `retreat: cowardly`
+   but it's a no-op until this lands.
+3. **RP Constraints** — Hard Filter / Forced Choice / Weighted Preference
+   per §6. Currently `apply_hard_filters` and `apply_forced_choices` are
+   stubs.
+4. **Positioning / movement / reachability** — biggest missing axis;
+   unblocks `closest_enemy`, OAs, ranged-vs-melee, soft control.
+5. **Phase 2 Foundry bridge** — when Stage 2 timing is right. Thin JS module that
    uses the engine in observation mode + the schema as translation target.
-4. **Content expansion** — remaining ~11 classes / ~23 subclasses / ~300 monsters /
+6. **Content expansion** — remaining ~11 classes / ~23 subclasses / ~300 monsters /
    ~300 spells / equipment / magic items / backgrounds / species / feats. Parallel
    iterative work; schemas are stable.
 
