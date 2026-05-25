@@ -5,6 +5,53 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-25 — `pillars-reconciliation.md` drafted + cadre red-team amendments
+
+**Participants:** Phil, Claude, plus AI cadre (Gemini, ChatGPT, Perplexity) for red-team review
+
+**Work done:**
+- Dial-by-dial design conversation: Retreat, Ability Selection, Targeting, Action Economy (each ~5 named presets as parameter bundles; same shape across all four).
+- Designed the three execution modes (Strict RAW / Rules + Behavior + eHP / Behavior Engine) with explicit UX treatment to defeat the gradient-bias trap (comparison strip, use-case-framed wizard, inline warning, default selection).
+- Resolved open question #3 (RP Constraints as separate filter/scoring system, 3 categories, library).
+- Resolved open question #4 (per-type + faction + per-instance three-level inheritance; `reason:` split from `suppress_hints:`).
+- Resolved open question #5 (Sanity Hints reframe — not "validation"; honest about being hints not correctness).
+- **Cadre red-team round** on the three open-question resolutions (NOT the four dials — those had been iterated heavily with Phil's DM input). Standardized adversarial prompt; three independent runs. Six 3/3 convergent CRITICAL findings:
+  1. Severity-as-probability destroys Monte Carlo convergence
+  2. Constraint conflict resolution underspecified (deadlocks possible)
+  3. Pipeline ordering mathematically incoherent (weighted prefs post-hoc)
+  4. Validation system structurally insufficient (small library + suppression bypass)
+  5. `reason:` field overloaded as global mute
+  6. Mode-aware validation desync
+- Six amendments adopted; one additional (three-level inheritance / faction layer) adopted from a 2/3 convergent finding.
+- `docs/foundations/pillars-reconciliation.md` drafted incorporating all amendments. Replaces the 2026-03-30 stub.
+
+**Key decisions:**
+- The pillars are not in opposition; they answer different questions at different layers. Resolution is a multi-axis dial system, not per-conflict binary policy.
+- Unified actor-behavior model — monsters AND PCs share the same BehaviorProfile.
+- Severity is a continuous score weight in the eHP pipeline, NOT a probability — preserves Monte Carlo determinism.
+- Decision pipeline follows the Utility AI single-scoring-stage pattern (all considerations baked into one coherent scoring pass; no post-hoc patching).
+- Constraint composition has explicit priority tiers (Hard Filter > Forced Choice > Weighted Preference) with guaranteed-legal fallback (Dodge for PC, Pass for monster) to prevent engine deadlock.
+- Three-level inheritance: archetype → faction → instance.
+- `reason:` and `suppress_hints:` are separate fields with separate semantics (documentation vs control). ESLint precedent for per-rule suppression.
+- "Sanity Hints" framing (not "Validation") with explicit "absence of hint ≠ correctness" disclaimer.
+- Hint rules cross-reference dial choices against actual stat-block capabilities (statblock-aware hints).
+- Mode-relevance lives in hint text, not in firing-vs-not-firing logic — same configuration produces same hints across all modes.
+- Cadre red-team established as a recurring discipline for substantive architectural design (this is the second productive run; May 17 validation-oracle was the first).
+
+**Follow-on items carried forward (architecturally reserved; not MVP):**
+- [ ] Runtime override layer for conditions (Frightened, Dominate Person, Confusion) — schema slot reserved in `BehaviorProfile.runtime_override`.
+- [ ] Polymorph / transformation as state transition (current_form vs underlying_identity pair).
+- [ ] Phase-shift constraints (Bloodied → drop pacifism; mythic phases).
+- [ ] Temporal memory / stateful constraints (track "already healed this turn").
+- [ ] Dynamic / post-hoc validation (observation-based hints after Monte Carlo runs).
+- [ ] Alternative archetype "style" baselines (Ammann is one author's interpretation).
+- [ ] Faction profile library expansion (ship initial small set; grow organically).
+- [ ] Per-creature default `BehaviorProfile` assignments for the 300+ creatures Ammann covered (not yet ported into our doc; only the ~6 archetypes are encoded).
+- [ ] Schema design for subclass / spell / feat / monster definitions (originally next-after-pillars; now next-after-pillars).
+- [ ] 5e API → schema transform pipeline.
+
+---
+
 ## Session: 2026-05-24 — Un-stalling + Hybrid monetization + asset inventory
 
 **Participants:** Phil, Claude
