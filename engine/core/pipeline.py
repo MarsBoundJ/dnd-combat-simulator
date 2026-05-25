@@ -38,13 +38,19 @@ def resolve_effective_profile(actor: Actor, state: CombatState) -> dict:
     return base
 
 
-def check_retreat_trigger(actor: Actor, state: CombatState) -> dict | None:
-    """Step 1: retreat trigger check.
+def check_retreat_trigger(actor: Actor, state: CombatState,
+                            rng=None) -> dict | None:
+    """Step 1: retreat trigger check — DMG p48 algorithm (dmg_ammann mode).
 
-    SKELETON: returns None (no retreat). Real implementation reads the
-    retreat dial preset + 3-mode selection + DMG p48 algorithm.
+    Delegates to `engine.ai.retreat.check_retreat`. A non-None return
+    means the actor flees this turn and the runner short-circuits the
+    rest of the pipeline.
+
+    The `rng` parameter is the runner's seeded rng (for reproducibility);
+    omitted in tests it falls back to a fresh random.
     """
-    return None
+    from engine.ai.retreat import check_retreat
+    return check_retreat(actor, state, rng)
 
 
 def generate_candidates(actor: Actor, state: CombatState,

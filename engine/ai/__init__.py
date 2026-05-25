@@ -71,6 +71,13 @@ from engine.ai.action_economy import (
     resolve_main_slot,
     should_use_bonus_action,
 )
+from engine.ai.retreat import (
+    RETREAT_PRESETS,
+    RetreatBundle,
+    get_bundle as get_retreat_bundle,
+    resolve_retreat_preset as resolve_retreat_preset_for_actor,
+    check_retreat,
+)
 
 __all__ = [
     "score_candidates_v1",
@@ -104,4 +111,9 @@ __all__ = [
     "is_reactive_trigger",
     "resolve_main_slot",
     "should_use_bonus_action",
+    "RETREAT_PRESETS",
+    "RetreatBundle",
+    "get_retreat_bundle",
+    "resolve_retreat_preset_for_actor",
+    "check_retreat",
 ]

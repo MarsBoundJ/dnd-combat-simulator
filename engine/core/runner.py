@@ -167,11 +167,16 @@ class EncounterRunner:
         """
         # Step 0: resolve effective profile
         profile = pipeline.resolve_effective_profile(actor, state)
-        # Step 1: retreat trigger
-        retreat = pipeline.check_retreat_trigger(actor, state)
+        # Step 1: retreat trigger — DMG p48 algorithm; if triggered, the
+        # actor flees this turn and the rest of the pipeline is skipped.
+        retreat = pipeline.check_retreat_trigger(actor, state, rng=self.rng)
         if retreat:
             actor.is_fled = True
-            state.event_log.append({"event": "fled", "actor": actor.id})
+            state.event_log.append({
+                "event": "fled", "actor": actor.id,
+                "preset": retreat.get("preset"),
+                "triggers": retreat.get("triggers"),
+            })
             return
 
         # ---- Main slot ----
