@@ -1,0 +1,23 @@
+# co_charmed — Charmed condition
+# Source: SRD CC v5.2.1 p178
+# Scope: source_referencing — effects reference "the charmer"
+
+id: co_charmed
+name: Charmed
+source: srd_5.2.1
+category: condition
+scope: source_referencing
+
+effects:
+  - id: cant_harm_charmer
+    primitive: action_restriction
+    params:
+      cannot_target: condition.source
+      with_action_types: [attack, damaging_ability, damaging_magical_effect]
+
+  - id: charmer_social_advantage
+    primitive: ability_check_modifier
+    params:
+      when: actor_is(condition.source) AND check_type IS social
+      target: affected_creature
+      modifier: advantage

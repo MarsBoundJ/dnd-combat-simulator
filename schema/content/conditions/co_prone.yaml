@@ -1,0 +1,37 @@
+# co_prone — Prone condition
+# Source: SRD CC v5.2.1 p186
+
+id: co_prone
+name: Prone
+source: srd_5.2.1
+category: condition
+scope: absolute
+
+effects:
+  - id: restricted_movement
+    primitive: movement_restriction
+    params:
+      allowed: [crawl]
+      end_options:
+        - description: stand_up
+          cost: { type: speed_fraction, value: 0.5, round: down }
+          ends_condition: true
+          requires: "actor.speed > 0"
+
+  - id: your_attacks_disadvantage
+    primitive: attack_modifier
+    params:
+      when: attacker_is_self
+      modifier: disadvantage_for_self
+
+  - id: attacks_vs_you_close_advantage
+    primitive: attack_modifier
+    params:
+      when: "target_is_self AND attacker_within_ft(5)"
+      modifier: advantage_for_attacker
+
+  - id: attacks_vs_you_far_disadvantage
+    primitive: attack_modifier
+    params:
+      when: "target_is_self AND NOT attacker_within_ft(5)"
+      modifier: disadvantage_for_attacker

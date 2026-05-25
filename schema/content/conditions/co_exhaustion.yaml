@@ -1,0 +1,30 @@
+# co_exhaustion — Exhaustion condition
+# Source: SRD CC v5.2.1 p181
+# Note: stacking leveled condition; linear effects scale with level
+
+id: co_exhaustion
+name: Exhaustion
+source: srd_5.2.1
+category: condition
+scope: absolute
+
+stacking:
+  type: cumulative_level
+  max_level: 6
+  increment_on_apply: 1
+  decrement_on_long_rest: 1
+  end_when: "actor.exhaustion_level == 0"
+  death_at_max: true
+
+effects:
+  - id: d20_test_penalty
+    primitive: d20_test_modifier
+    params:
+      modifier: "-2 * actor.exhaustion_level"
+      applies_to: all_d20_tests
+
+  - id: speed_penalty
+    primitive: speed_modifier
+    params:
+      mode: subtract_ft
+      value: "5 * actor.exhaustion_level"

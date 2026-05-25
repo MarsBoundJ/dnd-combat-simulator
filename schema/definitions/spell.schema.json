@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MarsBoundJ/dnd-combat-simulator/schema/definitions/spell.schema.json",
+  "title": "Spell",
+  "description": "Spell schema. Spells are instances of the unified ability pattern (docs/architecture/schema-design.md §2) with spell-specific casting semantics.",
+
+  "type": "object",
+  "required": ["id", "name", "source", "level", "school", "classes", "casting", "duration", "effect_pipeline"],
+  "additionalProperties": false,
+
+  "properties": {
+    "id": { "$ref": "common.schema.json#/$defs/stable_id" },
+    "name": { "type": "string" },
+    "source": { "$ref": "common.schema.json#/$defs/source" },
+
+    "level": { "type": "integer", "minimum": 0, "maximum": 9 },
+    "school": { "$ref": "common.schema.json#/$defs/school_of_magic" },
+    "classes": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Class IDs whose spell list includes this spell. Spell lists are auto-derived from this field."
+    },
+
+    "ritual": { "type": "boolean", "default": false },
+
+    "casting": {
+      "type": "object",
+      "required": ["time"],
+      "properties": {
+        "time": {
+          "oneOf": [
+            { "type": "string", "enum": ["action", "bonus_action", "reaction", "ritual"] },
+            { "type": "object", "properties": { "minutes": { "type": "integer" } } },
+            { "type": "object", "properties": { "hours": { "type": "integer" } } }
+          ]
+        },
+        "range": {
+          "type": "object",
+          "properties": {
+            "type": { "type": "string", "enum": ["distance", "touch", "self", "sight", "unlimited"] },
+            "ft": { "type": "integer" }
+          }
+        },
+        "components": {
+          "type": "object",
+          "properties": {
+            "verbal": { "type": "boolean" },
+            "somatic": { "type": "boolean" },
+            "material": {
+              "type": "object",
+              "properties": {
+                "required": { "type": "boolean" },
+                "items": { "type": "array", "items": { "type": "string" } },
+                "gp_cost": { "type": "integer" },
+                "consumed": { "type": "boolean" }
+              }
+            }
+          }
+        },
+        "reaction_trigger": {
+          "description": "Only for casting.time = reaction. Specifies the trigger event/conditions.",
+          "type": "object"
+        }
+      }
+    },
+
+    "duration": { "$ref": "common.schema.json#/$defs/duration" },
+
+    "targets": {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["creature", "object", "area", "self", "point"] },
+        "count": { "type": "integer", "minimum": 1 },
+        "constraints": { "type": "array", "items": { "type": "string" } },
+        "area": { "$ref": "common.schema.json#/$defs/area_of_effect" },
+        "designations": {
+          "type": "array",
+          "description": "Caster-chosen options at casting time (e.g., Spirit Guardians' unaffected_creatures).",
+          "items": {
+            "type": "object",
+            "properties": {
+              "field": { "type": "string" },
+              "chosen_at_casting": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    },
+
+    "effect_pipeline": {
+      "type": "array",
+      "items": { "$ref": "common.schema.json#/$defs/effect_primitive" }
+    },
+
+    "upcast": {
+      "type": "object",
+      "properties": {
+        "scaling": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "per_level_above": { "type": "integer", "minimum": 1 },
+              "modifies": { "type": "string", "description": "JSON path within this spell to modify" },
+              "delta": { "type": "string", "description": "e.g., '+1d6' or '+1'" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

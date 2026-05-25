@@ -1,0 +1,36 @@
+# co_restrained — Restrained condition
+# Source: SRD CC v5.2.1 p187
+# Scope: absolute — effects don't reference source, BUT source is tracked at the
+# application layer for end-condition resolution (web destroyed / grappler killed / etc.)
+
+id: co_restrained
+name: Restrained
+source: srd_5.2.1
+category: condition
+scope: absolute
+
+effects:
+  - id: speed_zero
+    primitive: speed_modifier
+    params:
+      mode: override
+      new_speed: 0
+      prevents_increase: true
+
+  - id: attacks_vs_you_advantage
+    primitive: attack_modifier
+    params:
+      when: target_is_self
+      modifier: advantage_for_attacker
+
+  - id: your_attacks_disadvantage
+    primitive: attack_modifier
+    params:
+      when: attacker_is_self
+      modifier: disadvantage_for_self
+
+  - id: dex_save_disadvantage
+    primitive: save_modifier
+    params:
+      when: "save_ability == dexterity"
+      modifier: disadvantage

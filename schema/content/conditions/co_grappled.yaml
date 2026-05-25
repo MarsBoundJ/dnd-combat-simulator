@@ -1,0 +1,34 @@
+# co_grappled — Grappled condition
+# Source: SRD CC v5.2.1 p182
+# Scope: source_referencing — effects reference "the grappler"; per-source tracking required
+
+id: co_grappled
+name: Grappled
+source: srd_5.2.1
+category: condition
+scope: source_referencing
+
+effects:
+  - id: speed_zero
+    primitive: speed_modifier
+    params:
+      mode: override
+      new_speed: 0
+      prevents_increase: true
+
+  - id: attack_disadv_except_grappler
+    primitive: attack_modifier
+    params:
+      when: "attacker_is_self AND attack_target_is_not(condition.source)"
+      modifier: disadvantage_for_self
+
+  - id: movable_by_grappler
+    primitive: state_flag
+    params:
+      flag: grappler_can_move_with_cost
+      cost_per_ft: 1
+      cost_exception: "target_is_tiny OR target_is_two_or_more_sizes_smaller_than(condition.source)"
+
+# Ending: actor can use action for STR(Athletics) or DEX(Acrobatics) vs escape DC.
+# Condition ends if grappler is Incapacitated, range exceeded, or grappler releases.
+# (End conditions tracked at the application layer, not the definition.)

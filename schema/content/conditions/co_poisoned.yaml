@@ -1,0 +1,15 @@
+# co_poisoned — Poisoned condition
+# Source: SRD CC v5.2.1 p186
+
+id: co_poisoned
+name: Poisoned
+source: srd_5.2.1
+category: condition
+scope: absolute
+
+effects:
+  - id: attacks_and_checks_disadv
+    primitive: d20_test_modifier
+    params:
+      modifier: disadvantage
+      applies_to: [attack_rolls, ability_checks]

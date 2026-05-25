@@ -1,0 +1,21 @@
+# f_improved_critical — Improved Critical (Champion)
+# Source: SRD CC v5.2.1 p49
+
+id: f_improved_critical
+name: Improved Critical
+source: srd_5.2.1
+granted_by:
+  subclass: sc_champion
+  level: 3
+type: passive
+
+effect_primitives:
+  - primitive: crit_threshold_modifier
+    params:
+      new_threshold: 19           # crit on 19-20
+
+contract:
+  reads: [combat.attack_roll]
+  writes: [combat.crit_threshold]
+  event: attack_roll_resolved
+  scope: passive

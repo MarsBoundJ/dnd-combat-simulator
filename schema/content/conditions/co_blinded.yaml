@@ -1,0 +1,27 @@
+# co_blinded — Blinded condition
+# Source: SRD CC v5.2.1 p177
+
+id: co_blinded
+name: Blinded
+source: srd_5.2.1
+category: condition
+scope: absolute
+
+effects:
+  - id: cant_see
+    primitive: sense_restriction
+    params:
+      senses_lost: [sight]
+      auto_fail: ability_checks_requiring_sight
+
+  - id: attacks_vs_you_advantage
+    primitive: attack_modifier
+    params:
+      when: target_is_self
+      modifier: advantage_for_attacker
+
+  - id: your_attacks_disadvantage
+    primitive: attack_modifier
+    params:
+      when: attacker_is_self
+      modifier: disadvantage_for_self

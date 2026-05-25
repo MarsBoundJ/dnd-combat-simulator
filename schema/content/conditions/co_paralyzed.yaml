@@ -1,0 +1,36 @@
+# co_paralyzed — Paralyzed condition
+# Source: SRD CC v5.2.1 p186
+
+id: co_paralyzed
+name: Paralyzed
+source: srd_5.2.1
+category: condition
+scope: absolute
+
+inherits_conditions: [co_incapacitated]
+
+effects:
+  - id: speed_zero
+    primitive: speed_modifier
+    params:
+      mode: override
+      new_speed: 0
+      prevents_increase: true
+
+  - id: auto_fail_str_dex_saves
+    primitive: save_modifier
+    params:
+      when: "save_ability IN [strength, dexterity]"
+      outcome: auto_fail
+
+  - id: attacks_vs_you_advantage
+    primitive: attack_modifier
+    params:
+      when: target_is_self
+      modifier: advantage_for_attacker
+
+  - id: auto_crit_within_5ft
+    primitive: crit_modifier
+    params:
+      when: "target_is_self AND attacker_within_ft(5) AND attack_hits"
+      outcome: auto_crit

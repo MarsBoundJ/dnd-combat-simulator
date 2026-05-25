@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MarsBoundJ/dnd-combat-simulator/schema/definitions/condition.schema.json",
+  "title": "Condition",
+  "description": "A condition's immutable rules. See docs/architecture/schema-design.md §7 for the definition-vs-application distinction.",
+
+  "type": "object",
+  "required": ["id", "name", "source", "scope", "effects"],
+  "additionalProperties": false,
+
+  "properties": {
+    "id": { "$ref": "common.schema.json#/$defs/stable_id" },
+    "name": { "type": "string" },
+    "source": { "$ref": "common.schema.json#/$defs/source" },
+    "category": { "type": "string", "const": "condition" },
+
+    "scope": {
+      "description": "absolute = effects don't reference source. source_referencing = effects mention the source (Charmed/Frightened/Grappled). Source is tracked universally at the application layer regardless.",
+      "type": "string",
+      "enum": ["absolute", "source_referencing"]
+    },
+
+    "inherits_conditions": {
+      "description": "Subordinate conditions applied transitively. Paralyzed includes Incapacitated; Unconscious includes Incapacitated + Prone. Reference-counted on source list.",
+      "type": "array",
+      "items": { "$ref": "common.schema.json#/$defs/stable_id" }
+    },
+
+    "stacking": {
+      "description": "For Exhaustion-style leveled conditions. Default: none.",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["none", "cumulative_level"] },
+        "max_level": { "type": "integer", "minimum": 1 },
+        "increment_on_apply": { "type": "integer", "default": 1 },
+        "decrement_on_long_rest": { "type": "integer", "default": 0 },
+        "end_when": { "type": "string" },
+        "death_at_max": { "type": "boolean" }
+      }
+    },
+
+    "effects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "primitive"],
+        "properties": {
+          "id": { "type": "string" },
+          "primitive": { "type": "string" },
+          "params": { "type": "object" }
+        }
+      }
+    },
+
+    "effects_by_level": {
+      "description": "Only for stacking.type = cumulative_level. Effects keyed by level threshold.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "level": { "oneOf": [{ "type": "integer" }, { "type": "string" }] },
+          "effects": { "type": "array" }
+        }
+      }
+    }
+  }
+}

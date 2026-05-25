@@ -1,0 +1,35 @@
+# f_second_wind — Second Wind (Fighter)
+# Source: SRD CC v5.2.1 p48
+# Pattern: scaling active feature, signature (reflexive use)
+
+id: f_second_wind
+name: Second Wind
+source: srd_5.2.1
+granted_by:
+  class: c_fighter
+  level: 1
+type: active
+is_signature: true
+
+resource_cost:
+  type: free
+
+usage:
+  uses_per: long_rest
+  scaling_source: "c_fighter.level_table.class_resources.second_wind_uses"
+  rest_recovery:
+    short_rest: partial          # one use back
+    long_rest: full              # all uses back
+
+effect_primitives:
+  - primitive: heal
+    params:
+      target: self
+      dice: "1d10"
+      modifier_source: actor.fighter_level
+
+contract:
+  reads: [actor.fighter_level, actor.second_wind_uses_remaining]
+  writes: [actor.hp, actor.second_wind_uses_remaining]
+  event: actor_turn_bonus_action
+  scope: per_use

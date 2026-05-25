@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MarsBoundJ/dnd-combat-simulator/schema/definitions/class.schema.json",
+  "title": "Class",
+  "description": "Player-character class definition (Fighter, Wizard, etc.). Spellcasting block is optional; classes with spellcasting fill it in. See docs/architecture/schema-design.md §6.",
+
+  "type": "object",
+  "required": ["id", "name", "source", "core_traits", "level_table", "subclass_grant_level"],
+  "additionalProperties": false,
+
+  "properties": {
+    "id": { "$ref": "common.schema.json#/$defs/stable_id" },
+    "name": { "type": "string" },
+    "source": { "$ref": "common.schema.json#/$defs/source" },
+
+    "core_traits": {
+      "type": "object",
+      "required": ["primary_abilities", "hit_die", "save_proficiencies"],
+      "properties": {
+        "primary_abilities": {
+          "type": "array",
+          "items": { "$ref": "common.schema.json#/$defs/ability_score_label" }
+        },
+        "hit_die": { "type": "string", "enum": ["d6", "d8", "d10", "d12"] },
+        "save_proficiencies": {
+          "type": "array",
+          "items": { "$ref": "common.schema.json#/$defs/ability_score_label" }
+        },
+        "skill_proficiencies": {
+          "type": "object",
+          "properties": {
+            "choose": { "type": "integer", "minimum": 0 },
+            "from": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "weapon_proficiencies": { "type": "array", "items": { "type": "string" } },
+        "armor_training": { "type": "array", "items": { "type": "string" } },
+        "tool_proficiencies": { "type": "array" }
+      }
+    },
+
+    "starting_equipment": {
+      "type": "object",
+      "properties": {
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "items": { "type": "array", "items": { "type": "string" } },
+              "gold": { "type": "integer" }
+            }
+          }
+        }
+      }
+    },
+
+    "multiclass_entry": {
+      "type": "object",
+      "properties": {
+        "traits_gained": { "type": "array", "items": { "type": "string" } },
+        "features_gained": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/stable_id" } },
+        "multiclass_slot_contribution": {
+          "type": "string",
+          "enum": ["full_caster", "half_caster", "third_caster", "pact_magic", "none"]
+        }
+      }
+    },
+
+    "spellcasting": {
+      "description": "Present only for spellcasting classes. See docs/architecture/schema-design.md §6.",
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean", "const": true },
+        "ability": { "$ref": "common.schema.json#/$defs/ability_score_label" },
+        "save_dc_formula": { "type": "string" },
+        "attack_mod_formula": { "type": "string" },
+        "focus_types": { "type": "array", "items": { "type": "string" } },
+        "preparation_model": {
+          "type": "string",
+          "enum": ["prepared_from_known_list", "spells_known_fixed", "prepared_from_class_list", "pact_magic"]
+        },
+        "known_list_source": { "type": "string", "description": "e.g., 'spellbook' for Wizard, 'class_known_list' for Sorcerer." },
+        "preparation_change_trigger": { "type": "string", "enum": ["long_rest", "level_up"] },
+        "slots_progression": {
+          "type": "string",
+          "enum": ["full_caster", "half_caster", "third_caster", "pact_magic"]
+        },
+        "ritual_casting": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "style": { "type": "string", "enum": ["standard", "ritual_adept"] },
+            "extra_time": { "type": "string" },
+            "consumes_slot": { "type": "boolean" }
+          }
+        }
+      }
+    },
+
+    "spellbook": {
+      "description": "Wizard-unique entity. Other classes don't have this.",
+      "type": "object"
+    },
+
+    "level_table": {
+      "type": "array",
+      "minItems": 20,
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "required": ["level", "proficiency_bonus"],
+        "properties": {
+          "level": { "type": "integer", "minimum": 1, "maximum": 20 },
+          "proficiency_bonus": { "type": "integer", "minimum": 2, "maximum": 6 },
+          "features": { "type": "array", "items": { "type": "string" } },
+          "class_resources": { "type": "object" },
+          "spellcasting": {
+            "type": "object",
+            "properties": {
+              "cantrips_known": { "type": "integer" },
+              "prepared_spells": { "type": "integer" },
+              "spells_known": { "type": "integer" },
+              "slots": { "type": "object" }
+            }
+          }
+        }
+      }
+    },
+
+    "subclass_grant_level": { "type": "integer", "minimum": 1, "maximum": 20 }
+  }
+}

@@ -1,0 +1,84 @@
+# sp_spirit_guardians — Spirit Guardians
+# Source: SRD CC v5.2.1 p164-165
+# Pattern: persistent area emanation with movement-triggered saves, concentration
+
+id: sp_spirit_guardians
+name: Spirit Guardians
+source: srd_5.2.1
+
+level: 3
+school: conjuration
+classes: [c_cleric]
+
+casting:
+  time: action
+  range:
+    type: self
+  components:
+    verbal: true
+    somatic: true
+    material:
+      required: true
+      items: ["prayer scroll"]
+      consumed: false
+
+duration:
+  type: concentration
+  max:
+    unit: minute
+    value: 10
+
+targets:
+  type: area
+  area:
+    shape: emanation
+    size_ft: 15
+    origin: caster
+  designations:
+    - field: unaffected_creatures
+      chosen_at_casting: true
+
+effect_pipeline:
+  - primitive: persistent_aura
+    params:
+      target_filter: "in_area AND NOT in(unaffected_creatures)"
+      passive_effects:
+        - primitive: speed_modifier
+          params:
+            mode: multiplier
+            factor: 0.5
+    contract:
+      reads: [target.position, area.boundary]
+      writes: [target.effective_speed]
+      event: continuous
+      scope: per_round
+
+  - primitive: triggered_save
+    triggers:
+      - aura_enters_creature_space
+      - creature_enters_aura
+      - creature_ends_turn_in_aura
+    params:
+      ability: wisdom
+      dc_source: caster_spell_save_dc
+      rate_limit: once_per_target_per_turn
+      on_fail:
+        - primitive: damage
+          params:
+            dice: "3d8"
+            type_conditional:
+              if: "caster.alignment IN (good, neutral)"
+              then: radiant
+              else: necrotic
+            on_success: half
+    contract:
+      reads: [target.wis_save_mod, caster.alignment, target.position]
+      writes: [target.hp]
+      event: target_movement_or_turn_end
+      scope: per_target_per_turn
+
+upcast:
+  scaling:
+    - per_level_above: 3
+      modifies: "effect_pipeline[1].params.on_fail[0].params.dice"
+      delta: "+1d8"

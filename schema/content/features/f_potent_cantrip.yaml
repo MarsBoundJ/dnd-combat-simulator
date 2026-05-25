@@ -1,0 +1,33 @@
+# f_potent_cantrip — Potent Cantrip (Evoker)
+# Source: SRD CC v5.2.1 p82
+# Pattern: passive modifier subscribing to spell_resolve event for cantrips
+
+id: f_potent_cantrip
+name: Potent Cantrip
+source: srd_5.2.1
+granted_by:
+  subclass: sc_evoker
+  level: 3
+type: passive
+
+trigger:
+  event: spell_resolve
+  conditions:
+    - "spell.level == 0"
+    - "spell.has_damage"
+    - "(spell.attack_roll_missed) OR (spell.save_succeeded_by_target)"
+
+effect_primitives:
+  - primitive: damage
+    params:
+      dice: spell.normal_damage_dice
+      modifier_factor: 0.5
+      type: spell.damage_type
+      target: spell.original_target
+      suppress_additional_effects: true
+
+contract:
+  reads: [spell.resolution, spell.damage, spell.original_target]
+  writes: [combat.pending_damage]
+  event: spell_resolve
+  scope: per_cantrip_cast
