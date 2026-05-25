@@ -123,6 +123,13 @@ def _build_actor(actor_spec: dict, registry) -> Actor:
     instance_id = actor_spec.get("instance_id") or template["id"] + "_1"
     hp_max = template.get("combat", {}).get("hit_points", {}).get("average", 0) \
         or actor_spec.get("hp", 0)
+    # Per-instance hp_current override — lets a fixture spawn a creature
+    # at less-than-full HP (useful for "wounded ally" defensive-eHP tests).
+    # Clamped to [0, hp_max]; defaults to hp_max if absent.
+    hp_current = actor_spec.get("hp_current")
+    if hp_current is None:
+        hp_current = hp_max
+    hp_current = max(0, min(int(hp_current), hp_max))
     abilities = template.get("abilities", {}) or actor_spec.get("abilities", {})
     ac = template.get("combat", {}).get("armor_class", actor_spec.get("ac", 10))
     speed = template.get("combat", {}).get("speed", {"walk": 30})
@@ -132,7 +139,7 @@ def _build_actor(actor_spec: dict, registry) -> Actor:
         name=actor_spec.get("name", template.get("name", instance_id)),
         template=template,
         side=actor_spec.get("side", "enemy"),
-        hp_current=hp_max,
+        hp_current=hp_current,
         hp_max=hp_max,
         ac=ac,
         speed=speed,

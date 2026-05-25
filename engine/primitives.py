@@ -295,10 +295,27 @@ def remove_condition(target: Actor, condition_id: str,
 
 
 def _heal(params: dict, state: CombatState, bus: EventBus) -> dict:
+    """Heal a target.
+
+    Target resolution (in order):
+      - params.target == 'self'  → current actor heals self (legacy shape)
+      - params.target == 'ally'  → uses state.current_attack.target (the
+        candidate generator sets this to the ally being healed)
+      - params.target missing    → defaults to current_attack.target if a
+        heal candidate is being executed, else self
+    """
     actor: Actor = state.current_actor()
-    target: Actor = actor if params.get("target") in (None, "self") else None
+    target_spec = params.get("target")
+    if target_spec == "self":
+        target = actor
+    elif target_spec in ("ally", "current_target"):
+        target = state.current_attack.get("target") or actor
+    elif target_spec is None:
+        target = state.current_attack.get("target") or actor
+    else:
+        raise ValueError(f"Unsupported heal target: {target_spec!r}")
     if target is None:
-        raise ValueError("heal target other than self not supported in skeleton")
+        raise ValueError("heal could not resolve a target")
     rng = _get_rng(state, bus)
 
     dice = params.get("dice")
@@ -309,7 +326,9 @@ def _heal(params: dict, state: CombatState, bus: EventBus) -> dict:
     if dice:
         amount += _roll_dice_expr(dice, rng)
     if modifier_source:
-        amount += _resolve_modifier(modifier_source, target)
+        # modifier_source like 'actor.wis_mod' refers to the CASTER, not
+        # the heal target — Cure Wounds is "+ your spellcasting ability mod".
+        amount += _resolve_modifier(modifier_source, actor)
 
     target.hp_current = min(target.hp_max, target.hp_current + amount)
     state.event_log.append({"event": "healed", "target": target.id,
@@ -541,10 +560,16 @@ def _get_rng(state: CombatState, bus: EventBus) -> _random_module.Random:
 
 
 def _resolve_modifier(source: str, actor: Actor) -> int:
-    if source == "actor.con_mod":
-        return ability_modifier(actor.abilities.get("con", {}).get("score", 10))
-    if source == "actor.int_mod":
-        return ability_modifier(actor.abilities.get("int", {}).get("score", 10))
+    """Resolve a modifier-source token against an actor (used by heal,
+    by some on-hit damage riders, and class-level scaling)."""
+    _ABILITY_MOD_SOURCES = {
+        "actor.str_mod": "str", "actor.dex_mod": "dex",
+        "actor.con_mod": "con", "actor.int_mod": "int",
+        "actor.wis_mod": "wis", "actor.cha_mod": "cha",
+    }
+    if source in _ABILITY_MOD_SOURCES:
+        ability = _ABILITY_MOD_SOURCES[source]
+        return ability_modifier(actor.abilities.get(ability, {}).get("score", 10))
     if source.startswith("actor.") and source.endswith("_level"):
         cls_name = source[len("actor."):-len("_level")]
         return actor.template.get("levels", {}).get(cls_name, 1)
