@@ -3,9 +3,10 @@
 Two complementary public functions:
 
   - `score_candidates_v1(candidates, actor, state)` — the score_candidates
-    socket from pipeline.py §7 step 5. Currently returns scores reflecting
-    the actor's targeting + ability-selection preferences. eHP-based
-    scoring with behavioral coefficients is deferred to a follow-on PR.
+    socket from pipeline.py §7 step 5. Computes real offensive eHP per
+    candidate (via engine.ai.ehp_scoring), then adds preset preference
+    bonuses so the targeting / ability-selection dials still steer toward
+    archetype-appropriate picks when eHP values are close.
 
   - `select_action_v1(actor, state)` — alternative API: instead of scoring
     a pre-generated candidate list, this picks the (action, target) tuple
@@ -15,51 +16,68 @@ Two complementary public functions:
 
 Both share the same underlying logic: resolve the actor's dial presets,
 delegate to targeting + ability_selection, return the result.
+
+Scoring formula (v1):
+
+    score = eHP_value × aggression_coefficient
+          + TARGET_PREFERENCE_BONUS   if target matches preset's pick
+          + ACTION_PREFERENCE_BONUS   if action matches preset's pick
+
+The preference bonuses are deliberately small (a few eHP-equivalent units)
+relative to typical eHP values — eHP carries the signal, dial preferences
+break ties and steer when expected damage is comparable.
 """
 from __future__ import annotations
 
 from engine.core.state import Actor, CombatState
 from engine.ai import targeting, ability_selection, behavior_profile
+from engine.ai.ehp_scoring import aggression_coefficient, score_candidate
+
+
+# Preference bonuses — small enough not to overpower real eHP differences,
+# large enough to break ties between equivalently-rated candidates.
+TARGET_PREFERENCE_BONUS = 2.0
+ACTION_PREFERENCE_BONUS = 1.0
 
 
 def score_candidates_v1(candidates: list[dict], actor: Actor,
                          state: CombatState) -> list[tuple[float, dict]]:
-    """Score each candidate (action × target) tuple.
+    """Score each candidate (action × target) tuple with eHP + preferences.
 
-    A candidate matching the actor's preferred (target, action) per their
-    dials gets a high score; others lower. Selection then picks max.
-
-    v1 scoring scheme:
-      - +10 if target matches the targeting-dial preset's pick
-      - +5 if action matches the ability-selection-dial preset's pick
-      - +0 baseline for any legal candidate
-      (Future: full eHP scoring + behavioral coefficients per
-       pillars-reconciliation.md §7 step 5.)
+    Pipeline:
+      1. Compute raw offensive eHP per candidate (via ehp_scoring).
+      2. Scale by aggression_coefficient from the actor's archetype.
+      3. Add a small preference bonus if the candidate matches the actor's
+         preset-preferred target / action — this steers tie-breaking and
+         keeps the archetype dials meaningful even when eHP is close.
     """
     if not candidates:
         return []
 
+    # Resolve dials + preferred picks for the preference layer.
     targeting_preset = behavior_profile.resolve_targeting_preset(actor)
     ability_preset = behavior_profile.resolve_ability_selection_preset(actor)
-
-    # Get the actor's preferred (target, action) per dials
     enemies = [c["target"] for c in candidates
                 if c.get("target") and c["target"].is_alive()]
-    enemies = list({e.id: e for e in enemies}.values())  # dedupe by id
-    preferred_target = targeting.pick_target(actor, enemies, state, targeting_preset)
+    enemies = list({e.id: e for e in enemies}.values())   # dedupe by id
+
+    preferred_target = targeting.pick_target(actor, enemies, state,
+                                              targeting_preset)
     preferred_action = ability_selection.pick_action(
         actor, preferred_target, state, ability_preset
     )
+    aggression = aggression_coefficient(actor)
 
     scored: list[tuple[float, dict]] = []
     for c in candidates:
-        score = 0.0
+        ehp = score_candidate(c, state)
+        score = ehp * aggression
         if preferred_target and c.get("target") and \
                 c["target"].id == preferred_target.id:
-            score += 10
+            score += TARGET_PREFERENCE_BONUS
         if preferred_action and c.get("action") and \
                 c["action"].get("id") == preferred_action.get("id"):
-            score += 5
+            score += ACTION_PREFERENCE_BONUS
         scored.append((score, c))
     return scored
 

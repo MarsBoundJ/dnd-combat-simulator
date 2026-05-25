@@ -1,19 +1,26 @@
 """AI decision layer — replaces the skeleton's 'attack nearest enemy'
-with archetype-driven targeting and ability selection.
+with archetype-driven targeting, ability selection, and eHP scoring.
 
 Implements the 5-step Ammann + eHP hybrid decision pattern from
 docs/foundations/pillars-reconciliation.md §7, behind the
 score_candidates() socket that's been waiting in pipeline.py.
 
-v1 scope (this module):
+v1+eHP scope (this module):
   - Targeting dial — all 5 presets implemented
-    (closest_enemy / weakest_target / most_dangerous / caster_first / optimal_ehp)
-  - Ability selection — simple priority order (multiattack > weapon_attack)
-  - Behavior profile resolution — read from actor.template (no 3-level
+  - Ability selection — mindless/instinctive/default + eHP-driven
+    tactical/optimal (picks highest-EV action against chosen target)
+  - Behavior profile resolution — reads from actor.template (no 3-level
     inheritance yet; faction profiles + instance overrides deferred)
+  - Offensive eHP scoring — expected_damage × hit_probability per
+    candidate, including advantage from active_modifiers (AI exploits
+    Blinded / Restrained / Prone targets organically)
+  - Aggression coefficient — per-archetype multiplier on raw eHP
 
 Deferred to follow-on PRs:
-  - Full Ammann + eHP scoring with behavioral coefficients
+  - Defensive eHP (heal / buff / control / debuff formulas)
+  - Spell slot opportunity cost
+  - Future-rounds discounting + AoE multi-target optimization
+  - self_preservation_coefficient / pack_tactics_bonus
   - Action Economy dial (signature_bonus / tactical_bonus / reaction tiering)
   - Retreat dial (DMG p48 algorithm + the 3 modes)
   - RP Constraints (Hard Filter / Forced Choice / Weighted Preference)
@@ -29,6 +36,13 @@ from engine.ai.behavior_profile import (
     resolve_ability_selection_preset,
     resolve_archetype,
 )
+from engine.ai.ehp_scoring import (
+    score_candidate,
+    best_action_against,
+    aggression_coefficient,
+    hit_probability,
+    expected_damage_on_hit,
+)
 
 __all__ = [
     "score_candidates_v1",
@@ -40,4 +54,9 @@ __all__ = [
     "resolve_targeting_preset",
     "resolve_ability_selection_preset",
     "resolve_archetype",
+    "score_candidate",
+    "best_action_against",
+    "aggression_coefficient",
+    "hit_probability",
+    "expected_damage_on_hit",
 ]
