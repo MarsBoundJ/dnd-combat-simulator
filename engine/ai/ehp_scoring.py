@@ -295,10 +295,15 @@ def offensive_ehp_multiattack(actor: Actor, target: Actor, action: dict,
 # ============================================================================
 
 def score_candidate(candidate: dict, state: CombatState) -> float:
-    """Return the raw offensive-eHP score for a single candidate.
+    """Return the raw eHP score for a single candidate (offensive OR defensive).
 
-    Recognized candidate kinds: 'weapon_attack', 'multiattack'. Unknown
-    kinds return 0.0 (will lose to anything that scores).
+    Recognized candidate kinds:
+      - 'weapon_attack' / 'multiattack' — offensive_ehp (this module)
+      - 'heal' / 'defensive_buff' / 'hard_control' — defensive_ehp (sibling
+        module). Dispatched on action.type so the candidate generator can
+        emit defensive candidates whose target is an ally.
+
+    Unknown kinds return 0.0 (will lose to anything that scores).
 
     Note: caller (decision_layer.score_candidates_v1) applies aggression
     coefficient + preset preference bonuses on top of this raw score.
@@ -312,10 +317,24 @@ def score_candidate(candidate: dict, state: CombatState) -> float:
     if not target.is_alive():
         return 0.0
 
+    # Offensive (this module)
     if kind == "multiattack" or action.get("type") == "multiattack":
         return offensive_ehp_multiattack(actor, target, action, state)
     if kind == "weapon_attack" or action.get("type") == "weapon_attack":
         return offensive_ehp_single_attack(actor, target, action, state)
+
+    # Defensive — lazy-import to keep modules cleanly separable
+    action_type = action.get("type")
+    if action_type in ("heal", "defensive_buff", "hard_control") \
+            or kind in ("heal", "defensive_buff", "hard_control"):
+        from engine.ai import defensive_ehp as _def
+        effective_type = action_type or kind
+        if effective_type == "heal":
+            return _def.defensive_ehp_healing(actor, target, action, state)
+        if effective_type == "defensive_buff":
+            return _def.defensive_ehp_defensive_buff(actor, target, action, state)
+        if effective_type == "hard_control":
+            return _def.defensive_ehp_hard_control(actor, target, action, state)
     return 0.0
 
 

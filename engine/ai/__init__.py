@@ -5,7 +5,7 @@ Implements the 5-step Ammann + eHP hybrid decision pattern from
 docs/foundations/pillars-reconciliation.md §7, behind the
 score_candidates() socket that's been waiting in pipeline.py.
 
-v1+eHP scope (this module):
+v1+eHP+defensive scope (this module):
   - Targeting dial — all 5 presets implemented
   - Ability selection — mindless/instinctive/default + eHP-driven
     tactical/optimal (picks highest-EV action against chosen target)
@@ -14,10 +14,17 @@ v1+eHP scope (this module):
   - Offensive eHP scoring — expected_damage × hit_probability per
     candidate, including advantage from active_modifiers (AI exploits
     Blinded / Restrained / Prone targets organically)
+  - Defensive eHP scoring — healing (desperation-weighted), defensive
+    buff (AC / disadvantage-for-attackers), hard control (save-or-lose
+    action denial)
+  - Candidate generator now emits heal/buff candidates per ally and
+    hard_control candidates per enemy
   - Aggression coefficient — per-archetype multiplier on raw eHP
 
 Deferred to follow-on PRs:
-  - Defensive eHP (heal / buff / control / debuff formulas)
+  - Soft control / movement denial (needs positions)
+  - Offensive buff for allies (Bless) — math symmetric to defensive buff
+  - Debuff on enemy saves
   - Spell slot opportunity cost
   - Future-rounds discounting + AoE multi-target optimization
   - self_preservation_coefficient / pack_tactics_bonus
@@ -43,6 +50,15 @@ from engine.ai.ehp_scoring import (
     hit_probability,
     expected_damage_on_hit,
 )
+from engine.ai.defensive_ehp import (
+    desperation_multiplier,
+    expected_healing,
+    estimate_dpr,
+    save_fail_probability,
+    defensive_ehp_healing,
+    defensive_ehp_defensive_buff,
+    defensive_ehp_hard_control,
+)
 
 __all__ = [
     "score_candidates_v1",
@@ -59,4 +75,11 @@ __all__ = [
     "aggression_coefficient",
     "hit_probability",
     "expected_damage_on_hit",
+    "desperation_multiplier",
+    "expected_healing",
+    "estimate_dpr",
+    "save_fail_probability",
+    "defensive_ehp_healing",
+    "defensive_ehp_defensive_buff",
+    "defensive_ehp_hard_control",
 ]

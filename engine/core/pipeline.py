@@ -51,8 +51,15 @@ def generate_candidates(actor: Actor, state: CombatState) -> list[dict]:
     """Step 2: enumerate all legal (action × target) candidate tuples.
 
     Pulls from actor.template's actions; pairs each with reachable
-    targets. Multiattack actions are included as candidates (they pick
-    their own targets internally during pipeline.execute).
+    targets per the action's target shape:
+      - weapon_attack / hard_control  → one candidate per living enemy
+      - multiattack                    → one candidate (own target loop)
+      - heal / defensive_buff          → one candidate per living ally
+                                          (allies = same side, includes self)
+
+    Defensive candidates (heal/buff/control) ride on the same scoring
+    path as offensive ones — `score_candidate` dispatches by action type
+    to the appropriate eHP formula.
     """
     candidates: list[dict] = []
     template = actor.template
@@ -60,6 +67,8 @@ def generate_candidates(actor: Actor, state: CombatState) -> list[dict]:
 
     enemies = [a for a in state.encounter.actors
                if a.side != actor.side and a.is_alive()]
+    allies = [a for a in state.encounter.actors
+              if a.side == actor.side and a.is_alive()]
 
     for action in actions:
         action_type = action.get("type")
@@ -82,6 +91,24 @@ def generate_candidates(actor: Actor, state: CombatState) -> list[dict]:
                 "target": primary_target,
                 "actor": actor,
             })
+        elif action_type in ("heal", "defensive_buff"):
+            # Per-ally enumeration. Self counts as an ally (you can heal /
+            # buff yourself); decision_layer's scoring decides whether to.
+            for ally in allies:
+                candidates.append({
+                    "kind": action_type,
+                    "action": action,
+                    "target": ally,
+                    "actor": actor,
+                })
+        elif action_type == "hard_control":
+            for enemy in enemies:
+                candidates.append({
+                    "kind": "hard_control",
+                    "action": action,
+                    "target": enemy,
+                    "actor": actor,
+                })
     return candidates
 
 

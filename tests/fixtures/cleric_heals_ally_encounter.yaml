@@ -1,0 +1,119 @@
+# Cleric heals a dying ally encounter — exercises defensive eHP.
+#
+# Setup:
+#   - 2 goblins (cowardly_skirmisher → weakest_target) attacking a wounded
+#     fighter at 1 HP and a healthy cleric at full HP.
+#   - The cleric has both a basic melee attack AND a Cure Wounds-shape heal
+#     action. With the fighter near death, defensive_ehp_healing scores
+#     much higher than offensive_ehp_single_attack against either goblin,
+#     so the cleric should heal the fighter on turn 1.
+#
+# Expected event log: cleric's first action is a "healed" event targeting
+# the fighter, NOT an "attack_roll" against a goblin.
+
+id: cleric_heals_ally_encounter
+
+environment:
+  template: open_battlefield
+
+actors:
+  - instance_id: goblin_a
+    name: Goblin A
+    side: enemy
+    template_ref:
+      entity_type: monster
+      id: m_goblin_warrior
+
+  - instance_id: goblin_b
+    name: Goblin B
+    side: enemy
+    template_ref:
+      entity_type: monster
+      id: m_goblin_warrior
+
+  # Wounded fighter — full hp_max 28, but spawned at 1 HP so the cleric's
+  # heal has a 27-HP swing available to actually deliver.
+  - instance_id: fighter_dying
+    name: Dying Fighter
+    side: pc
+    hp_current: 1               # critical HP override
+    template:
+      id: pc_dying_fighter
+      name: Dying Fighter
+      source: user_authored
+      combat:
+        armor_class: 16
+        hit_points:
+          average: 28
+          dice: "3d10"
+          con_contribution: 6
+        speed:
+          walk: 30
+        initiative:
+          modifier: 0
+          score: 5
+      abilities:
+        str: { score: 16, save: 5 }
+        dex: { score: 12, save: 1 }
+        con: { score: 14, save: 4 }
+        int: { score: 10, save: 0 }
+        wis: { score: 12, save: 1 }
+        cha: { score: 10, save: 0 }
+      cr: { value: 0.0, xp: 0, proficiency_bonus: 2 }
+      actions:
+        - id: a_longsword
+          name: Longsword
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: melee, bonus: 5, reach_ft: 5 }
+            - primitive: damage
+              params: { dice: "1d8", modifier: 3, type: slashing }
+              when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  # Cleric with mace + heal
+  - instance_id: cleric_healer
+    name: Cleric Healer
+    side: pc
+    template:
+      id: pc_cleric_healer
+      name: Cleric Healer
+      source: user_authored
+      combat:
+        armor_class: 18
+        hit_points:
+          average: 28
+          dice: "3d8"
+          con_contribution: 3
+        speed:
+          walk: 25
+        initiative:
+          modifier: 0
+          score: 12       # acts before the goblins (initiative 10)
+      abilities:
+        str: { score: 12, save: 1 }
+        dex: { score: 10, save: 0 }
+        con: { score: 14, save: 2 }
+        int: { score: 10, save: 0 }
+        wis: { score: 16, save: 5 }
+        cha: { score: 12, save: 1 }
+      cr: { value: 0.0, xp: 0, proficiency_bonus: 2 }
+      actions:
+        - id: a_mace
+          name: Mace
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: melee, bonus: 3, reach_ft: 5 }
+            - primitive: damage
+              params: { dice: "1d6", modifier: 1, type: bludgeoning }
+              when: { event: damage_roll, condition: "combat.attack_state == hit" }
+        - id: a_cure_wounds
+          name: Cure Wounds
+          type: heal
+          pipeline:
+            - primitive: heal
+              params:
+                target: ally
+                dice: "2d8"
+                modifier_source: actor.wis_mod
