@@ -24,6 +24,7 @@ Add a new entry at the top for each session that produces a non-obvious decision
   6. Mode-aware validation desync
 - Six amendments adopted; one additional (three-level inheritance / faction layer) adopted from a 2/3 convergent finding.
 - `docs/foundations/pillars-reconciliation.md` drafted incorporating all amendments. Replaces the 2026-03-30 stub.
+- **Same-day reconsideration: polymorph + runtime override layer promoted from follow-on to fully specified.** Initial categorization deferred them as "architect-for, defer-detail" but the cadre had actually flagged them as CRITICAL (Gemini explicitly; ChatGPT and Perplexity on the polymorph variant). Frequency check (Druid Wild Shape as a core class identity feature available from level 2; Polymorph/Shapechange/True Polymorph as common combat tools across levels; the runtime-override class of conditions — Frightened/Dominate/Confusion — appearing constantly in real play) confirmed these are core gameplay, not edge cases. Promoted to full specification at §4.2 (Form Transition Model with `retains_mind` flag covering the Polymorph-vs-Shapechange mental-stat distinction) and §4.3 (Runtime Overrides with four primitive override types). Per-effect implementation specs (Wild Shape HP rules, Frightened save cadence, etc.) remain follow-on — they live in spells/conditions docs, not pillars-reconciliation.
 
 **Key decisions:**
 - The pillars are not in opposition; they answer different questions at different layers. Resolution is a multi-axis dial system, not per-conflict binary policy.

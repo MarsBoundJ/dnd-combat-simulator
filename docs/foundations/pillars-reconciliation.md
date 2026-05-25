@@ -127,9 +127,18 @@ Per-creature defaults ship in the bundled SRD content (and in user-authored crea
 
 ---
 
-## 4. Profile Resolution: Archetype → Faction → Instance
+## 4. Profile Resolution: Static and Dynamic Layers
 
-Every creature in an encounter resolves its `BehaviorProfile` through three layers, in order:
+Every actor in an encounter resolves its effective `BehaviorProfile` through a layered system. Layers fall into two classes:
+
+- **Static layers** — set at encounter setup, immutable during play
+- **Dynamic layers** — written by game systems during play (form transitions like Wild Shape / Polymorph / Shapechange; conditions like Frightened / Dominate Person / Confusion)
+
+Dynamic layers override static layers. Within dynamic layers, form transition is the more fundamental change (replaces the active stat block); runtime overrides modify behavior on top of whatever the active stat block is.
+
+### 4.1 Static Layers: Archetype → Faction → Instance
+
+Every creature in an encounter resolves its static `BehaviorProfile` through three layers, in order:
 
 ```
   archetype defaults    (from creature type, per Ammann)
@@ -164,9 +173,110 @@ instance_override:
 
 This split addresses the *global mute anti-pattern* (a single suppression flag silencing all current and future hints, hiding genuine misconfigurations). Modeled on ESLint / Roslyn precedent for rule-specific suppression.
 
-### Runtime override layer — reserved for follow-on
+### 4.2 Dynamic Layer: Form Transition Model
 
-The schema reserves a `runtime_override` slot for conditions that supersede all configured layers during play (Frightened forcing targeting away from the fear source; Dominate Person replacing the actor's policy entirely; Confusion injecting random actions). The runtime override is written by the conditions engine, not by user configuration. Full implementation deferred to post-MVP; the schema must not preclude it.
+Effects that **replace the actor's active stat block** — Druid Wild Shape, Polymorph, True Polymorph, Shapechange, Magic Jar, certain stat-block features (e.g., a Werewolf's hybrid form) — are modeled as a paired-state transition, NOT as a runtime modification of the existing profile.
+
+```yaml
+actor_state:
+  # ... static layers (§4.1) ...
+  current_form:
+    stat_block_ref: "druid_brown_bear_form"
+    hp_current: 34
+    hp_max: 34
+    transitioned_at_round: 3
+    transition_source: "wild_shape"          # spell/feature that caused the transition
+    retains_mind: false                      # see table below
+    revert_conditions:
+      duration_remaining: "60_minutes"
+      concentration_required: false         # Wild Shape doesn't; Polymorph does
+      hp_zero_behavior: "revert_with_residual_damage"   # per-form-specific
+      willing_revert: true
+  underlying_identity:
+    stat_block_ref: "druid_pc_id_42"
+    hp_at_transition: 28                     # restored on revert
+    behavior_profile: { ... }                # persists across form changes
+```
+
+**The `retains_mind` flag** is the key architectural distinction. Different D&D effects handle mental-stat replacement differently:
+
+| Effect | retains_mind | HP behavior |
+|---|---|---|
+| **Wild Shape** (Druid) | false (uses beast's INT) | Separate HP pool; revert with remaining own HP |
+| **Polymorph** (4th-level) | false | New form's HP pool; revert to remaining own HP |
+| **Shapechange** (9th-level) | true (keeps caster's INT/WIS/CHA) | New form's HP |
+| **True Polymorph** (9th-level) | depends on caster's choice + target intelligence | Permanent (1 hr concentration first) or until dispelled |
+| **Magic Jar** | true (caster's mind into target body) | Target's HP |
+
+When `retains_mind: false`, the effective `BehaviorProfile` derives its defaults from the *new form's* stats (mental ability scores, archetype-by-creature-type). When `retains_mind: true`, the `underlying_identity.behavior_profile` persists regardless of the form's stats.
+
+**Per-spell rules** — exact durations, concentration requirements, HP-pool transition specifics, spell-casting availability in form — are spec work that lives in the spells/features doc. This document defines only the *architectural primitive* (the paired-state schema + the `retains_mind` switch) that those per-spell rules fill in.
+
+**Static instance overrides still apply for permanent forms.** Setting up a "Lich permanently in goblin form" at encounter setup uses the static instance override mechanism (§4.1) — no runtime transition occurs. Use the form-transition layer for *runtime* changes during play (a Druid casting Wild Shape on turn 3; a Wizard targeted by Polymorph).
+
+### 4.3 Dynamic Layer: Runtime Overrides
+
+Conditions and effects that **modify behavior without replacing the stat block** — Frightened, Charmed, Dominate Person/Monster, Confusion, Calm Emotions, Suggestion, and similar — are modeled as entries in a `runtime_overrides` array that the conditions engine writes and removes during play:
+
+```yaml
+runtime_overrides:
+  - source: "dominate_person"
+    type: behavior_override
+    override:
+      targeting: "attacks_caster_party"
+      ability_selection: "controlled"
+    duration: "concentration_of_caster"
+
+  - source: "frightened"
+    type: targeting_constraint
+    constraint:
+      cannot_target: "fear_source"
+      cannot_move_toward: "fear_source"
+    duration: "save_each_turn_end"
+
+  - source: "confusion"
+    type: action_override
+    override:
+      roll_each_turn: "confusion_table"
+    duration: "1_minute"
+```
+
+**Override types** — the architectural primitives:
+
+| Type | Effect |
+|---|---|
+| `behavior_override` | Replaces specific dial settings (Dominate sets targeting + ability_selection) |
+| `targeting_constraint` | Adds hard filters to candidate targets (Frightened can't target / approach fear source) |
+| `action_override` | Replaces action selection logic for the turn (Confusion rolls on a table) |
+| `forced_action` | Forces a specific action this turn (Banishment forces departure; Command forces compliance) |
+
+**Per-condition rules** — exact override fields per condition, save mechanics, duration tracking — are spec work that lives in the conditions doc. This document defines only the *architectural primitive*.
+
+**Multiple runtime overrides stack.** Resolution within the runtime layer:
+
+1. All `behavior_override` entries apply first (modify the effective `BehaviorProfile`). Conflicts between two `behavior_override` entries on the same field are resolved by most-recent-wins.
+2. All `targeting_constraint` entries layer additively (multiple filters AND-combine).
+3. `action_override` and `forced_action` resolve in registration order; the most recent active one wins on conflict.
+
+The conditions engine is responsible for maintaining the array, enforcing duration tracking, and removing expired entries.
+
+### 4.4 Full Resolution Order
+
+Computing the effective `BehaviorProfile` and effective stat block for a given turn:
+
+```
+  1. Start with archetype defaults (§4.1)
+  2. Apply faction profile if present (§4.1)
+  3. Apply instance override if present (§4.1)
+        ← end of static layers
+  4. If current_form is active (§4.2):
+        - Replace stat block with current_form.stat_block_ref
+        - If retains_mind = true: keep underlying_identity.behavior_profile
+        - If retains_mind = false: derive new defaults from current_form's stats
+  5. Apply each runtime_override in resolution order (§4.3)
+        ← end of dynamic layers
+  6. → effective profile passed to the decision pipeline (§7, Step 1)
+```
 
 ---
 
@@ -407,6 +517,10 @@ Constraints apply to both PCs and monsters — RP nuance per-monster is exactly 
 Per turn, per actor:
 
 ```
+0. Resolve effective profile (§4.4)
+       ↓ static layers → form transition (if active) → runtime overrides (if any)
+       ↓ produces: effective BehaviorProfile + effective stat block for this turn
+
 1. Retreat trigger check
        ↓ if firing → exit early with flee/parley action
 
@@ -522,9 +636,8 @@ This document is binding on the AI decision layer. It composes with several othe
 
 These items were identified during the May 2026 cadre red-team as architecturally important but not blocking the MVP. The schema and pipeline must NOT preclude them; full implementation is deferred.
 
-- **Runtime override layer** — conditions (Frightened, Dominate Person, Confusion) that supersede archetype/faction/instance during play. Schema slot reserved (§4); written by the conditions engine. Full design when conditions system is built.
-- **Polymorph / transformation as state transition** — model "current_form" vs "underlying_identity" pair, with rules for how overrides persist when forms shift. Distinct from a one-shot instance override. Schema slot reserved.
-- **Phase-shift constraints** — Bloodied → drop Pacifism filter; mythic phases that replace the active BehaviorProfile mid-combat. Boss design pattern; needs a state machine the engine can host.
+- **Per-effect implementation specs** — exact rules per spell/feature/condition: Wild Shape's HP-pool mechanics, Polymorph's revert behavior, Shapechange's spell-casting rules, Frightened's save cadence, Dominate Person's target-selection logic, etc. The *architectural primitives* (form transition and runtime overrides) are fully specified in §4.2 / §4.3; the per-effect content lives in the spells/features doc and the conditions doc. Defer to when those docs are written.
+- **Phase-shift constraints** — Bloodied → drop Pacifism filter; mythic phases that replace the active BehaviorProfile mid-combat. Distinct from form transitions (no stat-block change) and runtime overrides (no external source). Boss design pattern; needs a state machine the engine can host.
 - **Temporal memory / stateful constraints** — track "already healed this turn" / resource depletion over time. Requires per-turn state the engine carries.
 - **Dynamic / runtime validation** — post-hoc hints based on observed behavior across Monte Carlo runs (degenerate loops, zero-action turns, statistically suspicious outcomes). Static config Hints (§8) are the MVP; runtime Hints layer on later.
 - **Alternative archetype "style" baselines** — Ammann is one author's interpretation. Schema should support alternative styles (e.g., "average DM," "tournament OP") as a future axis. Don't build alternatives yet; just don't preclude them.
@@ -545,9 +658,11 @@ These items were identified during the May 2026 cadre red-team as architecturall
 5. `reason:` field overloaded as global mute → fixed by Amendment #5 (split into `reason:` + `suppress_hints:`) — §4
 6. Mode-aware validation desync → fixed by Amendment #6 (mode-relevance as text, not gating) — §8.4
 
-Plus Amendment #7 (three-level inheritance: archetype → faction → instance) addressing a 2/3 convergent finding — §4.
+Plus Amendment #7 (three-level inheritance: archetype → faction → instance) addressing a 2/3 convergent finding — §4.1.
 
 The cadre red-team produced a substantially stronger architecture than the pre-cadre version. This is the same May 17 validation-oracle pattern: independent adversarial review catches structural issues that local design conversation cannot surface.
+
+**Polymorph + runtime override layer — reconsidered same-day (2026-05-25).** Initially routed to §10 follow-on as "architect-for, defer-detail" — a triage error. The cadre had actually flagged these as CRITICAL (Gemini explicitly; ChatGPT and Perplexity on the polymorph variant); I read them as separate concerns and undersold their priority. On a same-day check of frequency in core gameplay — Druid Wild Shape (the Druid's identity feature, available from level 2), Polymorph (4th-level), Shapechange (9th-level), True Polymorph (9th-level), Magic Jar; plus the runtime-override class of conditions (Frightened, Charmed, Dominate Person, Confusion) — these are not edge cases. They are core gameplay across most levels and a large fraction of classes. Deferring would have produced an immediate "this can't model Druids" gap in Phase 1. Promoted to full specification at §4.2 (Form Transition) and §4.3 (Runtime Overrides). Per-effect implementation specs remain in §10 follow-on, but the architectural primitives are now in-doc.
 
 **Follow-on items** identified by the cadre were accepted as architectural reservations (§10) — schema must not preclude them; full implementation deferred to post-MVP.
 
