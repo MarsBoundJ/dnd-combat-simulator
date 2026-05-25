@@ -1,0 +1,35 @@
+# co_invisible — Invisible condition
+# Source: SRD CC v5.2.1 p184
+
+id: co_invisible
+name: Invisible
+source: srd_5.2.1
+category: condition
+scope: absolute
+
+effects:
+  - id: initiative_advantage
+    primitive: d20_test_modifier
+    params:
+      modifier: advantage
+      applies_to: [initiative_roll]
+      when: "condition_applied_before_initiative_roll"
+
+  - id: concealed
+    primitive: visibility_state
+    params:
+      visibility: invisible
+      exempt: "effect_creator_can_see_target"
+      includes_carried_equipment: true
+
+  - id: attacks_vs_you_disadvantage
+    primitive: attack_modifier
+    params:
+      when: "target_is_self AND NOT attacker_can_see(self)"
+      modifier: disadvantage_for_attacker
+
+  - id: your_attacks_advantage
+    primitive: attack_modifier
+    params:
+      when: "attacker_is_self AND NOT target_can_see(self)"
+      modifier: advantage_for_self

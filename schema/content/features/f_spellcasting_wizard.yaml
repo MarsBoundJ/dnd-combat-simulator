@@ -1,0 +1,30 @@
+# f_spellcasting_wizard — Spellcasting (Wizard)
+# Source: SRD CC v5.2.1 p77-78
+# Pattern: foundational class feature; references the class.spellcasting block
+
+id: f_spellcasting_wizard
+name: Spellcasting
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 1
+type: passive
+
+# This feature enables the spellcasting infrastructure declared in
+# c_wizard.spellcasting. The engine consumes that block; this feature
+# is the trigger that activates it for the actor.
+
+effect_primitives:
+  - primitive: spellcasting_enable
+    params:
+      class: c_wizard
+      ability: intelligence
+      preparation_model: prepared_from_known_list
+      known_list_source: spellbook
+      slots_progression: full_caster
+
+  - primitive: cantrips_known_grant
+    params:
+      scaling_source: "c_wizard.level_table.spellcasting.cantrips_known"
+      change_trigger: long_rest
+      list_filter: "spell.classes INCLUDES c_wizard AND spell.level == 0"

@@ -1,0 +1,23 @@
+# co_frightened — Frightened condition
+# Source: SRD CC v5.2.1 p182
+# Scope: source_referencing — effects reference "the source of fear"
+
+id: co_frightened
+name: Frightened
+source: srd_5.2.1
+category: condition
+scope: source_referencing
+
+effects:
+  - id: checks_and_attacks_disadv_in_los
+    primitive: d20_test_modifier
+    params:
+      modifier: disadvantage
+      applies_to: [ability_checks, attack_rolls]
+      when: "condition.source IN actor.line_of_sight"
+
+  - id: cant_approach_source
+    primitive: movement_restriction
+    params:
+      cannot_move_toward: condition.source
+      restriction_basis: willing_movement

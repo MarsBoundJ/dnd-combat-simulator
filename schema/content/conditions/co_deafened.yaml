@@ -1,0 +1,15 @@
+# co_deafened — Deafened condition
+# Source: SRD CC v5.2.1 p181
+
+id: co_deafened
+name: Deafened
+source: srd_5.2.1
+category: condition
+scope: absolute
+
+effects:
+  - id: cant_hear
+    primitive: sense_restriction
+    params:
+      senses_lost: [hearing]
+      auto_fail: ability_checks_requiring_hearing

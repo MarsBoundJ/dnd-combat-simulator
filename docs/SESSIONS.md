@@ -5,6 +5,41 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-25 — Schema design v1 committed
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Sampled SRD CC v5.2.1 across content types: Fighter class + Champion subclass (p47-49), monster stat block format (p254-257), Goblin Warrior (p290), three spells with distinct patterns (Fireball p131, Hold Person p141, Spirit Guardians p164-165), Wizard class + Evoker subclass (p77-82), and all 15 conditions from the Rules Glossary (p177-191).
+- Iteratively designed schemas dial-by-dial: class, subclass, feature, monster, spell, condition. Each iteration: read SRD example → draft schema → react/refine → confirm/lock.
+- Identified the **unified ability pattern** (Q5 from conditions design): a weapon attack, spell, class feature, monster action, magic item activation are all instances of one schema with different casting semantics. Same primitive library, same execution pipeline.
+- Locked the **attack pipeline event vocabulary** (11 events: attack_declared → attack_complete) and the **spell pipeline events** (spell_cast, spell_resolve, spell_end, area triggers, target turn end).
+- Locked the **modifier-with-lifetime pattern** — one `attack_modifier` primitive handles Blinded, Shield, Bless, etc. by varying the lifetime parameter, not by having separate primitives per source.
+- Locked the **conditions architecture**: definition vs application; absolute vs source_referencing scope; subordinate condition inheritance with reference counting; Petrified `state_transition` as a sui generis primitive; 15 SRD conditions verified directly from PDF including the leveled Exhaustion model.
+- Locked the **spellcasting class block**: ability + save_dc_formula + attack_mod_formula + focus_types + preparation_model enum (prepared_from_known_list / spells_known_fixed / prepared_from_class_list / pact_magic) + slots_progression (full / half / third / pact, engine-canonical tables) + ritual_casting style.
+- Wrote `docs/architecture/schema-design.md` as the binding architectural commitment for content schema. Companion to pillars-reconciliation.md (which governs the AI behavior layer).
+- Created `/schema/` directory structure: definitions/ (6 JSON Schemas + common shared sub-schemas), content/ (sample YAML per type), worksheets/ (gitignored — clean-room audit trail).
+- Authored v1 sample content: c_fighter, c_wizard, sc_champion, sc_evoker, 9 features, m_goblin_warrior, sp_fireball, sp_hold_person, sp_spirit_guardians, all 15 conditions.
+- gitignore updated to exclude `schema/worksheets/*` (clean-room audit trail kept private).
+
+**Key decisions:**
+- **YAML authoring + JSON Schema validation.** Content in YAML for readability/comments; JSON Schema in /schema/definitions/ for tooling.
+- **Schema has no rules-text fields by construction.** Clean-room legal enforcement is structural — there is nowhere in the shipped schema to put copied WotC prose.
+- **Spell lists are auto-derived views.** Each spell carries `classes:`; the Wizard spell list is a query, not a separate file. No duplication, no drift.
+- **Slot progressions are engine-canonical.** Four standard tables (full / half / third / pact) live as engine constants; classes reference by name. Eliminates 12-class duplication.
+- **`source:` field on every entry.** srd_5.2.1 / phb_2024 / user_authored / homebrew. Documentation tag with no licensing implication.
+- **File naming convention:** type-prefixed snake_case (c_*, sc_*, f_*, m_*, sp_*, co_*).
+- **Primitive library lives in `/schema/primitives/`** but the Python handler implementations are deferred to engine skeleton work. The schema commits today specify what primitives exist; the engine PR implements them.
+
+**Open items carried forward:**
+- [ ] Engine skeleton: event bus, handler interface, contract enforcement, reaction-cascade termination guard, primitive library implementation (Python).
+- [ ] Schema validation tooling: YAML loader + JSON Schema validator for content files.
+- [ ] Content expansion: ~11 remaining classes, ~23 remaining subclasses, ~300 monsters, ~300 spells, equipment / weapons with Mastery (2024 rules), magic items, backgrounds, species, feats. Each is parallel iterative work, no architectural new design.
+- [ ] Half caster (Paladin), pact magic (Warlock), prepared_from_class_list (Cleric, Druid) sampling to validate the spellcasting block against all four preparation models.
+- [ ] Equipment schema sampling — weapons with Mastery properties (2024 rules), armor with stealth disadvantage, etc.
+
+---
+
 ## Session: 2026-05-25 — `pillars-reconciliation.md` drafted + cadre red-team amendments
 
 **Participants:** Phil, Claude, plus AI cadre (Gemini, ChatGPT, Perplexity) for red-team review

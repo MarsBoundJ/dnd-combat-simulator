@@ -1,0 +1,31 @@
+# co_incapacitated — Incapacitated condition
+# Source: SRD CC v5.2.1 p184
+
+id: co_incapacitated
+name: Incapacitated
+source: srd_5.2.1
+category: condition
+scope: absolute
+
+effects:
+  - id: inactive
+    primitive: action_restriction
+    params:
+      cannot_take: [action, bonus_action, reaction]
+
+  - id: no_concentration
+    primitive: concentration_break
+    params:
+      breaks_existing_concentration: true
+
+  - id: speechless
+    primitive: action_restriction
+    params:
+      cannot_take: [speak]
+
+  - id: initiative_disadvantage
+    primitive: d20_test_modifier
+    params:
+      modifier: disadvantage
+      applies_to: [initiative_roll]
+      when: "condition_applied_before_initiative_roll"

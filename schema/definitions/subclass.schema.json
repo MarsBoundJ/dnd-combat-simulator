@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MarsBoundJ/dnd-combat-simulator/schema/definitions/subclass.schema.json",
+  "title": "Subclass",
+  "description": "Subclass definition. Features granted at specific class levels. Archetype tags map to the BehaviorProfile system (pillars-reconciliation.md §3).",
+
+  "type": "object",
+  "required": ["id", "name", "source", "parent_class", "features_by_level"],
+  "additionalProperties": false,
+
+  "properties": {
+    "id": { "$ref": "common.schema.json#/$defs/stable_id" },
+    "name": { "type": "string" },
+    "source": { "$ref": "common.schema.json#/$defs/source" },
+    "parent_class": { "$ref": "common.schema.json#/$defs/stable_id" },
+
+    "archetype_tags": {
+      "type": "object",
+      "properties": {
+        "behavior_archetype": {
+          "type": "string",
+          "description": "Maps to Ammann archetype from pillars-reconciliation.md §3."
+        },
+        "role": {
+          "type": "string",
+          "description": "INTERNAL-EVAL-ONLY (vocabulary firewall): striker / defender / controller / leader / gish / blaster / face. Never surfaced un-translated to WotC-facing materials."
+        },
+        "flavor_tags": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+
+    "features_by_level": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "level": { "type": "integer", "minimum": 1, "maximum": 20 },
+          "feature_ids": {
+            "type": "array",
+            "items": { "$ref": "common.schema.json#/$defs/stable_id" }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,125 @@
+# m_goblin_warrior — Goblin Warrior
+# Source: SRD CC v5.2.1 p290
+
+id: m_goblin_warrior
+name: Goblin Warrior
+source: srd_5.2.1
+
+size: small
+creature_type: fey
+type_tags: [goblinoid]
+alignment: chaotic_neutral
+
+combat:
+  armor_class: 15
+  hit_points:
+    average: 10
+    dice: "3d6"
+    con_contribution: 0
+  speed:
+    walk: 30
+  initiative:
+    modifier: 2
+    score: 12
+
+abilities:
+  str: { score: 8, save: -1 }
+  dex: { score: 15, save: 2 }
+  con: { score: 10, save: 0 }
+  int: { score: 10, save: 0 }
+  wis: { score: 8, save: -1 }
+  cha: { score: 8, save: -1 }
+
+skills:
+  stealth: 6
+
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: []
+condition_immunities: []
+
+gear: [leather_armor, scimitar, shield, shortbow]
+
+senses:
+  passive_perception: 9
+  special:
+    darkvision: 60
+
+languages: [common, goblin]
+
+cr:
+  value: 0.25
+  xp: 50
+  proficiency_bonus: 2
+
+traits: []
+
+actions:
+  - id: a_scimitar
+    name: Scimitar
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params:
+          kind: melee
+          bonus: 4
+          reach_ft: 5
+        contract:
+          reads: [actor.attack_mod, target.ac]
+          writes: [combat.attack_state]
+          event: attack_declared
+          scope: per_attack
+      - primitive: damage
+        params:
+          dice: "1d6"
+          modifier: 2
+          type: slashing
+          average: 5
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: damage
+        params:
+          dice: "1d4"
+          modifier: 0
+          type: slashing
+          average: 2
+        when:
+          event: damage_roll
+          condition: "combat.attack_state == hit AND combat.attack_had_advantage"
+
+  - id: a_shortbow
+    name: Shortbow
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params:
+          kind: ranged
+          bonus: 4
+          range: [80, 320]
+      - primitive: damage
+        params: { dice: "1d6", modifier: 2, type: piercing, average: 5 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: damage
+        params: { dice: "1d4", modifier: 0, type: piercing, average: 2 }
+        when:
+          event: damage_roll
+          condition: "combat.attack_state == hit AND combat.attack_had_advantage"
+
+bonus_actions:
+  - id: ba_nimble_escape
+    name: Nimble Escape
+    type: choose_action
+    is_signature: true            # core goblin behavior — Action Economy dial signature
+    options:
+      - granted_action: disengage
+      - granted_action: hide
+
+reactions: []
+
+# Inline BehaviorProfile per pillars-reconciliation.md §3
+behavior_profile:
+  archetype: cowardly_skirmisher
+  presets:
+    retreat: cowardly
+    ability_selection: default
+    targeting: weakest_target
+    action_economy: casual

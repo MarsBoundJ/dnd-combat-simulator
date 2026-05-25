@@ -1,0 +1,61 @@
+# sp_fireball — Fireball
+# Source: SRD CC v5.2.1 p131
+# Pattern: AoE save-for-half damage, instantaneous, environmental side effect
+
+id: sp_fireball
+name: Fireball
+source: srd_5.2.1
+
+level: 3
+school: evocation
+classes: [c_sorcerer, c_wizard]
+
+casting:
+  time: action
+  range:
+    type: distance
+    ft: 150
+  components:
+    verbal: true
+    somatic: true
+    material:
+      required: true
+      items: ["ball of bat guano", "sulfur"]
+      consumed: false
+
+duration:
+  type: instantaneous
+
+targets:
+  type: area
+  area:
+    shape: sphere
+    size_ft: 20
+    origin: chosen_point
+
+effect_pipeline:
+  - primitive: forced_save
+    params:
+      ability: dexterity
+      dc_source: caster_spell_save_dc
+      affected: all_creatures_in_area
+
+  - primitive: damage
+    params:
+      dice: "8d6"
+      type: fire
+      on_fail: full
+      on_success: half
+    when:
+      event: damage_roll
+      after: forced_save
+
+  - primitive: ignite_objects
+    params:
+      filter: flammable_not_worn_not_carried_in_area
+
+upcast:
+  scaling:
+    - per_level_above: 3
+      modifies: "effect_pipeline[1].params.dice"
+      delta: "+1d6"

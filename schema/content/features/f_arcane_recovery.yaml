@@ -1,0 +1,33 @@
+# f_arcane_recovery — Arcane Recovery (Wizard)
+# Source: SRD CC v5.2.1 p78
+# Pattern: short-rest resource recovery, once per long rest
+
+id: f_arcane_recovery
+name: Arcane Recovery
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 1
+type: active
+
+resource_cost:
+  type: free
+
+usage:
+  uses: 1
+  uses_per: long_rest
+  rest_recovery: { long_rest: full }
+
+effect_primitives:
+  - primitive: slot_recovery_partial
+    params:
+      max_combined_level: "ceil(actor.wizard_level / 2)"
+      max_slot_level: 5
+      slot_source: expended_only
+      timing: end_of_short_rest
+
+contract:
+  reads: [actor.wizard_level, actor.expended_spell_slots]
+  writes: [actor.expended_spell_slots, actor.arcane_recovery_uses_remaining]
+  event: short_rest_end
+  scope: per_use

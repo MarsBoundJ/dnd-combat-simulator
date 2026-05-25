@@ -1,0 +1,206 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MarsBoundJ/dnd-combat-simulator/schema/definitions/common.schema.json",
+  "title": "Common sub-schemas",
+  "description": "Shared definitions used across class, subclass, feature, monster, spell, and condition schemas. See docs/architecture/schema-design.md §3-4 for the event vocabulary and primitive library principles.",
+
+  "$defs": {
+
+    "source": {
+      "description": "Attribution source for the entity. SRD = CC-BY-4.0 content. Non-SRD = clean-room reimplementation per docs/architecture/schema-design.md §1.",
+      "type": "string",
+      "enum": ["srd_5.2.1", "phb_2024", "user_authored", "homebrew"],
+      "default": "srd_5.2.1"
+    },
+
+    "stable_id": {
+      "description": "Stable identifier; lowercase snake_case with type prefix (c_, sc_, f_, m_, sp_, co_).",
+      "type": "string",
+      "pattern": "^(c_|sc_|f_|m_|sp_|co_|sl_)[a-z0-9_]+$"
+    },
+
+    "ability_score_label": {
+      "type": "string",
+      "enum": ["strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma"]
+    },
+
+    "damage_type": {
+      "type": "string",
+      "enum": ["acid", "bludgeoning", "cold", "fire", "force", "lightning", "necrotic", "piercing", "poison", "psychic", "radiant", "slashing", "thunder"]
+    },
+
+    "school_of_magic": {
+      "type": "string",
+      "enum": ["abjuration", "conjuration", "divination", "enchantment", "evocation", "illusion", "necromancy", "transmutation"]
+    },
+
+    "contract": {
+      "description": "§Config locked condition #1 — every primitive declares its read-set, write-set, event subscription, and applicability scope. See docs/architecture/schema-design.md §3.",
+      "type": "object",
+      "properties": {
+        "reads": { "type": "array", "items": { "type": "string" } },
+        "writes": { "type": "array", "items": { "type": "string" } },
+        "event": { "$ref": "#/$defs/event_name" },
+        "scope": {
+          "type": "string",
+          "enum": ["passive", "per_attack", "per_turn", "per_round", "per_use", "per_cast", "per_cantrip_cast", "per_target", "per_target_per_turn", "per_target_per_round", "once_per_combat", "continuous"]
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "event_name": {
+      "description": "Engine-emitted events that primitives subscribe to. See docs/architecture/schema-design.md §3 for the full vocabulary.",
+      "type": "string",
+      "enum": [
+        "attack_declared", "attack_roll", "attack_resolved",
+        "pre_damage_triggers", "damage_roll", "damage_modified", "damage_dealt",
+        "creature_bloodied", "creature_dropped", "on_hit_riders", "attack_complete",
+        "spell_cast", "spell_resolve", "spell_end", "concentration_check",
+        "target_enters_area", "target_exits_area",
+        "target_turn_start_in_area", "target_turn_end_in_area",
+        "target_turn_end", "target_movement_or_turn_end",
+        "round_start", "turn_start", "turn_end", "round_end",
+        "actor_turn_bonus_action", "actor_turn_start", "actor_bonus_action",
+        "attack_roll_resolved", "creature_makes_attack_roll_against_actor",
+        "continuous"
+      ]
+    },
+
+    "modifier_lifetime": {
+      "description": "When a modifier expires. The Q5 unification: every modifier primitive carries this regardless of source (condition, spell, feature, magic item). See docs/architecture/schema-design.md §4.",
+      "oneOf": [
+        { "type": "string", "enum": ["per_single_attack", "until_actor_next_turn_start", "until_condition_ends", "until_spell_ends", "until_dispelled", "until_long_rest", "until_short_rest"] },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "timed" },
+            "duration": {
+              "type": "object",
+              "properties": {
+                "unit": { "type": "string", "enum": ["round", "minute", "hour", "day"] },
+                "value": { "type": "integer", "minimum": 1 }
+              },
+              "required": ["unit", "value"]
+            }
+          },
+          "required": ["type", "duration"]
+        }
+      ]
+    },
+
+    "effect_primitive": {
+      "description": "A reference to a primitive in the engine's handler library, with parameters. The full primitive list lives in /schema/primitives/ (engine implementation). See docs/architecture/schema-design.md §4.",
+      "type": "object",
+      "required": ["primitive"],
+      "properties": {
+        "primitive": {
+          "type": "string",
+          "description": "Name of the primitive (engine handler). Examples: attack_roll, damage, apply_condition, forced_save, attack_modifier, save_modifier, speed_modifier, etc."
+        },
+        "params": { "type": "object", "description": "Primitive-specific parameters. Schema validates by primitive name in the engine." },
+        "when": {
+          "description": "Optional firing condition — event + boolean expression.",
+          "type": "object",
+          "properties": {
+            "event": { "$ref": "#/$defs/event_name" },
+            "condition": { "type": "string", "description": "Boolean expression on combat / actor / target state." },
+            "after": { "type": "string", "description": "Sequence within pipeline — fire after another primitive completes." }
+          }
+        },
+        "lifetime": { "$ref": "#/$defs/modifier_lifetime" },
+        "contract": { "$ref": "#/$defs/contract" }
+      }
+    },
+
+    "activation": {
+      "description": "How an ability is triggered. See docs/architecture/schema-design.md §2 (unified ability pattern).",
+      "type": "object",
+      "properties": {
+        "cost": {
+          "type": "string",
+          "enum": ["action", "bonus_action", "reaction", "free", "no_action", "minutes:1", "minutes:10", "hours:1", "ritual"]
+        },
+        "trigger": {
+          "description": "Required only for reaction-cast or triggered abilities.",
+          "type": "object",
+          "properties": {
+            "event": { "$ref": "#/$defs/event_name" },
+            "conditions": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      },
+      "required": ["cost"]
+    },
+
+    "resource_cost": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["spell_slot", "class_resource", "charge", "free", "hit_dice", "no_cost"]
+        },
+        "amount": { "oneOf": [{ "type": "integer" }, { "type": "string" }] },
+        "resource_name": { "type": "string" }
+      },
+      "required": ["type"]
+    },
+
+    "usage": {
+      "type": "object",
+      "properties": {
+        "uses": { "oneOf": [{ "type": "integer" }, { "type": "string" }] },
+        "uses_per": {
+          "oneOf": [
+            { "type": "string", "enum": ["short_rest", "long_rest", "day", "turn", "round", "encounter"] },
+            { "type": "object", "properties": { "recharge": { "type": "string", "pattern": "^[1-6]-[1-6]$" } } }
+          ]
+        },
+        "rest_recovery": {
+          "type": "object",
+          "properties": {
+            "short_rest": { "type": "string", "enum": ["none", "partial", "full"] },
+            "long_rest": { "type": "string", "enum": ["none", "partial", "full"] }
+          }
+        },
+        "scaling_source": {
+          "type": "string",
+          "description": "If uses scale by level, references the class level table column."
+        }
+      }
+    },
+
+    "duration": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["instantaneous", "time_span", "concentration", "until_dispelled", "permanent", "until_spell_ends"]
+        },
+        "max": {
+          "type": "object",
+          "properties": {
+            "unit": { "type": "string", "enum": ["round", "minute", "hour", "day"] },
+            "value": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "dismissible": { "type": "boolean" }
+      },
+      "required": ["type"]
+    },
+
+    "area_of_effect": {
+      "type": "object",
+      "properties": {
+        "shape": { "type": "string", "enum": ["sphere", "cube", "cone", "line", "cylinder", "emanation"] },
+        "size_ft": { "type": "integer", "minimum": 5 },
+        "origin": { "type": "string", "enum": ["caster", "chosen_point", "actor"] },
+        "height_ft": { "type": "integer", "description": "For cylinder" },
+        "length_ft": { "type": "integer", "description": "For line" },
+        "width_ft": { "type": "integer", "description": "For line" }
+      },
+      "required": ["shape"]
+    }
+
+  }
+}

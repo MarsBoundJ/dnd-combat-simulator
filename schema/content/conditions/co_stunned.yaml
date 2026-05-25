@@ -1,0 +1,23 @@
+# co_stunned — Stunned condition
+# Source: SRD CC v5.2.1 p189
+
+id: co_stunned
+name: Stunned
+source: srd_5.2.1
+category: condition
+scope: absolute
+
+inherits_conditions: [co_incapacitated]
+
+effects:
+  - id: auto_fail_str_dex_saves
+    primitive: save_modifier
+    params:
+      when: "save_ability IN [strength, dexterity]"
+      outcome: auto_fail
+
+  - id: attacks_vs_you_advantage
+    primitive: attack_modifier
+    params:
+      when: target_is_self
+      modifier: advantage_for_attacker

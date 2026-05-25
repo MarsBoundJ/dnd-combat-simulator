@@ -201,16 +201,22 @@ utility ratings* as a disclosed input axis, never sim-computed.
 | `pc-dpr-baselines.md` | ✅ Methodology complete (7-step DPR engine encoded). Per-build per-level tables verified for 5/39 builds (Fighter ×3, Zealot Barb, Berserker Barb) — remaining 34 are re-categorized as *validation reference* data (not source); the sim computes its own DPR from the encoded methodology. |
 | `treantmonk-damage-rankings.md` | ✅ Complete — career scores + per-tier breakdowns for all 39 builds |
 | `pillars-reconciliation.md` | ✅ Complete (2026-05-25) — unified BehaviorProfile resolution; 3 modes; 4 dials with preset bundles; RP Constraints; 3-level inheritance; Sanity Hints. Cadre-red-team-hardened. |
+| `docs/architecture/schema-design.md` | ✅ Complete (2026-05-25) — content schema architecture: unified ability pattern, event vocabulary, primitive library, conditions as first-class entities, spellcasting block, clean-room two-document split. |
+| `/schema/` (definitions + content) | ✅ v1 — JSON Schemas for 6 entity types + sample content (Fighter, Wizard, Champion, Evoker, 10 features, Goblin Warrior, 3 spells, all 15 conditions). |
 | `combat-state-model.md` | 🔴 Not started |
 | `conditions-and-edge-cases.md` | 🔴 Not started |
 | `foundry-integration.md` | 🔴 Not started |
 | `ai-decision-layer.md` | 🔴 Not started |
-| Any engine code | 🔴 Not started — `pillars-reconciliation.md` cleared the gate 2026-05-25; next: schema design |
+| Any engine code | 🔴 Not started — both gates cleared 2026-05-25 (pillars-reconciliation + schema-design-v1); engine skeleton is the next substantive step |
 
-**Current phase:** `pillars-reconciliation.md` landed 2026-05-25 with cadre-red-team
-amendments. Engine-code gate is now clear. Next substantive step is **schema design**
-for subclass / spell / feat / monster definitions (per Hybrid monetization model + 5e API ingestion path), followed by engine skeleton (event bus, handler interface,
-contract enforcement, reaction-cascade guard).
+**Current phase:** Schema design v1 landed 2026-05-25 alongside pillars-reconciliation
+(both same-day). Engine-code gate cleared on both ends — behavior policy AND content
+schema specified. Next substantive step is the **engine skeleton** (event bus, handler
+interface, contract enforcement, reaction-cascade guard, primitive library
+implementation). Content expansion (the remaining ~11 classes / ~23 subclasses /
+~300 monsters / ~300 spells / equipment / magic items / backgrounds / species / feats)
+is parallel iterative work that can happen alongside engine skeleton — the schemas
+are stable.
 
 ---
 

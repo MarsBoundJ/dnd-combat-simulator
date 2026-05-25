@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MarsBoundJ/dnd-combat-simulator/schema/definitions/monster.schema.json",
+  "title": "Monster",
+  "description": "Monster / NPC stat block + inline BehaviorProfile. Each action / bonus action / reaction is an instance of the unified ability pattern.",
+
+  "type": "object",
+  "required": ["id", "name", "source", "size", "creature_type", "combat", "abilities", "cr"],
+  "additionalProperties": false,
+
+  "properties": {
+    "id": { "$ref": "common.schema.json#/$defs/stable_id" },
+    "name": { "type": "string" },
+    "source": { "$ref": "common.schema.json#/$defs/source" },
+
+    "size": { "type": "string", "enum": ["tiny", "small", "medium", "large", "huge", "gargantuan"] },
+    "creature_type": {
+      "type": "string",
+      "enum": ["aberration", "beast", "celestial", "construct", "dragon", "elemental", "fey", "fiend", "giant", "humanoid", "monstrosity", "ooze", "plant", "undead"]
+    },
+    "type_tags": { "type": "array", "items": { "type": "string" } },
+    "alignment": { "type": "string" },
+
+    "combat": {
+      "type": "object",
+      "required": ["armor_class", "hit_points", "speed"],
+      "properties": {
+        "armor_class": { "type": "integer" },
+        "hit_points": {
+          "type": "object",
+          "properties": {
+            "average": { "type": "integer" },
+            "dice": { "type": "string" },
+            "con_contribution": { "type": "integer" }
+          }
+        },
+        "speed": {
+          "type": "object",
+          "properties": {
+            "walk": { "type": "integer" },
+            "fly": { "type": "integer" },
+            "swim": { "type": "integer" },
+            "burrow": { "type": "integer" },
+            "climb": { "type": "integer" },
+            "hover": { "type": "boolean" }
+          }
+        },
+        "initiative": {
+          "type": "object",
+          "properties": {
+            "modifier": { "type": "integer" },
+            "score": { "type": "integer" }
+          }
+        }
+      }
+    },
+
+    "abilities": {
+      "type": "object",
+      "properties": {
+        "str": { "$ref": "#/$defs/ability_block" },
+        "dex": { "$ref": "#/$defs/ability_block" },
+        "con": { "$ref": "#/$defs/ability_block" },
+        "int": { "$ref": "#/$defs/ability_block" },
+        "wis": { "$ref": "#/$defs/ability_block" },
+        "cha": { "$ref": "#/$defs/ability_block" }
+      }
+    },
+
+    "skills": { "type": "object", "additionalProperties": { "type": "integer" } },
+    "damage_resistances": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/damage_type" } },
+    "damage_vulnerabilities": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/damage_type" } },
+    "damage_immunities": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/damage_type" } },
+    "condition_immunities": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/stable_id" } },
+    "gear": { "type": "array", "items": { "type": "string" } },
+
+    "senses": {
+      "type": "object",
+      "properties": {
+        "passive_perception": { "type": "integer" },
+        "special": {
+          "type": "object",
+          "additionalProperties": { "type": "integer" }
+        }
+      }
+    },
+
+    "languages": { "type": "array", "items": { "type": "string" } },
+
+    "cr": {
+      "type": "object",
+      "required": ["value", "xp", "proficiency_bonus"],
+      "properties": {
+        "value": { "type": "number" },
+        "xp": { "type": "integer" },
+        "proficiency_bonus": { "type": "integer" }
+      }
+    },
+
+    "traits": { "type": "array", "items": { "$ref": "#/$defs/ability_entry" } },
+    "actions": { "type": "array", "items": { "$ref": "#/$defs/ability_entry" } },
+    "bonus_actions": { "type": "array", "items": { "$ref": "#/$defs/ability_entry" } },
+    "reactions": { "type": "array", "items": { "$ref": "#/$defs/ability_entry" } },
+    "legendary_actions": {
+      "type": "object",
+      "properties": {
+        "uses_per_round": { "type": "integer" },
+        "options": { "type": "array", "items": { "$ref": "#/$defs/ability_entry" } }
+      }
+    },
+
+    "behavior_profile": {
+      "description": "Inline BehaviorProfile per pillars-reconciliation.md §3. See that document for the full schema.",
+      "type": "object",
+      "properties": {
+        "archetype": { "type": "string" },
+        "presets": {
+          "type": "object",
+          "properties": {
+            "retreat": { "type": "string" },
+            "ability_selection": { "type": "string" },
+            "targeting": { "type": "string" },
+            "action_economy": { "type": "string" }
+          }
+        },
+        "rp_constraints": { "type": "array" }
+      }
+    }
+  },
+
+  "$defs": {
+    "ability_block": {
+      "type": "object",
+      "properties": {
+        "score": { "type": "integer", "minimum": 1, "maximum": 30 },
+        "save": { "type": "integer" }
+      }
+    },
+    "ability_entry": {
+      "description": "An action / bonus action / reaction / trait — instance of the unified ability pattern.",
+      "type": "object",
+      "required": ["id", "name"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["weapon_attack", "save_effect", "trait_passive", "spellcasting", "multiattack", "granted_action", "choose_action", "recharge_ability"] },
+        "is_signature": { "type": "boolean" },
+        "is_reactive_trigger": { "type": "boolean" },
+        "trigger": { "type": "object" },
+        "attack": { "type": "object" },
+        "hit_effect": { "type": "object" },
+        "pipeline": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/effect_primitive" } },
+        "recharge": { "type": "string", "pattern": "^[1-6]-[1-6]$|^short_rest$|^long_rest$|^daily:[1-9]$" },
+        "options": { "type": "array" }
+      }
+    }
+  }
+}

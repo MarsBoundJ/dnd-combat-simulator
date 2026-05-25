@@ -1,0 +1,29 @@
+# f_empowered_evocation — Empowered Evocation (Evoker)
+# Source: SRD CC v5.2.1 p82
+# Pattern: passive damage modifier for Evocation spells
+
+id: f_empowered_evocation
+name: Empowered Evocation
+source: srd_5.2.1
+granted_by:
+  subclass: sc_evoker
+  level: 10
+type: passive
+
+trigger:
+  event: damage_roll
+  conditions:
+    - "active_spell.school == evocation"
+    - "this_is_chosen_damage_roll"      # actor picks which damage roll
+
+effect_primitives:
+  - primitive: damage_modifier
+    params:
+      delta: "+actor.int_mod"
+      applies_to: chosen_damage_roll_of_spell
+
+contract:
+  reads: [active_spell.school, actor.int_mod]
+  writes: [combat.pending_damage]
+  event: damage_roll
+  scope: per_cast

@@ -1,0 +1,64 @@
+# sp_hold_person — Hold Person
+# Source: SRD CC v5.2.1 p141
+# Pattern: condition application with recurring save to break, concentration
+
+id: sp_hold_person
+name: Hold Person
+source: srd_5.2.1
+
+level: 2
+school: enchantment
+classes: [c_bard, c_cleric, c_druid, c_sorcerer, c_warlock, c_wizard]
+
+casting:
+  time: action
+  range:
+    type: distance
+    ft: 60
+  components:
+    verbal: true
+    somatic: true
+    material:
+      required: true
+      items: ["straight piece of iron"]
+      consumed: false
+
+duration:
+  type: concentration
+  max:
+    unit: minute
+    value: 1
+
+targets:
+  type: creature
+  count: 1
+  constraints: [creature_type_humanoid, visible_to_caster]
+
+effect_pipeline:
+  - primitive: forced_save
+    params:
+      ability: wisdom
+      dc_source: caster_spell_save_dc
+      on_fail:
+        - primitive: apply_condition
+          params:
+            condition_id: co_paralyzed
+            duration: until_spell_ends
+
+  - primitive: recurring_save
+    params:
+      trigger_event: target_turn_end
+      ability: wisdom
+      dc_source: caster_spell_save_dc
+      on_success: end_spell_on_target
+    contract:
+      reads: [target.wis_save_mod]
+      writes: [target.applied_conditions, combat.spell_active_targets]
+      event: target_turn_end
+      scope: per_target_per_round
+
+upcast:
+  scaling:
+    - per_level_above: 2
+      modifies: "targets.count"
+      delta: "+1"

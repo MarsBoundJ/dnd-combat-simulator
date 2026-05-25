@@ -1,0 +1,22 @@
+# sc_evoker — Evoker (Wizard subclass)
+# Source: SRD CC v5.2.1 p82
+
+id: sc_evoker
+name: Evoker
+source: srd_5.2.1
+parent_class: c_wizard
+
+archetype_tags:
+  behavior_archetype: apex_predator
+  role: arcane_striker            # INTERNAL-EVAL-ONLY per vocabulary firewall
+  flavor_tags: [destructive, elemental, militaristic]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_evocation_savant, f_potent_cantrip]
+  - level: 6
+    feature_ids: [f_sculpt_spells]
+  - level: 10
+    feature_ids: [f_empowered_evocation]
+  - level: 14
+    feature_ids: [f_overchannel]

@@ -1,0 +1,48 @@
+# co_petrified — Petrified condition
+# Source: SRD CC v5.2.1 p186
+
+id: co_petrified
+name: Petrified
+source: srd_5.2.1
+category: condition
+scope: absolute
+
+inherits_conditions: [co_incapacitated]
+
+effects:
+  - id: turned_to_inanimate_substance
+    primitive: state_transition
+    params:
+      new_state: inanimate_substance
+      weight_multiplier: 10
+      halts_aging: true
+      affects_worn_carried_objects: true
+
+  - id: speed_zero
+    primitive: speed_modifier
+    params:
+      mode: override
+      new_speed: 0
+      prevents_increase: true
+
+  - id: attacks_vs_you_advantage
+    primitive: attack_modifier
+    params:
+      when: target_is_self
+      modifier: advantage_for_attacker
+
+  - id: auto_fail_str_dex_saves
+    primitive: save_modifier
+    params:
+      when: "save_ability IN [strength, dexterity]"
+      outcome: auto_fail
+
+  - id: damage_resistance_all
+    primitive: damage_resistance_grant
+    params:
+      types: all
+
+  - id: poison_immunity
+    primitive: condition_immunity_grant
+    params:
+      conditions: [co_poisoned]

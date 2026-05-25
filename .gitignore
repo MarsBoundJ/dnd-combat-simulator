@@ -1,3 +1,9 @@
+# Clean-room source-reading worksheets (audit trail for non-SRD content
+# authoring; see docs/architecture/schema-design.md §9). Gitignored by
+# design — these are the private paraphrase log, not shipped content.
+schema/worksheets/*
+!schema/worksheets/.gitkeep
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

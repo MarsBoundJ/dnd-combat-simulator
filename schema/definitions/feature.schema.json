@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MarsBoundJ/dnd-combat-simulator/schema/definitions/feature.schema.json",
+  "title": "Feature",
+  "description": "Class / subclass / species / background / monster-granted features. Features are instances of the unified ability pattern (docs/architecture/schema-design.md §2).",
+
+  "type": "object",
+  "required": ["id", "name", "source", "granted_by", "type"],
+  "additionalProperties": false,
+
+  "properties": {
+    "id": { "$ref": "common.schema.json#/$defs/stable_id" },
+    "name": { "type": "string" },
+    "source": { "$ref": "common.schema.json#/$defs/source" },
+
+    "granted_by": {
+      "type": "object",
+      "properties": {
+        "class": { "$ref": "common.schema.json#/$defs/stable_id" },
+        "subclass": { "$ref": "common.schema.json#/$defs/stable_id" },
+        "species": { "$ref": "common.schema.json#/$defs/stable_id" },
+        "background": { "$ref": "common.schema.json#/$defs/stable_id" },
+        "level": { "type": "integer", "minimum": 1 }
+      },
+      "description": "What grants this feature. At least one of class/subclass/species/background must be set; level applies for class/subclass."
+    },
+
+    "type": {
+      "type": "string",
+      "enum": ["passive", "active", "triggered", "triggered_choice", "compound"],
+      "description": "passive = always-on; active = costs an action; triggered = fires on event; triggered_choice = fires on event with actor decision; compound = multiple named sub-features."
+    },
+
+    "is_signature": {
+      "type": "boolean",
+      "description": "Per the Action Economy dial (pillars-reconciliation §5.4): true = part of creature/class identity, reflexive use. Modulates skill-based usage rate in the BehaviorProfile."
+    },
+
+    "resource_cost": { "$ref": "common.schema.json#/$defs/resource_cost" },
+    "usage": { "$ref": "common.schema.json#/$defs/usage" },
+
+    "trigger": {
+      "description": "For triggered / triggered_choice features.",
+      "type": "object",
+      "properties": {
+        "event": { "$ref": "common.schema.json#/$defs/event_name" },
+        "conditions": { "type": "array", "items": { "type": "string" } },
+        "chosen_by": { "type": "string", "enum": ["actor", "automatic"] }
+      }
+    },
+
+    "effect_primitives": {
+      "type": "array",
+      "items": { "$ref": "common.schema.json#/$defs/effect_primitive" }
+    },
+
+    "sub_features": {
+      "description": "For type=compound. Named sub-parts (e.g., Survivor's Defy Death + Heroic Rally).",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "trigger": { "type": "object" },
+          "effect_primitives": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/effect_primitive" } }
+        }
+      }
+    },
+
+    "contract": { "$ref": "common.schema.json#/$defs/contract" }
+  }
+}
