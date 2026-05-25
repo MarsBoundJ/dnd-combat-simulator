@@ -5,6 +5,48 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-25 — Engine skeleton (Phase 1 v0) committed
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Confirmed alignment on Foundry-as-eventual-front-end commitment (per CONTEXT Phase 2 + spine doc's "Foundry = host, never fork" posture). Sharpened the engineering implication: engine designed library-first so Foundry bridge later doesn't force refactor.
+- Chose Path A: CLI for internal research grading first; engine library is the dependency a future Foundry JS bridge will consume.
+- Built the engine skeleton package `engine/`:
+  - `engine/core/state.py` — Actor, Encounter, CombatState dataclasses. Fully serializable state — Foundry bridge can ship as JSON.
+  - `engine/core/events.py` — EventBus with the canonical event vocabulary (40+ events from the schema PR's pipeline definitions).
+  - `engine/core/pipeline.py` — the 8-step decision pipeline from `pillars-reconciliation.md` §7. Skeleton AI ("attack nearest enemy with first available attack") with real implementation slot for the 5-step Ammann+eHP hybrid.
+  - `engine/core/runner.py` — EncounterRunner: rolls initiative, ticks turns, checks termination, MAX_ROUNDS safety cap.
+  - `engine/primitives.py` — PrimitiveRegistry. 5 primitives implemented (attack_roll, damage, apply_condition, heal, granted_action); ~40 stubbed with clear NotImplementedError.
+  - `engine/loader.py` — YAML loader + lite JSON Schema validation.
+  - `engine/reports.py` — EncounterReport (JSON + human-readable summary).
+  - `engine/cli.py` — `python -m engine encounter <yaml>` + `validate` subcommand.
+  - `engine/README.md` — install, usage, module layout, gaps.
+- Wrote `tests/test_smoke.py` (stdlib unittest, no extra deps) — 4 tests: content loads, encounter terminates, Fighter wins majority of 20 trials, JSON report serializable. All pass.
+- Wrote `tests/fixtures/smoke_encounter.yaml` — Fighter L3 (inline template; PC schema is post-MVP) vs the `m_goblin_warrior` from the schema PR.
+- `pyproject.toml` for package metadata; deps: PyYAML, jsonschema. Optional dev dep: pytest.
+
+**Key decisions:**
+- **Library-first architecture.** Engine is a Python package; CLI is one consumer; Foundry bridge is a future consumer. Same public API for both.
+- **Fully serializable state.** Every state object is plain dicts/dataclasses/primitives. Guarantees JSON serialization for Foundry bridge, deterministic replay for testing, observation mode for external drivers.
+- **Two operating modes designed-in.** Sim mode (engine drives via decision pipeline) and observation mode (external driver calls `bus.emit()`; engine records but doesn't decide). Both enabled by EventBus design; Foundry bridge will use observation mode plus translation at the bridge layer.
+- **Stub-driven scope discipline.** 5 critical primitives implemented; ~40 stubbed with `NotImplementedError`. Encounter runs that need stubbed primitives fail loudly with a clear message — incremental implementation unlocks more content.
+- **Skeleton AI is trivial; pipeline shape is real.** The 8-step decision pipeline from `pillars-reconciliation.md` §7 has real function stubs (resolve_effective_profile, check_retreat_trigger, generate_candidates, apply_hard_filters, apply_forced_choices, score_candidates, select_max, apply_action_economy, execute). The real Ammann+eHP scoring layer slots into `score_candidates` without architectural change.
+- **Verified end-to-end.** Smoke test: Fighter L3 (AC 18, longsword +5 / 1d8+3) vs Goblin Warrior (AC 15, scimitar +4 / 1d6+2) runs to termination across 20 seeded trials; Fighter wins majority as expected by stat-block analysis.
+
+**Open items carried forward:**
+- [ ] Implement more primitives — highest-value next: the unified modifier primitives (attack_modifier, save_modifier, speed_modifier per Q5), forced_save (unblocks save-based spells / abilities), multiattack (unblocks higher-CR monsters).
+- [ ] Replace skeleton AI with full 5-step Ammann+eHP hybrid decision layer. Will add `engine/ai/decision_layer.py` + `engine/ai/behavior_profile.py` + `engine/ai/rule_bundles.py`.
+- [ ] Movement / positioning / line-of-sight / area-of-effect geometry. Skeleton uses (0,0) for everyone.
+- [ ] Concentration mechanics — engine auto-triggers CON saves on damage when caster has active concentration spell.
+- [ ] Conditions consulted by decision layer — currently applied to actor but their effects don't yet bias decisions.
+- [ ] BehaviorProfile dial resolution at runtime — schema models them; engine doesn't yet consult.
+- [ ] PC schema (proper one, not inline template hack used in smoke fixture).
+- [ ] Monte Carlo loop with statistical aggregation (Phase 3 work).
+- [ ] Phase 2 Foundry bridge — when stage 2 timing is right.
+
+---
+
 ## Session: 2026-05-25 — Schema design v1 committed
 
 **Participants:** Phil, Claude

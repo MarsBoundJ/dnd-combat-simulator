@@ -207,16 +207,25 @@ utility ratings* as a disclosed input axis, never sim-computed.
 | `conditions-and-edge-cases.md` | 🔴 Not started |
 | `foundry-integration.md` | 🔴 Not started |
 | `ai-decision-layer.md` | 🔴 Not started |
-| Any engine code | 🔴 Not started — both gates cleared 2026-05-25 (pillars-reconciliation + schema-design-v1); engine skeleton is the next substantive step |
+| Engine skeleton | ✅ Phase 1 v0 (2026-05-25) — library-first Python; `engine/` package; 5 primitives implemented end-to-end; ~40 stubbed; CLI (`python -m engine`); smoke test (Fighter vs Goblin) passes; JSON report output. See `engine/README.md`. |
 
-**Current phase:** Schema design v1 landed 2026-05-25 alongside pillars-reconciliation
-(both same-day). Engine-code gate cleared on both ends — behavior policy AND content
-schema specified. Next substantive step is the **engine skeleton** (event bus, handler
-interface, contract enforcement, reaction-cascade guard, primitive library
-implementation). Content expansion (the remaining ~11 classes / ~23 subclasses /
-~300 monsters / ~300 spells / equipment / magic items / backgrounds / species / feats)
-is parallel iterative work that can happen alongside engine skeleton — the schemas
-are stable.
+**Current phase:** Engine skeleton (Phase 1 v0) landed 2026-05-25 same day as
+pillars-reconciliation + schema-design-v1. Library-first Python; 5 primitives
+implemented end-to-end (attack_roll, damage, apply_condition, heal, granted_action);
+~40 stubbed; CLI works; smoke test (Fighter vs Goblin) passes; JSON report output.
+
+**Next substantive steps** (parallel, prioritize per use case):
+1. **Implement more primitives** — each unblocks more content. Highest-value next:
+   the unified modifier primitives (attack_modifier, save_modifier, speed_modifier),
+   forced_save, multiattack. Iterative work; no architectural re-design.
+2. **Full AI decision layer** — replace skeleton's "attack nearest" with the
+   5-step Ammann+eHP hybrid per `pillars-reconciliation.md` §7. Substantial but
+   contained to `engine/core/pipeline.py` + `engine/ai/*`.
+3. **Phase 2 Foundry bridge** — when Stage 2 timing is right. Thin JS module that
+   uses the engine in observation mode + the schema as translation target.
+4. **Content expansion** — remaining ~11 classes / ~23 subclasses / ~300 monsters /
+   ~300 spells / equipment / magic items / backgrounds / species / feats. Parallel
+   iterative work; schemas are stable.
 
 ---
 
