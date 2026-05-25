@@ -200,16 +200,17 @@ utility ratings* as a disclosed input axis, never sim-computed.
 | `data-sources.md` | ✅ Complete |
 | `pc-dpr-baselines.md` | ✅ Methodology complete (7-step DPR engine encoded). Per-build per-level tables verified for 5/39 builds (Fighter ×3, Zealot Barb, Berserker Barb) — remaining 34 are re-categorized as *validation reference* data (not source); the sim computes its own DPR from the encoded methodology. |
 | `treantmonk-damage-rankings.md` | ✅ Complete — career scores + per-tier breakdowns for all 39 builds |
-| `pillars-reconciliation.md` | 🔴 **STUB** — the genuine blocker for engine code. Next substantive design step. |
+| `pillars-reconciliation.md` | ✅ Complete (2026-05-25) — unified BehaviorProfile resolution; 3 modes; 4 dials with preset bundles; RP Constraints; 3-level inheritance; Sanity Hints. Cadre-red-team-hardened. |
 | `combat-state-model.md` | 🔴 Not started |
 | `conditions-and-edge-cases.md` | 🔴 Not started |
 | `foundry-integration.md` | 🔴 Not started |
 | `ai-decision-layer.md` | 🔴 Not started |
-| Any engine code | 🔴 Not started — `pillars-reconciliation.md` must come first |
+| Any engine code | 🔴 Not started — `pillars-reconciliation.md` cleared the gate 2026-05-25; next: schema design |
 
-**Current phase:** `pillars-reconciliation.md` is the engine-code gate. Its
-draft needs Phil's policy input on Math-Wins / Behavior-Wins / Weighted-Blend
-per conflict class (targeting, retreat, ability selection, action economy).
+**Current phase:** `pillars-reconciliation.md` landed 2026-05-25 with cadre-red-team
+amendments. Engine-code gate is now clear. Next substantive step is **schema design**
+for subclass / spell / feat / monster definitions (per Hybrid monetization model + 5e API ingestion path), followed by engine skeleton (event bus, handler interface,
+contract enforcement, reaction-cascade guard).
 
 ---
 
