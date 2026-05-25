@@ -4,9 +4,12 @@ The event vocabulary is fixed (see docs/architecture/schema-design.md §3).
 Engine and content reference event names as strings; the bus dispatches
 to subscribed handlers in registration order.
 
-For the skeleton: simple synchronous dispatch. Reaction-cascade
-termination guard (§Config condition #4) is enforced here — handlers
-that consume actor reactions decrement per-actor reaction availability.
+For the skeleton: simple synchronous dispatch. No reactions are
+implemented yet, so the reaction-cascade termination guard (§Config
+condition #4) is NOT YET enforced — when reactions land, this is where
+it goes: handlers that consume actor reactions must decrement
+per-actor reaction availability before emitting follow-on events, so
+Mage Slayer → Shield → Counterspell cascades cannot infinite-loop.
 """
 from __future__ import annotations
 
