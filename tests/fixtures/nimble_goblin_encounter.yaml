@@ -1,0 +1,113 @@
+# Goblin with a signature bonus action — exercises the Action Economy dial.
+#
+# The goblin's `m_goblin_warrior` stat block already exists; here we
+# override it with an inline template that adds a Scimitar (main slot)
+# plus a "Nimble Escape" bonus action (a stand-in for the SRD goblin's
+# signature bonus action; the actual ability needs the dash/disengage
+# primitives which are still stubs, so this version uses a quick
+# off-hand jab as the bonus). Marked `is_signature: true` so the bonus
+# slot fires at the signature_bonus_pct rate (~95% under Average preset).
+#
+# Expected behavior under seed 1:
+#   - Goblin's main slot: Scimitar attack
+#   - Goblin's bonus slot fires (high rate due to is_signature=true)
+#   - Event log contains BOTH a main 'attack_roll' (scimitar) AND a
+#     bonus-slot 'attack_roll' (off-hand) from goblin in round 1.
+
+id: nimble_goblin_encounter
+
+environment:
+  template: open_battlefield
+
+actors:
+  - instance_id: goblin_skilled
+    name: Skilled Goblin
+    side: enemy
+    template:
+      id: m_goblin_skilled
+      name: Skilled Goblin
+      source: user_authored
+      combat:
+        armor_class: 15
+        hit_points:
+          average: 12
+          dice: "3d6"
+          con_contribution: 0
+        speed:
+          walk: 30
+        initiative:
+          modifier: 2
+          score: 14
+      abilities:
+        str: { score: 8, save: -1 }
+        dex: { score: 15, save: 2 }
+        con: { score: 10, save: 0 }
+        int: { score: 10, save: 0 }
+        wis: { score: 8, save: -1 }
+        cha: { score: 8, save: -1 }
+      cr: { value: 0.5, xp: 100, proficiency_bonus: 2 }
+      behavior_profile:
+        archetype: cowardly_skirmisher
+        presets:
+          # Skilled = 90% main optimality, 95% signature bonus, 85% tactical bonus
+          action_economy: skilled
+      actions:
+        - id: a_scimitar
+          name: Scimitar
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: melee, bonus: 4, reach_ft: 5 }
+            - primitive: damage
+              params: { dice: "1d6", modifier: 2, type: slashing }
+              when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+        # Signature bonus action — high fire rate across all presets
+        - id: a_offhand_jab
+          name: Off-hand Jab
+          type: weapon_attack
+          slot: bonus_action
+          is_signature: true
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: melee, bonus: 4, reach_ft: 5 }
+            - primitive: damage
+              params: { dice: "1d4", modifier: 0, type: slashing }
+              when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  - instance_id: fighter_target
+    name: Fighter Training Dummy
+    side: pc
+    template:
+      id: pc_fighter_target
+      name: Fighter Training Dummy
+      source: user_authored
+      combat:
+        armor_class: 16
+        hit_points:
+          average: 60
+          dice: "6d10"
+          con_contribution: 12
+        speed:
+          walk: 30
+        initiative:
+          modifier: 0
+          score: 5
+      abilities:
+        str: { score: 16, save: 5 }
+        dex: { score: 12, save: 1 }
+        con: { score: 14, save: 4 }
+        int: { score: 10, save: 0 }
+        wis: { score: 12, save: 1 }
+        cha: { score: 10, save: 0 }
+      cr: { value: 1.0, xp: 200, proficiency_bonus: 2 }
+      actions:
+        - id: a_longsword
+          name: Longsword
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: melee, bonus: 5, reach_ft: 5 }
+            - primitive: damage
+              params: { dice: "1d8", modifier: 3, type: slashing }
+              when: { event: damage_roll, condition: "combat.attack_state == hit" }
