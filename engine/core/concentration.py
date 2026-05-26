@@ -11,24 +11,30 @@ Per D&D 5e RAW:
   - Incapacitation (Stunned, Paralyzed, Unconscious) ends concentration.
   - Death ends concentration.
 
-**v1 scope:**
+**Scope (post-PR #34):**
   - Schema: `concentration: true` flag on actions; pipeline marks the
     caster's `Actor.concentration_on` slot at execution.
   - Auto-drop existing concentration when caster starts a new one.
   - CON save on damage taken (in _damage primitive).
   - End on caster death (via `creature_dropped` event).
+  - End on caster becoming Incapacitated — Stunned, Paralyzed,
+    Unconscious, Petrified, or raw Incapacitated. The hook lives in
+    `_apply_condition`: after the condition's inherited entries have
+    been added to `applied_conditions`, `check_incapacitation_breaks_
+    concentration` scans for any incapacitating condition id and ends
+    concentration if present (PR #34).
   - End-handling: scans all actors and removes active_modifiers +
     applied_conditions whose source.action_id + caster_id match.
 
 **Deferred:**
-  - Incapacitation ending concentration (Paralyzed / Stunned /
-    Unconscious applied → end concentration on target if they're a
-    caster). Requires hooking the condition-application path.
   - "Drop concentration to cast new better spell" eHP comparison
     in the AI scoring layer. v1 relies on natural eHP competition
     between candidates (a higher-scoring concentration candidate wins
     the slot organically).
   - Concentration broken by forced movement / teleportation (uncommon).
+  - Incapacitation breaking concentration via direct `incapacitated`
+    flag set outside the condition path (none today — every
+    incapacitating effect goes through a condition).
 """
 from __future__ import annotations
 
@@ -122,6 +128,60 @@ def end_concentration(caster: Actor, state: CombatState,
         "removed_count": removed,
     })
     return removed
+
+
+# ============================================================================
+# Incapacitation → end concentration (RAW: PHB 2024 p.243)
+# ============================================================================
+
+# Per RAW: "If a creature is Incapacitated, it can't concentrate."
+# Stunned / Paralyzed / Unconscious / Petrified all include "the
+# creature is Incapacitated" in their RAW text and thus end
+# concentration. Frightened / Charmed / Poisoned / etc. do NOT.
+#
+# We list both the parent condition (`co_incapacitated`) AND each
+# child that inherits from it, because the inheritance logic in
+# `_instantiate_condition_effects` populates `applied_conditions`
+# with BOTH ids — a check on the child alone would still match, but
+# listing them explicitly makes the intent visible without requiring
+# a registry lookup at break-time.
+INCAPACITATING_CONDITIONS = frozenset({
+    "co_incapacitated",
+    "co_stunned",
+    "co_paralyzed",
+    "co_unconscious",
+    "co_petrified",
+})
+
+
+def has_incapacitating_condition(target: Actor) -> bool:
+    """True if `target` currently has any condition that makes them
+    Incapacitated per RAW. Inspects the `applied_conditions` list
+    (already populated transitively by `_instantiate_condition_effects`
+    for inherited conditions)."""
+    for c in target.applied_conditions:
+        if c.get("condition_id") in INCAPACITATING_CONDITIONS:
+            return True
+    return False
+
+
+def check_incapacitation_breaks_concentration(target: Actor,
+                                                  state: CombatState) -> bool:
+    """If `target` is concentrating AND now has any incapacitating
+    condition, end concentration with reason='incapacitated'. Returns
+    True if concentration was ended, False otherwise (not concentrating
+    OR not incapacitated).
+
+    Intended to be called immediately after a condition is applied —
+    `_apply_condition` in primitives.py is the canonical caller. It's
+    safe to call when target isn't concentrating (no-op).
+    """
+    if target.concentration_on is None:
+        return False
+    if not has_incapacitating_condition(target):
+        return False
+    end_concentration(target, state, reason="incapacitated")
+    return True
 
 
 def attempt_concentration_save(target: Actor, damage_taken: int,

@@ -248,8 +248,19 @@ def _apply_condition(params: dict, state: CombatState, bus: EventBus) -> None:
                             "target": target.id, "condition": condition_id,
                             "source": actor.id if actor else None})
 
-    # Instantiate the condition's effect primitives onto target.active_modifiers
+    # Instantiate the condition's effect primitives onto target.active_modifiers.
+    # This is also where inherited conditions get appended to applied_conditions
+    # (e.g., applying Stunned also adds Incapacitated). The incapacitation
+    # check below runs AFTER this so it sees the full transitive condition set.
     _instantiate_condition_effects(target, application, state)
+
+    # RAW (PHB 2024 p.243): if a creature becomes Incapacitated while
+    # concentrating, their concentration ends. Stunned / Paralyzed /
+    # Unconscious / Petrified inherit Incapacitated and thus also break
+    # concentration; raw Incapacitated breaks it directly. Frightened /
+    # Charmed / Poisoned / etc. do NOT.
+    from engine.core.concentration import check_incapacitation_breaks_concentration
+    check_incapacitation_breaks_concentration(target, state)
 
 
 def _instantiate_condition_effects(target: Actor, application: dict,

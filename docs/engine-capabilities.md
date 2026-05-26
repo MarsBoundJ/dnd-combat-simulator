@@ -585,9 +585,13 @@ priority order:
 6. **Spirit Guardians + persistent-aura primitives** —
    `persistent_aura` + `triggered_save` (movement-triggered damage in
    an area around the caster).
-7. **Incapacitation ending concentration** — small follow-on to #21.
+7. ~~**Incapacitation ending concentration** — small follow-on to #21.
    Particularly relevant now that Hypnotic Pattern can apply
-   Incapacitated.
+   Incapacitated.~~ **Shipped in PR #34.** Stunned / Paralyzed /
+   Unconscious / Petrified / Incapacitated all end concentration via
+   a hook in `_apply_condition`. Frightened / Charmed / Poisoned do
+   NOT (RAW). Hypnotic Pattern's Incapacitated application now
+   correctly drops the target's concentration too.
 8. **Named-effect tagging** for cross-caster buff dedup — small
    follow-on to #20.
 9. **Per-creature recurring save** to break Hypnotic Pattern at
