@@ -138,15 +138,20 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
 
     # Build action list from weapons (Dueling / Archery may add to
     # damage / attack bonus on the qualifying weapon actions).
-    actions = [_build_weapon_action(w, ability_scores, proficiency_bonus,
-                                       fighting_style=fighting_style)
-                for w in (pc_spec.get("weapons") or [])]
+    weapon_actions = [_build_weapon_action(w, ability_scores,
+                                              proficiency_bonus,
+                                              fighting_style=fighting_style)
+                       for w in (pc_spec.get("weapons") or [])]
+    actions = list(weapon_actions)
     # Auto-append class-feature actions (Second Wind etc.) for features
     # the PC has at this level. Resource counters were derived
     # separately by `derive_pc_resources`; this generates the actual
     # action declarations that consume those counters at runtime.
+    # `weapon_actions` is passed so Extra Attack can reference the
+    # weapon ids in its sub_actions list (PR #39).
     features_known = _features_known_at_level(class_def, level)
-    actions += _build_feature_actions(features_known, level, class_id)
+    actions += _build_feature_actions(features_known, level, class_id,
+                                         weapon_actions=weapon_actions)
 
     # Composite template
     template = {
@@ -321,20 +326,75 @@ def _class_resources_at_level(class_def: dict, level: int) -> dict:
 
 
 def _build_feature_actions(features_known: set[str], level: int,
-                             class_id: str) -> list[dict]:
+                             class_id: str,
+                             weapon_actions: list[dict] | None = None
+                             ) -> list[dict]:
     """Generate action dicts for the feature IDs the PC has at this
-    level. v1: Second Wind only. Future features that need action
-    representation get added here.
+    level. v1 + PR #39: Second Wind + Extra Attack (count scales by
+    level). Future features that need action representation get added
+    here.
 
     Each generated action carries a `feature_use:` field naming the
     actor.resources key it consumes — the pipeline's feature-use gate
     filters out actions whose resource is depleted (see
     engine/core/feature_uses.py).
+
+    `weapon_actions` is the list of weapon attack actions already
+    built for the PC's weapons — Extra Attack needs them to reference
+    the weapon ids in its sub_actions list. Pass `None` for callers
+    that don't need feature actions tied to weapons (e.g., the
+    second_wind-only generation path).
     """
     actions: list[dict] = []
     if "f_second_wind" in features_known and class_id == "c_fighter":
         actions.append(_build_second_wind_action(level))
+    # Extra Attack: count scales with feature presence (RAW Fighter
+    # progression at L5 / L11 / L20). Only one of the three feature
+    # ids is meaningful at a time — higher-level features supersede
+    # lower per the c_fighter level_table (the lower-level feature
+    # remains in features_known by accumulation, but the higher-level
+    # count wins).
+    if class_id == "c_fighter":
+        count = _extra_attack_count(features_known)
+        if count > 1 and weapon_actions:
+            actions.append(_build_extra_attack_action(count, weapon_actions))
     return actions
+
+
+def _extra_attack_count(features_known: set[str]) -> int:
+    """Total attacks per Attack action for the Fighter, based on which
+    Extra Attack features have been gained. Returns 1 if none."""
+    if "f_three_extra_attacks" in features_known:
+        return 4        # L20
+    if "f_two_extra_attacks" in features_known:
+        return 3        # L11
+    if "f_extra_attack" in features_known:
+        return 2        # L5
+    return 1
+
+
+def _build_extra_attack_action(count: int,
+                                  weapon_actions: list[dict]) -> dict:
+    """Build a multiattack action that fires `count` swings using the
+    fighter's first weapon. RAW: you use the SAME Attack action with
+    each attack, so we reference one weapon id repeated rather than
+    cycling through all weapons (cycling would be unusual and the
+    multiattack execution does `sub_action_ids[i % len(...)]` anyway,
+    which makes both shapes work).
+
+    Drawn from the first weapon in the actions list for stability —
+    fixtures usually declare one weapon. PCs with multiple weapons get
+    multiattack on weapon #1; runtime weapon swap is out of scope.
+    """
+    primary = weapon_actions[0]
+    primary_id = primary["id"]
+    return {
+        "id": "a_extra_attack",
+        "name": f"Extra Attack ({count}× {primary.get('name', 'weapon')})",
+        "type": "multiattack",
+        "count": int(count),
+        "sub_actions": [primary_id] * int(count),
+    }
 
 
 def _build_second_wind_action(fighter_level: int) -> dict:
