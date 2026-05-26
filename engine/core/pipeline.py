@@ -130,6 +130,20 @@ def generate_candidates(actor: Actor, state: CombatState,
                     "target": ally,
                     "actor": actor,
                 })
+        elif action_type == "offensive_buff":
+            # Per-ally enumeration; skip self (a caster doesn't Bless
+            # themselves to raise their own hit chance in v1 — the AI
+            # would need to weigh "buff self vs swing weapon" which
+            # gets pulled in by the spell-slot opportunity cost PR).
+            for ally in allies:
+                if ally.id == actor.id:
+                    continue
+                candidates.append({
+                    "kind": "offensive_buff",
+                    "action": action,
+                    "target": ally,
+                    "actor": actor,
+                })
         elif action_type == "hard_control":
             # Spells have a `range_ft` in the action; default to 60 ft for
             # v1 since most save-or-lose spells in 5e are 30-90 ft range.

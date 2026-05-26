@@ -417,9 +417,13 @@ def _crit_threshold_modifier(params: dict, state: CombatState, bus: EventBus) ->
 def _resolve_modifier_owner(params: dict, state: CombatState) -> Actor:
     """Determine which actor a modifier attaches to.
 
-    Defaults to current_actor (for self-targeting modifiers like Bless).
-    For modifiers from conditions, the owner is the condition's target —
-    handled by _instantiate_condition_effects, NOT by this function.
+    Targets supported:
+      - 'self' (default) — caster (e.g., self-Bless, Shield reaction)
+      - 'ally' / 'current_target' — the candidate's target (used by
+        offensive_buff actions where the ally being buffed is set as
+        state.current_attack.target by the candidate generator)
+    For modifiers from conditions, the owner is the condition's target
+    — handled by _instantiate_condition_effects, NOT by this function.
     """
     target = params.get("target", "self")
     if target == "self":
@@ -429,16 +433,38 @@ def _resolve_modifier_owner(params: dict, state: CombatState) -> Actor:
         if actor is None:
             raise ValueError("No owner resolvable for modifier")
         return actor
+    if target in ("ally", "current_target"):
+        owner = state.current_attack.get("target") if state.current_attack \
+            else None
+        if owner is None:
+            raise ValueError(
+                f"target={target!r} requires state.current_attack.target "
+                "to be set (typically by the candidate generator)"
+            )
+        return owner
     raise ValueError(f"Unsupported modifier target: {target!r}")
 
 
 def _build_modifier_entry(primitive_name: str, params: dict, owner: Actor,
                            state: CombatState) -> dict:
+    # If caller didn't explicitly specify a source, infer one from the
+    # currently-executing action + caster. This lets eHP scoring detect
+    # "this target already has my buff" and skip redundant re-casts
+    # (Bless every round was the canary that drove this).
+    source = params.get("source")
+    if not source:
+        action = (state.current_attack or {}).get("action") or {}
+        caster = (state.current_attack or {}).get("actor")
+        source = {
+            "type": "action_buff",
+            "action_id": action.get("id"),
+            "caster_id": caster.id if caster else None,
+        }
     return {
         "primitive": primitive_name,
         "params": dict(params),  # copy, don't share
         "lifetime": params.get("lifetime", "until_short_rest"),  # default conservative
-        "source": params.get("source") or {"type": "ad_hoc"},
+        "source": source,
         "applied_at_round": state.round,
         "owner_id": owner.id,
     }

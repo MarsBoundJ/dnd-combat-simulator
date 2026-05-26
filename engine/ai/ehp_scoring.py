@@ -256,6 +256,115 @@ def offensive_ehp_single_attack(actor: Actor, target: Actor, action: dict,
     return min(raw_ehp, float(max(0, target.hp_current)))
 
 
+# ============================================================================
+# Offensive buff for allies (Bless shape)
+# ============================================================================
+
+# Per ehp-action-framework.md §"Offensive Buff" reference values:
+# - Bless (+1d4 mean +2.5 to hit) ≈ +12.5% hit chance
+# - Advantage ≈ +20-25% hit chance at baseline
+# These are averaged over the middle range of attack rolls; at extreme
+# hit/miss probabilities the deltas shrink. v1 uses these as constants.
+HIT_PROB_PER_FLAT_BONUS = 0.05      # each +1 attack bonus ≈ +5% hit chance
+DELTA_HIT_FROM_ADVANTAGE = 0.225    # framework's stated reference value
+
+
+def extract_offensive_buff_effect(action: dict) -> dict:
+    """Inspect an offensive_buff action's pipeline to detect what kind
+    of attack-side boost it grants the ally target. Returns a dict
+    with one of these populated:
+
+      {attack_bonus: int}              — flat +N to attack rolls (Bless,
+                                         Guidance-shape if it applied to
+                                         attacks)
+      {ally_advantage: True}           — advantage on the ally's attacks
+                                         (Faerie Fire from the
+                                         beneficiary side; True Strike)
+
+    Returns empty dict if no recognized buff effect is in the pipeline.
+
+    Only inspects `attack_modifier` primitive steps whose `target` is
+    `ally` or `current_target` (i.e., the buff goes to the ally, not
+    the caster).
+    """
+    out: dict = {}
+    for step in (action.get("pipeline") or []):
+        if step.get("primitive") != "attack_modifier":
+            continue
+        params = step.get("params") or {}
+        # Only count modifiers targeting the ally
+        if params.get("target") not in ("ally", "current_target"):
+            continue
+        modifier = params.get("modifier", "")
+        if modifier in ("attack_bonus", "flat"):
+            out["attack_bonus"] = int(params.get("value", 0))
+        elif modifier in ("advantage", "advantage_for_self"):
+            out["ally_advantage"] = True
+    return out
+
+
+def offensive_ehp_buff_ally(actor: Actor, target_ally: Actor, action: dict,
+                              state: CombatState) -> float:
+    """Offensive eHP from buffing an ally's attacks (Bless-shape).
+
+      eHP = ally_DPR × Δhit × EXPECTED_BUFF_ROUNDS
+
+    Where:
+      - ally_DPR comes from `estimate_dpr` (same observable-proxy
+        discipline used everywhere)
+      - Δhit ≈ attack_bonus × 0.05 (flat bonus) or 0.225 (advantage)
+      - EXPECTED_BUFF_ROUNDS = 2.5 (per framework, shared constant
+        with defensive_buff scoring)
+
+    Returns 0.0 if:
+      - target is not an ally (defensive guard)
+      - target is dead
+      - action grants no recognized offensive buff
+      - target has no combat actions to estimate DPR from
+    """
+    # Lazy import — defensive_ehp imports from this file for save math,
+    # so we keep the constant + DPR helper consumption deferred.
+    from engine.ai.defensive_ehp import (
+        EXPECTED_BUFF_ROUNDS, estimate_dpr,
+    )
+
+    if target_ally is None or not target_ally.is_alive():
+        return 0.0
+    if target_ally.side != actor.side:
+        return 0.0   # never offensively buff an enemy
+
+    # Don't re-cast the same buff every round on the same target. The
+    # modifier-entry source tag (set by _build_modifier_entry) lets us
+    # detect "this target already has my buff from this action."
+    action_id = action.get("id")
+    for mod in target_ally.active_modifiers:
+        if mod.get("primitive") != "attack_modifier":
+            continue
+        src = mod.get("source") or {}
+        if (src.get("action_id") == action_id
+                and src.get("caster_id") == actor.id):
+            return 0.0   # already active — re-cast would be wasted
+
+    buff = extract_offensive_buff_effect(action)
+    if not buff:
+        return 0.0
+
+    delta_hit = 0.0
+    if "attack_bonus" in buff:
+        delta_hit += buff["attack_bonus"] * HIT_PROB_PER_FLAT_BONUS
+    if buff.get("ally_advantage"):
+        delta_hit += DELTA_HIT_FROM_ADVANTAGE
+    delta_hit = min(0.95, max(0.0, delta_hit))
+    if delta_hit <= 0:
+        return 0.0
+
+    ally_dpr = estimate_dpr(target_ally)
+    if ally_dpr <= 0:
+        return 0.0
+
+    return ally_dpr * delta_hit * EXPECTED_BUFF_ROUNDS
+
+
 def offensive_ehp_aoe(actor: Actor, origin: tuple[int, int], action: dict,
                         state: CombatState) -> float:
     """Expected HP delivered by an AoE save-or-half action centered at
@@ -455,6 +564,8 @@ def score_candidate(candidate: dict, state: CombatState) -> float:
         if origin is None:
             return 0.0
         return offensive_ehp_aoe(actor, tuple(origin), action, state)
+    if kind == "offensive_buff" or action.get("type") == "offensive_buff":
+        return offensive_ehp_buff_ally(actor, target, action, state)
 
     # Defensive — lazy-import to keep modules cleanly separable
     action_type = action.get("type")
