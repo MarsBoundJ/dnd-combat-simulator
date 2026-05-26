@@ -212,36 +212,49 @@ utility ratings* as a disclosed input axis, never sim-computed.
 | AI decision layer v1 | ✅ (2026-05-26) — Targeting dial fully implemented (`engine/ai/`): all 5 presets (`closest_enemy`, `weakest_target`, `most_dangerous`, `caster_first`, `optimal_ehp` graceful fallback), behavior_profile resolution with archetype defaults, universal finish-off rule. Goblins now bully wounded PCs; pack hunters target the dangerous fighter; apex predators target casters. Wired into `pipeline.score_candidates()`. |
 | Offensive eHP scoring v1 | ✅ (2026-05-25) — `engine/ai/ehp_scoring.py`. Replaces +10/+5 preset preferences with `expected_damage × hit_probability × aggression_coefficient`, with preset preferences as small tie-break bonuses. AI now exploits conditions organically (Blinded target → advantage → higher hit_prob → higher score, no special-cased logic). `tactical` ability preset works for real — picks highest-EV action against the chosen target. Overkill capped at target HP; per-archetype aggression in [0.8, 1.5]. PR #7. |
 | Defensive eHP scoring v1 | ✅ (2026-05-25) — `engine/ai/defensive_ehp.py`. Adds healing (desperation-weighted, missing-HP-capped), defensive buff (AC bonus + disadvantage-for-attacker via `worst_enemy_DPR × Δmiss × 2.5 rounds`), and hard control (`forced_save → apply_condition` recognized; `enemy_DPR × p_fail × 2.5 rounds × denial_fraction`; hard conditions score 1.0, partial conditions 0.2–0.5). Candidate generator extended to emit heal/buff candidates per ally + control candidates per enemy. New cleric-heals-dying-ally fixture proves end-to-end: cleric's first action is `healed → fighter_dying +10` (NOT a mace attack). 103 tests pass (4 smoke + 12 primitives_v1 + 19 ai_v1 + 34 ehp_scoring + 34 defensive_ehp). PR #8. |
-| Engine capabilities checkpoint | ✅ (2026-05-25) — `docs/engine-capabilities.md`. Reader-facing summary of what the engine can demonstrate today (decision pipeline status per step, eHP framework coverage map, behavioral worked examples, test surface, honest roadmap gap list). |
+| Engine capabilities checkpoint | ✅ (2026-05-25) — `docs/engine-capabilities.md`. Reader-facing summary of what the engine can demonstrate today (decision pipeline status per step, eHP framework coverage map, behavioral worked examples, test surface, honest roadmap gap list). Refreshed post-PR #12. |
+| Action Economy dial v1 | ✅ (2026-05-25) — `engine/ai/action_economy.py`. 4th of 4 dials. Full 5-preset percentage table (Optimal/Skilled/Average/Casual/Reactive_only) × 5 knobs (main_optimality / signature_bonus / tactical_bonus / oa_reaction / sophisticated_reaction). Main-slot "miss" downgrades to default attack preserving target. Bonus action slot added to runner with signature/tactical gating. PC `play_context: solo` shifts preset down one tier. New nimble_goblin fixture shows both slots firing in one turn. PR #10. |
+| Retreat dial v1 | ✅ (2026-05-25) — `engine/ai/retreat.py`. Last of 4 dials. DMG p48 algorithm (dmg_ammann mode) with 5 presets (FtD/Resolute/Default/Cowardly/Pacifist) × 4 parameter columns. Mindless override (INT ≤ 2 OR archetype mindless_aggressor → never flee). Compound triggers: Resolute requires Bloodied AND another trigger; others accept any single. WIS save vs in_combat_dc; fail = flee. Existing fixtures now show emergent retreat — goblins flee alive at low HP, party members panic when half the team falls. PR #11. |
+| RP Constraints v1 | ✅ (2026-05-25) — `engine/ai/rp_constraints.py`. Closes the last stubbed pipeline steps (3 + 4). 3 constraint types (Hard Filter / Forced Choice / Weighted Preference) per §6.2. 4 of 12 canonical constraints shipped (pacifist_strict, heal_priority, signature_first, resource_hoarder) — one+ per type. Tier 1 set-intersection, Tier 2 highest-priority-wins boost, Tier 3 cumulative additive. Empty-set fallback logs passed_turn event. New pacifist fixture proves end-to-end: PC Pass-turns every round, never attacks, eventually flees alive. **All 8 pipeline steps now live.** PR #12. |
 
 **Current phase:** Engine skeleton (Phase 1 v0) landed 2026-05-25, followed by
-4 substantial PRs on the same day: primitives v1 (#5), targeting dial v1 (#6),
-offensive eHP v1 (#7), defensive eHP v1 (#8). The AI now drives a real
-5-step Ammann + eHP hybrid decision per `pillars-reconciliation.md` §7 —
-both offensive (attack/multiattack) and defensive (heal/buff/control)
-candidates score on a single eHP scale, and the cleric-heals-dying-ally
-fixture demonstrates the AI choosing Cure Wounds over a mace attack
-end-to-end. 13 primitives implemented; ~30 stubbed.
+8 substantial PRs on the same day: primitives v1 (#5), targeting dial v1 (#6),
+offensive eHP v1 (#7), defensive eHP v1 (#8), capabilities-doc checkpoint (#9),
+action economy dial v1 (#10), retreat dial v1 (#11), RP Constraints v1 (#12).
+**The full 8-step decision pipeline from `pillars-reconciliation.md` §7 is now
+live. All 4 dials have v1 implementations. RP Constraints provide the
+identity/personality overlay.** Remaining work is content breadth (more
+primitives, positions, schema content) and depth-within-system (defer-tagged
+behaviors), not new architecture. 13 primitives implemented; ~30 stubbed.
 
 **See `docs/engine-capabilities.md` for the full reader-facing capability
 checkpoint** — behavioral worked examples, decision-pipeline status per
 step, eHP framework coverage map, and the honest roadmap gap list.
 
 **Next substantive steps** (parallel, prioritize per use case):
-1. **Action Economy dial** — per-slot stochastic between optimal-vs-default
-   (signature_bonus / tactical_bonus / OA reaction / sophisticated reaction
-   tiering per §5.4). Self-contained PR on `engine/ai/action_economy.py`.
-2. **Retreat dial** — DMG p48 algorithm + 3 modes + 5 presets per §5.1.
-   The `cowardly_skirmisher` archetype already declares `retreat: cowardly`
-   but it's a no-op until this lands.
-3. **RP Constraints** — Hard Filter / Forced Choice / Weighted Preference
-   per §6. Currently `apply_hard_filters` and `apply_forced_choices` are
-   stubs.
-4. **Positioning / movement / reachability** — biggest missing axis;
-   unblocks `closest_enemy`, OAs, ranged-vs-melee, soft control.
-5. **Phase 2 Foundry bridge** — when Stage 2 timing is right. Thin JS module that
+1. **Positioning / movement / reachability** — biggest missing axis.
+   Currently all creatures at (0,0); melee reachability defaults to TRUE.
+   Unblocks proper `closest_enemy`, opportunity attacks (which activates
+   the already-wired `oa_reaction` AE percentages), ranged-vs-melee
+   tradeoffs, soft control / movement denial, AoE geometry, several
+   deferred RP constraints (`frontline`, `library_protect` proximity).
+2. **PC schema** — currently using inline monster-template hack in PC
+   fixtures. A first-class PC schema with class/level/feats/equipment
+   slots would clean this up substantially.
+3. **Offensive buff for allies (Bless shape)** — math symmetric to defensive
+   buff; needs cross-actor `attack_modifier` lookup at score-time. Small
+   focused PR.
+4. **Spell slot opportunity cost** — needed for proper caster eHP scoring.
+   Unlocks the Fireball-vs-Hypnotic-Pattern worked example from
+   `ehp-action-framework.md`.
+5. **More primitives** — Dodge (would replace Pass-turn RP fallback),
+   Action Surge, Spirit Guardians (persistent_aura + triggered_save),
+   spellcasting infrastructure.
+6. **3-level profile inheritance** (archetype → faction → instance) +
+   runtime override layer (Frightened / Dominate / Confusion) per §4.4.
+7. **Phase 2 Foundry bridge** — when Stage 2 timing is right. Thin JS module that
    uses the engine in observation mode + the schema as translation target.
-6. **Content expansion** — remaining ~11 classes / ~23 subclasses / ~300 monsters /
+8. **Content expansion** — remaining ~11 classes / ~23 subclasses / ~300 monsters /
    ~300 spells / equipment / magic items / backgrounds / species / feats. Parallel
    iterative work; schemas are stable.
 
