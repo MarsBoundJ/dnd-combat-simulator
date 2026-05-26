@@ -1,7 +1,7 @@
 # CONTEXT.md — D&D Combat Simulator
 
 **Paste this file at the start of every AI session on this project.**  
-Last updated: 2026-05-25
+Last updated: 2026-05-26
 
 ---
 
@@ -220,46 +220,55 @@ utility ratings* as a disclosed input axis, never sim-computed.
 | Positioning v1 | ✅ (2026-05-25) — `engine/core/geometry.py`. The biggest structural unblock. 2D grid positions (`Actor.position` finally used), Chebyshev × 5 distance (5e 2024 "diagonals = 5 ft" rule), `move_toward` with `stop_at_ft` to land creatures adjacent rather than stacked, reachability filter in `generate_candidates` (melee `reach_ft` / ranged `range_ft`), `closest_enemy` targeting now picks by distance, `attacker_within_ft(N)` when-clauses evaluate properly, `attack_roll` out-of-range guard. Runner movement phase: two-phase main slot tries to act → moves toward dial-preferred target → tries again → passes if still unreachable. New ranged_vs_melee fixture demonstrates archer-stays-back / goblin-engages end-to-end. PR #15. |
 | Opportunity Attacks v1 | ✅ (2026-05-25) — `engine/core/reactions.py`. First reaction type wired. AE dial's `oa_reaction` percentages (80-100%) now actually fire. Trigger: reactor's melee reach covered mover's pre-position AND does not cover post-position. Decision: roll vs `oa_reaction`. Execution: single melee weapon attack against the mover at pre-position (position snapped/restored). Reaction slot tracking via `actions_used_this_turn["reaction"]`. New opportunity_attack fixture: Polearm Guardian catches Goblin slipping past to attack a healer. PR #16. |
 | AoE Geometry v1 | ✅ (2026-05-25) — `engine/core/geometry.py:actors_in_radius` + new `aoe_attack` action type. **First multi-target eHP scoring in the engine.** Sphere shape only (cone/line deferred). Candidate generation: one per enemy position as origin (catches "cast on cluster"). `damage` primitive gains `multiplier` param (half-damage-on-save). `forced_save` filters by area when `area_origin` set; swaps `state.current_attack.target` per iteration so damage primitives hit the right creature. eHP: positive for enemies, negative for allies (friendly fire — caster counts as ally). New fireball_cluster fixture: wizard nukes 3 clustered goblins in one cast at seed 1. PR #17. |
+| PC Schema v1 | ✅ (2026-05-25) — `engine/pc_schema.py`. Compact PC actor_spec shape replaces inline-monster-template hack. Declares class + level + ability_scores + armor + weapons in ~15 lines; engine derives HP / AC / PB / save bonuses / per-weapon attack actions. Leans on existing `c_*.yaml` class content (hit_die, save_proficiencies, level_table.proficiency_bonus). Three actor_spec shapes now coexist: `template_ref:` / `template:` / `pc:`. Verified identical-behavior at same seed against the inline-template smoke_encounter. PR #19. |
+| Offensive Buff v1 | ✅ (2026-05-25) — `engine/ai/ehp_scoring.py:offensive_ehp_buff_ally`. Bless-shape ally attack-bonus buffs. New `offensive_buff` action type with `target: ally` on `attack_modifier`. eHP = `ally_DPR × Δhit × 2.5 rounds`. Δhit math: +1 flat ≈ +5%; advantage ≈ +22.5% (framework reference). Buff-source-tagging in `_build_modifier_entry` enables dedup — cleric doesn't re-cast Bless every round (returns 0 if target already has matching buff from same caster). New bless_buff fixture flipped from enemy victory → PC victory after the dedup landed. PR #20. |
+| Concentration v1 | ✅ (2026-05-25) — `engine/core/concentration.py`. RAW single-slot concentration: `Actor.concentration_on` + `concentration: true` action flag. Auto-drops prior on new cast. CON save on damage taken (`DC = max(10, ⌈dmg/2⌉)`) — hook lives in `_damage` so every damage path triggers automatically. Death ends concentration before `creature_dropped` event. Scan-all-actors to remove tagged modifiers + applied_conditions when concentration ends. Bless re-tagged `concentration: true`. Fixture trace shows full lifecycle: started → multiple saves → failed → ended → re-cast. PR #21. |
+| Spell Slots v1 | ✅ (2026-05-26) — `engine/core/spell_slots.py`. Per-actor slot tracking (`Actor.spell_slots: {level: count}`) + opportunity cost in eHP scoring. `slot_cost_ehp = slot_level × 3.0 × scarcity × (1 - urgency)` matches framework worked example exactly (3rd-level slot, last one, end-of-day = 9.0 eHP). Candidate filter excludes unavailable-slot spells (hard gate); scoring subtracts cost (soft nudge). `_execute_single` decrements at cast. PC schema accepts `spell_slots` field. Closes the most-referenced deferred item across 5 prior PRs (#7, #8, #17, #20, #21). PR #22. |
 
 **Current phase:** Engine skeleton (Phase 1 v0) landed 2026-05-25, followed by
-13 substantial PRs on the same day: primitives v1 (#5), targeting dial v1 (#6),
-offensive eHP v1 (#7), defensive eHP v1 (#8), capabilities-doc checkpoint (#9),
-action economy dial v1 (#10), retreat dial v1 (#11), RP Constraints v1 (#12),
-capabilities-doc refresh (#13), browser-deployment doc (#14), positioning v1
-(#15), opportunity attacks v1 (#16), AoE geometry v1 (#17).
-**The full 8-step decision pipeline from `pillars-reconciliation.md` §7 is
-live. All 4 dials have v1 implementations. RP Constraints provide the
-identity/personality overlay. Positioning + movement + reachability gives the
-spatial axis. Opportunity attacks are the first reaction type wired. AoE
-geometry adds the engine's first multi-target eHP scoring.** Remaining work
-is content breadth (more primitives, PC schema, content) and depth-within-
-system (defer-tagged behaviors), not new architecture. 13 primitives
-implemented; ~30 stubbed.
+17 substantial PRs (#5 → #22) shipped 2026-05-25/26: primitives, all 4 dials,
+RP Constraints, positioning, opportunity attacks, sphere AoE, PC schema,
+offensive buff, concentration, spell slot opportunity cost — plus 3
+capabilities-doc refreshes + the browser-deployment option doc.
+**The full 8-step decision pipeline is live. All 4 dials. RP Constraints
+identity overlay. Positioning + movement + reachability (spatial axis).
+Opportunity attacks (first reaction type). Multi-target AoE with
+friendly-fire scoring. PC schema for compact authoring. Offensive +
+defensive ally buffs. Concentration with damage-triggered CON saves.
+Spell slot opportunity cost in eHP.** With the spatial + resource shapes
+both right, the engine's big-architecture work is done. Future PRs are
+content breadth, additional primitives, and depth-within-system. 13
+primitives implemented (with extensions to `damage.multiplier`,
+`forced_save` area filtering + target swap, `attack_modifier target:ally`);
+~30 stubbed.
 
 **See `docs/engine-capabilities.md` for the full reader-facing capability
 checkpoint** — behavioral worked examples, decision-pipeline status per
 step, eHP framework coverage map, and the honest roadmap gap list.
 
 **Next substantive steps** (parallel, prioritize per use case):
-1. **PC schema** — currently using inline monster-template hack in PC
-   fixtures. A first-class PC schema with class/level/feats/equipment
-   slots would clean this up substantially and let us load proper
-   classed PCs from existing schema content.
-2. **Offensive buff for allies (Bless shape)** — math symmetric to defensive
-   buff; needs cross-actor `attack_modifier` lookup at score-time. Small
-   focused PR.
-3. **Spell slot opportunity cost** — needed for proper caster eHP scoring.
-   Unlocks the Fireball-vs-Hypnotic-Pattern worked example from
-   `ehp-action-framework.md`.
-4. **Cone + Line AoE shapes** — natural follow-on to sphere AoE. Covers
+1. **Cone + Line AoE shapes** — natural follow-on to sphere AoE. Covers
    Burning Hands, Cone of Cold, Lightning Bolt. Geometry helpers parallel
    to `actors_in_radius`.
-5. **More primitives** — Dodge (replaces Pass-turn RP fallback), Disengage
-   (grants no-OA-from-leaving, interacts with PR #16), Action Surge,
-   Spirit Guardians (`persistent_aura` + `triggered_save`), spellcasting
-   infrastructure.
-6. **Concentration management** — auto CON saves on damage; AI choice of
-   whether to break current concentration to cast new spell.
+2. **More primitives** — Dodge (replaces Pass-turn RP fallback), Disengage
+   (grants no-OA-from-leaving, interacts with PR #16), Action Surge
+   (`additional_action`), Spirit Guardians (`persistent_aura` +
+   `triggered_save`), Arcane Recovery (`slot_recovery_partial`),
+   spellcasting infrastructure.
+3. **Class features auto-wiring** — Second Wind, Action Surge, Fighting
+   Style are referenced in `c_fighter.level_table` but unwired. A
+   "consume class features" pass on PC schema (#19) would pull them in
+   automatically.
+4. **Hypnotic Pattern fixture** — would showcase the canonical
+   Fireball-vs-Hypnotic-Pattern eHP example. Needs Incapacitated-applying
+   AoE (forced_save → apply_condition with sphere shape). Small
+   primitive composition.
+5. **Incapacitation ending concentration** — small follow-on to #21;
+   hook the apply_condition path so Paralyzed/Stunned/Unconscious end
+   concentration on the affected caster.
+6. **Named-effect tagging** for cross-caster buff dedup — follow-on to
+   #20 (currently dedup is per-(caster, action) only; cross-caster
+   same-spell stacking is not yet prevented).
 7. **3-level profile inheritance** (archetype → faction → instance) +
    runtime override layer (Frightened / Dominate / Confusion) per §4.4.
 8. **Phase 2 Foundry bridge** — when Stage 2 timing is right. Thin JS module that

@@ -5,6 +5,272 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-26 — Capabilities-doc refresh #4 (post-PR #22)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Rewrote `docs/engine-capabilities.md` to reflect post-PR #22 state
+  (was last refreshed after PR #17; 4 PRs of progress since: #19 PC
+  Schema, #20 Offensive Buff, #21 Concentration, #22 Spell Slots).
+  Major updates:
+  - Header bumped: post-PR #22, 324 tests across 13 modules, 11 fixtures
+  - Status headline expanded to enumerate every live capability
+  - §1 added subsections for PC Schema (compact authoring), Offensive
+    Buffs (Bless shape), Concentration (single-slot, CON-save-on-damage),
+    Spell Slot Opportunity Cost (formula + reference value)
+  - §3 eHP Coverage Map: Offensive buff for allies, Spell slot cost,
+    Concentration all flipped to ✅; Cone+Line AoE stays deferred
+  - §4 Primitives note extensions to `damage.multiplier`, `forced_save`
+    area filtering + target swap, `attack_modifier target:ally`
+  - §5 Worked Examples: added Example 8 (PC Schema fighter), 9 (Bless
+    + concentration + slot consumption in one fixture), 10 (Multiattack)
+  - §6 Test Surface: 238 → 324 tests; added 4 new test modules
+  - §7 Roadmap: dropped PC schema, offensive buff, concentration,
+    spell slots (all shipped); promoted Cone+Line AoE to #1; added
+    Class features auto-wiring, Hypnotic Pattern fixture, Incapacitation
+    ending concentration, Named-effect cross-caster dedup as smaller
+    follow-ons
+- Refreshed `docs/CONTEXT.md` status table — added rows for PRs #19
+  (PC Schema), #20 (Offensive Buff), #21 (Concentration), #22 (Spell
+  Slots). Refreshed "Current phase" prose to reflect 17 PRs shipped
+  and the now-complete resource shape. Refreshed "Next substantive
+  steps" — Cone+Line AoE at #1; PC schema / offensive buff /
+  concentration / spell slots dropped from list.
+- Added 5 new entries to `docs/SESSIONS.md` (this refresh + #22 +
+  #21 + #20 + #19).
+
+**Key decisions:**
+- **Status headline now explicitly notes the resource shape is
+  complete** — concentration + spell slot cost together mean the
+  engine has the spatial axis (PR #15-#17) AND the resource axis
+  (#21-#22) done. The "big architecture" framing in the headline now
+  applies to both.
+- **Fourth clean rewrite of engine-capabilities.md** — pattern holds:
+  rewrite every 3-4 feature PRs cleanly rather than patching across
+  8+ sections each time.
+
+**Open items carried forward:**
+- [ ] Pick next priority: Cone+Line AoE, more primitives, class
+  features, Hypnotic Pattern fixture, or smaller follow-ons (see
+  `docs/engine-capabilities.md` §7).
+
+---
+
+## Session: 2026-05-26 — Spell Slot Opportunity Cost v1 (PR #22)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Closes the **most-referenced deferred item** — five prior PRs (#7,
+  #8, #17, #20, #21) had noted spell slot opportunity cost as missing
+  from their eHP scoring.
+- `engine/core/state.py`: `Actor.spell_slots: dict[int, int]` +
+  `CombatState.encounters_remaining_today: int = 3` (urgency factor
+  for cost formula).
+- `engine/core/spell_slots.py` — new module:
+  - `slot_cost_ehp(level, slots_remaining, encounters_remaining)`
+    implements framework formula:
+    `slot_level × 3.0 × scarcity × (1 - urgency)`
+    where `scarcity = 1/max(1, slots_remaining)` and
+    `urgency = encounters_remaining / 6`. Matches the worked example
+    exactly: 3rd-level slot, 1 left, 0 encounters remaining = **9.0
+    eHP** (the Fireball reference value).
+  - `has_slot`, `remaining_slots`, `consume_slot` (decrements + logs
+    `spell_slot_consumed`), `candidate_slot_cost` (public eHP-cost API).
+- `engine/core/pipeline.py`:
+  - `generate_candidates` filters out spell actions whose required
+    slot is unavailable (alongside existing reach filter).
+  - `_execute_single` consumes the slot when action has
+    `spell_slot_level > 0`.
+- `engine/ai/decision_layer.py`: `score_candidates_v1` subtracts
+  `candidate_slot_cost` from raw eHP BEFORE aggression scaling.
+- `engine/cli.py`: `_build_actor` accepts top-level `spell_slots`
+  dict; PC schema spec surfaces it.
+- `tests/fixtures/bless_buff_encounter.yaml`: cleric now has `{1: 3}`
+  starting slots; Bless tagged `spell_slot_level: 1`. Visible
+  behavior: cleric burns through 3 slots over a long encounter,
+  then falls back to mace permanently.
+- 25 new tests in `tests/test_spell_slots.py`. 324/324 total.
+
+**Key decisions:**
+- **Free actions are the default.** Anything without `spell_slot_level`
+  (martial weapons, monster attacks, cantrips) incurs no cost.
+- **Candidate filter is the hard gate; scoring cost is the soft nudge.**
+  AI can never accidentally cast without a slot.
+- **encounters_remaining_today on CombatState** is the v1 surface.
+  Per-actor override (warlock pact magic) deferred.
+- **Cost subtracted in eHP units** (same scale as gain) per framework
+  guidance. A 1st-level Bless (~6 eHP gain) at scarcity max + mid-day
+  costs ~0.75 eHP — small, doesn't prevent casting, but starts to
+  matter as slots dwindle.
+
+**Open items carried forward:**
+- [ ] Upcasting (cast 1st-level spell with higher-level slot)
+- [ ] Pact Magic (warlock short-rest restoration)
+- [ ] Spell points variant
+- [ ] Long rest mid-simulation (multi-encounter day)
+- [ ] Per-class spell preparation lists
+- [ ] Cantrips with formal level 0 (v1: just absent)
+- [ ] Per-actor encounters_remaining_today override
+- [ ] Hypnotic Pattern fixture for Fireball-vs-HP worked example
+
+---
+
+## Session: 2026-05-25 — Concentration v1 (PR #21)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Implements 5e concentration: one slot per actor, auto-drop on new
+  cast, CON save on damage (DC = max(10, ⌈dmg/2⌉)), drop on death.
+- `engine/core/state.py`: `Actor.concentration_on` field.
+- `engine/core/concentration.py` — new module:
+  - `apply_concentration(caster, action, state)` — sets slot,
+    auto-drops prior, logs.
+  - `end_concentration(caster, state, reason)` — scans every actor,
+    removes modifiers + applied_conditions tagged with this
+    concentration's source.
+  - `attempt_concentration_save(target, damage_taken, state, rng)` —
+    RAW DC formula; fail → end_concentration.
+- `engine/core/pipeline.py:_execute_single` calls `apply_concentration`
+  if action has `concentration: true`.
+- `engine/primitives.py:_damage`:
+  - After HP loss, if target concentrating: rolls CON save.
+  - On creature_dropped: ends concentration before the event so
+    listeners see a clean state.
+- `bless_buff_encounter.yaml`: Bless tagged `concentration: true`.
+- 18 new tests in `tests/test_concentration.py`. 299/299 total.
+
+**Key decisions:**
+- **Damage hook in `_damage`** — every damage path (weapon, AoE,
+  OAs, multiattack sub-attacks) auto-triggers the save. No per-
+  primitive plumbing.
+- **Death cleanup runs before `creature_dropped`** — anything
+  listening to that event sees a fully de-concentrated actor.
+- **AI trade-off is implicit** — natural eHP competition between
+  candidates handles "drop concentration for better spell" without
+  explicit switching-cost logic. The PR #20 dedup prevents the most
+  common pathology (re-casting the same buff).
+- **Per-actor scan is O(N×M)** — fine at encounter scale; could
+  index by (caster_id, action_id) later if profiling shows it's hot.
+
+**Open items carried forward:**
+- [ ] Incapacitation ending concentration (Paralyzed/Stunned/Unconscious)
+- [ ] Explicit "drop concentration to switch" eHP comparison
+- [ ] Concentration broken by forced movement / teleportation
+
+---
+
+## Session: 2026-05-25 — Offensive Buff v1 (PR #20)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Closes the symmetric counterpart to defensive_buff: a caster can
+  now boost an ally's hit chance with attack_modifier-style spells
+  (Bless-shape).
+- `engine/core/pipeline.py`: new `offensive_buff` action type in
+  `generate_candidates`. Enumerates per ally; skips self.
+- `engine/primitives.py`:
+  - `_resolve_modifier_owner` extended for `target: ally` /
+    `target: current_target` — attaches modifier to
+    `state.current_attack.target`.
+  - `_build_modifier_entry` tags source with `{action_id, caster_id}`
+    when none provided. Lets eHP scoring detect "this target already
+    has my buff" and skip redundant re-casts.
+- `engine/ai/ehp_scoring.py`:
+  - `extract_offensive_buff_effect(action)` — reads attack_bonus or
+    ally_advantage from pipeline.
+  - `offensive_ehp_buff_ally(actor, target_ally, action, state)` —
+    `ally_DPR × Δhit × EXPECTED_BUFF_ROUNDS` per framework.
+  - Constants: `HIT_PROB_PER_FLAT_BONUS = 0.05` (each +1 ≈ +5% hit
+    chance), `DELTA_HIT_FROM_ADVANTAGE = 0.225`. Bless +2 ≈ +10-12.5%
+    matches framework reference.
+  - **Dedup guard**: returns 0 if target already has matching buff
+    from this caster.
+  - `score_candidate` dispatches `kind='offensive_buff'`.
+- New fixture `tests/fixtures/bless_buff_encounter.yaml`: cleric
+  (Mace + Bless) + fighter (Greatsword) + bruiser. Cleric picks
+  Bless on round 1, switches to mace on subsequent rounds.
+- 17 new tests in `tests/test_offensive_buff.py`. 281/281 total.
+
+**Key decisions:**
+- **Behavioral discovery during integration**: original implementation
+  had the cleric recasting Bless every turn, stacking modifiers
+  (fighter's attack bonus climbed +2/round). Fixed by source-tagging
+  + scoring dedup. **The fix flipped the demo encounter outcome from
+  enemy victory → PC victory** because the cleric now correctly
+  switches to attacking once Bless is up.
+- **Single-target buffs for v1.** Multi-target (Bless on 3 creatures,
+  Aid on multiple) deferred.
+- **Dedup is per-(caster, action_id)** — different casters each apply
+  their own Bless; same caster won't double-stack. Real 5e prevents
+  same-spell stacking from ANY caster, but that's a separate change.
+- **Δhit math uses framework reference values.** Each +1 flat ≈ +5%
+  hit chance; advantage ≈ +22.5%.
+
+**Open items carried forward:**
+- [ ] Multi-target offensive buffs (Bless on 3, Aid on multiple)
+- [ ] Faerie Fire (debuff on enemy granting advantage to ALL attackers)
+- [ ] Bardic Inspiration (reaction buff)
+- [ ] Concentration mechanics — CLOSED in PR #21
+- [ ] Spell slot opportunity cost — CLOSED in PR #22
+- [ ] Self-buff scoring (caster picks self-Bless vs swing-weapon)
+- [ ] Named-effect tagging for cross-caster dedup
+
+---
+
+## Session: 2026-05-25 — PC Schema v1 (PR #19)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Replaces the inline-monster-template hack that PC fixtures had
+  been using since the skeleton landed. New compact `pc:` actor_spec
+  shape lets you declare a PC by class + level + ability scores +
+  armor + weapons; engine derives HP, AC, proficiency bonus, save
+  bonuses, and per-weapon attack actions automatically.
+- `engine/pc_schema.py` — new module:
+  - `build_pc_template(pc_spec, content_registry)` returns a full
+    monster-style template dict.
+  - Pure helpers: `_lookup_pb` (level_table → PB), `_compute_hp`
+    (L1 max + L2+ avg per die + CON), `_compute_ac` (base_ac +
+    min(DEX, max_dex)), `_build_abilities_with_saves` (mod + PB if
+    class-proficient), `_build_weapon_action`.
+  - Telemetry: `derived_from_pc_schema: {class, level}` tagged.
+- `engine/cli.py`: `_build_actor` recognizes new `pc:` key alongside
+  `template:` (inline) and `template_ref:` (lookup). Three shapes
+  coexist; existing fixtures unchanged.
+- New fixture `tests/fixtures/pc_schema_fighter_encounter.yaml`:
+  Level 3 Fighter via compact pc: spec vs Goblin Warrior via
+  template_ref. **Verified identical-behavior** to the inline-template
+  smoke_encounter at same seed.
+- 26 new tests in `tests/test_pc_schema.py`. 264/264 total.
+
+**Key decisions:**
+- **Opt-in, backward compatible.** All 9 existing fixtures + their
+  tests unchanged. `pc:` is the new third option.
+- **Leans on existing class schema content.** `c_fighter.yaml`'s
+  `core_traits.hit_die` + `level_table.proficiency_bonus` +
+  `core_traits.save_proficiencies` are the slim layer the derivation
+  reads. Class features in `level_table` (Second Wind, Action Surge,
+  Fighting Style) are referenced by id but not yet consumed.
+- **No new dependencies.** Pure Python + existing deps only.
+  Pyodide-invariant preserved.
+
+**Open items carried forward:**
+- [ ] Class features (Second Wind, Action Surge, Fighting Style)
+- [ ] Multiclass
+- [ ] Spellcasting → action generation
+- [ ] Subclasses
+- [ ] Starting equipment library (longsword / chain_mail lookups)
+- [ ] Skill / tool proficiencies
+- [ ] ASI / feats
+- [ ] Race / species, background
+
+---
+
 ## Session: 2026-05-25 — Capabilities-doc refresh after AoE (post-PR #17)
 
 **Participants:** Phil, Claude
