@@ -114,22 +114,32 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
     save_profs = set(class_def.get("core_traits", {})
                        .get("save_proficiencies", []))
 
+    # Fighting Style — validated + applied at template build time.
+    # PR #38: passive bonuses (AC / attack / damage) are baked into the
+    # generated weapon actions / AC computation rather than registered
+    # as runtime modifiers. See _validate_fighting_style for the
+    # accepted set + _compute_ac / _build_weapon_action for application.
+    fighting_style = _validate_fighting_style(pc_spec.get("fighting_style"))
+
     # Derive HP
     hit_die = class_def.get("core_traits", {}).get("hit_die", "d8")
     con_mod = ability_modifier(ability_scores["con"]["score"])
     hp = _compute_hp(hit_die, level, con_mod)
 
-    # Derive AC
+    # Derive AC (Defense Fighting Style adds +1 when armor is present)
     armor_spec = pc_spec.get("armor") or {}
-    ac = _compute_ac(armor_spec, ability_scores)
+    ac = _compute_ac(armor_spec, ability_scores,
+                       fighting_style=fighting_style)
 
     # Build abilities dict with save bonuses
     abilities = _build_abilities_with_saves(
         ability_scores, save_profs, proficiency_bonus
     )
 
-    # Build action list from weapons
-    actions = [_build_weapon_action(w, ability_scores, proficiency_bonus)
+    # Build action list from weapons (Dueling / Archery may add to
+    # damage / attack bonus on the qualifying weapon actions).
+    actions = [_build_weapon_action(w, ability_scores, proficiency_bonus,
+                                       fighting_style=fighting_style)
                 for w in (pc_spec.get("weapons") or [])]
     # Auto-append class-feature actions (Second Wind etc.) for features
     # the PC has at this level. Resource counters were derived
@@ -166,6 +176,7 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
         "derived_from_pc_schema": {
             "class": class_id,
             "level": level,
+            "fighting_style": fighting_style,    # None if not chosen
         },
     }
 
@@ -253,6 +264,34 @@ def derive_pc_resources(pc_spec: dict, content_registry: Any) -> dict:
 # ============================================================================
 
 _ABILITY_KEYS = ("str", "dex", "con", "int", "wis", "cha")
+
+
+# Fighting Styles the engine knows how to apply at template build time.
+# Defense + Dueling are SRD CC v5.2.1. Archery is user_authored
+# (non-SRD; common Fighter pick). GWF / Protection / Two-Weapon
+# Fighting / Blind Fighting are deferred — each needs additional
+# infrastructure (damage re-roll, reactions, off-hand weapons, vision).
+_KNOWN_FIGHTING_STYLES = frozenset({
+    "defense",      # +1 AC when wearing armor
+    "dueling",      # +2 damage on one-handed melee
+    "archery",      # +2 attack on ranged weapons
+})
+
+
+def _validate_fighting_style(value):
+    """Return the validated style id (lowercase string) or None.
+    Raises ValueError if the value is set but not in the accepted set."""
+    if value is None or value == "":
+        return None
+    s = str(value).lower()
+    if s not in _KNOWN_FIGHTING_STYLES:
+        raise ValueError(
+            f"Unknown fighting_style {value!r}. Accepted: "
+            f"{sorted(_KNOWN_FIGHTING_STYLES)}. (GWF / Protection / "
+            "Two-Weapon Fighting / Blind Fighting are deferred — see "
+            "f_fighting_style.yaml for status.)"
+        )
+    return s
 
 
 def _features_known_at_level(class_def: dict, level: int) -> set[str]:
@@ -378,17 +417,28 @@ def _compute_hp(hit_die: str, level: int, con_mod: int) -> int:
     return max(1, hp)
 
 
-def _compute_ac(armor: dict, ability_scores: dict) -> int:
+def _compute_ac(armor: dict, ability_scores: dict,
+                fighting_style: str | None = None) -> int:
     """AC = base_ac + min(DEX_mod, max_dex_bonus). If no armor block,
-    default to 10 + DEX (unarmored)."""
+    default to 10 + DEX (unarmored).
+
+    Defense Fighting Style adds +1 when armor is present (v1 proxy for
+    "wearing armor" per RAW). A Defense-style fighter without an
+    armor block selects the style legally but the +1 doesn't apply.
+    """
     dex_mod = ability_modifier(ability_scores["dex"]["score"])
     if not armor:
+        # Defense doesn't apply without armor — return unarmored AC
         return 10 + dex_mod
     base_ac = int(armor.get("base_ac", 10))
     max_dex = armor.get("max_dex_bonus")
     if max_dex is None:
-        return base_ac + dex_mod
-    return base_ac + min(dex_mod, int(max_dex))
+        ac = base_ac + dex_mod
+    else:
+        ac = base_ac + min(dex_mod, int(max_dex))
+    if fighting_style == "defense":
+        ac += 1
+    return ac
 
 
 def _build_abilities_with_saves(ability_scores: dict, save_profs: set,
@@ -411,7 +461,8 @@ def _build_abilities_with_saves(ability_scores: dict, save_profs: set,
 
 
 def _build_weapon_action(weapon: dict, ability_scores: dict,
-                          proficiency_bonus: int) -> dict:
+                          proficiency_bonus: int,
+                          fighting_style: str | None = None) -> dict:
     """Convert a compact weapon spec into a weapon_attack action dict.
 
     Weapon spec fields:
@@ -422,6 +473,12 @@ def _build_weapon_action(weapon: dict, ability_scores: dict,
       damage_type: slashing | piercing | bludgeoning | etc.
       reach_ft: melee reach (default 5) — mutually exclusive w/ range_ft
       range_ft: ranged weapon range (optional)
+      two_handed: bool — if True, weapon is two-handed (PR #38, used by
+        Dueling to exclude two-handed weapons)
+
+    Fighting Style application:
+      - Dueling: +2 damage on one-handed melee weapons
+      - Archery: +2 attack on ranged weapons
     """
     attack_ability = weapon.get("attack_ability", "str")
     ability_mod = ability_modifier(
@@ -431,6 +488,15 @@ def _build_weapon_action(weapon: dict, ability_scores: dict,
     damage_mod = ability_mod + int(weapon.get("damage_modifier", 0))
 
     is_ranged = "range_ft" in weapon
+    is_two_handed = bool(weapon.get("two_handed", False))
+
+    # PR #38: Fighting Style passive bonuses baked in at build time
+    if fighting_style == "archery" and is_ranged:
+        attack_bonus += 2
+    if (fighting_style == "dueling"
+            and not is_ranged and not is_two_handed):
+        damage_mod += 2
+
     attack_params: dict = {
         "kind": "ranged" if is_ranged else "melee",
         "bonus": attack_bonus,

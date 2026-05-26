@@ -610,6 +610,17 @@ priority order:
    `arcane_recovery_uses_remaining: 1` for Wizard L1+. Runner stays
    single-encounter; multi-encounter session work will call
    `apply_short_rest` between encounters.
+10. ~~**Fighting Style** — passive modifier infra~~ — **Shipped in
+   PR #38.** `pc:` spec accepts `fighting_style: <id>` field.
+   Defense (+1 AC when armored, SRD), Dueling (+2 damage on 1H
+   melee, SRD), Archery (+2 attack on ranged, user_authored) all
+   wired. Bonuses are baked into the generated weapon actions / AC
+   computation at template build time (no runtime modifier registry
+   needed for always-on passives). Weapon spec gains optional
+   `two_handed: bool` for Dueling's exclusion. GWF / Protection /
+   Two-Weapon Fighting / Blind Fighting deferred (each needs
+   additional infra — damage re-roll, reactions, off-hand support,
+   vision).
 9. ~~**Per-creature recurring save** to break Hypnotic Pattern at
    end-of-turn — would mirror single-target `recurring_save` for AoE.~~
    **Shipped in PR #35.** The existing single-target `recurring_save`

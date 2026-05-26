@@ -1,0 +1,27 @@
+# f_fs_archery — Archery Fighting Style
+# Source: user_authored (non-SRD, included for play coverage — one of
+# the most-picked Fighter styles in published play)
+#
+# RAW (5e SRD does NOT include Archery; this faithfully implements
+# the standard PHB version): "You gain a +2 bonus to attack rolls you
+# make with ranged weapons."
+#
+# Engine application: pc_schema._build_weapon_action adds +2 to the
+# attack_bonus on weapons that are ranged (have `range_ft`, not
+# `reach_ft`).
+
+id: f_fs_archery
+name: Archery
+source: user_authored
+granted_by:
+  class: c_fighter
+  level: 1
+  parent_feature: f_fighting_style
+type: passive
+
+description: "+2 to attack rolls with ranged weapons."
+
+mechanic:
+  kind: attack_bonus
+  value: 2
+  requires: ranged_weapon
