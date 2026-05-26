@@ -680,23 +680,41 @@ def _resolve_save_targets(params: dict, state: CombatState) -> list[Actor]:
         target = state.current_attack.get("target") or state.current_actor()
         return [target] if target else []
     if affected == "all_creatures_in_area":
-        # AoE-aware path: if pipeline.execute set up an area_origin and the
-        # action declares an `area.radius_ft`, filter living creatures by
-        # geometry (includes allies — friendly fire is RAW). Otherwise
-        # fall back to the legacy "all living enemies" semantics for
-        # backward compatibility with content that doesn't yet declare
-        # an area shape.
+        # AoE-aware path: dispatch on area.shape using state.current_attack's
+        # area_origin (sphere) or area_origin + area_direction (cone, line).
+        # Living creatures only; includes allies (friendly fire is RAW).
+        # Legacy fallback (no area declared) returns all living enemies.
         actor = state.current_actor() or state.current_attack.get("actor")
         if actor is None:
             return []
         action = state.current_attack.get("action") or {}
         area = action.get("area") or {}
+        shape = (area.get("shape") or "sphere").lower()
         origin = state.current_attack.get("area_origin")
-        radius_ft = area.get("radius_ft")
-        if origin is not None and radius_ft is not None:
-            from engine.core.geometry import actors_in_radius
-            living = [a for a in state.encounter.actors if a.is_alive()]
-            return actors_in_radius(tuple(origin), int(radius_ft), living)
+        direction = state.current_attack.get("area_direction")
+        living = [a for a in state.encounter.actors if a.is_alive()]
+
+        if origin is not None:
+            if shape == "sphere":
+                radius_ft = area.get("radius_ft")
+                if radius_ft is not None:
+                    from engine.core.geometry import actors_in_radius
+                    return actors_in_radius(tuple(origin), int(radius_ft),
+                                              living)
+            elif shape == "cone":
+                length_ft = area.get("length_ft")
+                if length_ft is not None and direction is not None:
+                    from engine.core.geometry import actors_in_cone
+                    return actors_in_cone(tuple(origin), tuple(direction),
+                                            int(length_ft), living)
+            elif shape == "line":
+                length_ft = area.get("length_ft")
+                width_ft = area.get("width_ft", 5)
+                if length_ft is not None and direction is not None:
+                    from engine.core.geometry import actors_in_line
+                    return actors_in_line(tuple(origin), tuple(direction),
+                                            int(length_ft), int(width_ft),
+                                            living)
         # Legacy fallback: all living enemies
         return [a for a in state.encounter.actors
                 if a.side != actor.side and a.is_alive()]

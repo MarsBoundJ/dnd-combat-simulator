@@ -107,6 +107,194 @@ def actors_in_radius(origin: tuple[int, int], radius_ft: int,
     return [a for a in actors if distance_ft(a.position, origin) <= radius_ft]
 
 
+def unit_direction(from_pos: tuple[int, int],
+                     to_pos: tuple[int, int]) -> tuple[int, int]:
+    """Snap a vector from `from_pos` to `to_pos` to one of 8 cardinal/
+    ordinal grid directions: (1,0), (-1,0), (0,1), (0,-1), and the
+    four diagonals. Returns (0, 0) if the positions are identical.
+
+    Used by cone / line AoE candidate generation to snap the caster's
+    "I'm pointing this spell at that enemy" intent to a grid-aligned
+    direction.
+    """
+    dx = to_pos[0] - from_pos[0]
+    dy = to_pos[1] - from_pos[1]
+    if dx == 0 and dy == 0:
+        return (0, 0)
+    # Sign each axis to {-1, 0, +1}. Ties at exactly 0 produce cardinals.
+    sx = (dx > 0) - (dx < 0)
+    sy = (dy > 0) - (dy < 0)
+    return (sx, sy)
+
+
+def actors_in_cone(origin: tuple[int, int], direction: tuple[int, int],
+                     length_ft: int, actors: list[Actor]) -> list[Actor]:
+    """Return actors caught in a cone of `length_ft` from `origin` in
+    `direction`.
+
+    5e RAW cone semantics: a cone's length equals its width at the
+    far end (half-angle ≈ 26.6°). On a grid this approximates to:
+    a square is in the cone if its FORWARD projection onto the
+    direction vector is in (0, L] AND its perpendicular distance from
+    the cone axis is at most FORWARD × 0.5 (with a small grid-snap
+    tolerance — see implementation).
+
+    The origin square itself is excluded (RAW: cone originates AT
+    the origin and extends OUTWARD).
+
+    Direction must be one of the 8 unit_direction outputs. (0, 0)
+    direction returns [].
+    """
+    if direction == (0, 0):
+        return []
+    length_squares = length_ft // SQUARE_SIZE_FT
+    if length_squares <= 0:
+        return []
+    out: list[Actor] = []
+    for actor in actors:
+        if actor.position == origin:
+            continue  # origin square excluded
+        if _in_cone(actor.position, origin, direction, length_squares):
+            out.append(actor)
+    return out
+
+
+def _in_cone(square: tuple[int, int], origin: tuple[int, int],
+              direction: tuple[int, int], length_squares: int) -> bool:
+    """Test whether a single grid square is in a cone.
+
+    Cone math (snapped to 8 directions): we project the displacement
+    (square - origin) onto the direction vector to get FORWARD
+    distance, and onto the perpendicular axis to get LATERAL. A square
+    is in the cone iff:
+      - FORWARD in [1, length_squares]
+      - |LATERAL| × 2 <= FORWARD + 0.5  (with grid-snap tolerance)
+
+    The +0.5 tolerance ensures the cone "boundary" squares (lateral
+    equal to forward/2 in continuous math) are included on the grid.
+    """
+    dx = square[0] - origin[0]
+    dy = square[1] - origin[1]
+
+    # Project onto direction (cardinal/ordinal). For diagonals, both
+    # components contribute. Use the Chebyshev-aligned forward distance:
+    # forward = "steps in the direction's primary axis (or both axes
+    # for diagonals)" measured by max along the relevant components.
+    # Simpler: forward = max(dx * dir_x, dy * dir_y) but only when the
+    # signs match. We compute forward + lateral in the rotated frame.
+
+    if direction[0] == 0 or direction[1] == 0:
+        # Cardinal direction (one axis is 0)
+        if direction[0] != 0:
+            forward = dx * direction[0]
+            lateral = abs(dy)
+        else:
+            forward = dy * direction[1]
+            lateral = abs(dx)
+    else:
+        # Diagonal direction — both components ±1. Rotate displacement
+        # into the diagonal frame: forward = (dx*dir_x + dy*dir_y)/2
+        # (along the diagonal), lateral = |dx*dir_x - dy*dir_y|/2
+        # (perpendicular). Both reductions are exact integers since
+        # dx*dir_x ± dy*dir_y has the same parity as dx + dy.
+        a = dx * direction[0] + dy * direction[1]
+        b = dx * direction[0] - dy * direction[1]
+        # In diagonal frames the "forward" distance is half the sum
+        # along the diagonal, but for grid-cone purposes we use a/2
+        # only when a >= 0. Easier intuition: just check if both dx
+        # and dy go in the direction's signs at all.
+        if dx * direction[0] < 0 or dy * direction[1] < 0:
+            return False
+        # On the diagonal axis: forward = max of |dx|, |dy| (Chebyshev
+        # in the rotated frame). Lateral = min.
+        ax = abs(dx)
+        ay = abs(dy)
+        forward = max(ax, ay)
+        lateral = min(ax, ay) - 0   # for a perfect diagonal lateral = 0
+        # In the rotated diagonal frame, the lateral distance is the
+        # difference between ax and ay (or 0 for a square exactly on the
+        # diagonal). Use that for the cone check.
+        lateral = abs(ax - ay)
+
+    if forward < 1 or forward > length_squares:
+        return False
+    # Cone half-width condition: lateral <= forward * 0.5 (with grid
+    # tolerance). Equivalent to 2*lateral <= forward + 1 in integers.
+    return 2 * lateral <= forward + 1
+
+
+def actors_in_line(origin: tuple[int, int], direction: tuple[int, int],
+                     length_ft: int, width_ft: int,
+                     actors: list[Actor]) -> list[Actor]:
+    """Return actors caught in a line of `length_ft` × `width_ft` from
+    `origin` in `direction`.
+
+    Line semantics (v1):
+      - A square is in the line if its FORWARD projection in `direction`
+        is in [1, length_squares] AND its perpendicular distance from
+        the line axis is at most (width_squares - 1) / 2.
+      - Width of 5 ft = 1 square wide (just the axis); 10 ft = 3 wide
+        (axis ± 1); 15 ft = 3 wide too (rounded for grid).
+      - Origin square excluded (line originates AT origin, extends out).
+      - For diagonal directions, the line is one square wide along the
+        diagonal (matches Lightning Bolt practical play).
+
+    Direction must be one of the 8 unit_direction outputs. (0, 0)
+    direction returns [].
+    """
+    if direction == (0, 0):
+        return []
+    length_squares = length_ft // SQUARE_SIZE_FT
+    width_squares = width_ft // SQUARE_SIZE_FT
+    if length_squares <= 0 or width_squares <= 0:
+        return []
+    out: list[Actor] = []
+    half_width = (width_squares - 1) // 2   # int, RAW: ±half from axis
+    for actor in actors:
+        if actor.position == origin:
+            continue
+        if _in_line(actor.position, origin, direction, length_squares,
+                     half_width):
+            out.append(actor)
+    return out
+
+
+def _in_line(square: tuple[int, int], origin: tuple[int, int],
+              direction: tuple[int, int], length_squares: int,
+              half_width_squares: int) -> bool:
+    """Test whether a single grid square is in a line.
+
+    For cardinal direction (e.g., east (1, 0)):
+      - forward = dx * dir_x, lateral = |dy|
+      - in line iff forward in [1, L] and lateral <= half_width
+
+    For diagonal direction:
+      - The diagonal line is one square wide on the rotated diagonal —
+        we accept only squares directly on the diagonal (lateral = 0
+        in the rotated frame).
+    """
+    dx = square[0] - origin[0]
+    dy = square[1] - origin[1]
+    if direction[0] == 0 or direction[1] == 0:
+        # Cardinal
+        if direction[0] != 0:
+            forward = dx * direction[0]
+            lateral = abs(dy)
+        else:
+            forward = dy * direction[1]
+            lateral = abs(dx)
+        return (1 <= forward <= length_squares
+                and lateral <= half_width_squares)
+    # Diagonal
+    if dx * direction[0] < 0 or dy * direction[1] < 0:
+        return False
+    ax = abs(dx)
+    ay = abs(dy)
+    if ax != ay:
+        return False   # off the diagonal axis
+    return 1 <= ax <= length_squares
+
+
 def required_movement_ft(mover: Actor, target: Actor | tuple[int, int],
                           reach_ft: int) -> int:
     """How many ft `mover` would need to move to bring `target` within
