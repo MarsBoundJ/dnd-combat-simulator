@@ -816,6 +816,81 @@ def _persistent_aura(params: dict, state: CombatState, bus: EventBus) -> None:
 
 
 # ============================================================================
+# IMPLEMENTED — counterspell_resolve (PR #46)
+# ============================================================================
+
+def _counterspell_resolve(params: dict, state: CombatState,
+                              bus: EventBus) -> dict:
+    """Resolve a Counterspell attempt. Reads the triggering spell info
+    from state.current_attack.reaction_event_data; performs RAW 2024
+    Counterspell mechanics:
+
+      - If target spell is level ≤ 3: auto-cancel (no check needed).
+      - If level ≥ 4: counterspeller rolls Intelligence (Spellcasting)
+        ability check vs DC = 10 + target spell's level.
+        Spellcasting ability is the caster's INT (Counterspell is on
+        the wizard list; v1 hard-codes INT for the check). Modifier =
+        INT_mod + proficiency_bonus (every spellcaster is automatically
+        proficient with their spellcasting ability for casting purposes).
+        On success: cancel. On fail: spell goes through.
+
+    Side effects on cancel:
+      - Sets state.cast_cancelled = True (pipeline.execute checks this
+        flag after the spell_cast_initiated event resolves; if True,
+        skips the target spell's pipeline but still consumes its slot).
+      - Logs counterspell_resolved event with outcome + check details.
+
+    Returns {"outcome": "auto_cancel" | "check_success" | "check_fail"}.
+    """
+    rng = _get_rng(state, bus)
+    counterspeller = state.current_attack.get("actor")
+    if counterspeller is None:
+        raise ValueError("counterspell_resolve needs a current actor")
+    event_data = state.current_attack.get("reaction_event_data") or {}
+    target_caster = event_data.get("caster")
+    target_action = event_data.get("action") or {}
+    target_level = int(event_data.get("spell_slot_level", 0))
+
+    if target_level <= 3:
+        state.cast_cancelled = True
+        state.event_log.append({
+            "event": "counterspell_resolved",
+            "counterspeller": counterspeller.id,
+            "target_caster": target_caster.id if target_caster else None,
+            "target_spell": target_action.get("id"),
+            "target_level": target_level,
+            "outcome": "auto_cancel",
+        })
+        return {"outcome": "auto_cancel"}
+
+    # Level ≥ 4: ability check
+    int_score = (counterspeller.abilities.get("int") or {}).get("score", 10)
+    int_mod = ability_modifier(int_score)
+    pb = int((counterspeller.template.get("cr") or {})
+                .get("proficiency_bonus", 2))
+    dc = 10 + target_level
+    d20 = rng.randint(1, 20)
+    total = d20 + int_mod + pb
+    success = total >= dc
+    if success:
+        state.cast_cancelled = True
+    state.event_log.append({
+        "event": "counterspell_resolved",
+        "counterspeller": counterspeller.id,
+        "target_caster": target_caster.id if target_caster else None,
+        "target_spell": target_action.get("id"),
+        "target_level": target_level,
+        "outcome": "check_success" if success else "check_fail",
+        "d20": d20,
+        "int_mod": int_mod,
+        "proficiency_bonus": pb,
+        "total": total,
+        "dc": dc,
+    })
+    return {"outcome": "check_success" if success else "check_fail"}
+
+
+# ============================================================================
 # IMPLEMENTED — multiattack (handled in pipeline.execute via type check)
 # ============================================================================
 #
@@ -1020,6 +1095,7 @@ def _populate_handler_table() -> None:
         "recurring_save": _recurring_save,
         "slot_recovery_partial": _slot_recovery_partial,
         "persistent_aura": _persistent_aura,
+        "counterspell_resolve": _counterspell_resolve,
         "multiattack": _multiattack,
     }
 
@@ -1048,6 +1124,9 @@ def _all_primitives() -> list[Primitive]:
         # Guardians, future Spiritual Weapon / Moonbeam / Cloud of
         # Daggers shape)
         Primitive("persistent_aura", _persistent_aura, implemented=True),
+        # PR #46 — Counterspell resolution
+        Primitive("counterspell_resolve", _counterspell_resolve,
+                    implemented=True),
         # v1 — Monster mechanics
         Primitive("multiattack", _multiattack, implemented=True),
     ]

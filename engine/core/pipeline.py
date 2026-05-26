@@ -488,13 +488,45 @@ def execute(chosen: dict, state: CombatState, event_bus, primitives) -> None:
 
     Special-cased: action.type == 'multiattack' loops the sub-attack
     pipelines N times. Each sub-attack independently picks its target.
+
+    Counterspell hook (PR #46): for spell-slot actions (any action
+    declaring `spell_slot_level >= 1`), emit `spell_cast_initiated`
+    BEFORE running the pipeline. Counterspell reactions hook this
+    event and may set `state.cast_cancelled = True`. If cancelled,
+    skip the pipeline but still consume the slot (RAW 2024: the
+    original caster's slot is consumed even on successful counter).
     """
     if not chosen:
         return
     actor = chosen["actor"]
     action = chosen["action"]
+    from engine.core.spell_slots import required_slot_level, consume_slot
+    slot_level = required_slot_level(action)
 
-    if action.get("type") == "multiattack":
+    # Counterspell hook: spell-cast event before pipeline execution.
+    # `cast_cancelled` is per-action — set to False before, reactions
+    # may flip to True.
+    state.cast_cancelled = False
+    if slot_level > 0:
+        from engine.core.reactions import resolve_reaction_triggers
+        resolve_reaction_triggers("spell_cast_initiated", {
+            "caster": actor,
+            "action": action,
+            "spell_slot_level": slot_level,
+        }, state, event_bus)
+    cast_was_cancelled = state.cast_cancelled
+    state.cast_cancelled = False  # reset after
+
+    if cast_was_cancelled:
+        # Spell countered. Skip the pipeline, but still consume the
+        # slot below (RAW 2024). Log the cancellation for visibility.
+        state.event_log.append({
+            "event": "spell_cancelled",
+            "actor": actor.id,
+            "action": action.get("id"),
+            "slot_level": slot_level,
+        })
+    elif action.get("type") == "multiattack":
         _execute_multiattack(actor, action, state, event_bus, primitives)
     elif action.get("type") == "disengage":
         # Disengage: utility action; sets actor.disengaging = True for
@@ -522,14 +554,16 @@ def execute(chosen: dict, state: CombatState, event_bus, primitives) -> None:
 
     # Concentration: if the action is flagged `concentration: true`,
     # the actor takes up (or replaces) their concentration slot.
-    if action.get("concentration"):
+    # Skipped if the spell was countered (PR #46) — RAW: the original
+    # caster's concentration doesn't take hold when the spell fizzles.
+    if action.get("concentration") and not cast_was_cancelled:
         from engine.core.concentration import apply_concentration
         apply_concentration(actor, action, state)
 
     # Spell slot consumption — only fires for actions with
-    # `spell_slot_level >= 1`. Free actions and cantrips skip.
-    from engine.core.spell_slots import required_slot_level, consume_slot
-    level = required_slot_level(action)
+    # `spell_slot_level >= 1`. Free actions and cantrips skip. Slot
+    # is consumed EVEN IF the spell was countered (RAW 2024).
+    level = slot_level
     if level > 0:
         consume_slot(actor, level, state, action_id=action.get("id"))
 

@@ -31,6 +31,14 @@ EVENT_NAMES = frozenset({
     #   damage_taken — fires after HP is reduced. Hellish Rebuke hooks
     #     here (retaliation against the damaging attacker).
     "attack_targeting_resolved", "attack_roll_pending", "damage_taken",
+    # PR #46: spell-cast event for Counterspell
+    #   spell_cast_initiated — fires BEFORE a spell's pipeline runs
+    #     (after slot availability check but before any effect lands).
+    #     Counterspell hooks here. Reaction handlers can set
+    #     state.current_attack.cast_cancelled = True to fizzle the
+    #     spell; pipeline.execute checks the flag and skips the
+    #     pipeline but still consumes the slot (RAW 2024).
+    "spell_cast_initiated",
     # Spell pipeline
     "spell_cast", "spell_resolve", "spell_end", "concentration_check",
     "target_enters_area", "target_exits_area",

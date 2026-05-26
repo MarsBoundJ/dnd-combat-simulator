@@ -5,6 +5,101 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-26 — Counterspell + cast-event infra (PR #46)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- The natural follow-on to PR #45's reaction system. Counterspell
+  needed three things the other reactions didn't: a spell-cast
+  event hook, a spell-fizzle mechanism, and ability-check
+  resolution. All three landed here.
+- New event `spell_cast_initiated` in events.py.
+- `pipeline.execute` now wraps spell-slot actions with the
+  cast-event flow:
+  1. Set `state.cast_cancelled = False`
+  2. Fire `spell_cast_initiated` event (only for actions with
+     `spell_slot_level >= 1` — cantrips and free actions skip)
+  3. Reactions hooked on this event resolve; Counterspell may
+     set `state.cast_cancelled = True`
+  4. If cancelled: log `spell_cancelled`, skip the pipeline AND
+     skip concentration application
+  5. Always consume the slot (RAW 2024: original caster's slot is
+     burned even on successful counter)
+- New `_counterspell_resolve` primitive in primitives.py:
+  - Auto-cancel for spell level ≤ 3
+  - For level ≥ 4: Intelligence (Spellcasting) ability check —
+    d20 + INT_mod + proficiency_bonus vs DC = 10 + spell_level
+  - Sets `state.cast_cancelled` on success
+  - Logs `counterspell_resolved` event with outcome + check details
+- New reaction condition `enemy_casting_spell_within_60_ft` in
+  reactions.py (caster on opposing side, not self, within 60 ft;
+  vision check deferred until vision system).
+- New `f_counterspell.yaml` (SRD, Wizard 3rd-level): trigger=
+  spell_cast_initiated, condition=enemy_casting_spell_within_60_ft,
+  pipeline=counterspell_resolve.
+- 11 new tests in `tests/test_counterspell.py`: condition vocabulary
+  (enemy in range yes / ally no / self no / out-of-range no),
+  counterspell_resolve primitive (auto-cancel L1/L3, check fail L4,
+  check success L4 with high roll, event log contents), pipeline
+  cancel flow (skip pipeline + slot consumed + concentration not
+  applied), end-to-end wizard mirror match (HP cancelled, both slots
+  consumed, target's concentration not engaged), cantrip doesn't
+  trigger Counterspell (no spell_cast_initiated event for actions
+  without spell_slot_level).
+- New fixture `counterspell_mirror_match_encounter.yaml`: Wizard A
+  (PC) casts Hypnotic Pattern, Wizard B (enemy) counterspells. Seed
+  1 trace shows the full chain: counterspell_resolved auto_cancel
+  → spell_slot_consumed for B → reaction_fired → spell_cancelled
+  → spell_slot_consumed for A. HP's forced_save / apply_condition
+  pipeline NOT executed. A's concentration NOT engaged.
+- Test count: 619 → 630. All green, stable across full-suite
+  re-runs.
+
+**Calibration note during dev:**
+- First fixture iteration had dummies with `actions: []` so their
+  DPR proxy was 0, which made HP's control eHP score 0 → wizard A
+  correctly picked Magic Dart instead of HP. Gave the dummies a
+  club attack so they have measurable DPR, then wizard A correctly
+  picks HP and triggers the Counterspell. Working as designed
+  (HP control scoring respects "does the target actually do
+  anything?"); the demo fixture just needed real enemies.
+
+**Key decisions:**
+- **RAW 2024 mechanics** — auto-cancel for level ≤ 3, ability check
+  for ≥ 4. Different from 2014's "Counterspell auto-counters any
+  spell ≤ its cast level, ability check for higher."
+- **Slot consumed on successful counter** — RAW 2024: original
+  caster loses the slot even if the spell fizzles. Implemented by
+  having pipeline.execute always run the consume_slot path
+  regardless of cast_cancelled.
+- **Concentration NOT applied on successful counter** — RAW: the
+  spell never "took effect" so concentration doesn't engage. Easy
+  to miss; pinned with a specific test.
+- **Cantrips / free actions don't trigger** the event — gated on
+  `slot_level > 0` in pipeline.execute. Pinned with a test (Fire
+  Bolt-shape doesn't fire Counterspell).
+- **state.cast_cancelled as a CombatState attribute** — set ad-hoc
+  rather than as a declared dataclass field. Python lets us; it
+  works. Could be cleaned up to a proper field, but the ad-hoc
+  shape mirrors how state.current_attack already gets mutated.
+
+**Open items carried forward:**
+- [ ] Vision / line-of-sight gate for Counterspell ("you see")
+- [ ] Reaction-cascade termination guard (Counterspell-of-
+  Counterspell: A casts spell → B counters → A counters B's
+  counter → infinite recursion in principle, but one-reaction-per-
+  round limits in practice; should still pin behavior with a test)
+- [ ] Pace-aware Counterspell scoring (when to save the slot vs.
+  spend it — mirror PR #42's Action Surge pacing)
+- [ ] Magic Missile + auto-hit spells (event still fires correctly
+  but Counterspell's "you see them casting" gate would need to be
+  more specific about visibility)
+- [ ] Upcast Counterspell (RAW 2024: no benefit to upcasting; pure
+  2014 holdover behavior would need different logic anyway)
+
+---
+
 ## Session: 2026-05-26 — Reaction infrastructure + Shield + Protection + Hellish Rebuke (PR #45)
 
 **Participants:** Phil, Claude
