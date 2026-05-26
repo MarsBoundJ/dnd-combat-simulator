@@ -1,0 +1,28 @@
+# f_fs_defense — Defense Fighting Style
+# Source: SRD CC v5.2.1
+#
+# RAW: "While you're wearing armor, you gain a +1 bonus to AC."
+#
+# Engine application: pc_schema._compute_ac adds +1 when the chosen
+# fighting_style is "defense" AND the actor's `armor:` block is
+# present (v1 proxy for "wearing armor"). A fighter who declares
+# Defense but no armor spec still selects the style legally; the +1
+# just doesn't apply.
+
+id: f_fs_defense
+name: Defense
+source: srd_5.2.1
+granted_by:
+  class: c_fighter
+  level: 1
+  parent_feature: f_fighting_style
+type: passive
+
+description: "While wearing armor, +1 AC."
+
+# Mechanical effect — applied at template build time, not via the
+# runtime modifier registry (always-on passive).
+mechanic:
+  kind: ac_bonus
+  value: 1
+  requires: wearing_armor

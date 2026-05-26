@@ -1,0 +1,29 @@
+# f_fs_dueling — Dueling Fighting Style
+# Source: SRD CC v5.2.1
+#
+# RAW: "When you wield a melee weapon in one hand and no other
+# weapons, you gain a +2 bonus to damage rolls with that weapon."
+#
+# Engine application: pc_schema._build_weapon_action adds +2 to the
+# damage modifier on weapons that are melee (have `reach_ft`, not
+# `range_ft`) AND not flagged `two_handed: true`. The "no other
+# weapons" RAW clause is approximated in v1 by the single-active-
+# weapon assumption (most fixtures declare one weapon; multi-weapon
+# fighters who would lose Dueling per RAW are deferred until off-
+# hand weapon support arrives).
+
+id: f_fs_dueling
+name: Dueling
+source: srd_5.2.1
+granted_by:
+  class: c_fighter
+  level: 1
+  parent_feature: f_fighting_style
+type: passive
+
+description: "+2 damage with one-handed melee weapons (no other weapon)."
+
+mechanic:
+  kind: damage_bonus
+  value: 2
+  requires: one_handed_melee

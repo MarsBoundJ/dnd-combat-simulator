@@ -1,0 +1,37 @@
+# f_fighting_style — Fighting Style (Fighter class feature)
+# Source: SRD CC v5.2.1 (the per-style options are defined separately
+# in f_fs_*.yaml; this entry is the L1 choice point that grants ONE
+# style of the player's selection).
+#
+# The actual passive modifiers a style provides are applied at PC
+# template build time by `pc_schema.build_pc_template` — see the
+# `fighting_style:` field on the `pc:` spec. The framework reads this
+# tag and bakes the style's effects into the generated weapon actions
+# / AC computation directly (no runtime modifier registry needed for
+# always-on passives). See `engine/pc_schema.py` for the per-style
+# implementations.
+
+id: f_fighting_style
+name: Fighting Style
+source: srd_5.2.1
+granted_by:
+  class: c_fighter
+  level: 1
+type: passive
+
+# Choose one of these styles (the engine validates the chosen id
+# against this list when building a PC). v1 ships Defense + Dueling
+# (both SRD) + Archery (commonly desired; tagged user_authored on
+# the per-style file). GWF is deferred until the damage re-roll
+# primitive lands.
+options:
+  - id: defense
+    source: srd_5.2.1
+  - id: dueling
+    source: srd_5.2.1
+  - id: archery
+    source: user_authored      # non-SRD; added for play coverage
+  # - id: great_weapon_fighting   # DEFERRED: needs damage re-roll
+  # - id: protection              # DEFERRED: needs reaction infra
+  # - id: two_weapon_fighting     # DEFERRED: needs off-hand weapon support
+  # - id: blind_fighting          # DEFERRED: needs vision / blinded interaction

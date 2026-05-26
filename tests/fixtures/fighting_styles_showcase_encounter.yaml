@@ -1,0 +1,218 @@
+# Fighting Styles showcase — three identical L1 Fighters with three
+# different styles vs three identical training-dummy targets.
+#
+# Each fighter is built via the `pc:` schema with the same ability
+# scores + armor + appropriate weapon. The chosen Fighting Style is
+# the only structural difference between them. The encounter
+# demonstrates the build-time bonus application:
+#
+#   - fighter_defense  : longsword, plate, Defense → AC 19 (base 18 + 1)
+#                          Damage mod = STR +3 only.
+#   - fighter_dueling  : longsword, plate, Dueling → AC 18, dmg mod = 5
+#                          (STR +3 + Dueling +2).
+#   - fighter_archery  : longbow, plate, Archery → AC 18, attack +6
+#                          (DEX +2 + PB +2 + Archery +2). Damage mod
+#                          = DEX +2 (Archery is attack-bonus only).
+#
+# Each dummy is high HP / low DPR / generic AC so the fighter has
+# many rounds to demonstrate their attack pattern. The runner is
+# single-encounter; this is a visual demo, not a statistical compare.
+
+id: fighting_styles_showcase_encounter
+
+environment:
+  template: open_battlefield
+
+actors:
+  # ----- Defense fighter (extra AC) -----
+  - instance_id: fighter_defense
+    name: Defense Fighter L1
+    side: pc
+    position: [0, 0]
+    pc:
+      class: c_fighter
+      level: 1
+      fighting_style: defense
+      ability_scores:
+        str: 16
+        dex: 14
+        con: 14
+        int: 10
+        wis: 10
+        cha: 10
+      armor:
+        base_ac: 16             # chain mail
+        max_dex_bonus: 2
+      weapons:
+        - id: a_longsword
+          name: Longsword
+          attack_ability: str
+          damage_dice: 1d8
+          damage_type: slashing
+          reach_ft: 5
+
+  # ----- Dueling fighter (extra damage on 1H melee) -----
+  - instance_id: fighter_dueling
+    name: Dueling Fighter L1
+    side: pc
+    position: [0, 1]
+    pc:
+      class: c_fighter
+      level: 1
+      fighting_style: dueling
+      ability_scores:
+        str: 16
+        dex: 14
+        con: 14
+        int: 10
+        wis: 10
+        cha: 10
+      armor:
+        base_ac: 16
+        max_dex_bonus: 2
+      weapons:
+        - id: a_longsword
+          name: Longsword
+          attack_ability: str
+          damage_dice: 1d8
+          damage_type: slashing
+          reach_ft: 5
+
+  # ----- Archery fighter (extra attack on ranged) -----
+  - instance_id: fighter_archery
+    name: Archery Fighter L1
+    side: pc
+    position: [0, 2]
+    pc:
+      class: c_fighter
+      level: 1
+      fighting_style: archery
+      ability_scores:
+        str: 10
+        dex: 16        # DEX 16 since archery is DEX-based
+        con: 14
+        int: 10
+        wis: 10
+        cha: 10
+      armor:
+        base_ac: 14    # leather
+        max_dex_bonus: 999    # no DEX cap
+      weapons:
+        - id: a_longbow
+          name: Longbow
+          attack_ability: dex
+          damage_dice: 1d8
+          damage_type: piercing
+          range_ft: 150
+
+  # ----- Three identical training dummies -----
+  - instance_id: dummy_a
+    name: Training Dummy A
+    side: enemy
+    position: [10, 0]
+    template:
+      id: m_training_dummy
+      name: Training Dummy
+      source: user_authored
+      combat:
+        armor_class: 14
+        hit_points:
+          average: 60
+          dice: "8d8"
+          con_contribution: 24
+        speed:
+          walk: 0     # immobile dummy
+        initiative:
+          modifier: -5
+          score: 1
+      abilities:
+        str: { score: 10, save: 0 }
+        dex: { score: 8, save: -1 }
+        con: { score: 16, save: 3 }
+        int: { score: 1, save: -5 }
+        wis: { score: 1, save: -5 }
+        cha: { score: 1, save: -5 }
+      cr: { value: 1.0, xp: 200, proficiency_bonus: 2 }
+      behavior_profile:
+        presets:
+          retreat: ftd
+      actions:
+        - id: a_swing
+          name: Wooden Arm
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: melee, bonus: 0, reach_ft: 5 }
+            - primitive: damage
+              params: { dice: "1d4", modifier: 0, type: bludgeoning }
+              when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  - instance_id: dummy_b
+    name: Training Dummy B
+    side: enemy
+    position: [10, 1]
+    template:
+      id: m_training_dummy_b
+      name: Training Dummy
+      source: user_authored
+      combat:
+        armor_class: 14
+        hit_points: { average: 60, dice: "8d8", con_contribution: 24 }
+        speed: { walk: 0 }
+        initiative: { modifier: -5, score: 1 }
+      abilities:
+        str: { score: 10, save: 0 }
+        dex: { score: 8, save: -1 }
+        con: { score: 16, save: 3 }
+        int: { score: 1, save: -5 }
+        wis: { score: 1, save: -5 }
+        cha: { score: 1, save: -5 }
+      cr: { value: 1.0, xp: 200, proficiency_bonus: 2 }
+      behavior_profile:
+        presets:
+          retreat: ftd
+      actions:
+        - id: a_swing
+          name: Wooden Arm
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: melee, bonus: 0, reach_ft: 5 }
+            - primitive: damage
+              params: { dice: "1d4", modifier: 0, type: bludgeoning }
+              when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  - instance_id: dummy_c
+    name: Training Dummy C
+    side: enemy
+    position: [10, 2]
+    template:
+      id: m_training_dummy_c
+      name: Training Dummy
+      source: user_authored
+      combat:
+        armor_class: 14
+        hit_points: { average: 60, dice: "8d8", con_contribution: 24 }
+        speed: { walk: 0 }
+        initiative: { modifier: -5, score: 1 }
+      abilities:
+        str: { score: 10, save: 0 }
+        dex: { score: 8, save: -1 }
+        con: { score: 16, save: 3 }
+        int: { score: 1, save: -5 }
+        wis: { score: 1, save: -5 }
+        cha: { score: 1, save: -5 }
+      cr: { value: 1.0, xp: 200, proficiency_bonus: 2 }
+      behavior_profile:
+        presets:
+          retreat: ftd
+      actions:
+        - id: a_swing
+          name: Wooden Arm
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: melee, bonus: 0, reach_ft: 5 }
+            - primitive: damage
+              params: { dice: "1d4", modifier: 0, type: bludgeoning }
+              when: { event: damage_roll, condition: "combat.attack_state == hit" }

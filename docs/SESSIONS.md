@@ -5,6 +5,96 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-26 — Fighting Style v1: Defense + Dueling + Archery (PR #38)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Pre-discussion clarified SRD scope: SRD CC v5.2.1 includes Defense
+  + Dueling only. Phil opted for "framework + 2-4 common styles"
+  with non-SRD ones (Archery) tagged `source: user_authored`. GWF /
+  Protection / Two-Weapon Fighting / Blind Fighting deferred (each
+  needs additional infra).
+- New schema files:
+  - `f_fighting_style.yaml` — the L1 Fighter choice point. Lists
+    accepted style ids with per-style source tags (defense + dueling
+    = srd_5.2.1; archery = user_authored).
+  - `f_fs_defense.yaml`, `f_fs_dueling.yaml`, `f_fs_archery.yaml` —
+    per-style descriptions + `mechanic:` block (kind +
+    value + requires). Documentation-grade; the runtime application
+    lives in pc_schema.
+- `engine/pc_schema.py`:
+  - New `_KNOWN_FIGHTING_STYLES` frozenset + `_validate_fighting_style`
+    accepting None/empty, normalizing case, raising ValueError for
+    unknown ids (with a helpful error message listing accepted set
+    + deferred status).
+  - `build_pc_template` reads `pc_spec["fighting_style"]`, validates
+    it, threads it to `_compute_ac` and `_build_weapon_action`.
+  - `_compute_ac` adds +1 if style=defense AND armor block present
+    (v1 proxy for "wearing armor"). Without armor, no bonus —
+    matches RAW.
+  - `_build_weapon_action` adds +2 attack if style=archery AND
+    weapon is ranged. Adds +2 damage if style=dueling AND weapon is
+    melee AND not `two_handed: true`. Weapon spec gains optional
+    `two_handed: bool` field (default False).
+  - Template's `derived_from_pc_schema` block now records the chosen
+    style for inspection.
+- `tests/test_fighting_style.py` (19 tests): validation (None/empty
+  pass, known styles accepted, case normalized, unknown raises);
+  Defense (+1 with armor, none without, Dueling-style doesn't affect
+  AC); Dueling (1H melee +2 damage, 2H excluded, ranged excluded, no
+  style baseline); Archery (ranged +2 attack, melee excluded, doesn't
+  affect damage); template tagging; build-time rejection of unknown
+  styles.
+- `tests/fixtures/fighting_styles_showcase_encounter.yaml`: three
+  identical L1 fighters with different styles vs three training
+  dummies. Demonstrates the build-time bonus application via the
+  pc: schema.
+- Test count: 499 → 518. All green.
+
+**Key decisions:**
+- **Bake bonuses at build time, not runtime modifier registry.**
+  Fighting Style bonuses are always-on passives that depend on
+  weapon properties or armor presence — both stable for the life of
+  the PC instance. Pre-computing the bonus into the generated
+  weapon action's attack/damage param (or AC) is cleaner than
+  registering a modifier with `when` clauses that re-resolve
+  per-attack. Trade-off: doesn't support runtime weapon-swap.
+- **Three styles, not all eight.** Phil chose framework + 2-4 common
+  styles. Defense + Dueling are SRD; Archery is the most-picked
+  Fighter style in published play so it's a high-value add even
+  non-SRD. GWF / Protection / TWF / Blind Fighting all need
+  infrastructure they don't have today.
+- **Defense's "while wearing armor" gate is `armor:` block presence.**
+  A more careful gate would distinguish armor types (light/medium/
+  heavy) vs. unarmored. v1 just checks "is the armor block
+  declared?" which matches the intent of declaring armor in the
+  schema. Edge case: a Defense-style fighter who lists no armor
+  spec selects the style legally but gets no bonus (matches RAW).
+- **Dueling's "no other weapon" clause is implicit in v1.** Most
+  fixtures declare one weapon; multi-weapon Dueling exclusion
+  (Two-Weapon Fighting + Dueling don't combine per RAW) is deferred
+  until off-hand weapon mechanics arrive.
+- **Per-style YAML files are documentation-grade.** The `mechanic:`
+  block in each `f_fs_*.yaml` is for human reference; the actual
+  application is in pc_schema. When we have more styles + a
+  data-driven engine, the YAML could become authoritative and
+  pc_schema could read from it.
+
+**Open items carried forward:**
+- [ ] Great Weapon Fighting — needs damage re-roll primitive
+  (reroll 1s and 2s on damage dice)
+- [ ] Protection — needs reaction infrastructure (use reaction to
+  impose disadvantage on attack against ally within 5 ft)
+- [ ] Two-Weapon Fighting — needs off-hand weapon mechanics
+  (add ability mod to off-hand damage)
+- [ ] Blind Fighting — needs vision / blinded interaction
+  (10-ft "vision" that ignores Heavily Obscured / Invisible)
+- [ ] Champion's Additional Fighting Style (L10) — picks a second
+  style; would need an extra `fighting_style_secondary:` field
+
+---
+
 ## Session: 2026-05-26 — Arcane Recovery + slot_recovery_partial + rest-cycle hook (PR #37)
 
 **Participants:** Phil, Claude
