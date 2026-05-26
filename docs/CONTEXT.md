@@ -281,9 +281,13 @@ step, eHP framework coverage map, and the honest roadmap gap list.
    pending: Fighting Style passive modifiers, Extra Attack →
    multiattack generation, Weapon Mastery property tags, Wizard
    Arcane Recovery (pending `slot_recovery_partial` primitive).
-6. **Named-effect tagging** for cross-caster buff dedup — follow-on to
-   #20 (currently dedup is per-(caster, action) only; cross-caster
-   same-spell stacking is not yet prevented).
+6. ~~**Named-effect tagging** for cross-caster buff dedup~~ —
+   **shipped in PR #36**. Actions declare `named_effect: <string>`
+   (e.g., `bless`, `heroism`); `_build_modifier_entry` stamps it on
+   each generated modifier's source; the new `buff_already_active`
+   helper returns True if the target has any modifier sharing the
+   named_effect, regardless of caster. Legacy per-(caster, action_id)
+   path preserved as fallback for untagged actions.
 7. **3-level profile inheritance** (archetype → faction → instance) +
    runtime override layer (Frightened / Dominate / Confusion) per §4.4.
 8. **Phase 2 Foundry bridge** — when Stage 2 timing is right. Thin JS module that

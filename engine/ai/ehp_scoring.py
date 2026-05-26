@@ -333,17 +333,14 @@ def offensive_ehp_buff_ally(actor: Actor, target_ally: Actor, action: dict,
     if target_ally.side != actor.side:
         return 0.0   # never offensively buff an enemy
 
-    # Don't re-cast the same buff every round on the same target. The
-    # modifier-entry source tag (set by _build_modifier_entry) lets us
-    # detect "this target already has my buff from this action."
-    action_id = action.get("id")
-    for mod in target_ally.active_modifiers:
-        if mod.get("primitive") != "attack_modifier":
-            continue
-        src = mod.get("source") or {}
-        if (src.get("action_id") == action_id
-                and src.get("caster_id") == actor.id):
-            return 0.0   # already active — re-cast would be wasted
+    # Don't re-cast the same buff every round on the same target.
+    # Cross-caster aware via `named_effect` (PR #36): two clerics
+    # Blessing the same ally is wasted on the second cast per RAW.
+    # Falls back to per-(caster, action_id) for actions without a
+    # named_effect tag.
+    from engine.ai.named_effects import buff_already_active
+    if buff_already_active(target_ally, action, actor):
+        return 0.0
 
     buff = extract_offensive_buff_effect(action)
     if not buff:
@@ -402,17 +399,12 @@ def offensive_ehp_help(actor: Actor, target_ally: Actor, action: dict,
     if target_ally.id == actor.id:
         return 0.0   # can't Help yourself per RAW
 
-    # Don't re-cast Help if a previous Help from this caster is still
-    # waiting on the ally to make an attack. Same source-tag check as
-    # offensive_ehp_buff_ally.
-    action_id = action.get("id")
-    for mod in target_ally.active_modifiers:
-        if mod.get("primitive") != "attack_modifier":
-            continue
-        src = mod.get("source") or {}
-        if (src.get("action_id") == action_id
-                and src.get("caster_id") == actor.id):
-            return 0.0
+    # Don't re-cast Help if a previous Help from this caster (or any
+    # caster sharing the same `named_effect` tag) is still waiting on
+    # the ally to make an attack. Same check as offensive_ehp_buff_ally.
+    from engine.ai.named_effects import buff_already_active
+    if buff_already_active(target_ally, action, actor):
+        return 0.0
 
     from engine.ai.defensive_ehp import estimate_per_attack_damage
     per_attack = estimate_per_attack_damage(target_ally)

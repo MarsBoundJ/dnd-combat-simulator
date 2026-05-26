@@ -592,8 +592,13 @@ priority order:
    a hook in `_apply_condition`. Frightened / Charmed / Poisoned do
    NOT (RAW). Hypnotic Pattern's Incapacitated application now
    correctly drops the target's concentration too.
-8. **Named-effect tagging** for cross-caster buff dedup — small
-   follow-on to #20.
+8. ~~**Named-effect tagging** for cross-caster buff dedup — small
+   follow-on to #20.~~ **Shipped in PR #36.** Actions declare
+   `named_effect: <string>`; modifier sources carry it; the
+   `buff_already_active` helper in `engine.ai.named_effects` returns
+   True for any matching named_effect on the target (cross-caster
+   aware) or falls back to per-(caster, action_id) for untagged
+   actions. RAW: PHB 2024 p.243 "same spell doesn't stack."
 9. ~~**Per-creature recurring save** to break Hypnotic Pattern at
    end-of-turn — would mirror single-target `recurring_save` for AoE.~~
    **Shipped in PR #35.** The existing single-target `recurring_save`
