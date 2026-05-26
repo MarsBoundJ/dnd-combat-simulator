@@ -260,7 +260,12 @@ class ActionSurgeIntegrationTest(unittest.TestCase):
     def test_fighter_with_action_surge_attacks_twice_in_one_turn(self) -> None:
         """L2 fighter (1 charge) vs tough ogre. Fighter goes first.
         Verify the event log shows two attack_roll events from the
-        fighter in round 1, and the action_surge_activated event."""
+        fighter in round 1, and the action_surge_activated event.
+
+        encounters_remaining_today=1 (last fight of the day) so the
+        pace-aware activation gate (PR #42) doesn't reserve the
+        charge — no future encounter to save it for.
+        """
         fighter = _make_actor(
             "fighter", side="pc", hp=30, position=(0, 0),
             actions=[_greatsword()],
@@ -274,7 +279,7 @@ class ActionSurgeIntegrationTest(unittest.TestCase):
         )
         enc = Encounter(id="action_surge_test", actors=[fighter, ogre])
         runner = EncounterRunner.new(enc, seed=1)
-        state = runner.run(seed=1)
+        state = runner.run(seed=1, encounters_remaining_today=1)
 
         # AS log entry present in round 1
         as_events = [e for e in state.event_log

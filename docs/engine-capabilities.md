@@ -647,6 +647,19 @@ priority order:
    resource-management mechanics (AS / SW / AR / spell slots)
    actually matter — pre-#41 those decrement-once mechanics never
    refreshed because nothing called the rest helpers.
+14. ~~**Pace-aware Action Surge**~~ — **Shipped in PR #42.** New
+   `engine/core/feature_pacing.py` exposes a feature-use cost
+   formula: `cost = base_cost × scarcity × urgency_factor` where
+   scarcity = 1/charges, urgency_factor = encounters_remaining/3.
+   `_maybe_activate_action_surge` now scores the best in-reach
+   attack candidate and only activates AS if `gain > cost`.
+   `runner.run()` gained an `encounters_remaining_today` parameter
+   that the session runner passes per-encounter, so the fighter
+   sees high urgency early in the day (12 cost at 6 encounters
+   remaining) vs. low urgency late (2 cost at last encounter).
+   The L2 Fighter now saves AS for the boss instead of dumping it
+   on the warm-up fight. Activation event log now carries
+   `gain_eHP` / `cost_eHP` for telemetry.
 9. ~~**Per-creature recurring save** to break Hypnotic Pattern at
    end-of-turn — would mirror single-target `recurring_save` for AoE.~~
    **Shipped in PR #35.** The existing single-target `recurring_save`

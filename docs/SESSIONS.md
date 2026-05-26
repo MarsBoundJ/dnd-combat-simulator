@@ -5,6 +5,108 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-26 — Pace-aware Action Surge (PR #42)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- The first pace-aware AI behavior. Pre-#42, a L2 Fighter dumped
+  Action Surge on every encounter's first turn because the
+  activation gate only checked "have charges + have an in-reach
+  target + at least one enemy alive." With the session runner
+  shipped in #41, that dump-and-pray behavior left the fighter
+  empty-handed for the boss.
+- New `engine/core/feature_pacing.py`:
+  - `feature_use_cost_ehp(charges_remaining, encounters_remaining,
+    base_cost)` — generic opportunity-cost formula:
+    `cost = base_cost × scarcity × urgency_factor`. Scarcity =
+    1/charges (fewer charges = each is more precious).
+    Urgency_factor = encounters_remaining/3 (more future fights =
+    higher cost = save).
+  - `action_surge_cost_ehp` wrapper with `ACTION_SURGE_BASE_COST = 6.0`
+    (calibrated against a typical L2-5 fighter greatsword swing at
+    AC 14: ~7 eHP per attack).
+  - **Different shape from `spell_slots.slot_cost_ehp`** (which uses
+    `(1 - urgency)` and has questionable last-encounter behavior).
+    Documented in module docstring that the two formulas may
+    converge long-term.
+- `runner._maybe_activate_action_surge` now:
+  - Scores the best in-reach `weapon_attack` / `multiattack`
+    candidate via `score_candidate`
+  - Computes AS cost from the formula
+  - Activates only if `gain > cost`
+  - Logs `gain_eHP` / `cost_eHP` on the activation event for
+    telemetry
+- `runner.run()` gained an `encounters_remaining_today: int = 3`
+  parameter. Single-encounter sims default to mid-day (3); session
+  runners pass per-encounter values.
+- `session.run_session` now computes
+  `encounters_remaining = len(spec.encounters) - i` per encounter
+  so the fighter sees urgency decrease across the day:
+  - Encounter 1 of 6: encounters_remaining=6, cost=12, AS rarely
+    fires (gain typically ~7)
+  - Encounter 6 of 6: encounters_remaining=1, cost=2, AS fires
+    freely
+- 11 new tests in `tests/test_feature_pacing.py`: formula edges
+  (zero charges, last-encounter, mid-day, start-of-day, multi-
+  charge scarcity), AS-specific cost using the base constant,
+  pace-aware runner activation (does NOT fire with many encounters
+  left, DOES fire on last encounter), event-log telemetry
+  contents, L17 with 2 charges is more eager, session-level
+  6-encounter day proves AS does NOT fire in encounter 1 but DOES
+  fire in some later encounter.
+- Updated one existing AS test
+  (`test_fighter_with_action_surge_attacks_twice_in_one_turn`) to
+  pass `encounters_remaining_today=1` — it's testing the AS
+  *mechanism* (the existing test scenario was specifically meant
+  to demonstrate AS firing; the pacing gate added the requirement
+  that it be the right time to fire).
+- Test count: 560 → 571. All green, stable across full-suite
+  re-runs.
+
+**Key decisions:**
+- **Two different cost formulas** for spell slots vs. feature uses.
+  The slot formula (PR #22) uses `(1 - urgency)` which has the
+  inverted incentive of "high cost late in the day, low cost
+  early." For feature uses we went with the more intuitive `*
+  urgency_factor` shape: high cost early (when more future fights
+  to save for), low cost late (no future to save for). Pinned for
+  long-term review; the two formulas may converge.
+- **Default `ACTION_SURGE_BASE_COST = 6.0`.** Calibrated against a
+  typical L2-5 fighter greatsword swing at AC 14 (~7 eHP per
+  attack). Tunable. With this default, a single AS charge at
+  mid-day (cost = 6) just barely loses to a standard attack
+  (gain ~7) — meaning AS fires in roughly the right scenarios.
+  Late-day cost drops to 2; AS fires freely.
+- **AS event log carries gain/cost for telemetry.** Useful for
+  inspecting AI decisions in long session logs ("why did AS not
+  fire in enc 2?"). Adds two fields to the existing
+  action_surge_activated event.
+- **`runner.run()` parameter, not state field.** Adding
+  `encounters_remaining_today` to `runner.run()` keeps the API
+  surface clear: callers explicitly opt in to a non-default value.
+  Setting it via state-mutation (the old workaround in tests) was
+  fragile.
+- **Pacing for AS only, not SW yet.** Second Wind already scales
+  with desperation_multiplier (more eHP when wounded). Adding
+  pace-awareness is less impactful (SW has multiple uses and
+  partial-refresh on short rest). Deferred to a follow-on PR.
+
+**Open items carried forward:**
+- [ ] Pace-aware Second Wind (deferred — see above)
+- [ ] Unify slot_cost_ehp and feature_use_cost_ehp formulas
+  (different urgency conventions; pick one)
+- [ ] Difficulty-aware activation (recognize a high-CR target as
+  worth spending on regardless of pace — currently the gain
+  calculation already does this implicitly via expected damage but
+  could be sharper)
+- [ ] Spirit Guardians / persistent_aura primitive
+- [ ] Pace-aware spell-slot scoring for high-value slots (the
+  existing slot formula's late-day inversion would benefit from a
+  similar review)
+
+---
+
 ## Session: 2026-05-26 — Multi-encounter session runner (PR #41)
 
 **Participants:** Phil, Claude
