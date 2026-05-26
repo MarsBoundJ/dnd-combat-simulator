@@ -427,11 +427,20 @@ def _eval_expr(expr: str, owner: Actor, attacker: Actor, target: Actor,
     if expr == "attack_hits":
         return state.current_attack.get("state") in ("hit", "crit")
     if expr.startswith("attacker_within_ft("):
-        # Skeleton: positions are all (0,0); default to melee-range = TRUE
-        return True
+        # Parse the N parameter and check actual grid distance.
+        from engine.core.geometry import distance_ft
+        try:
+            n = int(expr[len("attacker_within_ft("):-1].strip())
+        except ValueError:
+            return True  # malformed → conservative default
+        return distance_ft(attacker, target) <= n
     if expr.startswith("attacker_not_within_ft("):
-        # Skeleton: inverse — default to FALSE (everyone is in melee range)
-        return False
+        from engine.core.geometry import distance_ft
+        try:
+            n = int(expr[len("attacker_not_within_ft("):-1].strip())
+        except ValueError:
+            return False
+        return distance_ft(attacker, target) > n
     if expr.startswith("attack_target_is_not("):
         # Used by Grappled: target other than the grappler
         # Skeleton: True if there's any target at all

@@ -74,6 +74,8 @@ def generate_candidates(actor: Actor, state: CombatState,
         Pass 'bonus_action' to enumerate bonus-slot candidates. The runner
         calls this twice per turn: once for the main slot, once for bonus.
     """
+    from engine.core.geometry import is_within_ft
+
     candidates: list[dict] = []
     template = actor.template
     actions = [a for a in (template.get("actions") or [])
@@ -87,7 +89,10 @@ def generate_candidates(actor: Actor, state: CombatState,
     for action in actions:
         action_type = action.get("type")
         if action_type == "weapon_attack":
+            reach = _action_reach_ft(action)
             for enemy in enemies:
+                if not is_within_ft(actor, enemy, reach):
+                    continue
                 candidates.append({
                     "kind": "weapon_attack",
                     "action": action,
@@ -98,7 +103,15 @@ def generate_candidates(actor: Actor, state: CombatState,
             # Multiattack picks its own targets per sub-attack inside
             # _execute_multiattack. Generate one candidate, scored as a
             # single "do my multiattack" choice. Target is informational.
-            primary_target = enemies[0] if enemies else None
+            # Reach uses the MAX reach across the sub-actions — multiattack
+            # is reachable if at least one sub-attack can land on the
+            # primary target (multiattack execution re-picks per sub-attack
+            # for now; positioning-aware sub-targeting is a future PR).
+            reach = _multiattack_max_reach(action, actor.template)
+            in_range = [e for e in enemies if is_within_ft(actor, e, reach)]
+            if not in_range:
+                continue
+            primary_target = in_range[0]
             candidates.append({
                 "kind": "multiattack",
                 "action": action,
@@ -108,6 +121,8 @@ def generate_candidates(actor: Actor, state: CombatState,
         elif action_type in ("heal", "defensive_buff"):
             # Per-ally enumeration. Self counts as an ally (you can heal /
             # buff yourself); decision_layer's scoring decides whether to.
+            # v1: generous range on ally-targeted abilities (defer touch-
+            # range gating).
             for ally in allies:
                 candidates.append({
                     "kind": action_type,
@@ -116,7 +131,12 @@ def generate_candidates(actor: Actor, state: CombatState,
                     "actor": actor,
                 })
         elif action_type == "hard_control":
+            # Spells have a `range_ft` in the action; default to 60 ft for
+            # v1 since most save-or-lose spells in 5e are 30-90 ft range.
+            reach = int(action.get("range_ft", 60))
             for enemy in enemies:
+                if not is_within_ft(actor, enemy, reach):
+                    continue
                 candidates.append({
                     "kind": "hard_control",
                     "action": action,
@@ -124,6 +144,42 @@ def generate_candidates(actor: Actor, state: CombatState,
                     "actor": actor,
                 })
     return candidates
+
+
+def _action_reach_ft(action: dict) -> int:
+    """Resolve the reach/range for a weapon_attack action.
+
+    Inspects the action's pipeline for the attack_roll step. Uses
+    `range_ft` if present (ranged attacks), else `reach_ft` (melee,
+    default 5).
+    """
+    for step in (action.get("pipeline") or []):
+        if step.get("primitive") != "attack_roll":
+            continue
+        params = step.get("params") or {}
+        if "range_ft" in params:
+            return int(params["range_ft"])
+        if "reach_ft" in params:
+            return int(params["reach_ft"])
+    # Top-level shorthand (rare): action.range_ft / action.reach_ft
+    if "range_ft" in action:
+        return int(action["range_ft"])
+    if "reach_ft" in action:
+        return int(action["reach_ft"])
+    return 5  # melee default
+
+
+def _multiattack_max_reach(action: dict, template: dict) -> int:
+    """Max reach across a multiattack's sub-actions (for candidate gating).
+
+    A multiattack with one melee + one ranged sub-action is reachable at
+    the longer range; execution re-checks per sub-attack.
+    """
+    sub_ids = action.get("sub_actions") or []
+    by_id = {a.get("id"): a for a in (template.get("actions") or [])}
+    reaches = [_action_reach_ft(by_id[sid]) for sid in sub_ids
+                if sid in by_id]
+    return max(reaches) if reaches else 5
 
 
 def apply_hard_filters(candidates: list[dict], actor: Actor,

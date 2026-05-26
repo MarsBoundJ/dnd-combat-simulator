@@ -83,11 +83,31 @@ def _roll_dice_expr(expr: str, rng: _random_module.Random) -> int:
 # ============================================================================
 
 def _attack_roll(params: dict, state: CombatState, bus: EventBus) -> dict:
-    """Roll d20 + bonus vs target AC. Now consults active_modifiers."""
+    """Roll d20 + bonus vs target AC. Now consults active_modifiers
+    AND the action's reach / range — out-of-range attacks auto-miss.
+    """
+    from engine.core.geometry import distance_ft
+
     actor: Actor = state.current_attack["actor"]
     target: Actor = state.current_attack["target"]
     bonus = params.get("bonus", 0)
     rng = _get_rng(state, bus)
+
+    # Out-of-range guard. Defends against multiattack execution paths
+    # where a sub-attack might be invoked beyond its reach (e.g., a
+    # Scimitar swing against a target 30 ft away when the multiattack
+    # was gated on the Shortbow's range). Auto-miss with telemetry.
+    reach = int(params.get("range_ft", params.get("reach_ft", 5)))
+    if distance_ft(actor, target) > reach:
+        state.current_attack["state"] = "miss"
+        state.event_log.append({
+            "event": "attack_roll", "actor": actor.id,
+            "target": target.id, "result": "miss",
+            "reason": "out_of_range",
+            "distance_ft": distance_ft(actor, target),
+            "reach_ft": reach,
+        })
+        return {"state": "miss", "reason": "out_of_range"}
 
     # Query unified modifier registry for attack adjustments + crit changes
     attack_mods = _modifiers.query_attack_modifiers(actor, target, state)

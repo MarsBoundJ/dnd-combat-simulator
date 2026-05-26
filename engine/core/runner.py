@@ -103,6 +103,58 @@ class EncounterRunner:
 
         state.advance_turn()
 
+    def _move_to_engage(self, actor: Actor, state: CombatState) -> None:
+        """Move actor toward the dial-preferred enemy up to walk speed.
+
+        Greedy v1: pick the targeting dial's preferred enemy (the same
+        one the AI would target if it could act), step toward them up
+        to `speed.walk` feet. No kiting / hold-at-range optimization —
+        ranged attackers will close to melee if they have no in-range
+        options after closing.
+
+        Logs `moved` event with from/to positions and distance.
+        """
+        from engine.core.geometry import move_toward, distance_ft
+        from engine.ai.behavior_profile import resolve_targeting_preset
+        from engine.ai.targeting import pick_target
+
+        enemies = [a for a in state.encounter.actors
+                    if a.side != actor.side and a.is_alive()]
+        if not enemies:
+            return
+        preset = resolve_targeting_preset(actor)
+        target = pick_target(actor, enemies, state, preset)
+        if target is None:
+            return
+
+        speed_ft = int((actor.speed or {}).get("walk", 30))
+        if speed_ft <= 0:
+            return
+
+        # Stop at the actor's MAX reach across their attack actions so
+        # they land in range to act, not stacked on the target's square.
+        # Defaults to 5 ft (melee) if no actions found.
+        from engine.core.pipeline import _action_reach_ft
+        reaches = [_action_reach_ft(a) for a in (actor.template.get("actions") or [])
+                    if a.get("type") in ("weapon_attack", "hard_control")]
+        stop_at = max(reaches) if reaches else 5
+
+        from_pos = actor.position
+        from_dist = distance_ft(actor, target)
+        moved_ft = move_toward(actor, target, speed_ft, stop_at_ft=stop_at)
+        if moved_ft <= 0:
+            return
+        state.event_log.append({
+            "event": "moved",
+            "actor": actor.id,
+            "from": list(from_pos),
+            "to": list(actor.position),
+            "ft": moved_ft,
+            "toward": target.id,
+            "distance_before": from_dist,
+            "distance_after": distance_ft(actor, target),
+        })
+
     def _resolve_recurring_saves(self, actor: Actor, state: CombatState) -> None:
         """At actor's turn_end, roll any recurring saves registered against them.
 
@@ -197,6 +249,22 @@ class EncounterRunner:
             slot entirely.
         """
         candidates = pipeline.generate_candidates(actor, state, slot=slot)
+
+        # Movement phase (main slot only): if no in-range candidates,
+        # close on the dial-preferred enemy up to speed and try again.
+        # Bonus slot doesn't move (movement is a main-slot resource).
+        if not candidates and slot == "action":
+            self._move_to_engage(actor, state)
+            candidates = pipeline.generate_candidates(actor, state, slot=slot)
+            if not candidates:
+                state.event_log.append({
+                    "event": "passed_turn",
+                    "actor": actor.id,
+                    "slot": slot,
+                    "reason": "out_of_range_after_movement",
+                })
+                return
+
         if not candidates:
             return
         pre_filter_count = len(candidates)

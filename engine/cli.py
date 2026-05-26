@@ -133,6 +133,10 @@ def _build_actor(actor_spec: dict, registry) -> Actor:
     abilities = template.get("abilities", {}) or actor_spec.get("abilities", {})
     ac = template.get("combat", {}).get("armor_class", actor_spec.get("ac", 10))
     speed = template.get("combat", {}).get("speed", {"walk": 30})
+    # Optional starting position [x, y] in 5-ft squares; default (0, 0).
+    # Fixtures use this to lay out ranged-vs-melee starting distances.
+    position_raw = actor_spec.get("position") or [0, 0]
+    position = (int(position_raw[0]), int(position_raw[1]))
 
     return Actor(
         id=instance_id,
@@ -143,6 +147,7 @@ def _build_actor(actor_spec: dict, registry) -> Actor:
         hp_max=hp_max,
         ac=ac,
         speed=speed,
+        position=position,
         abilities=abilities,
     )
 
