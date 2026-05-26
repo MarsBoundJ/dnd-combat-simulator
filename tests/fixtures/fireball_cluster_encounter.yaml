@@ -1,0 +1,199 @@
+# Fireball vs clustered goblins — exercises AoE geometry v1.
+#
+# Setup:
+#   - Wizard (PC) at (0, 0) with Magic Missile-shaped Dart attack + Fireball
+#     (20-ft radius sphere, 150-ft cast range, 8d6 fire, DEX save DC 15).
+#   - Three goblins clustered tightly at (15, 0), (15, 1), (15, -1)
+#     (75 ft from wizard, all within 5 ft of each other).
+#   - Wizard's targeting is irrelevant — Fireball candidate generation
+#     enumerates origin = each enemy position; the cluster centroid wins
+#     because origin at (15, 0) catches all 3 goblins in the 20-ft radius
+#     while Dart only hits one.
+#
+# Expected behavior (seed 1):
+#   - Wizard's first action: aoe_origin_placed at (15, ±) — somewhere in
+#     the cluster.
+#   - Three forced_save events follow, one per goblin.
+#   - damage rolls applied to each (full on fail, half on save).
+#   - Cluster likely takes ~21 dmg average each → several goblins drop.
+#
+# Proves: AoE candidate generation, origin selection by eHP scoring,
+# per-target save resolution with current_attack.target swapping,
+# half-damage-on-save via multiplier, multi-target geometry end-to-end.
+
+id: fireball_cluster_encounter
+
+environment:
+  template: open_battlefield
+
+actors:
+  - instance_id: wizard_pc
+    name: Evocation Wizard
+    side: pc
+    position: [0, 0]
+    template:
+      id: pc_evocation_wizard
+      name: Evocation Wizard
+      source: user_authored
+      combat:
+        armor_class: 12
+        hit_points:
+          average: 22
+          dice: "5d6"
+          con_contribution: 5
+        speed:
+          walk: 30
+        initiative:
+          modifier: 20             # forced first for clean demo
+          score: 30
+      abilities:
+        str: { score: 8, save: -1 }
+        dex: { score: 14, save: 2 }
+        con: { score: 12, save: 1 }
+        int: { score: 18, save: 6 }
+        wis: { score: 12, save: 1 }
+        cha: { score: 10, save: 0 }
+      cr: { value: 2.0, xp: 450, proficiency_bonus: 3 }
+      behavior_profile:
+        presets:
+          retreat: ftd
+      actions:
+        - id: a_dart
+          name: Magic Dart
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: ranged, bonus: 6, range_ft: 60 }
+            - primitive: damage
+              params: { dice: "1d4", modifier: 4, type: force }
+              when: { event: damage_roll, condition: "combat.attack_state == hit" }
+        - id: a_fireball
+          name: Fireball
+          type: aoe_attack
+          area:
+            shape: sphere
+            radius_ft: 20
+            range_ft: 150
+          pipeline:
+            - primitive: forced_save
+              params:
+                ability: dexterity
+                dc: 15
+                affected: all_creatures_in_area
+                on_fail:
+                  - primitive: damage
+                    params: { dice: "8d6", type: fire }
+                on_success:
+                  - primitive: damage
+                    params: { dice: "8d6", type: fire, multiplier: 0.5 }
+
+  - instance_id: goblin_a
+    name: Goblin A
+    side: enemy
+    position: [15, 0]
+    template:
+      id: m_goblin_cluster_a
+      name: Goblin A
+      source: user_authored
+      combat:
+        armor_class: 13
+        hit_points:
+          average: 14
+          dice: "4d6"
+          con_contribution: 0
+        speed:
+          walk: 30
+        initiative:
+          modifier: 0
+          score: 5
+      abilities:
+        str: { score: 8, save: -1 }
+        dex: { score: 14, save: 2 }
+        con: { score: 10, save: 0 }
+        int: { score: 10, save: 0 }
+        wis: { score: 8, save: -1 }
+        cha: { score: 8, save: -1 }
+      cr: { value: 0.25, xp: 50, proficiency_bonus: 2 }
+      behavior_profile:
+        presets:
+          retreat: ftd
+      actions:
+        - id: a_scimitar
+          name: Scimitar
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: melee, bonus: 4, reach_ft: 5 }
+            - primitive: damage
+              params: { dice: "1d6", modifier: 2, type: slashing }
+              when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  - instance_id: goblin_b
+    name: Goblin B
+    side: enemy
+    position: [15, 1]
+    template:
+      id: m_goblin_cluster_b
+      name: Goblin B
+      source: user_authored
+      combat:
+        armor_class: 13
+        hit_points: { average: 14, dice: "4d6", con_contribution: 0 }
+        speed: { walk: 30 }
+        initiative: { modifier: 0, score: 5 }
+      abilities:
+        str: { score: 8, save: -1 }
+        dex: { score: 14, save: 2 }
+        con: { score: 10, save: 0 }
+        int: { score: 10, save: 0 }
+        wis: { score: 8, save: -1 }
+        cha: { score: 8, save: -1 }
+      cr: { value: 0.25, xp: 50, proficiency_bonus: 2 }
+      behavior_profile:
+        presets:
+          retreat: ftd
+      actions:
+        - id: a_scimitar
+          name: Scimitar
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: melee, bonus: 4, reach_ft: 5 }
+            - primitive: damage
+              params: { dice: "1d6", modifier: 2, type: slashing }
+              when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  - instance_id: goblin_c
+    name: Goblin C
+    side: enemy
+    position: [15, -1]
+    template:
+      id: m_goblin_cluster_c
+      name: Goblin C
+      source: user_authored
+      combat:
+        armor_class: 13
+        hit_points: { average: 14, dice: "4d6", con_contribution: 0 }
+        speed: { walk: 30 }
+        initiative: { modifier: 0, score: 5 }
+      abilities:
+        str: { score: 8, save: -1 }
+        dex: { score: 14, save: 2 }
+        con: { score: 10, save: 0 }
+        int: { score: 10, save: 0 }
+        wis: { score: 8, save: -1 }
+        cha: { score: 8, save: -1 }
+      cr: { value: 0.25, xp: 50, proficiency_bonus: 2 }
+      behavior_profile:
+        presets:
+          retreat: ftd
+      actions:
+        - id: a_scimitar
+          name: Scimitar
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: melee, bonus: 4, reach_ft: 5 }
+            - primitive: damage
+              params: { dice: "1d6", modifier: 2, type: slashing }
+              when: { event: damage_roll, condition: "combat.attack_state == hit" }
