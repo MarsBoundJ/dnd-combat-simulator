@@ -423,11 +423,12 @@ class ChainedModificationTest(unittest.TestCase):
 # Behavioral integration — pacifist Pass-turns instead of attacking
 # ============================================================================
 
-class PacifistPassesTurnTest(unittest.TestCase):
+class PacifistDodgesFallbackTest(unittest.TestCase):
 
-    def test_pacifist_logs_passed_turn_event(self) -> None:
-        """A pacifist with no non-damaging actions should generate a
-        'passed_turn' event in the runner instead of attacking."""
+    def test_pacifist_dodges_instead_of_attacking(self) -> None:
+        """A pacifist PC with no non-damaging actions should fall back to
+        the built-in Dodge (per pillars-reconciliation.md §6.4 RAW
+        fallback) instead of Pass-turning. Still never attacks."""
         import random as _random
         from engine import primitives as primitives_module
         from engine.core.runner import EncounterRunner
@@ -448,12 +449,14 @@ class PacifistPassesTurnTest(unittest.TestCase):
         primitives_module.set_rng(runner.rng)
         state = runner.run(seed=1)
 
-        passed_events = [e for e in state.event_log
-                          if e.get("event") == "passed_turn"
+        # Pacifist PC should use the Dodge fallback, not Pass turn
+        dodge_events = [e for e in state.event_log
+                          if e.get("event") == "dodge_fallback"
                           and e.get("actor") == "pacifist"]
-        self.assertGreater(len(passed_events), 0,
-                            "Pacifist should have logged passed_turn events")
-        self.assertEqual(passed_events[0]["reason"],
+        self.assertGreater(len(dodge_events), 0,
+                            "Pacifist PC should have logged dodge_fallback "
+                            "events per §6.4 RAW fallback")
+        self.assertEqual(dodge_events[0]["reason"],
                           "rp_hard_filter_empty_set")
 
         # And pacifist should never have produced an attack_roll
@@ -462,6 +465,60 @@ class PacifistPassesTurnTest(unittest.TestCase):
                              and e.get("actor") == "pacifist"]
         self.assertEqual(len(pacifist_attacks), 0,
                           "Pacifist should NEVER have attacked")
+
+        # Enemy attacks against the dodging pacifist should show
+        # disadvantage_state (the built-in Dodge modifier is working)
+        enemy_attacks = [e for e in state.event_log
+                          if e.get("event") == "attack_roll"
+                          and e.get("actor") == "enemy"
+                          and e.get("target") == "pacifist"]
+        if enemy_attacks:
+            # At least one enemy attack should show disadvantage
+            disad = [a for a in enemy_attacks
+                      if a.get("advantage_state") == "disadvantage"]
+            self.assertGreater(len(disad), 0,
+                                "Built-in Dodge should impose disadvantage "
+                                "on enemy attacks against pacifist")
+
+    def test_monster_still_passes_turn_on_filter_empty(self) -> None:
+        """Monsters (side != 'pc') keep the existing pass-turn behavior
+        per §6.4: 'Monsters default to Pass turn (or archetype-specified
+        emergency action if defined)' — the emergency action path is
+        deferred; v1 monsters just Pass."""
+        import random as _random
+        from engine import primitives as primitives_module
+        from engine.core.runner import EncounterRunner
+
+        attack = _weapon_attack("a_sword", dice="1d8", modifier=3)
+        # Monster side with a pacifist-style constraint
+        monster_pacifist = _make_actor(
+            "monster_pacifist", side="enemy", hp=30, ac=15,
+            actions=[attack],
+            rp_constraints=[{"id": "pacifist_strict"}],
+            template_extras={"combat": {
+                "initiative": {"modifier": 5, "score": 18},
+            }},
+        )
+        enemy = _make_actor("pc_enemy", side="pc", hp=20, ac=15,
+                              actions=[attack])
+        encounter = Encounter(id="monster_pacifist_test",
+                                actors=[monster_pacifist, enemy])
+
+        primitives_module.set_rng(_random.Random(1))
+        runner = EncounterRunner.new(encounter, seed=1)
+        primitives_module.set_rng(runner.rng)
+        state = runner.run(seed=1)
+
+        passed_events = [e for e in state.event_log
+                          if e.get("event") == "passed_turn"
+                          and e.get("actor") == "monster_pacifist"]
+        self.assertGreater(len(passed_events), 0,
+                            "Monster should still Pass-turn, NOT Dodge")
+        dodge_events = [e for e in state.event_log
+                          if e.get("event") == "dodge_fallback"
+                          and e.get("actor") == "monster_pacifist"]
+        self.assertEqual(len(dodge_events), 0,
+                          "Monster should NOT trigger Dodge fallback")
 
 
 # ============================================================================
