@@ -265,53 +265,60 @@ class EncounterRunner:
 
     def _resolve_persistent_aura_triggers(self, actor: Actor,
                                               state: CombatState) -> None:
-        """Fire registered persistent_aura saves at this actor's
-        turn-start (PR #43).
+        """Fire registered persistent_aura triggers at this actor's
+        turn-start (PR #43 + PR #44).
 
-        For each aura in `state.persistent_auras` with
-        `trigger_event == 'target_turn_start_in_area'`:
+        For each aura with `trigger_event == 'target_turn_start_in_area'`:
           - Skip if the caster is dead / fled / not in the encounter
-          - Skip if `actor` doesn't satisfy the aura's `affected` filter.
-            v1 supports `affected: enemies` (default) — same-side
-            actors are skipped. This is RAW-faithful for Spirit
-            Guardians (the spell explicitly lets the caster choose
-            any number of creatures to be unaffected; the rational
-            choice is to exclude all allies). Other persistent_aura
-            spells without that RAW exclusion clause (Cloud of
-            Daggers, Sickening Radiance, etc.) would use
-            `affected: all_creatures` to opt into friendly fire —
-            that mode lands when those spells do.
-          - Skip if `actor` is outside the aura's radius
-          - Otherwise: set up state.current_attack with caster as
-            actor + actor as target + the aura's logical action id,
-            then invoke `forced_save` with the aura's params.
-
-        forced_save's per-target loop handles the actual save roll +
-        on_fail / on_success sub-primitive invocation. Damage applies
-        via the existing damage primitive.
+          - Skip if `actor` doesn't satisfy `affected` filter (default
+            'enemies' skips same-side; 'all_creatures' includes
+            everyone — used by spells without RAW exclusion like Cloud
+            of Daggers / Sickening Radiance).
+          - Compute the aura's current origin:
+            - `anchor='caster'` (Spirit Guardians) → caster.position
+            - `anchor='point'` (Moonbeam, CoD) → aura['origin']
+              (recorded at cast time, doesn't move)
+          - Skip if `actor` is outside the area (sphere → radius_ft;
+            cube → size_ft via actors_in_cube).
+          - If the aura has a save (`ability` is not None): set up
+            forced_save context and invoke. forced_save handles the
+            roll + on_fail / on_success branching.
+          - If no save (Cloud of Daggers-shape): invoke on_fail
+            sub-primitives directly (always-damage).
         """
         if not state.persistent_auras:
             return
-        from engine.core.geometry import distance_ft
+        from engine.core.geometry import distance_ft, actors_in_cube
         for aura in state.persistent_auras:
             if aura.get("trigger_event") != "target_turn_start_in_area":
                 continue
             caster = state._actor_by_id(aura["caster_id"])
             if caster is None or not caster.is_alive():
                 continue
-            # `affected: enemies` (default) skips same-side actors.
-            # For Spirit Guardians this is RAW-faithful — the spell
-            # lets the caster exclude any creatures by choice; the
-            # rational AI choice is to exclude all allies. Future
-            # spells without RAW exclusion (Cloud of Daggers etc.)
-            # will opt into `affected: all_creatures`.
+            # Affected gate — see method docstring
             if aura.get("affected", "enemies") == "enemies" \
                     and actor.side == caster.side:
                 continue
-            if distance_ft(actor.position, caster.position) > aura["radius_ft"]:
-                continue
-            # Set up forced_save context: caster is the "actor", the
-            # turn-taking creature is the "target".
+            # Resolve current origin based on anchor type
+            anchor = aura.get("anchor", "caster")
+            if anchor == "point":
+                origin = aura.get("origin") or tuple(caster.position)
+            else:
+                origin = tuple(caster.position)
+            # Area check — sphere uses radius, cube uses size
+            shape = aura.get("shape", "sphere")
+            if shape == "cube":
+                size_ft = int(aura.get("size_ft", 0))
+                in_area = actors_in_cube(origin, size_ft, [actor])
+                if not in_area:
+                    continue
+            else:
+                radius_ft = int(aura.get("radius_ft", 0))
+                if distance_ft(actor.position, origin) > radius_ft:
+                    continue
+            # Set up trigger context: caster is the "actor", the
+            # turn-taking creature is the "target". area_origin
+            # propagates so any AoE-aware sub-primitives can reference it.
             saved_attack = state.current_attack
             state.current_attack = {
                 "actor": caster, "target": actor,
@@ -319,16 +326,31 @@ class EncounterRunner:
                             "named_effect": aura.get("named_effect")},
                 "state": None,
                 "had_advantage": False, "had_disadvantage": False,
-                "area_origin": None, "area_direction": None,
+                "area_origin": tuple(origin), "area_direction": None,
             }
             try:
-                self.primitives.invoke("forced_save", {
-                    "ability": aura["ability"],
-                    "dc": aura["dc"],
-                    "affected": "current_target",
-                    "on_fail": aura["on_fail"],
-                    "on_success": aura["on_success"],
-                }, state, self.event_bus)
+                if aura.get("ability") is None:
+                    # No-save path: invoke on_fail sub-primitives
+                    # directly (always damages). Cloud of Daggers,
+                    # Sleet Storm-class spells.
+                    from engine.primitives import _invoke_subprimitive
+                    for sub in aura["on_fail"] or []:
+                        _invoke_subprimitive(sub, state, self.event_bus)
+                    state.event_log.append({
+                        "event": "persistent_aura_no_save_trigger",
+                        "target": actor.id,
+                        "action": aura["action_id"],
+                    })
+                else:
+                    # Save-based: invoke forced_save with the aura's
+                    # params; on_fail / on_success branching handled there.
+                    self.primitives.invoke("forced_save", {
+                        "ability": aura["ability"],
+                        "dc": aura["dc"],
+                        "affected": "current_target",
+                        "on_fail": aura["on_fail"],
+                        "on_success": aura["on_success"],
+                    }, state, self.event_bus)
             finally:
                 state.current_attack = saved_attack
             # If the actor died from the aura, stop processing further

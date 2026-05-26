@@ -1,0 +1,203 @@
+# Moonbeam demo — druid casts a 5-ft beam on a chosen point.
+#
+# Setup:
+#   - Druid (PC) with Moonbeam (2nd-level slot, concentration).
+#     Forced to go first via initiative bonus.
+#   - 3 goblins clustered around one point so a single Moonbeam catches
+#     them. The aura is point-anchored — it stays at the chosen spot
+#     even if the druid moves.
+#
+# Expected behavior:
+#   - Round 1: Druid casts Moonbeam centered on the goblin cluster.
+#     Event: `persistent_aura_registered` with anchor=point and origin
+#     at the goblin position.
+#   - Round 1 goblin turns: each goblin's turn_start fires forced_save
+#     (CON DC 15). Goblins have CON +0 → need 15+ → mostly fail.
+#     Damage 2d10 radiant on fail / half on success.
+#   - Concentration via the existing system; aura ends if druid loses
+#     concentration via damage CON save fail / incapacitation.
+#
+# Demonstrates: point-anchored aura, all_creatures affected mode
+# (no friendly fire here because no allies in the area, but the mode
+# IS active — see two_clerics_bless_dedup_encounter for affected
+# semantics in tests).
+
+id: moonbeam_encounter
+
+environment:
+  template: open_battlefield
+
+actors:
+  - instance_id: druid
+    name: Druid of the Moon
+    side: pc
+    position: [0, 0]
+    spell_slots: { 2: 1 }
+    spell_slots_max: { 2: 1 }
+    template:
+      id: pc_druid_moonbeam
+      name: Druid of the Moon
+      source: user_authored
+      combat:
+        armor_class: 14
+        hit_points:
+          average: 35
+          dice: "5d8"
+          con_contribution: 10
+        speed:
+          walk: 30
+        initiative:
+          modifier: 30
+          score: 40
+      abilities:
+        str: { score: 10, save: 0 }
+        dex: { score: 14, save: 2 }
+        con: { score: 14, save: 5 }   # CON-prof L5 = +5 saves
+        int: { score: 10, save: 0 }
+        wis: { score: 18, save: 7 }
+        cha: { score: 10, save: 0 }
+      cr: { value: 4.0, xp: 1100, proficiency_bonus: 3 }
+      behavior_profile:
+        presets:
+          retreat: ftd
+      actions:
+        - id: a_quarterstaff
+          name: Quarterstaff
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: melee, bonus: 3, reach_ft: 5 }
+            - primitive: damage
+              params: { dice: "1d6", modifier: 0, type: bludgeoning }
+              when: { event: damage_roll, condition: "combat.attack_state == hit" }
+        - id: a_moonbeam
+          name: Moonbeam
+          type: persistent_aura
+          spell_slot_level: 2
+          concentration: true
+          named_effect: moonbeam
+          area:
+            shape: sphere
+            radius_ft: 5
+            range_ft: 120
+          pipeline:
+            - primitive: persistent_aura
+              params:
+                shape: sphere
+                radius_ft: 5
+                anchor: point
+                trigger_event: target_turn_start_in_area
+                affected: all_creatures
+                ability: constitution
+                dc: 15
+                on_fail:
+                  - primitive: damage
+                    params: { dice: "2d10", type: radiant }
+                on_success:
+                  - primitive: damage
+                    params: { dice: "2d10", type: radiant, multiplier: 0.5 }
+
+  - instance_id: goblin_a
+    name: Goblin A
+    side: enemy
+    position: [10, 0]
+    template:
+      id: m_goblin_mb_a
+      name: Goblin
+      source: user_authored
+      combat:
+        armor_class: 13
+        hit_points: { average: 20, dice: "3d6", con_contribution: 3 }
+        speed: { walk: 30 }
+        initiative: { modifier: 2, score: 12 }
+      abilities:
+        str: { score: 8, save: -1 }
+        dex: { score: 14, save: 2 }
+        con: { score: 10, save: 0 }   # low CON save
+        int: { score: 10, save: 0 }
+        wis: { score: 8, save: -1 }
+        cha: { score: 8, save: -1 }
+      cr: { value: 0.25, xp: 50, proficiency_bonus: 2 }
+      behavior_profile:
+        presets:
+          retreat: ftd
+      actions:
+        - id: a_scimitar
+          name: Scimitar
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: melee, bonus: 4, reach_ft: 5 }
+            - primitive: damage
+              params: { dice: "1d6", modifier: 2, type: slashing }
+              when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  - instance_id: goblin_b
+    name: Goblin B
+    side: enemy
+    position: [10, 0]
+    template:
+      id: m_goblin_mb_b
+      name: Goblin
+      source: user_authored
+      combat:
+        armor_class: 13
+        hit_points: { average: 20, dice: "3d6", con_contribution: 3 }
+        speed: { walk: 30 }
+        initiative: { modifier: 2, score: 12 }
+      abilities:
+        str: { score: 8, save: -1 }
+        dex: { score: 14, save: 2 }
+        con: { score: 10, save: 0 }
+        int: { score: 10, save: 0 }
+        wis: { score: 8, save: -1 }
+        cha: { score: 8, save: -1 }
+      cr: { value: 0.25, xp: 50, proficiency_bonus: 2 }
+      behavior_profile:
+        presets:
+          retreat: ftd
+      actions:
+        - id: a_scimitar
+          name: Scimitar
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: melee, bonus: 4, reach_ft: 5 }
+            - primitive: damage
+              params: { dice: "1d6", modifier: 2, type: slashing }
+              when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  - instance_id: goblin_c
+    name: Goblin C
+    side: enemy
+    position: [10, 0]
+    template:
+      id: m_goblin_mb_c
+      name: Goblin
+      source: user_authored
+      combat:
+        armor_class: 13
+        hit_points: { average: 20, dice: "3d6", con_contribution: 3 }
+        speed: { walk: 30 }
+        initiative: { modifier: 2, score: 12 }
+      abilities:
+        str: { score: 8, save: -1 }
+        dex: { score: 14, save: 2 }
+        con: { score: 10, save: 0 }
+        int: { score: 10, save: 0 }
+        wis: { score: 8, save: -1 }
+        cha: { score: 8, save: -1 }
+      cr: { value: 0.25, xp: 50, proficiency_bonus: 2 }
+      behavior_profile:
+        presets:
+          retreat: ftd
+      actions:
+        - id: a_scimitar
+          name: Scimitar
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: melee, bonus: 4, reach_ft: 5 }
+            - primitive: damage
+              params: { dice: "1d6", modifier: 2, type: slashing }
+              when: { event: damage_roll, condition: "combat.attack_state == hit" }

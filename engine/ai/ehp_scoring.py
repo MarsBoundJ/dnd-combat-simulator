@@ -417,28 +417,34 @@ EXPECTED_AURA_ROUNDS = 2.5     # matches EXPECTED_BUFF_ROUNDS for consistency
 
 
 def offensive_ehp_persistent_aura(actor: Actor, action: dict,
-                                       state: CombatState) -> float:
-    """eHP scoring for Spirit-Guardians-shape persistent auras (PR #43).
+                                       state: CombatState,
+                                       origin: tuple[int, int] | None = None
+                                       ) -> float:
+    """eHP scoring for persistent_aura spells (PR #43 + PR #44).
 
     Sums per-turn expected damage across enemies currently in the
-    aura's radius, multiplied by `EXPECTED_AURA_ROUNDS` to approximate
-    the spell's full-duration value.
+    aura's area, multiplied by `EXPECTED_AURA_ROUNDS` to approximate
+    full-duration value.
 
-    Per-enemy per-turn damage:
-      expected = p_fail × full_damage + p_success × partial_damage
-    where partial_damage is the on_success damage step's dice × any
-    `multiplier` (typically 0.5 for "half on save").
+    Shapes:
+      - sphere: `radius_ft` from origin (default behavior)
+      - cube: `size_ft` cube centered on origin
 
-    Capped at the enemy's remaining HP per turn (no over-counting once
-    a creature drops; this is a per-turn cap, not a total cap — so an
-    aura that does 10 dmg / turn to a 5 HP creature is worth 5 eHP
-    on the first turn, not 25 over 2.5 turns).
+    Anchors:
+      - caster (default): origin = actor.position (live)
+      - point: origin from `origin` argument (candidate's
+        `origin_point`); falls back to actor.position if not provided
 
-    Returns 0.0 if no enemies in the aura's radius, or the action has
-    no persistent_aura step.
+    Save vs no-save:
+      - With `ability`: per-turn = p_fail × full + p_success × half
+      - Without `ability` (Cloud of Daggers-shape): per-turn = full
+        (always applies)
+
+    Per-turn damage capped at each enemy's remaining HP. Returns 0.0
+    if no enemies in area or no damage payload.
     """
     from engine.ai.defensive_ehp import save_fail_probability
-    from engine.core.geometry import distance_ft
+    from engine.core.geometry import distance_ft, actors_in_cube
 
     # Extract aura params from the first persistent_aura step
     aura_params = None
@@ -448,11 +454,19 @@ def offensive_ehp_persistent_aura(actor: Actor, action: dict,
             break
     if aura_params is None:
         return 0.0
-    radius = int(aura_params.get("radius_ft", 0))
-    if radius <= 0:
-        return 0.0
-    ability = aura_params.get("ability", "wisdom")
-    dc = int(aura_params.get("dc", 10))
+
+    shape = aura_params.get("shape", "sphere")
+    anchor = aura_params.get("anchor", "caster")
+    ability = aura_params.get("ability")
+    if ability == "none":
+        ability = None
+    dc = int(aura_params.get("dc", 0))
+
+    # Determine the area's origin for "in-area enemies" check
+    if anchor == "point" and origin is not None:
+        area_origin = tuple(origin)
+    else:
+        area_origin = tuple(actor.position)
 
     # Sum the on_fail / on_success damage steps
     def _sum_damage(steps: list[dict]) -> float:
@@ -472,18 +486,33 @@ def offensive_ehp_persistent_aura(actor: Actor, action: dict,
     if full_dmg <= 0 and half_dmg <= 0:
         return 0.0
 
-    # Find enemies currently within radius
-    enemies_in_aura = [e for e in state.encounter.actors
-                        if e.side != actor.side and e.is_alive()
-                        and distance_ft(e.position, actor.position) <= radius]
+    # Find enemies currently in area (sphere via radius / cube via size)
+    living_enemies = [e for e in state.encounter.actors
+                       if e.side != actor.side and e.is_alive()]
+    if shape == "cube":
+        size_ft = int(aura_params.get("size_ft", 0))
+        if size_ft <= 0:
+            return 0.0
+        enemies_in_aura = actors_in_cube(area_origin, size_ft,
+                                            living_enemies)
+    else:
+        radius = int(aura_params.get("radius_ft", 0))
+        if radius <= 0:
+            return 0.0
+        enemies_in_aura = [e for e in living_enemies
+                            if distance_ft(e.position, area_origin) <= radius]
     if not enemies_in_aura:
         return 0.0
 
     total_per_turn = 0.0
     for e in enemies_in_aura:
-        p_fail = save_fail_probability(e, ability, dc, state)
-        per_turn = p_fail * full_dmg + (1.0 - p_fail) * half_dmg
-        # Cap per-turn damage at enemy's remaining HP
+        if ability is None:
+            # No-save: full damage every turn (Cloud of Daggers shape)
+            per_turn = full_dmg
+        else:
+            p_fail = save_fail_probability(e, ability, dc, state)
+            per_turn = p_fail * full_dmg + (1.0 - p_fail) * half_dmg
+        # Cap per-turn at enemy remaining HP
         per_turn = min(per_turn, float(max(0, e.hp_current)))
         total_per_turn += per_turn
 
@@ -800,7 +829,11 @@ def score_candidate(candidate: dict, state: CombatState) -> float:
     if kind == "help" or action.get("type") == "help":
         return offensive_ehp_help(actor, target, action, state)
     if kind == "persistent_aura" or action.get("type") == "persistent_aura":
-        return offensive_ehp_persistent_aura(actor, action, state)
+        origin = candidate.get("origin_point")
+        return offensive_ehp_persistent_aura(
+            actor, action, state,
+            origin=tuple(origin) if origin is not None else None,
+        )
     if kind == "disengage" or action.get("type") == "disengage":
         # Disengage's real eHP depends on what move comes after (avoid
         # an OA from a specific reactor). v1 returns a small constant

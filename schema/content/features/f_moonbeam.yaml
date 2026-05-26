@@ -1,0 +1,72 @@
+# f_moonbeam — Moonbeam (Druid 2nd-level spell, SRD CC v5.2.1)
+#
+# RAW summary: 5-foot-radius, 40-foot-high cylinder centered on a
+# point you choose within range. First time a creature enters the
+# cylinder on its turn or starts its turn there, it makes a CON save
+# (2d10 radiant on fail, half on success). Concentration, 1 minute.
+#
+# Bonus action movement: on a later turn, you can move the beam up
+# to 60 ft as a bonus action. v1 ships the area as point-anchored
+# WITHOUT the move mechanic — the beam stays where it was cast.
+# Future work can add a bonus-action "move aura" mechanic that
+# updates the aura's origin.
+#
+# Engine application:
+#   - type: persistent_aura
+#   - shape: sphere (cylinder approximation, same as Hypnotic Pattern)
+#   - radius_ft: 5
+#   - anchor: point (placed at cast time, doesn't move in v1)
+#   - affected: all_creatures (no RAW exclusion — friendly fire is
+#     real; smart casters position the beam to avoid allies)
+#   - ability: CON save vs spell DC
+#   - on_fail: 2d10 radiant; on_success: 2d10 × 0.5 radiant
+#   - Trigger: turn-start (entry trigger deferred per PR #43)
+
+id: f_moonbeam
+name: Moonbeam
+source: srd_5.2.1
+granted_by:
+  class: c_druid
+  level: 3                 # Druids gain access to 2nd-level spells at L3
+type: active
+spell:
+  class: c_druid
+  level: 2
+
+description: |
+  5-ft radius cylinder centered on a chosen point. CON save vs spell
+  DC at each creature's turn-start while in the area. 2d10 radiant
+  on fail, half on success. Concentration, 1 minute.
+
+action_template:
+  id: a_moonbeam
+  name: Moonbeam
+  type: persistent_aura
+  spell_slot_level: 2
+  concentration: true
+  named_effect: moonbeam
+  area:
+    shape: sphere
+    radius_ft: 5
+    range_ft: 120
+  pipeline:
+    - primitive: persistent_aura
+      params:
+        shape: sphere
+        radius_ft: 5
+        anchor: point
+        trigger_event: target_turn_start_in_area
+        affected: all_creatures
+        ability: constitution
+        dc: 15                  # caster's spell save DC; fixture-overridable
+        on_fail:
+          - primitive: damage
+            params: { dice: "2d10", type: radiant }
+        on_success:
+          - primitive: damage
+            params: { dice: "2d10", type: radiant, multiplier: 0.5 }
+
+deferred:
+  - bonus_action_move: "RAW lets the caster move the beam up to 60 ft as a bonus action; v1 omits this."
+  - entry_on_move_trigger: "RAW also fires on first-time-entry-this-turn; v1 turn-start only."
+  - cylinder_geometry: "v1 approximates the 40-ft-high cylinder as a sphere of radius 5."

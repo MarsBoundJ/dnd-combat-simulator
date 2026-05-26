@@ -211,25 +211,48 @@ def generate_candidates(actor: Actor, state: CombatState,
                     "actor": actor,
                 })
         elif action_type == "persistent_aura":
-            # Self-anchored area effect (Spirit Guardians-shape).
-            # One candidate per turn — no positioning choice, the aura
-            # is always centered on the caster. The candidate's target
-            # is informational (set to the closest enemy as a proxy
-            # for scoring context; the actual aura affects everyone
-            # in radius per the registered trigger).
-            in_radius_enemies = []
-            radius = _persistent_aura_radius(action)
-            if radius > 0:
-                in_radius_enemies = [e for e in enemies
-                                       if is_within_ft(actor, e, radius)]
-            primary = in_radius_enemies[0] if in_radius_enemies else (
-                enemies[0] if enemies else actor)
-            candidates.append({
-                "kind": "persistent_aura",
-                "action": action,
-                "target": primary,
-                "actor": actor,
-            })
+            # Two flavors (PR #43 + PR #44):
+            #
+            # 1. anchor='caster' (Spirit Guardians-shape) — aura moves
+            #    with the caster. One candidate per turn, no positioning
+            #    choice. Target is closest in-radius enemy as scoring
+            #    proxy.
+            #
+            # 2. anchor='point' (Moonbeam, Cloud of Daggers) — placed
+            #    at a chosen point at cast time. Emit one candidate
+            #    per living enemy position (same pattern as Fireball's
+            #    sphere AoE) so the AI can pick the best anchor.
+            #    `origin_point` is set on the candidate; the primitive
+            #    reads state.current_attack.area_origin at execute.
+            anchor = _persistent_aura_anchor(action)
+            if anchor == "point":
+                cast_range = _persistent_aura_cast_range(action)
+                for anchor_enemy in enemies:
+                    if cast_range > 0 and not is_within_ft(
+                            actor, anchor_enemy, cast_range):
+                        continue
+                    candidates.append({
+                        "kind": "persistent_aura",
+                        "action": action,
+                        "target": anchor_enemy,
+                        "origin_point": anchor_enemy.position,
+                        "actor": actor,
+                    })
+            else:
+                # Caster-anchored — single candidate
+                radius = _persistent_aura_radius(action)
+                in_radius_enemies = []
+                if radius > 0:
+                    in_radius_enemies = [e for e in enemies
+                                           if is_within_ft(actor, e, radius)]
+                primary = in_radius_enemies[0] if in_radius_enemies else (
+                    enemies[0] if enemies else actor)
+                candidates.append({
+                    "kind": "persistent_aura",
+                    "action": action,
+                    "target": primary,
+                    "actor": actor,
+                })
         elif action_type == "disengage":
             # Disengage is a self-targeted utility action — no enemy or
             # ally target. Single candidate per turn that the actor can
@@ -323,6 +346,24 @@ def _persistent_aura_radius(action: dict) -> int:
     # Also check the action's `area:` block as a fallback shape
     area = action.get("area") or {}
     return int(area.get("radius_ft", 0))
+
+
+def _persistent_aura_anchor(action: dict) -> str:
+    """Return the anchor type ('caster' or 'point') from the
+    persistent_aura step. Default 'caster' for backward compatibility."""
+    for step in (action.get("pipeline") or []):
+        if step.get("primitive") == "persistent_aura":
+            params = step.get("params") or {}
+            return params.get("anchor", "caster")
+    return "caster"
+
+
+def _persistent_aura_cast_range(action: dict) -> int:
+    """Return the cast range for placing a point-anchored aura. Reads
+    from action.area.range_ft (parallel to Fireball-style AoE spells)
+    with a default of 60 ft. Returns 0 only if explicitly set to 0."""
+    area = action.get("area") or {}
+    return int(area.get("range_ft", 60))
 
 
 def _action_reach_ft(action: dict) -> int:
