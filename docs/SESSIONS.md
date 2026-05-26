@@ -5,6 +5,77 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-26 — Incapacitation ends concentration (PR #34)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Surgical hook in `_apply_condition`: when any condition that
+  implies Incapacitated lands on a concentrating creature, end
+  concentration with reason='incapacitated'. Closes the last
+  unwired bullet in `concentration.py`'s "Deferred" docstring list
+  from PR #21.
+- `engine/core/concentration.py`: new module exports
+  `INCAPACITATING_CONDITIONS` (frozenset of 5 condition ids:
+  `co_incapacitated`, `co_stunned`, `co_paralyzed`, `co_unconscious`,
+  `co_petrified`), `has_incapacitating_condition(target)`, and
+  `check_incapacitation_breaks_concentration(target, state)`.
+- `engine/primitives.py`: `_apply_condition` now calls
+  `check_incapacitation_breaks_concentration` after
+  `_instantiate_condition_effects` populates `applied_conditions`
+  with all transitive (inherited) condition entries. That ordering
+  matters — if we checked first, Stunned wouldn't yet show
+  `co_incapacitated` in the conditions list.
+- The check is conservative: explicitly lists both parent and
+  inheriting conditions in the set. The inheritance logic in
+  `_instantiate_condition_effects` already populates both, but
+  listing the children explicitly makes the intent visible without
+  requiring a registry lookup at break-time.
+- 12 new tests in `tests/test_concentration_incapacitation.py`:
+  - detection across all 5 incapacitating conditions
+  - non-incapacitating conditions (Frightened / Charmed / Poisoned)
+    do NOT trip the check
+  - noop when not concentrating
+  - noop when not incapacitated
+  - per-condition end-concentration tests
+  - integration through the real `_apply_condition` primitive
+    (Paralyzed via inheritance, Frightened doesn't break)
+- Documentation updates:
+  - `concentration.py` module docstring: moved Incapacitation from
+    "Deferred" to in-scope with the new function names referenced
+  - `docs/engine-capabilities.md` §7: roadmap item flipped to
+    shipped with the explanatory note
+  - `docs/CONTEXT.md` unchanged (the item wasn't called out at the
+    CONTEXT level; deferred list is now correct without edits)
+- Test count: 446 → 458. All green.
+
+**Key decisions:**
+- **Check fires inside `_apply_condition`, not in a separate event
+  handler.** The check is a hard RAW consequence of the condition
+  application — they always happen together. Coupling them in the
+  primitive keeps the dependency one-directional and avoids the
+  event-bus subscription / ordering questions a separate handler
+  would raise.
+- **Explicit list of incapacitating condition ids, not registry
+  walk.** Could have looked up each applied condition in the
+  registry and checked its inheritance chain. But the set is small,
+  fixed, and stable (5 condition ids per RAW). Explicit list is
+  faster and self-documenting.
+- **No primitive-level event for "incapacitation broke
+  concentration."** The existing `concentration_ended` event with
+  `reason='incapacitated'` is enough. Adding a separate event would
+  just multiply log noise.
+
+**Open items carried forward:**
+- [ ] Concentration broken by forced movement / teleportation
+  (uncommon — Banishment, Dimension Door, etc. typically don't
+  break concentration anyway per RAW; the few effects that do are
+  rare enough to defer)
+- [ ] "Drop concentration to cast new better spell" eHP comparison
+  in scoring (still relying on natural eHP competition)
+
+---
+
 ## Session: 2026-05-26 — Second Wind v1 + feature_uses gate (PR #33)
 
 **Participants:** Phil, Claude
