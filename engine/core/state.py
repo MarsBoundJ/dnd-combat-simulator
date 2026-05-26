@@ -69,6 +69,13 @@ class Actor:
     # Decremented at execution time via engine.core.spell_slots.consume_slot.
     spell_slots: dict = field(default_factory=dict)
 
+    # Set to True while a Disengage-tagged turn is in flight. Cleared by
+    # reset_turn() at start of next turn. While True, movement from this
+    # actor does NOT trigger opportunity attacks (per RAW Disengage:
+    # "Your speed doesn't provoke opportunity attacks for the rest of
+    # your turn"). See engine.core.reactions.find_oa_triggers.
+    disengaging: bool = False
+
     def is_alive(self) -> bool:
         return self.hp_current > 0 and not self.is_dead and not self.is_fled
 
@@ -79,6 +86,10 @@ class Actor:
         self.actions_used_this_turn = {
             "action": False, "bonus_action": False, "reaction": False,
         }
+        # Disengage's OA-suppression lasts until end of the actor's turn.
+        # We clear at the next turn's start (== this actor's reset_turn);
+        # the prior turn's flag is moot since OAs only fire during movement.
+        self.disengaging = False
 
 
 # ============================================================================

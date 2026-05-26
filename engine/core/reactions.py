@@ -58,6 +58,16 @@ def find_oa_triggers(mover: Actor, pre_position: tuple[int, int],
     # uses pipeline helpers)
     from engine.core.pipeline import _action_reach_ft
 
+    # Disengage: per RAW the disengaging creature's speed doesn't provoke
+    # OAs for the rest of their turn. Short-circuit before iterating
+    # potential reactors. Log a single suppression event for telemetry.
+    if mover.disengaging:
+        state.event_log.append({
+            "event": "disengage_suppressed_oa",
+            "mover": mover.id,
+        })
+        return []
+
     triggers: list[tuple[Actor, dict]] = []
     for reactor in state.encounter.actors:
         if reactor.id == mover.id:
