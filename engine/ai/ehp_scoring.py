@@ -672,6 +672,14 @@ def score_candidate(candidate: dict, state: CombatState) -> float:
                                                 else None)
     if kind == "offensive_buff" or action.get("type") == "offensive_buff":
         return offensive_ehp_buff_ally(actor, target, action, state)
+    if kind == "disengage" or action.get("type") == "disengage":
+        # Disengage's real eHP depends on what move comes after (avoid
+        # an OA from a specific reactor). v1 returns a small constant
+        # (~0.5 eHP) so the AI considers it as a tie-breaker / last-
+        # resort option but rarely beats Dodge or real attacks. Real
+        # picking should happen via RP-constraint forcing or movement-
+        # aware AI (deferred to a future PR).
+        return 0.5
 
     # Defensive — lazy-import to keep modules cleanly separable
     action_type = action.get("type")

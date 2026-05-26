@@ -241,11 +241,15 @@ def defensive_ehp_defensive_buff(actor: Actor, target_ally: Actor,
     """Defensive eHP from buffing an ally's AC or imposing disadvantage on
     attackers.
 
-      eHP = ally_dpr_taken_per_round × Δmiss × expected_rounds
+      eHP = ally_dpr_taken_per_round × Δmiss × buff_rounds
 
     Ally damage-taken-per-round is approximated by the strongest enemy's
     DPR estimate (worst-case attacker on the ally). If no enemies are
     visible, falls back to 0 — buffing in a vacuum has no value.
+
+    The action can override the framework's default 2.5-round buff
+    duration via `defensive_buff_rounds`. Dodge uses this (lasts only
+    1 round); Shield-of-Faith-shape buffs use the default.
     """
     if target_ally is None or not target_ally.is_alive():
         return 0.0
@@ -269,7 +273,9 @@ def defensive_ehp_defensive_buff(actor: Actor, target_ally: Actor,
         return 0.0
     worst_dpr = max((estimate_dpr(e) for e in enemies), default=0.0)
 
-    return worst_dpr * delta_miss * EXPECTED_BUFF_ROUNDS
+    buff_rounds = float(action.get("defensive_buff_rounds",
+                                       EXPECTED_BUFF_ROUNDS))
+    return worst_dpr * delta_miss * buff_rounds
 
 
 # ============================================================================

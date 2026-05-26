@@ -150,6 +150,19 @@ def generate_candidates(actor: Actor, state: CombatState,
                     "target": ally,
                     "actor": actor,
                 })
+        elif action_type == "disengage":
+            # Disengage is a self-targeted utility action — no enemy or
+            # ally target. Single candidate per turn that the actor can
+            # take. AI scoring is small (~2 eHP) so it rarely beats real
+            # attack options; mostly available for fixtures that need
+            # OA-suppressed movement (e.g., RP constraint that forces
+            # disengage before retreat).
+            candidates.append({
+                "kind": "disengage",
+                "action": action,
+                "target": actor,    # self for telemetry; no real target
+                "actor": actor,
+            })
         elif action_type == "hard_control":
             # Spells have a `range_ft` in the action; default to 60 ft for
             # v1 since most save-or-lose spells in 5e are 30-90 ft range.
@@ -345,6 +358,19 @@ def execute(chosen: dict, state: CombatState, event_bus, primitives) -> None:
 
     if action.get("type") == "multiattack":
         _execute_multiattack(actor, action, state, event_bus, primitives)
+    elif action.get("type") == "disengage":
+        # Disengage: utility action; sets actor.disengaging = True for
+        # the rest of the turn so movement skips OA triggers. No pipeline
+        # to invoke (or, if a fixture declares one, run it for
+        # extensibility).
+        actor.disengaging = True
+        state.event_log.append({
+            "event": "disengage_taken",
+            "actor": actor.id,
+            "action": action.get("id"),
+        })
+        if action.get("pipeline"):
+            _execute_single(chosen, state, event_bus, primitives)
     else:
         _execute_single(chosen, state, event_bus, primitives)
 
