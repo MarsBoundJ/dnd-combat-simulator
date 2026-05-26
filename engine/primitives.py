@@ -577,6 +577,13 @@ def _recurring_save(params: dict, state: CombatState, bus: EventBus) -> None:
     """Register a recurring save check on a target at a named event.
 
     Engine resolves these at the appropriate turn boundary (see runner.py).
+
+    AoE usage (PR #35): when placed in a `forced_save` step's `on_fail`
+    block, the registration fires once per failed creature because
+    `forced_save`'s per-target loop swaps `state.current_attack.target`
+    to the current iteration's creature before invoking sub-primitives.
+    Result: each held creature gets its own end-of-turn save entry with
+    the correct target_id.
     """
     target = state.current_attack.get("target") or state.current_actor()
     actor = state.current_attack.get("actor") or state.current_actor()

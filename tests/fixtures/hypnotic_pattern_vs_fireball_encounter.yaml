@@ -120,6 +120,19 @@ actors:
                     params:
                       condition_id: co_incapacitated
                       duration: until_spell_ends
+                  # PR #35: each held creature gets a WIS save at end
+                  # of their turn to break free per RAW. forced_save's
+                  # per-target loop sets state.current_attack.target to
+                  # the current iteration's creature, so this registers
+                  # ONE recurring_save entry per failed creature with
+                  # the right target_id.
+                  - primitive: recurring_save
+                    params:
+                      ability: wisdom
+                      dc: 15
+                      trigger_event: target_turn_end
+                      on_success: end_spell_on_target
+                      condition_id: co_incapacitated
 
   # 3 beefy "ogres" in a tight cluster — too tanky for Fireball to drop,
   # high DPR (HP's per-target control eHP outpaces Fireball's capped

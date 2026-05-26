@@ -594,8 +594,15 @@ priority order:
    correctly drops the target's concentration too.
 8. **Named-effect tagging** for cross-caster buff dedup — small
    follow-on to #20.
-9. **Per-creature recurring save** to break Hypnotic Pattern at
-   end-of-turn — would mirror single-target `recurring_save` for AoE.
+9. ~~**Per-creature recurring save** to break Hypnotic Pattern at
+   end-of-turn — would mirror single-target `recurring_save` for AoE.~~
+   **Shipped in PR #35.** The existing single-target `recurring_save`
+   primitive worked unchanged for AoE — `forced_save`'s per-target loop
+   already swapped `state.current_attack.target` per-iteration before
+   invoking sub-primitives, so dropping `recurring_save` into an
+   AoE's `on_fail` block registers one entry per failed creature with
+   the correct target_id. Hypnotic Pattern's fixture now wires this
+   step; held creatures roll WIS at end of their own turns to break free.
 10. **3-level profile inheritance** + runtime override layer
     (Frightened / Dominate / Confusion) per §4.4.
 11. **Behavioral coefficients beyond aggression** —

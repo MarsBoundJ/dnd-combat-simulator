@@ -5,6 +5,79 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-26 — Per-creature recurring save for AoE control (PR #35)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Closes the Hypnotic Pattern story the same way PR #34 closed the
+  concentration story. Held creatures now get a WIS save at the end
+  of their own turn to break free per RAW. Before this PR, HP would
+  hold creatures indefinitely until the caster lost concentration
+  (or in the post-PR-#34 world, until the caster themselves became
+  Incapacitated).
+- **No new primitive needed.** The single-target `recurring_save`
+  primitive (PR #21 era) already worked. PR #24's AoE `forced_save`
+  loop swaps `state.current_attack.target` per-iteration before
+  invoking on_fail / on_success sub-primitives, so dropping
+  `recurring_save` into an AoE's `on_fail` block registers ONE entry
+  per failed creature with the correct target_id automatically. The
+  runner's `_resolve_recurring_saves` already filters by
+  `entry.target_id == actor.id` at each turn_end. Three existing
+  systems (PR #21 + PR #24 + the runner resolution path) compose
+  for free.
+- `tests/fixtures/hypnotic_pattern_vs_fireball_encounter.yaml`:
+  added a `recurring_save` step to Hypnotic Pattern's `on_fail`
+  block alongside the existing `apply_condition`. WIS save vs DC 15
+  at `target_turn_end`, `on_success: end_spell_on_target` removes
+  `co_incapacitated`.
+- `engine/primitives.py`: `_recurring_save` docstring updated to
+  spell out the AoE pattern (the "use this inside forced_save.on_fail
+  to get per-creature registration" trick) so future spell authors
+  can find it.
+- 6 new tests in `tests/test_recurring_save_aoe.py`:
+  - per-creature registration (one entry per failed creature)
+  - passing creatures get no entry
+  - runner resolution fires only the current actor's save at their
+    turn_end
+  - save success removes the condition from that creature only;
+    other held creatures stay held
+  - save failure keeps the entry for next turn
+  - end-to-end via the live Hypnotic Pattern fixture
+- Test count: 458 → 464. All green.
+
+**Key decisions:**
+- **Reuse the existing `recurring_save` primitive verbatim.** Tempted
+  to add an AoE-aware variant; resisted because the per-target swap
+  pattern in `forced_save` already does the right thing. A separate
+  primitive would just duplicate logic.
+- **Schema authoring lives in the fixture.** Each AoE control spell
+  explicitly declares its recurring_save shape (ability / DC / when
+  to roll / what to end on success). This is more verbose than auto-
+  generating one but keeps every spell's RAW deviations explicit —
+  Hold Person re-rolls at end of THAT creature's turn, Confusion
+  re-rolls at end of THE TARGET'S turn, Sleep doesn't allow a
+  recurring save at all, etc. The cost is one extra block per spell;
+  the win is that schema reflects RAW directly.
+- **No AoE-specific runner code.** All the heavy lifting is in the
+  primitive composition. Each PR like this one that requires no new
+  runner code is a sign the layering is right.
+
+**Open items carried forward:**
+- [ ] AoE control eHP scoring still uses
+  `EXPECTED_CONTROL_ROUNDS = 2.5` as a flat estimate. With the per-
+  creature breakout now active, the realized control duration is
+  closer to ~2.5 rounds AT THE TARGET LEVEL but the spell ends
+  earlier on creatures with good saves. The static estimate is
+  still RAW-aligned for the framework's worked example; refining
+  to per-target save-DC math is a future scoring tweak.
+- [ ] The wizard self-targeting Hypnotic Pattern in the existing
+  fixture is a separate AoE-targeting question — `affected:
+  all_creatures_in_area` literally includes the caster. Friendly-
+  fire avoidance for self-AoEs is a separate concern not in scope.
+
+---
+
 ## Session: 2026-05-26 — Incapacitation ends concentration (PR #34)
 
 **Participants:** Phil, Claude
