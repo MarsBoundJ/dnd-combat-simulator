@@ -173,6 +173,30 @@ def generate_candidates(actor: Actor, state: CombatState,
                     "target": ally,
                     "actor": actor,
                 })
+        elif action_type == "help":
+            # Help: pick an adjacent ally; grant advantage on their next
+            # attack. RAW gates:
+            #   1. Helper must be within 5 ft of at least one living enemy
+            #      (the helped ally's advantaged attack must target a
+            #      creature within 5 ft of the helper — if no such creature
+            #      exists this turn, Help can't pay off).
+            #   2. Helped ally must be within 5 ft of helper.
+            #   3. Cannot Help yourself.
+            from engine.core.geometry import is_within_ft as _within
+            adjacent_enemy = any(_within(actor, e, 5) for e in enemies)
+            if not adjacent_enemy:
+                continue
+            for ally in allies:
+                if ally.id == actor.id:
+                    continue
+                if not _within(actor, ally, 5):
+                    continue
+                candidates.append({
+                    "kind": "help",
+                    "action": action,
+                    "target": ally,
+                    "actor": actor,
+                })
         elif action_type == "disengage":
             # Disengage is a self-targeted utility action — no enemy or
             # ally target. Single candidate per turn that the actor can
