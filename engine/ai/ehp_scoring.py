@@ -413,6 +413,83 @@ def offensive_ehp_help(actor: Actor, target_ally: Actor, action: dict,
     return per_attack * DELTA_HIT_FROM_ADVANTAGE
 
 
+EXPECTED_AURA_ROUNDS = 2.5     # matches EXPECTED_BUFF_ROUNDS for consistency
+
+
+def offensive_ehp_persistent_aura(actor: Actor, action: dict,
+                                       state: CombatState) -> float:
+    """eHP scoring for Spirit-Guardians-shape persistent auras (PR #43).
+
+    Sums per-turn expected damage across enemies currently in the
+    aura's radius, multiplied by `EXPECTED_AURA_ROUNDS` to approximate
+    the spell's full-duration value.
+
+    Per-enemy per-turn damage:
+      expected = p_fail × full_damage + p_success × partial_damage
+    where partial_damage is the on_success damage step's dice × any
+    `multiplier` (typically 0.5 for "half on save").
+
+    Capped at the enemy's remaining HP per turn (no over-counting once
+    a creature drops; this is a per-turn cap, not a total cap — so an
+    aura that does 10 dmg / turn to a 5 HP creature is worth 5 eHP
+    on the first turn, not 25 over 2.5 turns).
+
+    Returns 0.0 if no enemies in the aura's radius, or the action has
+    no persistent_aura step.
+    """
+    from engine.ai.defensive_ehp import save_fail_probability
+    from engine.core.geometry import distance_ft
+
+    # Extract aura params from the first persistent_aura step
+    aura_params = None
+    for step in (action.get("pipeline") or []):
+        if step.get("primitive") == "persistent_aura":
+            aura_params = step.get("params") or {}
+            break
+    if aura_params is None:
+        return 0.0
+    radius = int(aura_params.get("radius_ft", 0))
+    if radius <= 0:
+        return 0.0
+    ability = aura_params.get("ability", "wisdom")
+    dc = int(aura_params.get("dc", 10))
+
+    # Sum the on_fail / on_success damage steps
+    def _sum_damage(steps: list[dict]) -> float:
+        total = 0.0
+        for s in steps or []:
+            if s.get("primitive") != "damage":
+                continue
+            p = s.get("params") or {}
+            dice = p.get("dice")
+            if dice:
+                mult = float(p.get("multiplier", 1.0))
+                total += dice_mean(dice) * mult
+        return total
+
+    full_dmg = _sum_damage(aura_params.get("on_fail") or [])
+    half_dmg = _sum_damage(aura_params.get("on_success") or [])
+    if full_dmg <= 0 and half_dmg <= 0:
+        return 0.0
+
+    # Find enemies currently within radius
+    enemies_in_aura = [e for e in state.encounter.actors
+                        if e.side != actor.side and e.is_alive()
+                        and distance_ft(e.position, actor.position) <= radius]
+    if not enemies_in_aura:
+        return 0.0
+
+    total_per_turn = 0.0
+    for e in enemies_in_aura:
+        p_fail = save_fail_probability(e, ability, dc, state)
+        per_turn = p_fail * full_dmg + (1.0 - p_fail) * half_dmg
+        # Cap per-turn damage at enemy's remaining HP
+        per_turn = min(per_turn, float(max(0, e.hp_current)))
+        total_per_turn += per_turn
+
+    return total_per_turn * EXPECTED_AURA_ROUNDS
+
+
 def offensive_ehp_aoe(actor: Actor, origin: tuple[int, int], action: dict,
                         state: CombatState,
                         direction: tuple[int, int] | None = None) -> float:
@@ -722,6 +799,8 @@ def score_candidate(candidate: dict, state: CombatState) -> float:
         return offensive_ehp_buff_ally(actor, target, action, state)
     if kind == "help" or action.get("type") == "help":
         return offensive_ehp_help(actor, target, action, state)
+    if kind == "persistent_aura" or action.get("type") == "persistent_aura":
+        return offensive_ehp_persistent_aura(actor, action, state)
     if kind == "disengage" or action.get("type") == "disengage":
         # Disengage's real eHP depends on what move comes after (avoid
         # an OA from a specific reactor). v1 returns a small constant

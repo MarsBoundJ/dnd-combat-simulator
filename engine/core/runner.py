@@ -100,8 +100,15 @@ class EncounterRunner:
         self.event_bus.emit("turn_start", {"actor": actor, "round": state.round})
         state.event_log.append({"event": "turn_start", "actor": actor.id, "round": state.round})
 
+        # PR #43: persistent aura triggers (Spirit Guardians-shape).
+        # Fires AFTER turn_start so the event log shows turn_start first,
+        # then any aura damage. Skip if the actor died from the aura
+        # (the run_actor_turn check below will catch it again).
+        self._resolve_persistent_aura_triggers(actor, state)
+
         # Run the 8-step decision pipeline
-        self._run_actor_turn(actor, state)
+        if actor.is_alive():
+            self._run_actor_turn(actor, state)
 
         # Resolve any recurring saves registered against this actor's turn_end
         self._resolve_recurring_saves(actor, state)
@@ -255,6 +262,79 @@ class EncounterRunner:
             actor, from_pos, state,
             self.event_bus, self.primitives, self.rng,
         )
+
+    def _resolve_persistent_aura_triggers(self, actor: Actor,
+                                              state: CombatState) -> None:
+        """Fire registered persistent_aura saves at this actor's
+        turn-start (PR #43).
+
+        For each aura in `state.persistent_auras` with
+        `trigger_event == 'target_turn_start_in_area'`:
+          - Skip if the caster is dead / fled / not in the encounter
+          - Skip if `actor` doesn't satisfy the aura's `affected` filter.
+            v1 supports `affected: enemies` (default) — same-side
+            actors are skipped. This is RAW-faithful for Spirit
+            Guardians (the spell explicitly lets the caster choose
+            any number of creatures to be unaffected; the rational
+            choice is to exclude all allies). Other persistent_aura
+            spells without that RAW exclusion clause (Cloud of
+            Daggers, Sickening Radiance, etc.) would use
+            `affected: all_creatures` to opt into friendly fire —
+            that mode lands when those spells do.
+          - Skip if `actor` is outside the aura's radius
+          - Otherwise: set up state.current_attack with caster as
+            actor + actor as target + the aura's logical action id,
+            then invoke `forced_save` with the aura's params.
+
+        forced_save's per-target loop handles the actual save roll +
+        on_fail / on_success sub-primitive invocation. Damage applies
+        via the existing damage primitive.
+        """
+        if not state.persistent_auras:
+            return
+        from engine.core.geometry import distance_ft
+        for aura in state.persistent_auras:
+            if aura.get("trigger_event") != "target_turn_start_in_area":
+                continue
+            caster = state._actor_by_id(aura["caster_id"])
+            if caster is None or not caster.is_alive():
+                continue
+            # `affected: enemies` (default) skips same-side actors.
+            # For Spirit Guardians this is RAW-faithful — the spell
+            # lets the caster exclude any creatures by choice; the
+            # rational AI choice is to exclude all allies. Future
+            # spells without RAW exclusion (Cloud of Daggers etc.)
+            # will opt into `affected: all_creatures`.
+            if aura.get("affected", "enemies") == "enemies" \
+                    and actor.side == caster.side:
+                continue
+            if distance_ft(actor.position, caster.position) > aura["radius_ft"]:
+                continue
+            # Set up forced_save context: caster is the "actor", the
+            # turn-taking creature is the "target".
+            saved_attack = state.current_attack
+            state.current_attack = {
+                "actor": caster, "target": actor,
+                "action": {"id": aura["action_id"],
+                            "named_effect": aura.get("named_effect")},
+                "state": None,
+                "had_advantage": False, "had_disadvantage": False,
+                "area_origin": None, "area_direction": None,
+            }
+            try:
+                self.primitives.invoke("forced_save", {
+                    "ability": aura["ability"],
+                    "dc": aura["dc"],
+                    "affected": "current_target",
+                    "on_fail": aura["on_fail"],
+                    "on_success": aura["on_success"],
+                }, state, self.event_bus)
+            finally:
+                state.current_attack = saved_attack
+            # If the actor died from the aura, stop processing further
+            # auras on them this turn (defensive).
+            if not actor.is_alive():
+                break
 
     def _resolve_recurring_saves(self, actor: Actor, state: CombatState) -> None:
         """At actor's turn_end, roll any recurring saves registered against them.

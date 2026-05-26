@@ -674,6 +674,61 @@ def _recurring_save(params: dict, state: CombatState, bus: EventBus) -> None:
 
 
 # ============================================================================
+# IMPLEMENTED — persistent_aura (Spirit Guardians, PR #43)
+# ============================================================================
+
+def _persistent_aura(params: dict, state: CombatState, bus: EventBus) -> None:
+    """Register a persistent self-anchored area effect.
+
+    The aura moves with the caster and triggers forced saves on
+    creatures who satisfy `trigger_event` (v1: `target_turn_start_in_area`
+    — fires at each enemy's turn-start while they're within the
+    radius). The runner resolves triggers via
+    `_resolve_persistent_aura_triggers`.
+
+    Params:
+      radius_ft: int — area radius centered on the caster
+      trigger_event: str — when the save fires (v1 only supports
+        'target_turn_start_in_area')
+      ability: str — save ability ('wisdom', 'dexterity', ...)
+      dc: int — save DC
+      on_fail: list[dict] — sub-primitives to invoke on failed save
+      on_success: list[dict] — sub-primitives to invoke on successful
+        save (typically a half-damage variant)
+      affected: 'enemies' (default v1) | 'all_creatures'
+
+    Tagged with the caster's concentration source so end_concentration
+    can scrub the aura when concentration drops.
+    """
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        raise ValueError("persistent_aura requires a current actor")
+    action = (state.current_attack or {}).get("action") or {}
+    entry = {
+        "caster_id": actor.id,
+        "action_id": action.get("id"),
+        "named_effect": action.get("named_effect"),
+        "radius_ft": int(params.get("radius_ft", 15)),
+        "trigger_event": params.get("trigger_event",
+                                       "target_turn_start_in_area"),
+        "ability": params.get("ability", "wisdom"),
+        "dc": _resolve_dc(params, state),
+        "on_fail": params.get("on_fail") or [],
+        "on_success": params.get("on_success") or [],
+        "affected": params.get("affected", "enemies"),
+        "applied_at_round": state.round,
+    }
+    state.persistent_auras.append(entry)
+    state.event_log.append({
+        "event": "persistent_aura_registered",
+        "caster": actor.id,
+        "action": action.get("id"),
+        "radius_ft": entry["radius_ft"],
+        "trigger_event": entry["trigger_event"],
+    })
+
+
+# ============================================================================
 # IMPLEMENTED — multiattack (handled in pipeline.execute via type check)
 # ============================================================================
 #
@@ -696,7 +751,7 @@ _STUB_PRIMITIVES = [
     "speed_modifier", "damage_modifier", "ability_check_modifier",
     "death_save_threshold_modifier",
     # Spell pipeline (besides forced_save / recurring_save)
-    "persistent_aura", "triggered_save",
+    "triggered_save",
     # Condition effects
     "sense_restriction", "movement_restriction", "action_restriction",
     "damage_resistance_grant", "condition_immunity_grant",
@@ -877,6 +932,7 @@ def _populate_handler_table() -> None:
         "forced_save": _forced_save,
         "recurring_save": _recurring_save,
         "slot_recovery_partial": _slot_recovery_partial,
+        "persistent_aura": _persistent_aura,
         "multiattack": _multiattack,
     }
 
@@ -901,6 +957,10 @@ def _all_primitives() -> list[Primitive]:
         # PR #37 — slot restoration (Arcane Recovery, future Sorcerer
         # Flexible Casting / Warlock Pact Magic)
         Primitive("slot_recovery_partial", _slot_recovery_partial, implemented=True),
+        # PR #43 — persistent self-anchored area effects (Spirit
+        # Guardians, future Spiritual Weapon / Moonbeam / Cloud of
+        # Daggers shape)
+        Primitive("persistent_aura", _persistent_aura, implemented=True),
         # v1 — Monster mechanics
         Primitive("multiattack", _multiattack, implemented=True),
     ]
