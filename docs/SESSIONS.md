@@ -5,6 +5,78 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-26 — apply_long_rest closes the rest-cycle arc (PR #40)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Surgical sibling to PR #37. Adds `apply_long_rest(actor, state)`
+  in `engine/core/rest.py`. Closes the rest-cycle arc; multi-
+  encounter session work is now the natural next macro item.
+- Universal effects (any actor):
+  - HP → hp_max
+  - All spell slots → spell_slots_max
+  - Concentration ends with `reason='long_rest'` (RAW: sleep ends
+    it) — uses the existing `end_concentration` helper which scrubs
+    source-tagged modifiers from all targets.
+  - Modifiers with lifetime `until_long_rest` expire via the
+    existing `modifiers.expire_modifiers(actor, {"long_rest_end"})`
+    trigger.
+- Per-class refresh (PCs only):
+  - Fighter: Action Surge to L2/L17 max (1 / 2), Second Wind to
+    level-table max (2/3/4 per L1/L4/L10 thresholds)
+  - Wizard: Arcane Recovery → 1
+- Returns a summary dict for inspection (hp_restored, slots_restored,
+  concentration_ended, modifiers_expired, per-class refresh keys).
+  Logs `long_rest_applied` event.
+- Long rest is NOT implemented as "apply_short_rest + extras"
+  because the per-feature cadence differs (Second Wind: +1 short /
+  full long; Action Surge: full either; Arcane Recovery: long only).
+  Separate code paths keep the per-rest RAW behavior explicit.
+- 17 new tests in `tests/test_long_rest.py`: HP restoration (wounded
+  to full, full → no summary entry), spell slot restoration (partial
+  to full, full → no summary entry), concentration end (with event
+  log), until_long_rest modifier expiry + other-lifetime persistence,
+  per-class Fighter refresh (AS at L2 / L17 / below-L2 cases, SW at
+  L10 cap, already-at-max no-op), per-class Wizard refresh, non-PC
+  actor (universal only), end-to-end via cli._build_actor for a L5
+  wizard with all categories firing.
+- Test count: 536 → 553. All green.
+
+**Key decisions:**
+- **Universal effects for everyone, per-class for PCs only.** HP /
+  slots / concentration / modifier expiry apply uniformly — they're
+  state-cleanup operations the engine should perform regardless of
+  whether the actor is a PC or a monster. Per-class refresh is
+  RAW-specific to class features which only PCs have today.
+- **Separate code path from apply_short_rest, no inheritance.** RAW
+  rest cadences vary per feature (some refresh on short, some only
+  on long, some partial vs. full). Wrapping short_rest in long_rest
+  would conflate them. Per-rest helpers are explicit.
+- **Long rest covers more than 5e RAW would suggest.** The 2024
+  PHB long rest restores HP / slots / class features only — it
+  doesn't explicitly mention concentration. But sleeping for 8
+  hours obviously ends concentration (RAW PHB p.241 says
+  Incapacitated ends concentration; sleep is Unconscious which
+  inherits Incapacitated). Wired explicitly so the engine doesn't
+  rely on a chain of inferences.
+- **`until_short_rest` modifiers don't auto-expire on long rest in
+  v1.** RAW: anything that ends on short rest also ends on long
+  rest. The lifetime trigger event mapping doesn't model this
+  ("short_rest_end" and "long_rest_end" are separate triggers).
+  Test pins current behavior; can revisit when needed.
+
+**Open items carried forward:**
+- [ ] Multi-encounter session runner — invokes apply_short_rest /
+  apply_long_rest between encounters. Rest hooks both in place
+  now; this is the natural next macro item.
+- [ ] Exhaustion (-1 level on long rest, 2024 PHB)
+- [ ] HP dice spent recovery (we don't track HP dice)
+- [ ] `until_short_rest` auto-expires on long rest too (RAW)
+- [ ] Generic data-driven rest dispatch (when more classes land)
+
+---
+
 ## Session: 2026-05-26 — Extra Attack auto-generation at L5/L11/L20 (PR #39)
 
 **Participants:** Phil, Claude

@@ -629,6 +629,13 @@ priority order:
    `count` times. Composes naturally with Action Surge (4 attacks
    per turn at L5 round 1: 2 from multiattack × 2 from AS) and
    Fighting Style (Dueling's +2 damage applies per swing).
+12. ~~**`apply_long_rest`**~~ — **Shipped in PR #40.** Sibling to
+   PR #37's short rest. Universal: HP → hp_max, all spell slots →
+   spell_slots_max, end concentration (RAW: sleep ends it), expire
+   `until_long_rest` modifiers. Per-class for PCs: Fighter (Action
+   Surge full / Second Wind full), Wizard (Arcane Recovery → 1).
+   Closes the rest-cycle arc; multi-encounter session work is the
+   next obvious macro item.
 9. ~~**Per-creature recurring save** to break Hypnotic Pattern at
    end-of-turn — would mirror single-target `recurring_save` for AoE.~~
    **Shipped in PR #35.** The existing single-target `recurring_save`
