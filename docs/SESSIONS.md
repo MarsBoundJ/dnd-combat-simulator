@@ -5,6 +5,94 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-26 — Arcane Recovery + slot_recovery_partial + rest-cycle hook (PR #37)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Pre-discussion flagged a design tension: Arcane Recovery is RAW a
+  short-rest feature, but the runner is single-encounter-only. Phil
+  picked the honest path — ship the infrastructure (primitive +
+  rest-cycle hook + auto-wired resource), don't pretend the runner
+  has rest cycles. Tests invoke directly.
+- `engine/primitives.py`: new `_slot_recovery_partial` primitive.
+  Greedy high-first restoration within a combined-level budget,
+  capped at `max_slot_level` per slot and at
+  `actor.spell_slots_max[level]` per level. Removed from
+  `_STUBBED_PRIMITIVES` list; registered with implemented=True.
+- `engine/core/state.py`: new `Actor.spell_slots_max` field tracks
+  the post-rest ceiling (defaults to a copy of `spell_slots` at
+  build time).
+- `engine/cli.py`: `_build_actor` reads optional `spell_slots_max:`
+  from actor_spec (default = copy of spell_slots).
+- `engine/core/rest.py` (new): `apply_short_rest(actor, state)`
+  entry point with per-class dispatch:
+  - Wizard: `_apply_arcane_recovery` — fires
+    `slot_recovery_partial` with budget = ceil(level/2), cap = 5;
+    decrements `arcane_recovery_uses_remaining`. Skips if no slots
+    are expended (don't waste the use).
+  - Fighter: `_apply_second_wind_short_rest_refresh` (+1 use up
+    to level-table max) and
+    `_apply_action_surge_short_rest_refresh` (full refresh to 1 at
+    L2-16, 2 at L17+).
+  - Non-PC actors → no-op (still logs `short_rest_applied` with
+    empty summary).
+- `engine/pc_schema.py` `derive_pc_resources`: auto-wires
+  `arcane_recovery_uses_remaining: 1` for Wizards with
+  `f_arcane_recovery` in their features. The wizard class def
+  declares this at L1.
+- `tests/test_slot_recovery_partial.py` (9 tests): no-op without
+  spell_slots_max, single-slot restoration, greedy high-first
+  preference, max_slot_level cap, never-exceeds-max, multi-slot
+  same-level restoration, budget=0 no-op, event logging, canonical
+  L5 wizard arcane recovery scenario.
+- `tests/test_short_rest.py` (13 tests): wizard arcane recovery
+  (restores slots, decrements counter, subsequent rest no-op,
+  no-recovery-when-not-needed conservation, L1 budget=1, event
+  logged), fighter refresh (second wind +1, doesn't exceed max,
+  scales with level, action surge L2 vs L17, no AS below L2),
+  non-PC no-op, end-to-end via pc_schema + cli for a L5 wizard.
+- Test count: 477 → 499. All green.
+
+**Key decisions:**
+- **Honest scope.** Acknowledged upfront that Arcane Recovery
+  doesn't exercise the in-combat feature_uses gate (that was an
+  imprecise framing in PR #33's docstrings). Built the rest-cycle
+  hook properly instead of pretending.
+- **Hard-coded per-class dispatch for v1.** Each class's rest
+  effects are written as Python helpers in rest.py rather than
+  walking the feature YAML defs and resolving formula strings. When
+  more classes land (Barbarian Rage, Paladin Lay on Hands, Bard
+  Bardic Inspiration), the v2 generic version can read
+  `feature_def.usage.rest_recovery` from the registry. Hard-coding
+  v1 keeps the PR small and explicit.
+- **`spell_slots_max` defaults to a copy of `spell_slots`.** Most
+  fixtures declare slots at "post-long-rest full loadout" values;
+  fixtures starting mid-day with expended slots can override
+  `spell_slots_max` explicitly. Two existing wizard fixtures don't
+  need to change.
+- **AR conservation: skip activation when no slots expended.** RAW:
+  player CHOOSES to use AR. If wizard has full slots, using AR
+  wastes the 1/long-rest charge. Test pins this conservation.
+- **Action Surge full-refresh on short rest is RAW.** PR #31
+  mentioned this as deferred for lack of a rest cycle; #37 wires
+  it. Same for Second Wind +1.
+
+**Open items carried forward:**
+- [ ] `apply_long_rest(actor, state)` — same shape, broader
+  restorations (all spell slots restored, all per-rest uses
+  refilled, HP fully restored, etc.)
+- [ ] Multi-encounter session runner — invokes `apply_short_rest`
+  between encounters. The rest hook is in place for it.
+- [ ] Generic data-driven rest dispatch (read
+  `class_def.level_table` for short_rest features and resolve
+  formula params instead of hard-coding per class). Worth it when
+  3+ classes need it.
+- [ ] Long-rest restoration on the AR counter
+  (`arcane_recovery_uses_remaining` should reset to 1 on long rest).
+
+---
+
 ## Session: 2026-05-26 — Named-effect tagging for cross-caster buff dedup (PR #36)
 
 **Participants:** Phil, Claude

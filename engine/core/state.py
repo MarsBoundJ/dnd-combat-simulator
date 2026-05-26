@@ -69,6 +69,14 @@ class Actor:
     # Decremented at execution time via engine.core.spell_slots.consume_slot.
     spell_slots: dict = field(default_factory=dict)
 
+    # Maximum slots per level — populated alongside spell_slots at build
+    # time (defaults to a copy of the initial spell_slots). Used by
+    # restoration mechanics like Arcane Recovery (PR #37) to cap
+    # how many slots can be recovered. Long-rest restoration would
+    # also reference this. Empty dict = no max tracked = no
+    # restoration possible.
+    spell_slots_max: dict = field(default_factory=dict)
+
     # Set to True while a Disengage-tagged turn is in flight. Cleared by
     # reset_turn() at start of next turn. While True, movement from this
     # actor does NOT trigger opportunity attacks (per RAW Disengage:

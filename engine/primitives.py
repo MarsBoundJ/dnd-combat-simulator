@@ -580,6 +580,72 @@ def _forced_save(params: dict, state: CombatState, bus: EventBus) -> dict:
     return {"rolls": rolls}
 
 
+def _slot_recovery_partial(params: dict, state: CombatState,
+                              bus: EventBus) -> dict:
+    """Restore expended spell slots up to a combined-level budget.
+
+    The canonical use is Wizard's Arcane Recovery: total slot levels
+    restored ≤ ceil(wizard_level / 2), capped at 5th-level slots
+    individually.
+
+    Resolution target: `state.current_attack.actor` if set (caller put
+    the actor whose slots are being restored there), else
+    `state.current_actor()`. The restoration walks slot levels from
+    `max_slot_level` down to 1, restoring one slot at a time at each
+    level while:
+      - the actor has expended slots at that level
+        (`spell_slots[level] < spell_slots_max[level]`), AND
+      - the level fits in the remaining budget
+
+    Greedy high-first: restores higher-level slots first because they
+    carry more value (a 5th-level slot beats five 1st-level slots in
+    practice). This matches the typical wizard's Arcane Recovery play.
+
+    Params:
+      max_combined_level: int — total slot levels available to restore
+      max_slot_level: int — cap on individual slot level (default 9)
+
+    No-op if the actor has no `spell_slots_max` (non-caster or fixture
+    that didn't declare the post-rest ceiling). No-op if the actor has
+    no expended slots.
+
+    Returns {"restored": [{"level": L, "count": N}, ...]} for logging.
+    Also appends a `slot_recovery_partial` event to state.event_log.
+    """
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        raise ValueError("slot_recovery_partial requires a current actor")
+    budget = int(params.get("max_combined_level", 0))
+    max_level = int(params.get("max_slot_level", 9))
+    restored_by_level: dict[int, int] = {}
+    if not actor.spell_slots_max:
+        return {"restored": []}
+    # Walk highest-first within budget
+    level = max_level
+    while level >= 1 and budget > 0:
+        if level > budget:
+            level -= 1
+            continue
+        max_at = int(actor.spell_slots_max.get(level, 0))
+        cur = int(actor.spell_slots.get(level, 0))
+        if cur < max_at:
+            actor.spell_slots[level] = cur + 1
+            budget -= level
+            restored_by_level[level] = restored_by_level.get(level, 0) + 1
+            continue       # try same level again — could have multiple slots expended
+        level -= 1
+    restored_list = [{"level": L, "count": N}
+                      for L, N in sorted(restored_by_level.items(),
+                                          reverse=True)]
+    state.event_log.append({
+        "event": "slot_recovery_partial",
+        "actor": actor.id,
+        "restored": restored_list,
+        "budget_remaining": budget,
+    })
+    return {"restored": restored_list}
+
+
 def _recurring_save(params: dict, state: CombatState, bus: EventBus) -> None:
     """Register a recurring save check on a target at a named event.
 
@@ -638,7 +704,7 @@ _STUB_PRIMITIVES = [
     "awareness_state", "state_flag",
     # Action / turn
     "additional_action", "at_will_spell_grant",
-    "free_cast_per_rest", "slot_recovery_partial",
+    "free_cast_per_rest",
     # Spellcasting infrastructure
     "spellcasting_enable", "cantrips_known_grant", "spell_grant",
     "proficiency_grant", "ability_score_increase",
@@ -810,6 +876,7 @@ def _populate_handler_table() -> None:
         "crit_threshold_modifier": _crit_threshold_modifier,
         "forced_save": _forced_save,
         "recurring_save": _recurring_save,
+        "slot_recovery_partial": _slot_recovery_partial,
         "multiattack": _multiattack,
     }
 
@@ -831,6 +898,9 @@ def _all_primitives() -> list[Primitive]:
         # v1 — Spell mechanics
         Primitive("forced_save", _forced_save, implemented=True),
         Primitive("recurring_save", _recurring_save, implemented=True),
+        # PR #37 — slot restoration (Arcane Recovery, future Sorcerer
+        # Flexible Casting / Warlock Pact Magic)
+        Primitive("slot_recovery_partial", _slot_recovery_partial, implemented=True),
         # v1 — Monster mechanics
         Primitive("multiattack", _multiattack, implemented=True),
     ]

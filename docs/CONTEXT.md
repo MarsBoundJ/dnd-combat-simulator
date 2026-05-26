@@ -288,6 +288,15 @@ step, eHP framework coverage map, and the honest roadmap gap list.
    helper returns True if the target has any modifier sharing the
    named_effect, regardless of caster. Legacy per-(caster, action_id)
    path preserved as fallback for untagged actions.
+7. **Rest-cycle hooks (foundation for multi-encounter sim)** —
+   shipped in PR #37. `engine/core/rest.py` exposes
+   `apply_short_rest(actor, state)` with per-class dispatch (Wizard
+   Arcane Recovery via the new `slot_recovery_partial` primitive,
+   Fighter Second Wind +1 / Action Surge full refresh). `Actor.
+   spell_slots_max` tracks the post-rest ceiling. Runner doesn't yet
+   call this — multi-encounter session simulation is its own arc;
+   the hook is in place for it. Tests invoke directly. Long rest
+   (`apply_long_rest`) is the obvious follow-on.
 7. **3-level profile inheritance** (archetype → faction → instance) +
    runtime override layer (Frightened / Dominate / Confusion) per §4.4.
 8. **Phase 2 Foundry bridge** — when Stage 2 timing is right. Thin JS module that
