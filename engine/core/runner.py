@@ -271,9 +271,16 @@ class EncounterRunner:
         For each aura in `state.persistent_auras` with
         `trigger_event == 'target_turn_start_in_area'`:
           - Skip if the caster is dead / fled / not in the encounter
-          - Skip if `actor` is on the same side as the caster
-            (v1: enemies-only). Future PRs can honor `aura['affected']`
-            to allow all_creatures or ally-only auras.
+          - Skip if `actor` doesn't satisfy the aura's `affected` filter.
+            v1 supports `affected: enemies` (default) — same-side
+            actors are skipped. This is RAW-faithful for Spirit
+            Guardians (the spell explicitly lets the caster choose
+            any number of creatures to be unaffected; the rational
+            choice is to exclude all allies). Other persistent_aura
+            spells without that RAW exclusion clause (Cloud of
+            Daggers, Sickening Radiance, etc.) would use
+            `affected: all_creatures` to opt into friendly fire —
+            that mode lands when those spells do.
           - Skip if `actor` is outside the aura's radius
           - Otherwise: set up state.current_attack with caster as
             actor + actor as target + the aura's logical action id,
@@ -292,7 +299,12 @@ class EncounterRunner:
             caster = state._actor_by_id(aura["caster_id"])
             if caster is None or not caster.is_alive():
                 continue
-            # v1: enemies-only affected
+            # `affected: enemies` (default) skips same-side actors.
+            # For Spirit Guardians this is RAW-faithful — the spell
+            # lets the caster exclude any creatures by choice; the
+            # rational AI choice is to exclude all allies. Future
+            # spells without RAW exclusion (Cloud of Daggers etc.)
+            # will opt into `affected: all_creatures`.
             if aura.get("affected", "enemies") == "enemies" \
                     and actor.side == caster.side:
                 continue

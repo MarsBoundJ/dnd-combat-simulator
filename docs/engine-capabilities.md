@@ -670,10 +670,15 @@ priority order:
    concentration drops (via damage CON save fail, new concentration
    cast, caster incapacitation, etc. — composes with PRs #21, #34).
    eHP scoring sums per-turn expected damage across in-radius
-   enemies × EXPECTED_AURA_ROUNDS (2.5). v1 scope: enemies-only,
-   turn-start trigger only (no entry-on-move trigger), no
-   speed-halving — all deferred. Opens up the
-   Spiritual Weapon / Moonbeam / Cloud of Daggers shape.
+   enemies × EXPECTED_AURA_ROUNDS (2.5). v1 scope: turn-start
+   trigger only (no entry-on-move trigger), no speed-halving —
+   both deferred. `affected: enemies` default is RAW-faithful
+   for Spirit Guardians specifically (the spell explicitly lets
+   the caster exclude any creatures; the rational AI choice is
+   to exclude allies). Other persistent_aura spells without that
+   RAW exclusion (Cloud of Daggers, Sickening Radiance) will
+   opt into `affected: all_creatures` when they land. Opens up
+   the Spiritual Weapon / Moonbeam shape.
 9. ~~**Per-creature recurring save** to break Hypnotic Pattern at
    end-of-turn — would mirror single-target `recurring_save` for AoE.~~
    **Shipped in PR #35.** The existing single-target `recurring_save`

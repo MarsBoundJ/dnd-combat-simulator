@@ -81,10 +81,16 @@ Add a new entry at the top for each session that produces a non-obvious decision
   Spirit Guardians value comes from the turn-start trigger anyway
   (RAW: "first time on a turn" means at most 1 hit per creature
   per turn regardless of entry vs. start).
-- **Enemies-only (v1).** RAW lets the caster choose which
-  creatures to affect. Most AI clerics would choose to exclude
-  allies. v1 hard-codes this; the `affected` field on the aura
-  state already exists for future expansion.
+- **Enemies-only default is RAW-faithful for Spirit Guardians**
+  (corrected post-PR). RAW: "When you cast this spell, you can
+  choose any number of creatures you can see to be unaffected
+  by it." So Spirit Guardians specifically has NO friendly fire
+  when the caster makes the rational choice to exclude all
+  allies. Our `affected: enemies` default is that exclusion
+  baked in. The `affected: all_creatures` mode in the schema is
+  for OTHER persistent_aura spells that don't have RAW exclusion
+  (Cloud of Daggers, Sickening Radiance, etc.) — those would opt
+  in when they land.
 - **Speed-halving deferred.** Needs a movement-rate modifier
   system we don't have. Pure damage is the headline mechanic;
   speed-halving is a tactical bonus we can layer later.
@@ -104,8 +110,12 @@ Add a new entry at the top for each session that produces a non-obvious decision
   turn"). Needs per-movement-step event detection.
 - [ ] Speed-halving while in area (needs movement-rate modifier
   system).
-- [ ] All-creatures / ally-only `affected` modes (schema supports
-  it; runner hook needs to honor it).
+- [ ] `affected: all_creatures` mode in the runner (lands when the
+  first persistent_aura spell WITHOUT a RAW exclusion clause
+  arrives — Cloud of Daggers, Sickening Radiance, etc.). Schema
+  field exists; runner currently treats anything other than
+  `enemies` as not-skipped (falls through), which is the right
+  behavior for `all_creatures` — needs explicit tests.
 - [ ] Cross-aura dedup (two SG casters on same area). Currently
   each aura fires independently; RAW says effects of the same
   spell don't stack so the per-turn damage should be capped at
