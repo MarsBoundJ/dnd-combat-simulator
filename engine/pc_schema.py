@@ -32,15 +32,36 @@ consumes.
       - hit_die (HP calculation)
       - save_proficiencies (which saves get PB)
       - level_table.proficiency_bonus (PB lookup by level)
+      - level_table.features (auto-wire class-feature resources —
+        see `derive_pc_resources`)
+      - level_table.class_resources (Second Wind use counts etc.)
   - Derives HP, AC, save bonuses
   - Generates per-weapon attack actions (melee + ranged via reach_ft /
     range_ft)
+  - **Class-feature auto-wiring** (`derive_pc_resources`): scans the
+    level_table up to the PC's level and returns the per-actor
+    resources that engine systems need:
+      - `action_surge_uses_remaining` (Fighter, L2+): 1 at L2-16,
+        2 at L17+ — drives the runner's Action Surge activation
+      - `second_wind_uses_remaining` (Fighter, L1+): from
+        class_resources.second_wind_uses at the PC's level
+    The compact `pc:` spec used to require fixture authors to hand-
+    set these in a separate `resources:` block; auto-derivation
+    closes that loop. Explicit `resources:` on the actor_spec still
+    wins on conflict (lets tests force edge cases).
   - Backward compatible — existing `template:` and `template_ref:`
     fixture shapes still work; `pc:` is a third opt-in shape.
 
 **Deferred:**
-  - Class features (Second Wind, Action Surge, Fighting Style) —
-    referenced in level_table but most primitives not implemented
+  - Second Wind ACTION generation — the resource counter is auto-
+    derived; the bonus-action heal that consumes it isn't yet wired
+    (needs a feature_uses consumption gate similar to spell-slot
+    consumption; separate PR)
+  - Fighting Style passive modifiers (damage / AC boosts) — needs a
+    new always-on modifier path
+  - Weapon Mastery — Mastery property tags + per-weapon effects
+  - Extra Attack (L5/L11/L20) — would require multiattack action
+    generation (the count varies by level)
   - Multiclass — additive PB / class_resources / shared HP table
   - Spellcasting → action generation (only Wizard has the block)
   - Subclasses
@@ -147,6 +168,83 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
         template["behavior_profile"] = pc_spec["behavior_profile"]
 
     return template
+
+
+def derive_pc_resources(pc_spec: dict, content_registry: Any) -> dict:
+    """Return per-actor resources derived from the PC's class + level.
+
+    Scans the class's `level_table` for all rows up to (and including)
+    the PC's current level, collecting:
+      - feature IDs gained (`features` list per row)
+      - class_resources counters (highest applicable value)
+
+    Returns a dict keyed by resource name (e.g.,
+    `action_surge_uses_remaining`, `second_wind_uses_remaining`).
+    Resources whose driving feature isn't present at the PC's level
+    are omitted entirely — the runner / candidate generator already
+    treats missing keys as "feature not available."
+
+    Caller (engine.cli._build_actor) merges this with any explicit
+    `resources:` block on the actor_spec, with explicit winning on
+    conflict (lets fixture authors force edge cases — e.g., zero
+    charges to test "Action Surge unavailable" behavior on a L2
+    Fighter).
+
+    Returns {} if `class` is missing or the class isn't in the
+    registry (e.g., custom inline-template fixtures that happen to
+    declare a PC without a registry class).
+    """
+    class_id = pc_spec.get("class")
+    if not class_id:
+        return {}
+    level = int(pc_spec.get("level", 1))
+    if level < 1:
+        return {}
+    try:
+        class_def = content_registry.get("class", class_id)
+    except (KeyError, AttributeError):
+        return {}
+    if class_def is None:
+        return {}
+
+    # Walk the level_table, accumulating features + class_resources
+    # up to the PC's level. `class_resources` at higher levels
+    # OVERWRITES lower-level values — that matches the RAW pattern
+    # (second_wind_uses goes 2 → 3 → 4 by level).
+    features_known: set[str] = set()
+    class_resources_at_level: dict = {}
+    for row in (class_def.get("level_table") or []):
+        if int(row.get("level", 0)) > level:
+            continue
+        for fid in (row.get("features") or []):
+            features_known.add(fid)
+        for k, v in (row.get("class_resources") or {}).items():
+            class_resources_at_level[k] = v
+
+    resources: dict = {}
+
+    # ---- Action Surge ----
+    # `f_action_surge_two_uses` (L17) supersedes `f_action_surge_one_use`
+    # (L2). Per RAW the L17 upgrade gives 2 charges per short rest but
+    # still only one Action Surge per turn (enforced in the runner).
+    if "f_action_surge_two_uses" in features_known:
+        resources["action_surge_uses_remaining"] = 2
+    elif "f_action_surge_one_use" in features_known:
+        resources["action_surge_uses_remaining"] = 1
+
+    # ---- Second Wind ----
+    # The counter is auto-derived from class_resources.second_wind_uses
+    # at the PC's level. The action that CONSUMES this counter (bonus-
+    # action 1d10+level heal on self) is NOT generated by v1 — the
+    # feature_uses-gated action infrastructure lands in a follow-on PR.
+    # We still surface the resource so it's there when that PR wires
+    # the action.
+    if "f_second_wind" in features_known:
+        uses = int(class_resources_at_level.get("second_wind_uses", 0))
+        if uses > 0:
+            resources["second_wind_uses_remaining"] = uses
+
+    return resources
 
 
 # ============================================================================

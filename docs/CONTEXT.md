@@ -272,11 +272,15 @@ step, eHP framework coverage map, and the honest roadmap gap list.
    (Action Surge shipped in PR #31 — runner-level activation gated by
    in-reach attack candidate + per-short-rest charge in
    `actor.resources["action_surge_uses_remaining"]`.)
-5. **Class features auto-wiring** — Second Wind, Fighting Style are
-   referenced in `c_fighter.level_table` but unwired. Action Surge
-   currently requires fixture-level resource initialization; auto-
-   wiring would pull `action_surge_uses_remaining: 1` from the level
-   table when a L2+ fighter is loaded.
+5. **Class features auto-wiring** — *Action Surge + Second Wind
+   counters shipped in PR #32* via `derive_pc_resources`: a `pc:`
+   spec with `class: c_fighter, level: 2+` now auto-populates
+   `action_surge_uses_remaining` and `second_wind_uses_remaining`
+   from the class level_table; no manual `resources:` block needed.
+   Still pending: Second Wind ACTION generation (needs a feature_uses
+   consumption gate similar to spell-slot consumption), Fighting
+   Style passive modifiers, Extra Attack → multiattack generation,
+   Weapon Mastery.
 6. **Named-effect tagging** for cross-caster buff dedup — follow-on to
    #20 (currently dedup is per-(caster, action) only; cross-caster
    same-spell stacking is not yet prevented).

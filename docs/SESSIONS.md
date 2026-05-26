@@ -5,6 +5,70 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-26 — Class-features auto-wiring v1 (PR #32)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Closes the loop on PR #31's manual fixture-level resource init.
+  A `pc:` spec with `class: c_fighter, level: 2+` now auto-populates
+  `action_surge_uses_remaining` (1 at L2-16, 2 at L17+) and
+  `second_wind_uses_remaining` (from `class_resources` at the PC's
+  level) — no manual `resources:` block needed.
+- `engine/pc_schema.py`: new `derive_pc_resources(pc_spec, registry)`
+  function. Walks the class's `level_table` up to the PC's level,
+  accumulating feature IDs + class_resources (later levels overwrite
+  lower-level values, matching RAW e.g. `second_wind_uses` going
+  2 → 3 → 4 across levels). Maps `f_action_surge_one_use` → 1 charge
+  and `f_action_surge_two_uses` → 2 charges (L17 supersedes L2).
+- `engine/cli.py` `_build_actor`: calls `derive_pc_resources` for
+  `pc:` actor_specs, merges with explicit `resources:` block (explicit
+  wins). Non-PC actors are unaffected.
+- New `tests/test_pc_schema_features.py` — 17 tests across L1/L2/L5/
+  L16/L17/L20 AS bands + Second Wind counter scaling + edge cases
+  (missing class, unknown class, broken registry, level defaults,
+  level zero) + end-to-end via `_build_actor` (auto-derived resources
+  visible on the Actor instance, explicit override semantics, non-PC
+  actors unaffected).
+- New fixture `tests/fixtures/action_surge_pc_schema_encounter.yaml`:
+  L2 Fighter authored via `pc:` schema with NO `resources:` block —
+  proves auto-wiring. Seed 1 shows `action_surge_activated` event +
+  two `attack_roll` events on the fighter's turn.
+- Test count: 406 → 423. All green.
+
+**Key decisions:**
+- **Explicit `resources:` wins on conflict.** Auto-derivation provides
+  the defaults; fixture authors can still force edge cases (e.g.,
+  `action_surge_uses_remaining: 0` on a L2 fighter to test the "no
+  AS available" branch).
+- **Don't fail on missing class.** If the class isn't in the registry
+  (or the spec has no `class` field at all), `derive_pc_resources`
+  returns `{}` silently. Lets exotic fixtures continue to work.
+- **L17 AS upgrade as a separate feature ID.** Matches the existing
+  schema convention in `c_fighter.yaml` (`f_indomitable_*` follow the
+  same pattern: `_one_use`, `_two_uses`, `_three_uses` as distinct
+  level-table entries). Cleaner than tracking a `uses_at_each_level`
+  table inside one feature def.
+- **Counter only, not action.** Second Wind's resource is now derived
+  but the bonus-action heal action that CONSUMES it is NOT yet
+  generated — that requires a `feature_uses`-gated action infra
+  similar to spell-slot consumption. Deferred to a separate PR so
+  this one stays small.
+
+**Open items carried forward:**
+- [ ] Second Wind action generation (bonus-action heal, gated by
+  `second_wind_uses_remaining`) — needs feature_uses consumption infra
+- [ ] Fighting Style passive modifiers (Great Weapon Fighting damage
+  re-roll, Defense +1 AC, etc.) — always-on modifiers, not action-gated
+- [ ] Extra Attack auto-generation (L5/L11/L20 → multiattack action
+  with appropriate count)
+- [ ] Weapon Mastery — Mastery property tags + per-weapon effects
+- [ ] Subclass features
+- [ ] Wizard Arcane Recovery (slot_recovery_partial — pending the
+  primitive)
+
+---
+
 ## Session: 2026-05-26 — Action Surge v1 (PR #31)
 
 **Participants:** Phil, Claude
