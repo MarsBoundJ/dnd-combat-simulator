@@ -5,6 +5,89 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-26 — Extra Attack auto-generation at L5/L11/L20 (PR #39)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Closes a major Fighter power-gap: pre-PR #39, a L5 Fighter built
+  via `pc:` schema only attacked ONCE per turn (a baseline RAW
+  feature drove this — Extra Attack at L5 doubles per-action
+  attacks, the canonical "your fighter feels mid-level" moment).
+  Auto-generation pulls from the c_fighter level_table feature ids
+  the same way PR #38 pulled Fighting Style: zero schema
+  duplication, zero fixture-side action declaration.
+- `engine/pc_schema.py`:
+  - New `_extra_attack_count(features_known)` — returns 1/2/3/4
+    based on which Extra Attack tier the fighter has gained.
+    Higher tier supersedes lower (L20 fighter has all three feature
+    ids in features_known via accumulation, but count = 4 wins).
+  - New `_build_extra_attack_action(count, weapon_actions)` —
+    constructs a `type: multiattack` action with the first weapon's
+    id repeated `count` times in `sub_actions`. RAW: usually the
+    same weapon all attacks; cycling is unusual.
+  - `_build_feature_actions` extended to accept `weapon_actions=`
+    kwarg and emit Extra Attack when `class_id == "c_fighter"` AND
+    count > 1 AND weapons are present (defensive: no-op for
+    weapon-less fighters).
+  - `build_pc_template` separates `weapon_actions` from `actions`
+    so it can pass weapons through to feature generation.
+- `tests/test_extra_attack.py` (18 tests): count derivation (L1
+  baseline, L5 → 2, L11 → 3, L20 → 4, higher supersedes lower),
+  action shape (sub_actions populated correctly with first weapon
+  repeated), gating (no emit below L5, no emit for non-Fighter, no
+  emit when no weapons), build_pc_template integration (multiattack
+  added at L5+ with correct count; single-attack action kept
+  alongside), behavioral end-to-end (L5 Fighter does 2 attack_rolls
+  per turn via the runner).
+- `tests/fixtures/extra_attack_l5_fighter_encounter.yaml`: L5
+  Fighter via `pc:` schema (Dueling + plate + longsword + Action
+  Surge + Second Wind all auto-wired) vs ogre. Seed 1 round 1
+  output is dramatic: `action_surge_activated`, 2× attack_roll
+  (multiattack #1 hits twice), `healed` + `feature_use_consumed`
+  for Second Wind on bonus slot, 2× attack_roll (Action Surge's
+  bonus main slot, multiattack #2). Four attack rolls + a heal in
+  one turn — the L5 Fighter "burst pattern" working as intended.
+- Test count: 518 → 536. All green.
+
+**Key decisions:**
+- **Reference first weapon, repeated.** PCs commonly declare one
+  weapon; multi-weapon fighters use the multiattack mechanic on
+  weapon #1 for stability. `_execute_multiattack` cycles
+  `sub_action_ids[i % len(...)]` anyway so repeated vs. cycled both
+  work, but explicit repetition is clearer in the generated
+  declaration.
+- **No-op when no weapons.** Defensive: a Fighter with no weapon
+  spec is unusual but legal; the framework shouldn't crash trying
+  to build a multiattack with no sub-action ids.
+- **Higher feature supersedes lower in count.** L20 Fighter
+  accumulates all three feature ids (`f_extra_attack`,
+  `f_two_extra_attacks`, `f_three_extra_attacks`) across levels.
+  `_extra_attack_count` checks them top-down so the highest tier
+  wins; we don't sum them (which would give an absurd 2+3+4=9
+  attacks per turn).
+- **Keep the single-attack weapon action alongside multiattack.**
+  Multiattack is ADDED to the actions list, not replacing the
+  single weapon_attack. The candidate generator will pick whichever
+  scores higher per the eHP framework — usually multiattack at L5+,
+  but the single attack remains a candidate for edge cases (e.g.,
+  RP constraints, future overkill-cap considerations).
+
+**Open items carried forward:**
+- [ ] Extra Attack for other classes (Barbarian, Paladin, Ranger,
+  Monk's Martial Arts) — different feature ids, same shape; can
+  generalize when those classes land
+- [ ] Multi-weapon fighters with deliberate sub_action variety
+  (e.g., Two-Weapon Fighting using off-hand on one of the swings)
+  — needs off-hand mechanics first
+- [ ] L5 Fighter eHP scoring may overweight multiattack on tanky
+  targets (overkill cap math is per-sub-attack but the AI doesn't
+  yet think "skip the multiattack if target only has 5 HP left
+  and use single-attack to save the second swing for someone
+  else"); deferred to a scoring refinement PR
+
+---
+
 ## Session: 2026-05-26 — Fighting Style v1: Defense + Dueling + Archery (PR #38)
 
 **Participants:** Phil, Claude

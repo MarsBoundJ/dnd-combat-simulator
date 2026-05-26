@@ -621,6 +621,14 @@ priority order:
    Two-Weapon Fighting / Blind Fighting deferred (each needs
    additional infra — damage re-roll, reactions, off-hand support,
    vision).
+11. ~~**Extra Attack auto-generation** at L5/L11/L20~~ — **Shipped
+   in PR #39.** `_build_feature_actions` detects `f_extra_attack`
+   (count=2 at L5), `f_two_extra_attacks` (count=3 at L11),
+   `f_three_extra_attacks` (count=4 at L20) and auto-generates a
+   `type: multiattack` action referencing the first weapon repeated
+   `count` times. Composes naturally with Action Surge (4 attacks
+   per turn at L5 round 1: 2 from multiattack × 2 from AS) and
+   Fighting Style (Dueling's +2 damage applies per swing).
 9. ~~**Per-creature recurring save** to break Hypnotic Pattern at
    end-of-turn — would mirror single-target `recurring_save` for AoE.~~
    **Shipped in PR #35.** The existing single-target `recurring_save`
