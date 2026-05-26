@@ -256,6 +256,134 @@ def offensive_ehp_single_attack(actor: Actor, target: Actor, action: dict,
     return min(raw_ehp, float(max(0, target.hp_current)))
 
 
+def offensive_ehp_aoe(actor: Actor, origin: tuple[int, int], action: dict,
+                        state: CombatState) -> float:
+    """Expected HP delivered by an AoE save-or-half action centered at
+    `origin`.
+
+    For each living creature in the area:
+      - p_fail × full_damage  (creature failed save → full dmg)
+      - p_save × half_damage  (creature saved → half dmg, if multiplier
+        configured on the on_success damage step)
+    Each contribution is capped at that creature's remaining HP.
+
+    Friendly fire: allies in the area subtract from the score (1.0
+    weight in v1; `self_preservation_coefficient` modulation deferred).
+    Caster themselves count as an ally — don't fireball yourself.
+
+    Returns 0.0 if no creatures in area or action shape malformed.
+    """
+    # Lazy import to avoid circular (defensive_ehp imports from this file)
+    from engine.ai.defensive_ehp import save_fail_probability
+    from engine.core.geometry import actors_in_radius
+
+    area = action.get("area") or {}
+    radius_ft = area.get("radius_ft")
+    if radius_ft is None:
+        return 0.0
+
+    living = [a for a in state.encounter.actors if a.is_alive()]
+    affected = actors_in_radius(tuple(origin), int(radius_ft), living)
+    if not affected:
+        return 0.0
+
+    # Resolve save params from the embedded forced_save step
+    save_info = _extract_aoe_save_info(action, actor)
+    if save_info is None:
+        return 0.0
+    ability, dc = save_info
+
+    # Damage on fail / on success (full / half by multiplier)
+    fail_damage_by_step = _aoe_damage_per_step(action, on="fail")
+    succ_damage_by_step = _aoe_damage_per_step(action, on="success")
+
+    total = 0.0
+    for target in affected:
+        full_dmg = _aoe_target_damage(target, fail_damage_by_step)
+        half_dmg = _aoe_target_damage(target, succ_damage_by_step)
+        p_fail = save_fail_probability(target, ability, dc, state)
+        p_save = 1.0 - p_fail
+        expected = (p_fail * full_dmg) + (p_save * half_dmg)
+        # Overkill cap per target
+        capped = min(expected, float(max(0, target.hp_current)))
+        # Allies subtract (friendly fire)
+        if target.side == actor.side:
+            total -= capped
+        else:
+            total += capped
+    return total
+
+
+def _extract_aoe_save_info(action: dict, caster: Actor) -> tuple[str, int] | None:
+    """Pull (ability, dc) from the action's forced_save step, or None
+    if the action isn't a save-based AoE."""
+    # Lazy import for DC resolution
+    from engine.ai.defensive_ehp import _resolve_dc_for_action
+
+    for step in (action.get("pipeline") or []):
+        if step.get("primitive") != "forced_save":
+            continue
+        params = step.get("params") or {}
+        ability = params.get("ability", "dexterity")
+        dc = _resolve_dc_for_action(
+            {"save_dc_fixed": params.get("dc"),
+              "save_dc_source": params.get("dc_source")},
+            caster,
+        )
+        return (ability, dc)
+    return None
+
+
+def _aoe_damage_per_step(action: dict, on: str) -> list[dict]:
+    """Extract the damage components from the forced_save's on_fail or
+    on_success sub-primitives.
+
+    Returns a list of damage-component dicts shaped like
+    extract_damage_components output: {dice, modifier, type, multiplier}.
+    """
+    key = f"on_{on}"
+    components: list[dict] = []
+    for step in (action.get("pipeline") or []):
+        if step.get("primitive") != "forced_save":
+            continue
+        for sub in ((step.get("params") or {}).get(key) or []):
+            if sub.get("primitive") != "damage":
+                continue
+            p = sub.get("params") or {}
+            components.append({
+                "dice": p.get("dice"),
+                "modifier": int(p.get("modifier", 0)),
+                "type": p.get("type", "untyped"),
+                "multiplier": float(p.get("multiplier", 1.0)),
+            })
+    return components
+
+
+def _aoe_target_damage(target: Actor, components: list[dict]) -> float:
+    """Mean damage delivered to a single target from a set of damage
+    components, applying the target's resistance/vuln/immunity AND each
+    component's multiplier (e.g., on_success half-damage)."""
+    template = target.template or {}
+    immunities = set(template.get("damage_immunities") or [])
+    resistances = set(template.get("damage_resistances") or [])
+    vulnerabilities = set(template.get("damage_vulnerabilities") or [])
+
+    total = 0.0
+    for c in components:
+        dice_part = dice_mean(c["dice"])
+        mean_damage = dice_part + c["modifier"]
+        dtype = c["type"]
+        if dtype in immunities:
+            mean_damage = 0.0
+        elif dtype in resistances:
+            mean_damage = mean_damage / 2.0
+        elif dtype in vulnerabilities:
+            mean_damage = mean_damage * 2.0
+        mean_damage *= c["multiplier"]
+        total += mean_damage
+    return total
+
+
 def offensive_ehp_multiattack(actor: Actor, target: Actor, action: dict,
                                 state: CombatState) -> float:
     """Sum of offensive eHP across the multiattack's sub-attacks.
@@ -322,6 +450,11 @@ def score_candidate(candidate: dict, state: CombatState) -> float:
         return offensive_ehp_multiattack(actor, target, action, state)
     if kind == "weapon_attack" or action.get("type") == "weapon_attack":
         return offensive_ehp_single_attack(actor, target, action, state)
+    if kind == "aoe_attack" or action.get("type") == "aoe_attack":
+        origin = candidate.get("origin_point")
+        if origin is None:
+            return 0.0
+        return offensive_ehp_aoe(actor, tuple(origin), action, state)
 
     # Defensive — lazy-import to keep modules cleanly separable
     action_type = action.get("type")

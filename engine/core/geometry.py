@@ -92,6 +92,21 @@ def move_toward(mover: Actor, target: Actor | tuple[int, int],
     return moved_squares * SQUARE_SIZE_FT
 
 
+def actors_in_radius(origin: tuple[int, int], radius_ft: int,
+                       actors: list[Actor]) -> list[Actor]:
+    """Return all actors whose position is within `radius_ft` of `origin`.
+
+    Uses the same Chebyshev metric as `distance_ft`. A 20-ft radius
+    sphere centered at (0, 0) catches all squares (x, y) with
+    max(|x|, |y|) ≤ 4 — a 9 × 9 square envelope per 5e 2024 sphere/cube
+    convention. Order preserved from input list.
+
+    Living-status filtering is left to the caller; this is pure
+    geometry.
+    """
+    return [a for a in actors if distance_ft(a.position, origin) <= radius_ft]
+
+
 def required_movement_ft(mover: Actor, target: Actor | tuple[int, int],
                           reach_ft: int) -> int:
     """How many ft `mover` would need to move to bring `target` within

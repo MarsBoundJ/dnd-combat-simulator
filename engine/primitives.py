@@ -161,6 +161,9 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
     dice = params.get("dice")
     modifier = params.get("modifier", 0)
     dmg_type = params.get("type", "untyped")
+    # Final multiplier applied after resistance/vuln/immunity. Default 1.0.
+    # 0.5 = half-damage-on-save (AoE on_success steps), 2.0 = doubled.
+    multiplier = float(params.get("multiplier", 1.0))
     rng = _get_rng(state, bus)
 
     is_crit = state.current_attack.get("state") == "crit"
@@ -182,6 +185,13 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
         total = total // 2
     elif dmg_type in (template.get("damage_vulnerabilities") or []):
         total = total * 2
+
+    # Apply multiplier (after resistance per 5e ordering: resistance halves
+    # the post-multiplier? Or multiplier-then-resistance? Per RAW saves halve
+    # the rolled total before resistance. For v1 we apply resistance first
+    # then multiplier — close enough for eHP scoring).
+    if multiplier != 1.0:
+        total = int(total * multiplier)
 
     total = max(0, total)
     target.hp_current = max(0, target.hp_current - total)
@@ -490,13 +500,22 @@ def _forced_save(params: dict, state: CombatState, bus: EventBus) -> dict:
                                 "ability": ability, "dc": dc,
                                 "d20": d20, "total": total, "outcome": outcome})
 
-        # Invoke on_fail or on_success sub-primitives (if specified inline)
-        if outcome == "fail":
-            for sub in params.get("on_fail") or []:
-                _invoke_subprimitive(sub, state, bus)
-        else:
-            for sub in params.get("on_success") or []:
-                _invoke_subprimitive(sub, state, bus)
+        # Swap state.current_attack.target to THIS iteration's target so
+        # sub-primitives (damage, apply_condition) deal with the right
+        # creature. Critical for AoE where the original .target is just
+        # an "anchor"; each affected creature needs its own damage roll.
+        saved_attack_target = state.current_attack.get("target")
+        state.current_attack["target"] = target
+        try:
+            # Invoke on_fail or on_success sub-primitives (if specified inline)
+            if outcome == "fail":
+                for sub in params.get("on_fail") or []:
+                    _invoke_subprimitive(sub, state, bus)
+            else:
+                for sub in params.get("on_success") or []:
+                    _invoke_subprimitive(sub, state, bus)
+        finally:
+            state.current_attack["target"] = saved_attack_target
     return {"rolls": rolls}
 
 
@@ -623,10 +642,24 @@ def _resolve_save_targets(params: dict, state: CombatState) -> list[Actor]:
         target = state.current_attack.get("target") or state.current_actor()
         return [target] if target else []
     if affected == "all_creatures_in_area":
-        # Skeleton: return all alive enemies of the current actor
+        # AoE-aware path: if pipeline.execute set up an area_origin and the
+        # action declares an `area.radius_ft`, filter living creatures by
+        # geometry (includes allies — friendly fire is RAW). Otherwise
+        # fall back to the legacy "all living enemies" semantics for
+        # backward compatibility with content that doesn't yet declare
+        # an area shape.
         actor = state.current_actor() or state.current_attack.get("actor")
         if actor is None:
             return []
+        action = state.current_attack.get("action") or {}
+        area = action.get("area") or {}
+        origin = state.current_attack.get("area_origin")
+        radius_ft = area.get("radius_ft")
+        if origin is not None and radius_ft is not None:
+            from engine.core.geometry import actors_in_radius
+            living = [a for a in state.encounter.actors if a.is_alive()]
+            return actors_in_radius(tuple(origin), int(radius_ft), living)
+        # Legacy fallback: all living enemies
         return [a for a in state.encounter.actors
                 if a.side != actor.side and a.is_alive()]
     return []

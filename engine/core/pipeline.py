@@ -143,6 +143,26 @@ def generate_candidates(actor: Actor, state: CombatState,
                     "target": enemy,
                     "actor": actor,
                 })
+        elif action_type == "aoe_attack":
+            # AoE actions are scored per ORIGIN point. v1 enumerates each
+            # living enemy's position as a candidate origin (catches the
+            # "cast it on the cluster" decision naturally — placing the
+            # area on enemy A hits A + neighbors). The candidate's
+            # `target` field is just the anchor enemy (informational); the
+            # actual affected set is computed from origin + area shape at
+            # scoring AND execution time.
+            area = action.get("area") or {}
+            cast_range = int(area.get("range_ft", 60))
+            for anchor in enemies:
+                if not is_within_ft(actor, anchor, cast_range):
+                    continue
+                candidates.append({
+                    "kind": "aoe_attack",
+                    "action": action,
+                    "target": anchor,
+                    "origin_point": anchor.position,
+                    "actor": actor,
+                })
     return candidates
 
 
@@ -289,6 +309,9 @@ def _execute_single(chosen: dict, state: CombatState, event_bus, primitives) -> 
     actor = chosen["actor"]
     target = chosen.get("target")
     action = chosen["action"]
+    # AoE actions: propagate the candidate's origin_point into state so
+    # forced_save's area resolver can filter creatures by geometry.
+    origin = chosen.get("origin_point")
 
     state.current_attack = {
         "actor": actor,
@@ -297,7 +320,16 @@ def _execute_single(chosen: dict, state: CombatState, event_bus, primitives) -> 
         "state": None,
         "had_advantage": False,
         "had_disadvantage": False,
+        "area_origin": tuple(origin) if origin is not None else None,
     }
+
+    if origin is not None:
+        state.event_log.append({
+            "event": "aoe_origin_placed",
+            "actor": actor.id,
+            "action": action.get("id"),
+            "origin": list(origin),
+        })
 
     for step in action.get("pipeline", []):
         primitive_name = step["primitive"]
