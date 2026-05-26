@@ -677,7 +677,21 @@ priority order:
 16. ~~**More persistent_aura spells** (Moonbeam + Cloud of
    Daggers)~~ — **Shipped in PR #44.**
 17. ~~**Reaction infrastructure + Shield + Protection + Hellish
-   Rebuke**~~ — **Shipped in PR #45.** New trigger event vocabulary
+   Rebuke**~~ — **Shipped in PR #45.**
+18. ~~**Counterspell + cast-event infra**~~ — **Shipped in PR #46.**
+   New `spell_cast_initiated` event fires before any spell-slot
+   action's pipeline runs (after slot availability check). The
+   `state.cast_cancelled` flag — set by reactions like Counterspell —
+   is checked by `pipeline.execute` after the event resolves; if
+   True, the target spell's pipeline is skipped but the slot is
+   still consumed (RAW 2024). Concentration is also skipped on
+   cancel (RAW: original caster's concentration doesn't take hold
+   when the spell fizzles). New `_counterspell_resolve` primitive
+   handles the RAW level check (auto-cancel ≤ 3) + Intelligence
+   (Spellcasting) ability check vs DC = 10 + spell_level for level
+   ≥ 4. New reaction condition `enemy_casting_spell_within_60_ft`.
+   `f_counterspell.yaml` (SRD, Wizard 3rd-level). Closes the
+   reaction-system arc. New trigger event vocabulary
    (`attack_targeting_resolved`, `attack_roll_pending`, `damage_taken`)
    + generic reaction system in `engine/core/reactions.py`
    (`resolve_reaction_triggers` / `try_use_reaction` / condition

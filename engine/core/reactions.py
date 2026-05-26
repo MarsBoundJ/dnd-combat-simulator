@@ -453,4 +453,21 @@ def _reaction_condition_satisfied(cond: str | None, reactor: Actor,
         # should be the attacker for retaliation reactions.
         event_data["_reaction_target_is_attacker"] = True
         return True
+    if cond == "enemy_casting_spell_within_60_ft":
+        # Counterspell trigger (PR #46): an enemy is casting a spell.
+        # Conditions:
+        #   - caster is on opposing side (don't counter your own spells
+        #     or allies' spells)
+        #   - reactor is not the caster (you can't counterspell yourself)
+        #   - caster is within 60 ft (RAW range)
+        # RAW also requires "you can see" — deferred until a vision
+        # system exists.
+        caster = event_data.get("caster")
+        if caster is None or caster.id == reactor.id:
+            return False
+        if caster.side == reactor.side:
+            return False
+        if distance_ft(reactor.position, caster.position) > 60:
+            return False
+        return True
     return False

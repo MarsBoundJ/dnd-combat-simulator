@@ -1,0 +1,52 @@
+# f_counterspell — Counterspell (Wizard 3rd-level spell, SRD CC v5.2.1)
+#
+# RAW 2024 (simplified from 2014):
+#   "You attempt to interrupt a creature in the process of casting a
+#    spell. If the creature is casting a spell of level 3 or lower,
+#    its spell fails and has no effect. If it is casting a spell of
+#    level 4 or higher, make an Intelligence (Spellcasting) check.
+#    The DC equals 10 + the spell's level. On a success, the
+#    creature's spell fails and has no effect."
+#
+# Casting time: 1 reaction, which you take when you see a creature
+# within 60 feet of you casting a spell.
+#
+# Engine modeling (PR #46):
+#   - trigger: spell_cast_initiated — fires BEFORE the target's
+#     spell pipeline runs (after slot availability check). The
+#     pipeline.execute hook then checks state.cast_cancelled and
+#     skips the pipeline if Counterspell succeeded. Slot is still
+#     consumed (RAW 2024).
+#   - condition: enemy_casting_spell_within_60_ft — caster on
+#     opposing side, not self, within 60 ft. Skips vision RAW gate.
+#   - pipeline: counterspell_resolve primitive does the level check
+#     + ability check + sets cast_cancelled.
+#
+# v1 deferred:
+#   - "you can see" gate (no vision system)
+#   - Counterspell-of-Counterspell chains (reaction-cascade limit
+#     deferred from PR #45)
+#   - Counterspell against Magic Missile / other no-cast-time spells
+#     (all our spell actions go through pipeline.execute so this
+#     should just work, but no specific tests yet)
+
+id: f_counterspell
+name: Counterspell
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 5                 # Wizards gain access to 3rd-level spells at L5
+type: active
+
+action_template:
+  id: a_counterspell
+  name: Counterspell
+  type: hard_control
+  spell_slot_level: 3
+  slot: reaction
+  trigger: spell_cast_initiated
+  condition: enemy_casting_spell_within_60_ft
+  named_effect: counterspell
+  pipeline:
+    - primitive: counterspell_resolve
+      params: {}
