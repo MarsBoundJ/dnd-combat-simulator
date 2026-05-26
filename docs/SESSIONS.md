@@ -5,6 +5,262 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-25 — Capabilities-doc refresh after RP Constraints
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Rewrote `docs/engine-capabilities.md` to reflect the post-PR #12 state
+  (was last refreshed after PR #8; 3 PRs of progress since). Key updates:
+  - Engine state: post-PR #12 (all 4 dials + RP Constraints live)
+  - Status headline: all 8 pipeline steps now active
+  - §1 added subsections for Action Economy presets + Retreat dial
+    presets + RP Constraint types
+  - §2 Decision Pipeline table flipped steps 1, 3, 4, 7 from 🔴 to ✅
+  - §5 Worked examples updated to reflect retreat behavior shifts;
+    added Example 3 (nimble_goblin bonus slot) + Example 4 (pacifist
+    Pass-turn)
+  - §6 Test surface: 103 → 178 tests; added 3 new test modules
+  - §7 Roadmap: dropped Action Economy / Retreat / RP Constraints
+    (now shipped); positioning promoted to #1
+- Refreshed `docs/CONTEXT.md` status table — added rows for PRs #10
+  (Action Economy), #11 (Retreat), #12 (RP Constraints). Refreshed
+  "Current phase" prose and "Next substantive steps" list.
+- Added three new entries to `docs/SESSIONS.md` (RP Constraints v1,
+  Retreat dial v1, Action Economy dial v1) plus this refresh entry.
+
+**Key decisions:**
+- **Rewrote engine-capabilities.md rather than patching** — 3 PRs of
+  changes touched too many sections to edit cleanly. Same shape, fresh
+  content.
+- **CONTEXT.md keeps the one-liner-per-PR convention.** Each new PR
+  gets its own row in the status table. Engine-capabilities.md handles
+  depth.
+- **No strategic / pitch / Trusight content.** Engine repo is public;
+  docs are engineering-progress only.
+
+**Open items carried forward:**
+- [ ] Pick next priority: positioning, PC schema, offensive buff for
+  allies, spell slot opportunity cost, or more primitives (see
+  `docs/engine-capabilities.md` §7 roadmap).
+
+---
+
+## Session: 2026-05-25 — RP Constraints v1 (PR #12)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Implemented RP Constraints — identity / personality / story-bound
+  behavior — closing the last stubbed pipeline steps. **All 8 decision-
+  pipeline steps from `pillars-reconciliation.md` §7 are now live.**
+- New module `engine/ai/rp_constraints.py`:
+  - `ConstraintDef` (library entry) + `ActiveConstraint` (per-actor
+    instance with severity / priority overrides).
+  - Canonical library: 4 of 12 v1 constraints proving all 3 types —
+    `pacifist_strict` (hard_filter), `heal_priority` (forced_choice),
+    `signature_first` (forced_choice), `resource_hoarder`
+    (weighted_preference, negative severity for penalty).
+  - `apply_hard_filters` — Tier 1 set intersection per §6.4.
+  - `apply_forced_choice_boosts` — Tier 2 priority-winner-only boost
+    per §6.3 + §6.4 (highest priority wins; ties by registration
+    order; others suppressed).
+  - `apply_weighted_preferences` — Tier 3 cumulative additive per
+    §6.4 single coherent scoring pass.
+  - `apply_score_modifications` — chained Tier 2 then Tier 3.
+- `engine/ai/decision_layer.py`: `score_candidates_v1` chains the RP
+  score modifications after base eHP + preference scoring.
+- `engine/core/pipeline.py`: `apply_hard_filters` delegates;
+  `apply_forced_choices` stays a pass-through (work happens at scoring
+  time per §6.3 score-weight semantics).
+- `engine/core/runner.py`: empty-set fallback. When hard filters empty
+  the candidate set, runner logs `passed_turn` event with reason
+  `rp_hard_filter_empty_set` and skips execution. v1 has both PCs and
+  monsters Pass turn (Dodge primitive deferred).
+- New fixture `tests/fixtures/pacifist_encounter.yaml`: Strict Pacifist
+  Monk vs attacking goblin. Pacifist has only attack actions →
+  hard filter empties every turn → `passed_turn` logged each round.
+  Outcome: pacifist flees alive at 2/30 HP (her Default retreat dial
+  fires from Bloodied trigger); zero attack_roll events from pacifist
+  over 7 rounds.
+- 19 new tests in `tests/test_rp_constraints.py`: library + active-
+  constraint resolution; Tier 1 hard filter (pacifist filters damage,
+  intersection, empty result legal, multiattack subaction inspection);
+  Tier 2 forced choice (heal_priority boost; trigger gating;
+  signature_first round-1-only; priority resolution when multiple
+  trigger); Tier 3 weighted preference (resource_hoarder -30% on
+  spells); chained modifications; pacifist Pass-turn integration;
+  heal_priority overriding attack preference at sev 2.0.
+- 178/178 tests pass.
+
+**Key decisions:**
+- **Forced Choice severity = score boost, not narrowing.** Per §6.3
+  explicit "score priority weight" semantics. The §6.4 "narrowing"
+  description is informal; sufficient severity creates effective
+  narrowing without filter semantics.
+- **Forced Choice priority = exclusivity, not stacking.** When
+  multiple forced choices trigger, only the highest-priority one's
+  boost applies (others suppressed). Per §6.4 explicit "resolved by
+  explicit priority: int." Matches the spec's intent that forced
+  choices represent mutually exclusive personality directives.
+- **Weighted Preferences additive across all matching constraints.**
+  Per §6.4 Tier 3 explicit "Cumulative additive in single scoring pass."
+- **Hard Filter severity locked at 1.0 even if user overrides.** Per
+  §6.3 explicit "always 100% binary; the severity field is locked at
+  100% by schema."
+- **Empty-set fallback = Pass turn for both PCs and monsters.** Dodge
+  primitive deferred; both default to Pass for v1. Matches monster
+  fallback per spec; PC Dodge upgrade is a follow-on primitive PR.
+- **Shipping 4 of 12 canonical constraints, not all 12.** One+ per type
+  proves the framework; the remaining 8 are recipes in the same shape
+  and can be added on demand without re-architecting.
+
+**Open items carried forward:**
+- [ ] 8 of 12 canonical constraints (recipes in §6.5 — same shape).
+- [ ] User-authored custom predicates (post-MVP per spec).
+- [ ] Dodge primitive (PCs Pass turn for v1, matching monster fallback).
+- [ ] Surrendered-creature non-targetable behavioral system
+  (`oath_protector` intersection).
+- [ ] Positioning-dependent constraints (`frontline`, `library_protect`
+  proximity).
+- [ ] Parley action (Pacifist + Defensive Pacifist intersection).
+
+---
+
+## Session: 2026-05-25 — Retreat dial v1 (PR #11)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Implemented the Retreat dial — the last of the 4 dials. Step 1 of the
+  decision pipeline (`check_retreat_trigger`) transitioned from no-op
+  to active.
+- New module `engine/ai/retreat.py`:
+  - `RetreatBundle` dataclass + `_PRESET_BUNDLES` table for the 5
+    presets (FtD / Resolute / Default / Cowardly / Pacifist) per spec
+    §5.1 parameter columns.
+  - `resolve_retreat_preset` — via behavior_profile chain.
+  - `check_retreat` — the DMG p48 algorithm (dmg_ammann mode):
+    mindless override → FtD short-circuit → trigger evaluation →
+    Resolute compound logic → WIS save vs `in_combat_dc` → fail = flee.
+  - Event log entries: `retreat_triggered`, `retreat_save`.
+- `engine/core/pipeline.py`: `check_retreat_trigger` delegates to
+  retreat.check_retreat. Accepts optional `rng` (passed by runner for
+  reproducibility).
+- `engine/core/runner.py`: `_run_actor_turn` passes `self.rng` into
+  the retreat check; on flee, logs `fled` event with preset + triggers
+  telemetry.
+- 26 new tests in `tests/test_retreat.py`: preset bundle table
+  correctness, mindless override (INT 2 zombie + mindless_aggressor
+  archetype), FtD invariance, all 3 triggers (bloodied / ally-disparity
+  / frightened), Resolute compound logic, WIS save mechanics (Resolute
+  resists ~80%, Cowardly often flees 65%), preset resolution from
+  archetype, event log shape, runner integration.
+- 159/159 tests pass.
+
+**Key decisions:**
+- **Implemented `dmg_ammann` mode only for v1.** The Strict RAW and
+  Behavior Engine sub-modes from §5.1 use the same machinery with
+  parameter variants; defer to a future PR.
+- **In-combat check only; pre-combat check deferred.** Pre-combat is
+  more about encounter design than per-turn behavior; lower priority
+  for v1.
+- **Mindless override is INT ≤ 2 OR archetype `mindless_aggressor`.**
+  Per spec "minimal undead/construct/INT≤2 → FtD override." Archetype
+  short-circuit is the cleaner test (matches existing archetype tag
+  on undead/oozes that don't show up via INT alone).
+- **Resolute compound logic: must be Bloodied AND another trigger.**
+  Per spec "Frightened-alone sufficient? No (must also be Bloodied)."
+  All other presets accept any single trigger.
+- **Retreat as default behavior for unscoped PCs.** Any actor without
+  an explicit retreat dial gets the Default preset (50% Bloodied, 50%
+  ally-disparity, Frightened-alone sufficient, DC 10). Existing
+  fixtures now show this emergent behavior — PCs at low HP or after
+  half their party falls roll WIS and may flee.
+
+**Open items carried forward:**
+- [ ] Parley action (needs language tracking + parley action + RP
+  Constraint tie-in for Pacifist).
+- [ ] Strict RAW mode + Behavior Engine mode.
+- [ ] Pre-combat retreat check.
+- [ ] SPC (self_preservation_coefficient) modulation of save DC.
+- [ ] Flight-blocked / no-exit → FtD fallback (needs positioning).
+- [ ] Surrendered-creature non-targetable behavioral system.
+
+---
+
+## Session: 2026-05-25 — Action Economy dial v1 (PR #10)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Implemented the Action Economy dial — the 4th of 4 dials. Step 7 of
+  the decision pipeline (`apply_action_economy`) transitioned from
+  no-op pass-through to active.
+- New module `engine/ai/action_economy.py`:
+  - Full 5-preset percentage table (Optimal / Skilled / Average /
+    Casual / Reactive_only) × 5 knobs (main_optimality /
+    signature_bonus / tactical_bonus / oa_reaction /
+    sophisticated_reaction) per §5.4.
+  - `resolve_action_economy_preset` — with `play_context: solo`
+    tier-shift (one level down per spec).
+  - `find_default_action` — first weapon_attack (skips multiattack).
+  - `resolve_main_slot` — the heart of step 7: rolls vs
+    main_optimality; on miss, swaps chosen action for default attack,
+    keeping target. Adds `downgraded_from` marker for telemetry.
+  - `should_use_bonus_action` — gates bonus slot per signature_bonus
+    (is_signature=True) vs tactical_bonus (default).
+  - `action_slot` / `is_signature` / `is_reactive_trigger` — tag
+    readers with backward-compat defaults.
+- `engine/core/pipeline.py`: `apply_action_economy` wired (accepts
+  optional `rng`); `generate_candidates` is now slot-aware via a
+  `slot` kwarg; `execute` marks the right slot used (main vs bonus).
+- `engine/core/runner.py`: `_run_actor_turn` now runs Main slot then
+  Bonus slot via `_run_slot` helper. Skips bonus if main killed the
+  actor or terminated the encounter. Logs `bonus_action_skipped` +
+  `action_downgraded` events for telemetry.
+- New fixture `tests/fixtures/nimble_goblin_encounter.yaml`:
+  Skilled-preset goblin with Scimitar (main) + Off-hand Jab signature
+  bonus action. At seed 1, round 1 log shows BOTH a main scimitar
+  attack AND a bonus off-hand jab from the goblin.
+- 30 new tests in `tests/test_action_economy.py`: preset table
+  correctness + monotonicity, resolve preset with play_context shift,
+  default action lookup, slot + signature tag readers, main-slot
+  optimality (Optimal never misses 20 seeds; Reactive_only misses
+  often 200 trials; miss falls back to default + preserves target;
+  no-distinct-default keeps chosen), bonus-slot gating (Optimal +
+  signature always fires; Reactive_only + tactical never fires;
+  Reactive_only + signature fires ~80%), slot-aware candidate
+  generation, two runner integration tests.
+- 133/133 tests pass.
+
+**Key decisions:**
+- **Reactions entirely deferred.** OAs need movement / positions;
+  sophisticated reactions (Counterspell, Shield) need full reaction-
+  trigger plumbing. The `is_reactive_trigger` tag + `oa_reaction` /
+  `sophisticated_reaction` preset percentages are wired and ready,
+  but no reaction candidates are generated yet.
+- **Slot field on actions, defaulting to "action".** Backward-compat
+  — existing actions without `slot` stay in the main pool. New
+  `slot: "bonus_action"` opts into the bonus pool.
+- **Main-slot miss = default attack, not second-best candidate.**
+  Per spec "Attack for Main." Default = first `weapon_attack` in the
+  action list (skips multiattack — multiattack is the optimal choice
+  being downgraded away from).
+- **Target preserved on miss.** The Targeting dial's pick stays;
+  only the action changes. Cleaner than re-resolving targeting.
+- **rng passed explicitly through pipeline.apply_action_economy.**
+  Mirrors how primitives get the rng. Same seed → same downgrade
+  sequence.
+
+**Open items carried forward:**
+- [ ] Reactions (OAs + sophisticated) — blocked on positioning.
+- [ ] Combo recognition column from spec (qualitative).
+- [ ] Sanity hint warnings (`ability_economy_mismatch`).
+- [ ] `additional_action` primitive (Action Surge giving extra main slot).
+
+---
+
 ## Session: 2026-05-25 — Engine capabilities checkpoint doc
 
 **Participants:** Phil, Claude
