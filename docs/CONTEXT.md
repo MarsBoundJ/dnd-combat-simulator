@@ -207,6 +207,7 @@ utility ratings* as a disclosed input axis, never sim-computed.
 | `conditions-and-edge-cases.md` | 🔴 Not started |
 | `foundry-integration.md` | 🔴 Not started |
 | `ai-decision-layer.md` | 🔴 Not started |
+| `docs/architecture/browser-deployment.md` | ✅ Option documented (2026-05-25) — Pyodide / WebAssembly as the **Stage 2 deployment target**. Engine already meets all Pyodide invariants (pure Python, no C deps, library-first, plain-data state, synchronous). Build ≈1-3 days when triggered. Triggers: first Stage 2 report ready; community "no Python install" ask; outreach demo. Read this before adding new dependencies — they must be Pyodide-compatible. |
 | Engine skeleton | ✅ Phase 1 v0 (2026-05-25) — library-first Python; `engine/` package; CLI (`python -m engine`); smoke test (Fighter vs Goblin) passes; JSON report output. |
 | Primitives v1 | ✅ (2026-05-26) — 13 primitives now implemented (was 5). Q5 unified modifier system live in `engine/core/modifiers.py`; conditions actually affect gameplay (Blinded gives attackers advantage; Paralyzed auto-fails STR/DEX saves; etc.). `forced_save` + `recurring_save` for spells; `multiattack` for higher-CR monsters. See `engine/README.md`. |
 | AI decision layer v1 | ✅ (2026-05-26) — Targeting dial fully implemented (`engine/ai/`): all 5 presets (`closest_enemy`, `weakest_target`, `most_dangerous`, `caster_first`, `optimal_ehp` graceful fallback), behavior_profile resolution with archetype defaults, universal finish-off rule. Goblins now bully wounded PCs; pack hunters target the dangerous fighter; apex predators target casters. Wired into `pipeline.score_candidates()`. |
@@ -254,7 +255,11 @@ step, eHP framework coverage map, and the honest roadmap gap list.
    runtime override layer (Frightened / Dominate / Confusion) per §4.4.
 7. **Phase 2 Foundry bridge** — when Stage 2 timing is right. Thin JS module that
    uses the engine in observation mode + the schema as translation target.
-8. **Content expansion** — remaining ~11 classes / ~23 subclasses / ~300 monsters /
+8. **Pyodide / browser deployment** — zero-cost Stage 2 option for a "try it
+   in your browser" demo accompanying published reports. Documented in
+   `docs/architecture/browser-deployment.md`; build deferred until a Stage 2
+   report is ready to ship with a "click to re-run" affordance.
+9. **Content expansion** — remaining ~11 classes / ~23 subclasses / ~300 monsters /
    ~300 spells / equipment / magic items / backgrounds / species / feats. Parallel
    iterative work; schemas are stable.
 
