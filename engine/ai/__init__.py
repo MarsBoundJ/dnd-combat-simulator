@@ -50,6 +50,8 @@ from engine.ai.ehp_scoring import (
     hit_probability,
     expected_damage_on_hit,
     offensive_ehp_aoe,
+    offensive_ehp_buff_ally,
+    extract_offensive_buff_effect,
 )
 from engine.ai.defensive_ehp import (
     desperation_multiplier,
@@ -106,6 +108,8 @@ __all__ = [
     "hit_probability",
     "expected_damage_on_hit",
     "offensive_ehp_aoe",
+    "offensive_ehp_buff_ally",
+    "extract_offensive_buff_effect",
     "desperation_multiplier",
     "expected_healing",
     "estimate_dpr",
