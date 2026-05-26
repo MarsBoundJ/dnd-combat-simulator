@@ -163,6 +163,16 @@ def _build_actor(actor_spec: dict, registry) -> Actor:
     # spellcaster). Accepts integer-keyed dict from YAML.
     spell_slots_raw = actor_spec.get("spell_slots") or {}
     spell_slots = {int(k): int(v) for k, v in spell_slots_raw.items()}
+    # Maximum slots per level — for Arcane Recovery / future long-rest
+    # restoration. Defaults to a copy of spell_slots (assumes the actor
+    # spec declares the post-rest / full-loadout amount). Authors can
+    # override via `spell_slots_max:` if a fixture wants a different
+    # post-restoration ceiling than the starting slots.
+    spell_slots_max_raw = actor_spec.get("spell_slots_max")
+    if spell_slots_max_raw is None:
+        spell_slots_max = dict(spell_slots)
+    else:
+        spell_slots_max = {int(k): int(v) for k, v in spell_slots_max_raw.items()}
     # Optional per-actor resources dict — feature uses, charges, etc.
     # (e.g., `action_surge_uses_remaining: 1` for a L2 Fighter). Default
     # empty. Distinct from spell_slots since resource decrementation
@@ -187,6 +197,7 @@ def _build_actor(actor_spec: dict, registry) -> Actor:
         position=position,
         abilities=abilities,
         spell_slots=spell_slots,
+        spell_slots_max=spell_slots_max,
         resources=resources,
     )
 

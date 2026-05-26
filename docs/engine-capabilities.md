@@ -599,6 +599,17 @@ priority order:
    True for any matching named_effect on the target (cross-caster
    aware) or falls back to per-(caster, action_id) for untagged
    actions. RAW: PHB 2024 p.243 "same spell doesn't stack."
+9. ~~**Wizard Arcane Recovery + slot_recovery_partial primitive**~~ —
+   **Shipped in PR #37.** New `slot_recovery_partial` primitive
+   restores expended slots greedily (highest-first) within a combined-
+   level budget. New `engine/core/rest.py` module exposes
+   `apply_short_rest(actor, state)` — per-class dispatch (Wizard fires
+   Arcane Recovery; Fighter refreshes Second Wind +1 + Action Surge
+   to full per RAW). `Actor.spell_slots_max` tracks the post-rest
+   ceiling. `derive_pc_resources` auto-wires
+   `arcane_recovery_uses_remaining: 1` for Wizard L1+. Runner stays
+   single-encounter; multi-encounter session work will call
+   `apply_short_rest` between encounters.
 9. ~~**Per-creature recurring save** to break Hypnotic Pattern at
    end-of-turn — would mirror single-target `recurring_save` for AoE.~~
    **Shipped in PR #35.** The existing single-target `recurring_save`
