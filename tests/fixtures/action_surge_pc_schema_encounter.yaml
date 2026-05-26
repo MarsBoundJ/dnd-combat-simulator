@@ -1,0 +1,96 @@
+# PC-schema auto-wired Action Surge demo.
+#
+# Companion to action_surge_encounter.yaml (PR #31) which authored the
+# Fighter as an inline template with a manual `resources:` block. This
+# fixture authors the same scenario via the compact `pc:` schema with
+# NO `resources:` block — the engine derives:
+#
+#   - action_surge_uses_remaining = 1  (from f_action_surge_one_use at L2)
+#   - second_wind_uses_remaining   = 2  (from class_resources at L2)
+#
+# Expected behavior (round 1):
+#   - Fighter goes first (forced initiative bonus on the inline ogre).
+#   - `_maybe_activate_action_surge` fires (in-reach attack + charges > 0).
+#   - Event log: `action_surge_activated, charges_remaining: 0`
+#   - Two `attack_roll` events from fighter against the ogre before the
+#     ogre's first turn.
+#
+# Round 2+:
+#   - Charges exhausted, single attack per turn from the fighter.
+#
+# This is the "no manual resources field needed" demo — proves that
+# `pc:` schema + L2 fighter is sufficient to unlock Action Surge.
+
+id: action_surge_pc_schema_encounter
+
+environment:
+  template: open_battlefield
+
+actors:
+  - instance_id: fighter_pc
+    name: Fighter L2 (auto-wired)
+    side: pc
+    position: [0, 0]
+    pc:
+      class: c_fighter
+      level: 2
+      ability_scores:
+        str: 18
+        dex: 12
+        con: 14
+        int: 10
+        wis: 12
+        cha: 10
+      armor:
+        base_ac: 18              # plate (no DEX cap matters at +1)
+        max_dex_bonus: 0
+      speed:
+        walk: 30
+      weapons:
+        - id: a_greatsword
+          name: Greatsword
+          attack_ability: str
+          damage_dice: 2d6
+          damage_type: slashing
+          reach_ft: 5
+
+  - instance_id: ogre
+    name: Ogre
+    side: enemy
+    position: [0, 1]
+    template:
+      id: m_ogre
+      name: Ogre
+      source: user_authored
+      combat:
+        armor_class: 18
+        hit_points:
+          average: 100
+          dice: "12d10"
+          con_contribution: 30
+        speed:
+          walk: 30
+        initiative:
+          modifier: 0
+          score: 5
+      abilities:
+        str: { score: 19, save: 6 }
+        dex: { score: 8, save: -1 }
+        con: { score: 16, save: 5 }
+        int: { score: 5, save: -3 }
+        wis: { score: 10, save: 0 }
+        cha: { score: 7, save: -2 }
+      cr: { value: 2.0, xp: 450, proficiency_bonus: 2 }
+      behavior_profile:
+        presets:
+          retreat: ftd
+      actions:
+        - id: a_greatclub
+          name: Greatclub
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: melee, bonus: 6, reach_ft: 5 }
+            - primitive: damage
+              params: { dice: "2d8", modifier: 4, type: bludgeoning }
+              when: { event: damage_roll, condition: "combat.attack_state == hit" }

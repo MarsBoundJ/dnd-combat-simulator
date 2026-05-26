@@ -118,11 +118,16 @@ def _build_actor(actor_spec: dict, registry) -> Actor:
         build_pc_template`. The user-facing surface for PC fixtures
         going forward.
     """
+    # Resources auto-derived from a `pc:` spec (filled below if applicable).
+    # Merged with any explicit `resources:` block on actor_spec, with the
+    # explicit block winning on conflict (so authors can force edge cases).
+    derived_pc_resources: dict = {}
+
     if "template_ref" in actor_spec:
         ref = actor_spec["template_ref"]
         template = registry.get(ref["entity_type"], ref["id"])
     elif "pc" in actor_spec:
-        from engine.pc_schema import build_pc_template
+        from engine.pc_schema import build_pc_template, derive_pc_resources
         template = build_pc_template(actor_spec["pc"], registry)
         # Surface spell_slots from the PC spec onto the actor_spec for
         # _build_actor's slot-population block below.
@@ -130,6 +135,10 @@ def _build_actor(actor_spec: dict, registry) -> Actor:
                 and actor_spec.get("spell_slots") is None:
             actor_spec = dict(actor_spec)
             actor_spec["spell_slots"] = actor_spec["pc"]["spell_slots"]
+        # Auto-wire class-feature resources from the class level table.
+        # Action Surge / Second Wind etc. — fixture authors no longer
+        # need a manual `resources:` block to use these features.
+        derived_pc_resources = derive_pc_resources(actor_spec["pc"], registry)
     else:
         template = actor_spec["template"]
 
@@ -158,7 +167,13 @@ def _build_actor(actor_spec: dict, registry) -> Actor:
     # (e.g., `action_surge_uses_remaining: 1` for a L2 Fighter). Default
     # empty. Distinct from spell_slots since resource decrementation
     # and refresh cadence (short / long rest) is feature-specific.
-    resources = dict(actor_spec.get("resources") or {})
+    #
+    # Merge order: PC-schema derived resources first, then the explicit
+    # `resources:` block from actor_spec on top (explicit wins on
+    # conflict). For non-PC actors, derived_pc_resources is {} so this
+    # is just the explicit block.
+    resources = dict(derived_pc_resources)
+    resources.update(dict(actor_spec.get("resources") or {}))
 
     return Actor(
         id=instance_id,
