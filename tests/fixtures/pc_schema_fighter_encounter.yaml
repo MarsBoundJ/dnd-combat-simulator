@@ -1,0 +1,57 @@
+# PC schema demo — Level 3 Fighter (compact pc: spec) vs Goblin Warrior
+# (template_ref).
+#
+# Compares against `smoke_encounter.yaml` which defines the same Fighter
+# inline as a full monster-style template. This fixture authors the PC
+# in ~15 lines instead of ~40 lines, and the engine derives:
+#   - HP = 10 (L1 d10) + 8 + 8 = 26
+#   - AC = 16 base + min(DEX +1, max_dex 2) = 17
+#   - PB = 2 (L3)
+#   - STR save = +3 (mod) + 2 (PB, proficient) = +5
+#   - CON save = +2 + 2 = +4
+#   - Longsword: +5 to hit (STR +3, PB +2), 1d8 + 3 slashing
+#
+# Demonstrates the three actor_spec shapes coexisting:
+#   - template_ref (goblin)
+#   - pc (fighter — new shape)
+# (Existing fixtures continue to use the third shape, `template:` inline.)
+
+id: pc_schema_fighter_encounter
+
+environment:
+  template: open_battlefield
+
+actors:
+  - instance_id: goblin_enemy
+    name: Goblin Warrior
+    side: enemy
+    template_ref:
+      entity_type: monster
+      id: m_goblin_warrior
+
+  - instance_id: fighter_pc
+    name: Test Fighter L3
+    side: pc
+    position: [0, 0]
+    pc:
+      class: c_fighter
+      level: 3
+      ability_scores:
+        str: 16
+        dex: 12
+        con: 14
+        int: 10
+        wis: 12
+        cha: 10
+      armor:
+        base_ac: 16              # chain mail
+        max_dex_bonus: 2
+      speed:
+        walk: 30
+      weapons:
+        - id: a_longsword
+          name: Longsword
+          attack_ability: str
+          damage_dice: 1d8
+          damage_type: slashing
+          reach_ft: 5

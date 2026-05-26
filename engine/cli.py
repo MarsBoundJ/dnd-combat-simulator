@@ -109,14 +109,21 @@ def _build_encounter(spec: dict, registry) -> Encounter:
 def _build_actor(actor_spec: dict, registry) -> Actor:
     """Build one Actor from a spec entry.
 
-    Two shapes supported:
+    Three shapes supported:
       - `template_ref`: { entity_type: 'monster', id: 'm_goblin_warrior' }
         — pull a stat block from the registry.
-      - `inline`: full inline template (for PC instances in skeleton).
+      - `template`: full inline template (monster-style stat block).
+      - `pc`: compact PC spec (class + level + ability_scores + armor +
+        weapons) — derived into a full template via `engine.pc_schema.
+        build_pc_template`. The user-facing surface for PC fixtures
+        going forward.
     """
     if "template_ref" in actor_spec:
         ref = actor_spec["template_ref"]
         template = registry.get(ref["entity_type"], ref["id"])
+    elif "pc" in actor_spec:
+        from engine.pc_schema import build_pc_template
+        template = build_pc_template(actor_spec["pc"], registry)
     else:
         template = actor_spec["template"]
 
