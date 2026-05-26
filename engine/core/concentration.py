@@ -119,6 +119,16 @@ def end_concentration(caster: Actor, state: CombatState,
         target.applied_conditions = kept_conds
         removed += before_conds - len(target.applied_conditions)
 
+    # PR #43: scrub persistent auras owned by this caster + action_id
+    # (Spirit Guardians-shape effects end with concentration).
+    before_auras = len(state.persistent_auras)
+    state.persistent_auras = [
+        a for a in state.persistent_auras
+        if not (a.get("caster_id") == caster_id
+                and a.get("action_id") == action_id)
+    ]
+    removed += before_auras - len(state.persistent_auras)
+
     caster.concentration_on = None
     state.event_log.append({
         "event": "concentration_ended",

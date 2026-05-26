@@ -1,0 +1,197 @@
+# Spirit Guardians demo — cleric casts the aura, enemies take damage
+# at the start of each of their turns while in the 15-ft radius.
+#
+# Setup:
+#   - Cleric (PC) with Spirit Guardians (3rd-level slot, concentration).
+#     Forced to go first via initiative bonus.
+#   - 3 ogres clustered around the cleric at the start. Each will be
+#     within the 15-ft radius and so take per-turn-start radiant damage.
+#
+# Expected behavior:
+#   - Round 1: Cleric casts Spirit Guardians (best eHP candidate vs
+#     this enemy cluster). Event: `persistent_aura_registered`.
+#   - Round 1 ogre turns: each ogre's turn_start fires the aura's
+#     forced_save (WIS DC 15). Most fail (WIS -2). Damage events show
+#     3d8 radiant on fail, half on success.
+#   - Round 2+: cleric maintains concentration; ogres continue taking
+#     per-turn damage.
+#   - If the cleric drops concentration (e.g., takes a big hit and
+#     fails the CON save), the aura is scrubbed and ogres stop taking
+#     SG damage.
+#
+# Demonstrates: persistent_aura primitive, runner turn-start hook,
+# concentration-tied lifetime, RAW Spirit Guardians shape.
+
+id: spirit_guardians_encounter
+
+environment:
+  template: open_battlefield
+
+actors:
+  - instance_id: cleric
+    name: Cleric of Bahamut
+    side: pc
+    position: [0, 0]
+    spell_slots: { 3: 1 }
+    spell_slots_max: { 3: 1 }
+    template:
+      id: pc_cleric_sg
+      name: Cleric of Bahamut
+      source: user_authored
+      combat:
+        armor_class: 18              # plate + shield
+        hit_points:
+          average: 40
+          dice: "5d8"
+          con_contribution: 15
+        speed:
+          walk: 25
+        initiative:
+          modifier: 30               # force first for demo clarity
+          score: 40
+      abilities:
+        str: { score: 12, save: 1 }
+        dex: { score: 10, save: 0 }
+        con: { score: 14, save: 6 }  # WIS-prof L5 = +6 saves
+        int: { score: 10, save: 0 }
+        wis: { score: 18, save: 7 }
+        cha: { score: 12, save: 1 }
+      cr: { value: 4.0, xp: 1100, proficiency_bonus: 3 }
+      behavior_profile:
+        presets:
+          retreat: ftd
+      actions:
+        - id: a_mace
+          name: Mace
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: melee, bonus: 4, reach_ft: 5 }
+            - primitive: damage
+              params: { dice: "1d6", modifier: 1, type: bludgeoning }
+              when: { event: damage_roll, condition: "combat.attack_state == hit" }
+        - id: a_spirit_guardians
+          name: Spirit Guardians
+          type: persistent_aura
+          spell_slot_level: 3
+          concentration: true
+          named_effect: spirit_guardians
+          pipeline:
+            - primitive: persistent_aura
+              params:
+                radius_ft: 15
+                trigger_event: target_turn_start_in_area
+                affected: enemies
+                ability: wisdom
+                dc: 15
+                on_fail:
+                  - primitive: damage
+                    params: { dice: "3d8", type: radiant }
+                on_success:
+                  - primitive: damage
+                    params: { dice: "3d8", type: radiant, multiplier: 0.5 }
+
+  - instance_id: ogre_a
+    name: Ogre A
+    side: enemy
+    position: [1, 0]              # 5 ft from cleric
+    template:
+      id: m_ogre_sg
+      name: Ogre
+      source: user_authored
+      combat:
+        armor_class: 11
+        hit_points: { average: 100, dice: "12d10", con_contribution: 30 }
+        speed: { walk: 30 }
+        initiative: { modifier: -1, score: 5 }
+      abilities:
+        str: { score: 19, save: 4 }
+        dex: { score: 8, save: -1 }
+        con: { score: 16, save: 3 }
+        int: { score: 5, save: -3 }
+        wis: { score: 7, save: -2 }   # low WIS save
+        cha: { score: 7, save: -2 }
+      cr: { value: 2.0, xp: 450, proficiency_bonus: 2 }
+      behavior_profile:
+        presets:
+          retreat: ftd
+      actions:
+        - id: a_greatclub
+          name: Greatclub
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: melee, bonus: 6, reach_ft: 5 }
+            - primitive: damage
+              params: { dice: "1d8", modifier: 4, type: bludgeoning }
+              when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  - instance_id: ogre_b
+    name: Ogre B
+    side: enemy
+    position: [0, 1]              # 5 ft from cleric
+    template:
+      id: m_ogre_sg_b
+      name: Ogre
+      source: user_authored
+      combat:
+        armor_class: 11
+        hit_points: { average: 100, dice: "12d10", con_contribution: 30 }
+        speed: { walk: 30 }
+        initiative: { modifier: -1, score: 5 }
+      abilities:
+        str: { score: 19, save: 4 }
+        dex: { score: 8, save: -1 }
+        con: { score: 16, save: 3 }
+        int: { score: 5, save: -3 }
+        wis: { score: 7, save: -2 }
+        cha: { score: 7, save: -2 }
+      cr: { value: 2.0, xp: 450, proficiency_bonus: 2 }
+      behavior_profile:
+        presets:
+          retreat: ftd
+      actions:
+        - id: a_greatclub
+          name: Greatclub
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: melee, bonus: 6, reach_ft: 5 }
+            - primitive: damage
+              params: { dice: "1d8", modifier: 4, type: bludgeoning }
+              when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  - instance_id: ogre_c
+    name: Ogre C
+    side: enemy
+    position: [1, 1]              # also within 15-ft
+    template:
+      id: m_ogre_sg_c
+      name: Ogre
+      source: user_authored
+      combat:
+        armor_class: 11
+        hit_points: { average: 100, dice: "12d10", con_contribution: 30 }
+        speed: { walk: 30 }
+        initiative: { modifier: -1, score: 5 }
+      abilities:
+        str: { score: 19, save: 4 }
+        dex: { score: 8, save: -1 }
+        con: { score: 16, save: 3 }
+        int: { score: 5, save: -3 }
+        wis: { score: 7, save: -2 }
+        cha: { score: 7, save: -2 }
+      cr: { value: 2.0, xp: 450, proficiency_bonus: 2 }
+      behavior_profile:
+        presets:
+          retreat: ftd
+      actions:
+        - id: a_greatclub
+          name: Greatclub
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: melee, bonus: 6, reach_ft: 5 }
+            - primitive: damage
+              params: { dice: "1d8", modifier: 4, type: bludgeoning }
+              when: { event: damage_roll, condition: "combat.attack_state == hit" }

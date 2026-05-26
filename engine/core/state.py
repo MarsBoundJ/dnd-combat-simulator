@@ -163,6 +163,18 @@ class CombatState:
     # Resolved by runner at the appropriate turn boundary.
     recurring_saves: list = field(default_factory=list)
 
+    # Persistent auras (PR #43): self-anchored area effects that
+    # trigger forced saves on creatures who satisfy the trigger
+    # condition (v1: at their turn-start while in the area). Spirit
+    # Guardians is the canonical first consumer. Entry shape:
+    #   { caster_id, action_id, named_effect, radius_ft,
+    #     trigger_event, ability, dc, on_fail, on_success, affected,
+    #     applied_at_round }
+    # Resolved by runner via _resolve_persistent_aura_triggers; cleaned
+    # up by engine.core.concentration.end_concentration when the caster
+    # drops concentration.
+    persistent_auras: list = field(default_factory=list)
+
     # Used by the spell-slot opportunity-cost formula (see
     # engine/core/spell_slots.py). Default 3 = mid-adventuring-day baseline
     # per the framework's 6-encounter day. Higher = early-day (slots are

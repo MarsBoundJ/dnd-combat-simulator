@@ -210,6 +210,26 @@ def generate_candidates(actor: Actor, state: CombatState,
                     "target": ally,
                     "actor": actor,
                 })
+        elif action_type == "persistent_aura":
+            # Self-anchored area effect (Spirit Guardians-shape).
+            # One candidate per turn — no positioning choice, the aura
+            # is always centered on the caster. The candidate's target
+            # is informational (set to the closest enemy as a proxy
+            # for scoring context; the actual aura affects everyone
+            # in radius per the registered trigger).
+            in_radius_enemies = []
+            radius = _persistent_aura_radius(action)
+            if radius > 0:
+                in_radius_enemies = [e for e in enemies
+                                       if is_within_ft(actor, e, radius)]
+            primary = in_radius_enemies[0] if in_radius_enemies else (
+                enemies[0] if enemies else actor)
+            candidates.append({
+                "kind": "persistent_aura",
+                "action": action,
+                "target": primary,
+                "actor": actor,
+            })
         elif action_type == "disengage":
             # Disengage is a self-targeted utility action — no enemy or
             # ally target. Single candidate per turn that the actor can
@@ -290,6 +310,19 @@ def generate_candidates(actor: Actor, state: CombatState,
                         "actor": actor,
                     })
     return candidates
+
+
+def _persistent_aura_radius(action: dict) -> int:
+    """Return the radius_ft for a persistent_aura action by reading
+    the first persistent_aura primitive in its pipeline. Returns 0 if
+    no persistent_aura step is found (defensive)."""
+    for step in (action.get("pipeline") or []):
+        if step.get("primitive") == "persistent_aura":
+            params = step.get("params") or {}
+            return int(params.get("radius_ft", 0))
+    # Also check the action's `area:` block as a fallback shape
+    area = action.get("area") or {}
+    return int(area.get("radius_ft", 0))
 
 
 def _action_reach_ft(action: dict) -> int:

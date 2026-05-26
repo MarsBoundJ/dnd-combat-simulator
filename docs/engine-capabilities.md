@@ -660,6 +660,20 @@ priority order:
    The L2 Fighter now saves AS for the boss instead of dumping it
    on the warm-up fight. Activation event log now carries
    `gain_eHP` / `cost_eHP` for telemetry.
+15. ~~**Spirit Guardians + persistent_aura primitive**~~ —
+   **Shipped in PR #43.** New `persistent_aura` primitive registers
+   a self-anchored area effect (moves with the caster) in
+   `state.persistent_auras`. Runner hook
+   `_resolve_persistent_aura_triggers` fires forced saves on each
+   creature's turn-start while they're within the aura's radius.
+   Concentration-tied: `end_concentration` scrubs the aura when
+   concentration drops (via damage CON save fail, new concentration
+   cast, caster incapacitation, etc. — composes with PRs #21, #34).
+   eHP scoring sums per-turn expected damage across in-radius
+   enemies × EXPECTED_AURA_ROUNDS (2.5). v1 scope: enemies-only,
+   turn-start trigger only (no entry-on-move trigger), no
+   speed-halving — all deferred. Opens up the
+   Spiritual Weapon / Moonbeam / Cloud of Daggers shape.
 9. ~~**Per-creature recurring save** to break Hypnotic Pattern at
    end-of-turn — would mirror single-target `recurring_save` for AoE.~~
    **Shipped in PR #35.** The existing single-target `recurring_save`

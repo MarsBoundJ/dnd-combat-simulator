@@ -5,6 +5,119 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-26 — Spirit Guardians + persistent_aura primitive (PR #43)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- New primitive class: persistent, self-anchored area effects that
+  move with the caster and trigger forced saves at well-defined
+  events. Spirit Guardians is the canonical first consumer; the
+  shape also covers Spiritual Weapon / Moonbeam / Cloud of Daggers
+  / Sickening Radiance.
+- Pre-discussion scoped tight: "damage on turn-start only" (skip
+  RAW's enter-on-move trigger — that needs movement-event
+  detection), "speed-halving deferred" (needs movement-rate
+  modifier infra), "enemies-only" (skip the RAW
+  caster-chooses-which-creatures clause).
+- New `CombatState.persistent_auras: list[dict]` — registry of
+  active auras with caster_id, action_id, named_effect, radius_ft,
+  trigger_event, ability, dc, on_fail, on_success, affected.
+- New `_persistent_aura` primitive in `engine/primitives.py`.
+  Registered with implemented=True; removed from
+  _STUBBED_PRIMITIVES. Logs `persistent_aura_registered` event on
+  cast.
+- Runner hook `_resolve_persistent_aura_triggers` fires at each
+  actor's turn_start. For each aura where actor is within radius
+  of (still-living) caster AND opposing side (v1 enemies-only),
+  sets up state.current_attack context with caster as actor +
+  actor as target, then invokes the existing `forced_save`
+  primitive with the aura's save params + on_fail / on_success
+  pipelines. Composes cleanly with existing damage / save infra.
+- Defensive: if actor dies from one aura's trigger, skip remaining
+  auras for that actor this turn (don't keep hitting a corpse).
+- `_run_actor_turn` only fires if `actor.is_alive()` after the
+  aura check — fighters who die to a turn-start aura don't try to
+  take their action.
+- New action type `persistent_aura` in pipeline's
+  generate_candidates: one candidate per turn (self-anchored, no
+  positioning choice). Candidate's `target` is the closest in-
+  radius enemy for scoring context; actual aura affects all in-
+  radius enemies via the registered trigger.
+- New scoring helper `offensive_ehp_persistent_aura` in
+  ehp_scoring.py: sum per-enemy per-turn expected damage
+  (p_fail × full + p_success × half) × EXPECTED_AURA_ROUNDS (2.5).
+  Per-turn damage capped at enemy's remaining HP (no over-counting
+  on low-HP targets).
+- `end_concentration` extended to scrub `state.persistent_auras`
+  entries matching the dropped (caster_id, action_id) — so when
+  the cleric loses concentration to a damage CON save (PR #21) or
+  becomes Incapacitated (PR #34), the Spirit Guardians aura ends
+  cleanly. Verified by test.
+- 13 new tests in `tests/test_persistent_aura.py`: registration
+  (state field populated, event logged), runner hook (in-range
+  enemy saves + takes damage, out-of-range unaffected, ally
+  unaffected, dead caster aura is noop), concentration cleanup
+  (this caster's aura scrubbed but other casters' preserved),
+  scoring (single enemy, no enemies, multi-enemy scales linearly,
+  per-turn HP cap), end-to-end via runner (cleric casts SG vs ogre
+  cluster, ogres take per-turn-start damage as documented).
+- New fixture `tests/fixtures/spirit_guardians_encounter.yaml`:
+  L5 cleric vs 3 clustered ogres. Seed 1 demonstrates the full
+  chain — cast → registered → concentration_started → each ogre
+  turn-start fires forced_save → damage_dealt for radiant. Cleric
+  takes hits from ogres but their CON save preserves concentration.
+- Bug found + fixed: `save_fail_probability` requires a `state`
+  argument that I initially omitted in the scoring function. Caught
+  by the integration test that runs the full runner.
+- Test count: 571 → 584. All green, stable across full-suite
+  re-runs.
+
+**Key decisions:**
+- **Turn-start trigger only (v1).** RAW Spirit Guardians fires on
+  "first time entering area on a turn OR starts turn there." We
+  ship (b) only — entry-on-move needs per-square movement-event
+  detection that's a separate arc. Documented as deferred. Most
+  Spirit Guardians value comes from the turn-start trigger anyway
+  (RAW: "first time on a turn" means at most 1 hit per creature
+  per turn regardless of entry vs. start).
+- **Enemies-only (v1).** RAW lets the caster choose which
+  creatures to affect. Most AI clerics would choose to exclude
+  allies. v1 hard-codes this; the `affected` field on the aura
+  state already exists for future expansion.
+- **Speed-halving deferred.** Needs a movement-rate modifier
+  system we don't have. Pure damage is the headline mechanic;
+  speed-halving is a tactical bonus we can layer later.
+- **Reuse `forced_save` primitive verbatim.** Runner hook sets up
+  state.current_attack and invokes the existing primitive. No new
+  save logic; clean composition.
+- **Per-turn HP cap in scoring.** An aura that does 12 dmg/turn
+  to a 3 HP creature is worth 3 eHP/turn for that creature, not
+  12. Prevents over-scoring vs already-bloodied targets.
+- **EXPECTED_AURA_ROUNDS = 2.5** to match EXPECTED_BUFF_ROUNDS for
+  framework consistency. Tunable; could be longer for
+  concentration-stable casters (Cleric with War Caster) or
+  shorter for damage-heavy fights (caster eats CON saves).
+
+**Open items carried forward:**
+- [ ] Entry-on-move trigger (RAW: "first time entering area on a
+  turn"). Needs per-movement-step event detection.
+- [ ] Speed-halving while in area (needs movement-rate modifier
+  system).
+- [ ] All-creatures / ally-only `affected` modes (schema supports
+  it; runner hook needs to honor it).
+- [ ] Cross-aura dedup (two SG casters on same area). Currently
+  each aura fires independently; RAW says effects of the same
+  spell don't stack so the per-turn damage should be capped at
+  one cast's worth. Follow-on similar to PR #36's named_effect
+  pattern for buffs.
+- [ ] More persistent_aura spells: Spiritual Weapon (separate
+  attack action that uses the aura's position; different
+  mechanic), Moonbeam (5-ft radius, casters move per turn),
+  Cloud of Daggers (5-ft cube, damage on entry-and-each-turn).
+
+---
+
 ## Session: 2026-05-26 — Pace-aware Action Surge (PR #42)
 
 **Participants:** Phil, Claude
