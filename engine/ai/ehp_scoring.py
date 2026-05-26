@@ -433,21 +433,36 @@ def offensive_ehp_aoe(actor: Actor, origin: tuple[int, int], action: dict,
     # Damage on fail / on success (full / half by multiplier)
     fail_damage_by_step = _aoe_damage_per_step(action, on="fail")
     succ_damage_by_step = _aoe_damage_per_step(action, on="success")
+    # AoE applied conditions (Hypnotic Pattern → Incapacitated, Web →
+    # Restrained, etc.). Scored as control eHP per affected target —
+    # the AoE generalization of defensive_ehp_hard_control.
+    fail_control_components = _aoe_control_components(action, on="fail")
+    succ_control_components = _aoe_control_components(action, on="success")
 
     total = 0.0
     for target in affected:
+        # Damage contribution
         full_dmg = _aoe_target_damage(target, fail_damage_by_step)
         half_dmg = _aoe_target_damage(target, succ_damage_by_step)
         p_fail = save_fail_probability(target, ability, dc, state)
         p_save = 1.0 - p_fail
-        expected = (p_fail * full_dmg) + (p_save * half_dmg)
+        expected_dmg = (p_fail * full_dmg) + (p_save * half_dmg)
         # Overkill cap per target
-        capped = min(expected, float(max(0, target.hp_current)))
-        # Allies subtract (friendly fire)
+        capped_dmg = min(expected_dmg, float(max(0, target.hp_current)))
+
+        # Control contribution
+        full_ctrl = _aoe_target_control_ehp(
+            target, fail_control_components)
+        succ_ctrl = _aoe_target_control_ehp(
+            target, succ_control_components)
+        expected_ctrl = (p_fail * full_ctrl) + (p_save * succ_ctrl)
+
+        target_total = capped_dmg + expected_ctrl
+        # Allies subtract (friendly fire applies to control too)
         if target.side == actor.side:
-            total -= capped
+            total -= target_total
         else:
-            total += capped
+            total += target_total
     return total
 
 
@@ -494,6 +509,66 @@ def _aoe_damage_per_step(action: dict, on: str) -> list[dict]:
                 "multiplier": float(p.get("multiplier", 1.0)),
             })
     return components
+
+
+def _aoe_control_components(action: dict, on: str) -> list[dict]:
+    """Extract apply_condition control entries from the forced_save's
+    on_fail or on_success sub-primitives.
+
+    Returns a list of dicts: {condition_id, denial_fraction}.
+    Conditions not in HARD_CONTROL_CONDITIONS or PARTIAL_CONTROL_CONDITIONS
+    are skipped (e.g., applying Bless-like buffs from a save spell is
+    not "control" — it'd score 0 here).
+
+    Used by `offensive_ehp_aoe` to score AoE spells like Hypnotic
+    Pattern (Incapacitated), Web (Restrained), Color Spray (Blinded).
+    """
+    from engine.ai.defensive_ehp import _denial_fraction_for_condition
+    key = f"on_{on}"
+    components: list[dict] = []
+    for step in (action.get("pipeline") or []):
+        if step.get("primitive") != "forced_save":
+            continue
+        for sub in ((step.get("params") or {}).get(key) or []):
+            if sub.get("primitive") != "apply_condition":
+                continue
+            p = sub.get("params") or {}
+            condition_id = p.get("condition_id") or p.get("condition")
+            if not condition_id:
+                continue
+            denial_fraction = _denial_fraction_for_condition(condition_id)
+            if denial_fraction <= 0:
+                continue
+            components.append({
+                "condition_id": condition_id,
+                "denial_fraction": denial_fraction,
+            })
+    return components
+
+
+def _aoe_target_control_ehp(target: Actor,
+                              components: list[dict]) -> float:
+    """Per-target control eHP from a list of components. Mirrors
+    `defensive_ehp_hard_control` but per-target (the AoE caller
+    multiplies by p_fail and sums across targets externally).
+
+      ehp_per_target = target_DPR × denial_fraction × EXPECTED_CONTROL_ROUNDS
+
+    (The p_fail factor is applied by the caller, since it's computed
+    once per target from the shared save_info.)
+    """
+    if not components:
+        return 0.0
+    from engine.ai.defensive_ehp import (
+        EXPECTED_CONTROL_ROUNDS, estimate_dpr,
+    )
+    target_dpr = estimate_dpr(target)
+    if target_dpr <= 0:
+        return 0.0
+    total = 0.0
+    for c in components:
+        total += target_dpr * EXPECTED_CONTROL_ROUNDS * c["denial_fraction"]
+    return total
 
 
 def _aoe_target_damage(target: Actor, components: list[dict]) -> float:
