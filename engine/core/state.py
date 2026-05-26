@@ -64,6 +64,11 @@ class Actor:
     # all actors and remove them.
     concentration_on: dict | None = None
 
+    # Spell slots remaining at each level — {1: 3, 2: 2, 3: 1, ...}
+    # Empty dict = not a spellcaster (no actions require slots).
+    # Decremented at execution time via engine.core.spell_slots.consume_slot.
+    spell_slots: dict = field(default_factory=dict)
+
     def is_alive(self) -> bool:
         return self.hp_current > 0 and not self.is_dead and not self.is_fled
 
@@ -119,6 +124,12 @@ class CombatState:
     # Entries: { target_id, condition_id, source_id, ability, dc, on_success, trigger_event }
     # Resolved by runner at the appropriate turn boundary.
     recurring_saves: list = field(default_factory=list)
+
+    # Used by the spell-slot opportunity-cost formula (see
+    # engine/core/spell_slots.py). Default 3 = mid-adventuring-day baseline
+    # per the framework's 6-encounter day. Higher = early-day (slots are
+    # "cheap" to spend); lower = late-day (preserve remaining slots).
+    encounters_remaining_today: int = 3
 
     def current_actor(self) -> Actor | None:
         if not self.turn_order:

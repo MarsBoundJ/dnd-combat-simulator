@@ -75,11 +75,17 @@ def generate_candidates(actor: Actor, state: CombatState,
         calls this twice per turn: once for the main slot, once for bonus.
     """
     from engine.core.geometry import is_within_ft
+    from engine.core.spell_slots import has_slot, required_slot_level
 
     candidates: list[dict] = []
     template = actor.template
     actions = [a for a in (template.get("actions") or [])
                 if a.get("slot", "action") == slot]
+    # Filter out spell actions whose required slot is unavailable. Free
+    # actions (no `spell_slot_level`) pass through. Cantrips would have
+    # `spell_slot_level: 0` and also pass.
+    actions = [a for a in actions
+                if has_slot(actor, required_slot_level(a))]
 
     enemies = [a for a in state.encounter.actors
                if a.side != actor.side and a.is_alive()]
@@ -322,6 +328,13 @@ def execute(chosen: dict, state: CombatState, event_bus, primitives) -> None:
     if action.get("concentration"):
         from engine.core.concentration import apply_concentration
         apply_concentration(actor, action, state)
+
+    # Spell slot consumption — only fires for actions with
+    # `spell_slot_level >= 1`. Free actions and cantrips skip.
+    from engine.core.spell_slots import required_slot_level, consume_slot
+    level = required_slot_level(action)
+    if level > 0:
+        consume_slot(actor, level, state, action_id=action.get("id"))
 
 
 def _execute_single(chosen: dict, state: CombatState, event_bus, primitives) -> None:
