@@ -272,14 +272,23 @@ _ABILITY_KEYS = ("str", "dex", "con", "int", "wis", "cha")
 
 
 # Fighting Styles the engine knows how to apply at template build time.
-# Defense + Dueling are SRD CC v5.2.1. Archery is user_authored
-# (non-SRD; common Fighter pick). GWF / Protection / Two-Weapon
-# Fighting / Blind Fighting are deferred — each needs additional
-# infrastructure (damage re-roll, reactions, off-hand weapons, vision).
+# Defense + Dueling are SRD CC v5.2.1. Archery / Protection are
+# user_authored (non-SRD; common picks). GWF / Two-Weapon Fighting /
+# Blind Fighting still deferred — each needs additional infrastructure
+# (damage re-roll, off-hand weapons, vision).
+#
+# Note: Protection is a REACTION (declared in f_fs_protection.yaml's
+# action_template); pc_schema doesn't bake in a passive modifier for
+# it. The Fighting Style choice records that the actor has Protection,
+# and the fixture (or future class-features auto-wiring) must attach
+# the reaction action to the actor's template.actions list.
 _KNOWN_FIGHTING_STYLES = frozenset({
-    "defense",      # +1 AC when wearing armor
-    "dueling",      # +2 damage on one-handed melee
-    "archery",      # +2 attack on ranged weapons
+    "defense",      # +1 AC when wearing armor (passive)
+    "dueling",      # +2 damage on one-handed melee (passive)
+    "archery",      # +2 attack on ranged weapons (passive)
+    "protection",   # reaction: impose disadv on adjacent ally attacks
+                    # (PR #45; action wired via f_fs_protection.yaml's
+                    # action_template, attached by fixture for v1)
 })
 
 

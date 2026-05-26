@@ -1,0 +1,51 @@
+# f_shield — Shield (Wizard 1st-level spell, SRD CC v5.2.1)
+#
+# RAW: "An invisible barrier of magical force appears and protects
+# you. Until the start of your next turn, you have a +5 bonus to AC,
+# including against the triggering attack..."
+#
+# Casting time: 1 reaction, which you take when you are hit by an
+# attack roll or targeted by the magic missile spell.
+#
+# Engine modeling (PR #45):
+#   - trigger: attack_roll_pending — fires after d20+bonus is computed
+#     but BEFORE the hit/miss check. The runner re-queries
+#     attack_modifiers after this point, so our +5 AC modifier takes
+#     effect on the triggering attack.
+#   - condition: shield_would_help — only fires if the attack would hit
+#     (so we don't waste a slot on attacks that would miss anyway).
+#     PR #45's vocabulary: total >= current_ac AND total < current_ac + 5.
+#   - slot: reaction (consumes the reactor's reaction slot)
+#   - spell_slot_level: 1 (consumes a 1st-level slot)
+#   - effect: +5 AC self via attack_modifier with lifetime
+#     until_actor_next_turn_start (RAW: lasts the rest of the round)
+#
+# v1 deferred:
+#   - "targeted by magic missile" trigger (magic missile auto-hits;
+#     Shield would need a different event hook)
+#   - Pace-aware reaction-use scoring (always-use-if-helps for now)
+
+id: f_shield
+name: Shield
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 1
+type: active
+
+action_template:
+  id: a_shield
+  name: Shield
+  type: defensive_buff
+  spell_slot_level: 1
+  slot: reaction
+  trigger: attack_roll_pending
+  condition: shield_would_help
+  named_effect: shield
+  pipeline:
+    - primitive: attack_modifier
+      params:
+        target: self
+        modifier: ac_modifier
+        value: 5
+        lifetime: until_actor_next_turn_start

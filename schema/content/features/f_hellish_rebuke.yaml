@@ -1,0 +1,61 @@
+# f_hellish_rebuke — Hellish Rebuke (Warlock 1st-level spell, SRD CC v5.2.1)
+#
+# RAW: "You point your finger, and the creature that damaged you is
+# momentarily surrounded by hellish flames. The creature must make a
+# Dexterity saving throw. It takes 2d10 fire damage on a failed save,
+# or half as much damage on a successful one."
+#
+# Casting time: 1 reaction, which you take in response to being
+# damaged by a creature within 60 feet that you can see.
+#
+# Engine modeling (PR #45):
+#   - trigger: damage_taken — fires after the target's HP is reduced.
+#   - condition: damage_taken_by_self_from_attacker — only fire on
+#     damage we took (target_id == self.id) AND the attacker is still
+#     alive (RAW: HR targets the creature that damaged us; dead
+#     creatures can't be targeted).
+#   - The reaction system sets state.current_attack.target =
+#     event.attacker (via the _reaction_target_is_attacker flag in
+#     event_data) so forced_save's affected='current_target' rebukes
+#     the right creature.
+#   - effect: forced_save DEX vs spell DC; 2d10 fire on fail, half on
+#     success.
+#
+# This spell isn't class-wired in the engine (no Warlock yet), but
+# fixtures can add the action template to any actor for testing /
+# demo purposes. The action's `granted_by` says Warlock for telemetry;
+# the engine doesn't enforce class.
+#
+# v1 deferred:
+#   - "within 60 feet" gate (no range check on reactions yet)
+#   - "you can see" gate (no vision system)
+
+id: f_hellish_rebuke
+name: Hellish Rebuke
+source: srd_5.2.1
+granted_by:
+  class: c_warlock
+  level: 1
+type: active
+
+action_template:
+  id: a_hellish_rebuke
+  name: Hellish Rebuke
+  type: hard_control
+  spell_slot_level: 1
+  slot: reaction
+  trigger: damage_taken
+  condition: damage_taken_by_self_from_attacker
+  named_effect: hellish_rebuke
+  pipeline:
+    - primitive: forced_save
+      params:
+        ability: dexterity
+        dc: 13                  # spell DC; fixture-overridable
+        affected: current_target  # the attacker, set up by reaction sys
+        on_fail:
+          - primitive: damage
+            params: { dice: "2d10", type: fire }
+        on_success:
+          - primitive: damage
+            params: { dice: "2d10", type: fire, multiplier: 0.5 }

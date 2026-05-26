@@ -22,6 +22,15 @@ EVENT_NAMES = frozenset({
     "attack_declared", "attack_roll", "attack_resolved",
     "pre_damage_triggers", "damage_roll", "damage_modified", "damage_dealt",
     "creature_bloodied", "creature_dropped", "on_hit_riders", "attack_complete",
+    # Reaction triggers (PR #45):
+    #   attack_targeting_resolved — fires after target is picked but
+    #     BEFORE the d20 is rolled. Protection Fighting Style hooks here.
+    #   attack_roll_pending — fires after d20+bonus is computed but
+    #     BEFORE the hit/miss check. Shield hooks here (retroactive AC
+    #     bump). Engine re-queries attack_modifiers after this event.
+    #   damage_taken — fires after HP is reduced. Hellish Rebuke hooks
+    #     here (retaliation against the damaging attacker).
+    "attack_targeting_resolved", "attack_roll_pending", "damage_taken",
     # Spell pipeline
     "spell_cast", "spell_resolve", "spell_end", "concentration_check",
     "target_enters_area", "target_exits_area",

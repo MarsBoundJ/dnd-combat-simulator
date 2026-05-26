@@ -5,6 +5,144 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-26 — Reaction infrastructure + Shield + Protection + Hellish Rebuke (PR #45)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Pre-discussion locked scope: infra + 3 reactions. Counterspell
+  explicitly cut — it needs cast-event hook + spell-fizzle +
+  ability-check resolution (Intelligence (Spellcasting) per RAW
+  2024) that are non-trivial separate pieces. Counterspell goes in
+  its own follow-up PR.
+- New trigger events in `engine/core/events.py`:
+  - `attack_targeting_resolved` — fires after target picked, BEFORE
+    d20 rolled (Protection hooks here)
+  - `attack_roll_pending` — fires after d20+bonus computed, BEFORE
+    hit/miss check (Shield hooks here; runner re-queries
+    attack_modifiers after so the +5 AC takes effect)
+  - `damage_taken` — fires after HP reduced (Hellish Rebuke hooks)
+- `engine/core/reactions.py` extended with generic reaction system
+  alongside the existing OA code:
+  - `is_reaction_action(action)` — True if `trigger: <event>` is
+    present. Used by `pipeline.generate_candidates` to filter
+    reactions out of the main / bonus candidate pool.
+  - `resolve_reaction_triggers(event_type, event_data, state, bus)`
+    — scans living actors for declared reactions matching the event
+    type whose condition is satisfied; fires each eligible reaction
+    via try_use_reaction. Returns count of reactions fired.
+  - `try_use_reaction(reactor, action, event_data, state, bus)`
+    — gates on reaction slot + spell slot + feature use availability;
+    sets up state.current_attack for the reaction's pipeline (with
+    target swapped to the attacker for retaliation reactions like
+    Hellish Rebuke via the `_reaction_target_is_attacker` flag); runs
+    the pipeline via `_invoke_subprimitive` (same dispatch as
+    forced_save sub-primitives); consumes resources; logs
+    `reaction_fired` event.
+  - `_reaction_condition_satisfied(cond, reactor, event_data, state)`
+    — v1 vocabulary: `shield_would_help`,
+    `attack_against_ally_within_5_ft`,
+    `damage_taken_by_self_from_attacker`. Small fixed set;
+    extensions = add a case.
+- `engine/primitives.py`:
+  - `_attack_roll` now emits `attack_targeting_resolved` (before
+    roll) and `attack_roll_pending` (after roll). Re-queries
+    `attack_modifiers` after the pending event so Shield's AC bump
+    folds in for the hit/miss check.
+  - `_damage` emits `damage_taken` after HP reduction (skipped on
+    self-damage to avoid feedback loops).
+- `engine/core/pipeline.py` `generate_candidates`: filters out
+  actions with `trigger:` field (they're reactions, not turn-
+  initiated candidates).
+- `engine/pc_schema.py`: added "protection" to
+  `_KNOWN_FIGHTING_STYLES`. Protection is a reaction (not a passive
+  modifier baked at build time); the Fighting Style choice records
+  the protector has it, but the reaction action itself is wired
+  via fixture attachment (or future class-features auto-wiring) of
+  `f_fs_protection.yaml`'s `action_template`.
+- Three new feature YAMLs in `schema/content/features/`:
+  - `f_shield.yaml` (SRD, Wizard 1st): trigger=attack_roll_pending,
+    condition=shield_would_help, effect: ac_modifier +5
+    until_actor_next_turn_start. Consumes 1st-level slot.
+  - `f_fs_protection.yaml` (non-SRD): trigger=attack_targeting_resolved,
+    condition=attack_against_ally_within_5_ft, effect:
+    disadvantage_for_attacker on the ally per_single_attack.
+  - `f_hellish_rebuke.yaml` (SRD, Warlock 1st): trigger=damage_taken,
+    condition=damage_taken_by_self_from_attacker, effect:
+    forced_save DEX vs spell DC for 2d10 fire (half on save).
+- 21 new tests in `tests/test_reactions.py`: is_reaction_action
+  detection, candidate filtering, condition vocabulary (shield
+  would_help yes/no-attack-misses-anyway/no-attack-hits-anyway/
+  not-self; ally within 5 ft yes/not-adjacent/enemy-target; damage
+  by self yes/by-other-doesnt-fire), try_use_reaction (slot
+  consumed, skipped without slot, one-per-round cap), Shield end-
+  to-end (turns hit into miss, doesn't fire when attack misses
+  anyway), Protection end-to-end (imposes disadvantage on adjacent
+  ally / skipped when ally not adjacent), Hellish Rebuke end-to-
+  end (damages attacker via forced_save).
+- Test count: 598 → 619. All green, stable across full-suite
+  re-runs.
+
+**Bug fix during dev:**
+- Initial Shield test failed because the test helper hardcoded
+  `bonus=4` for the attack roll but the test created the attacker
+  with `bonus=10`. The attack's `_attack_roll` reads its bonus
+  from primitive params (passed directly), not from the action's
+  pipeline. Fixed by making the helper accept `attack_bonus` and
+  pass it through.
+
+**Key decisions:**
+- **Counterspell cut.** Honest scope. Counterspell needs three
+  pieces of infra the other reactions don't: spell-cast event hook,
+  spell-fizzle mechanism (cancel pending spell while still
+  consuming caster's slot), and ability-check resolution (we have
+  saves but not ability checks). Each is a separate non-trivial
+  addition. Bundling would have doubled the PR size and risk.
+- **Always-use reaction scoring.** v1 fires the reaction whenever
+  the condition is satisfied and the slot is available. Pace-aware
+  reaction selection (don't burn Shield on the first attack of a
+  long day) is a clean follow-up via the same shape as PR #42's
+  Action Surge pacing.
+- **Conditions are a small fixed vocabulary, not an expression
+  evaluator.** Three conditions cover the three reactions. Adding
+  new ones = adding a case. Keeps the system explicit and avoids
+  the eval-string can-of-worms.
+- **`_reaction_target_is_attacker` flag** for retaliation-type
+  reactions (Hellish Rebuke). The condition sets it on event_data;
+  try_use_reaction reads it to swap state.current_attack.target to
+  the attacker so forced_save's `affected='current_target'`
+  retargets correctly.
+- **Re-query attack_modifiers after attack_roll_pending event.**
+  Critical for Shield to work — Shield attaches a +5 AC modifier
+  during its pipeline; without the re-query, the hit/miss check
+  uses the pre-Shield AC.
+- **Skip damage_taken event on self-damage** (attacker == target).
+  Prevents feedback loops if a creature's reaction self-damages.
+- **Protection isn't auto-applied at template build time** like
+  Defense/Dueling/Archery. It's a reaction action wired via the
+  `action_template` field on the YAML. Fixtures attach it manually
+  for v1; future class-features auto-wiring will pick it up from
+  the FStyle choice.
+
+**Open items carried forward:**
+- [ ] Counterspell (own PR — cast-event hook + spell-fizzle +
+  ability-check infra)
+- [ ] Pace-aware reaction scoring (Shield-on-first-attack burn)
+- [ ] Auto-attach reaction action_templates from FStyle choice
+  (Protection — currently fixtures attach manually)
+- [ ] Reaction conditions for vision / line-of-sight gates
+  (Hellish Rebuke RAW requires "you can see"; Protection RAW
+  requires "creature you can see")
+- [ ] Reaction range gates (Hellish Rebuke RAW: within 60 ft)
+- [ ] Magic Missile auto-hit trigger for Shield (separate event
+  needed — MM doesn't roll attack rolls)
+- [ ] Reaction-cascade termination guard (the comment in events.py
+  noted this; the one-reaction-per-round limit already prevents
+  the worst cases, but Mage Slayer / Counterspell-of-Counterspell
+  chains would need stricter rules)
+
+---
+
 ## Session: 2026-05-26 — More persistent_aura: Moonbeam + Cloud of Daggers (PR #44)
 
 **Participants:** Phil, Claude

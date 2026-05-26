@@ -250,3 +250,207 @@ def _evaluate_simple_condition(cond: str, state: CombatState) -> bool:
     if "combat.attack_had_advantage" in cond:
         return state.current_attack.get("had_advantage", False)
     return True
+
+
+# ============================================================================
+# Generic reaction trigger system (PR #45)
+# ============================================================================
+#
+# Beyond opportunity attacks, reactions like Shield / Protection /
+# Hellish Rebuke fire on specific events (attack roll pending, ally
+# attacked, self damaged). The infrastructure below is general:
+#
+#   1. Actor template actions tagged `trigger: <event_name>` are
+#      reactions (not main-slot candidates). pipeline.generate_candidates
+#      filters them out.
+#   2. At specific points in the attack / damage primitives, we call
+#      `resolve_reaction_triggers(event_type, event_data, state, ...)`.
+#   3. That scans every living actor for declared reactions matching
+#      the event_type whose condition is satisfied; for each eligible
+#      reactor, calls `try_use_reaction` which checks the reaction
+#      slot is available, runs the reaction's pipeline, and consumes
+#      the slot.
+#
+# Conditions are a small fixed vocabulary mapped to Python predicates
+# (see _reaction_condition_satisfied). Adding new conditions = adding
+# a new case there.
+#
+# v1: "Always use the reaction if eligible" — no AI scoring (pacing-
+# aware reaction use is a follow-up). Spell-slot consumption for
+# reactions that cast spells happens via try_use_reaction (checks +
+# decrements via the existing spell_slots helpers).
+
+
+def is_reaction_action(action: dict) -> bool:
+    """True if `action` is a reaction (declared with `trigger: <event>`).
+    Used by pipeline.generate_candidates to filter reactions out of the
+    main / bonus candidate pool — reactions fire from event triggers,
+    not from turn-initiated decisions."""
+    return bool(action.get("trigger"))
+
+
+def resolve_reaction_triggers(event_type: str, event_data: dict,
+                                 state: CombatState, bus) -> int:
+    """Scan actors for reactions matching `event_type` whose conditions
+    are satisfied; fire each eligible reaction. Returns the count of
+    reactions that fired.
+
+    `event_data` is a dict of context the condition predicates can
+    consult — typically includes `actor` (attacker), `target` (defender)
+    for attack events, or `attacker_id` / `amount` for damage events.
+
+    Sub-primitives in reaction pipelines are invoked via
+    `primitives._invoke_subprimitive` (uses the module-level handler
+    registry — same approach as forced_save's on_fail / on_success).
+    """
+    fired = 0
+    for reactor in list(state.encounter.actors):
+        if not reactor.is_alive():
+            continue
+        if reactor.actions_used_this_turn.get("reaction"):
+            continue
+        for action in (reactor.template.get("actions") or []):
+            if action.get("trigger") != event_type:
+                continue
+            if not _reaction_condition_satisfied(
+                    action.get("condition"), reactor, event_data, state):
+                continue
+            # Defer cost / availability checks to try_use_reaction
+            if try_use_reaction(reactor, action, event_data, state, bus):
+                fired += 1
+                # Per RAW, one reaction per round — stop checking this
+                # reactor's other reactions; move to next actor
+                break
+    return fired
+
+
+def try_use_reaction(reactor: Actor, action: dict, event_data: dict,
+                        state: CombatState, bus) -> bool:
+    """Attempt to fire a reaction. Returns True if it fired (slot
+    consumed + pipeline executed), False if it was skipped (slot
+    unavailable, missing resources, etc.).
+
+    Side effects when firing:
+      - Decrement `actor.actions_used_this_turn['reaction']`
+      - Consume spell slot (if the action declares `spell_slot_level`)
+      - Consume feature use (if the action declares `feature_use`)
+      - Run the reaction's pipeline with state.current_attack set up
+        for the reaction context (reactor as actor; the attacker /
+        target swapped appropriately per event type)
+    """
+    # Spell-slot gate
+    from engine.core.spell_slots import (
+        required_slot_level, has_slot, consume_slot,
+    )
+    slot_level = required_slot_level(action)
+    if slot_level > 0 and not has_slot(reactor, slot_level):
+        return False
+    # Feature-use gate
+    from engine.core.feature_uses import (
+        required_feature_use, has_use, consume_use,
+    )
+    feature_key = required_feature_use(action)
+    if feature_key is not None and not has_use(reactor, feature_key):
+        return False
+
+    # Set up state.current_attack for the reaction's pipeline. The
+    # reaction's "current_attack" semantics depend on the event type:
+    #   - attack_targeting_resolved / attack_roll_pending: reactor is
+    #     the spell-caster (actor); the original attacker remains in
+    #     event_data; current_attack.target is the original defender
+    #     (so attack_modifier with target='ally' resolves to them).
+    #   - damage_taken: reactor was the damaged one (= reactor); we
+    #     want forced_save to target the ATTACKER, so set target =
+    #     event_data['attacker'].
+    saved_attack = state.current_attack
+    if event_data.get("_reaction_target_is_attacker"):
+        new_target = event_data.get("attacker")
+    else:
+        new_target = event_data.get("target") or reactor
+    state.current_attack = {
+        "actor": reactor,
+        "target": new_target,
+        "action": action,
+        "state": None,
+        "had_advantage": False,
+        "had_disadvantage": False,
+        "area_origin": None,
+        "area_direction": None,
+        "is_reaction": True,
+        "reaction_event_data": event_data,
+    }
+    try:
+        # Use the module-level handler registry via _invoke_subprimitive
+        # (same dispatch as forced_save's on_fail / on_success). Keeps
+        # this module free of a primitives-registry dependency.
+        from engine.primitives import _invoke_subprimitive
+        for step in (action.get("pipeline") or []):
+            _invoke_subprimitive(step, state, bus)
+    finally:
+        state.current_attack = saved_attack
+
+    # Mark reaction used + consume resources
+    reactor.actions_used_this_turn["reaction"] = True
+    if slot_level > 0:
+        consume_slot(reactor, slot_level, state, action_id=action.get("id"))
+    if feature_key is not None:
+        consume_use(reactor, feature_key, state, action_id=action.get("id"))
+    state.event_log.append({
+        "event": "reaction_fired",
+        "reactor": reactor.id,
+        "action": action.get("id"),
+        "trigger": action.get("trigger"),
+    })
+    return True
+
+
+def _reaction_condition_satisfied(cond: str | None, reactor: Actor,
+                                     event_data: dict,
+                                     state: CombatState) -> bool:
+    """Evaluate a reaction's condition predicate. v1 vocabulary:
+
+      - None / '' / 'always': fires unconditionally
+      - 'shield_would_help': event.target == reactor AND event.total
+        would hit (>= current_ac) AND event.total < current_ac + 5
+        (Shield's RAW: only useful if it actually turns a hit into a
+        miss; +5 AC otherwise unused)
+      - 'attack_against_ally_within_5_ft': event.target on reactor's
+        side, distance(reactor, target) <= 5 ft, reactor != target
+        (Protection Fighting Style)
+      - 'damage_taken_by_self_from_attacker': event.target_id ==
+        reactor.id AND event.attacker is alive (Hellish Rebuke)
+
+    Adding new conditions = adding a new case here. Keeps the
+    vocabulary small and explicit; no expression evaluator needed.
+    """
+    if not cond or cond == "always":
+        return True
+    if cond == "shield_would_help":
+        target = event_data.get("target")
+        if target is None or target.id != reactor.id:
+            return False
+        total = int(event_data.get("total", 0))
+        current_ac = int(event_data.get("current_ac", 0))
+        # Shield bumps AC by 5. Useful only if total would hit current_ac
+        # but would miss current_ac + 5.
+        return total >= current_ac and total < current_ac + 5
+    if cond == "attack_against_ally_within_5_ft":
+        target = event_data.get("target")
+        if target is None or target.id == reactor.id:
+            return False
+        if target.side != reactor.side:
+            return False
+        if distance_ft(reactor.position, target.position) > 5:
+            return False
+        return True
+    if cond == "damage_taken_by_self_from_attacker":
+        if event_data.get("target_id") != reactor.id:
+            return False
+        attacker = event_data.get("attacker")
+        if attacker is None or not attacker.is_alive():
+            return False
+        # Mark for try_use_reaction: forced_save's affected='current_target'
+        # should be the attacker for retaliation reactions.
+        event_data["_reaction_target_is_attacker"] = True
+        return True
+    return False
