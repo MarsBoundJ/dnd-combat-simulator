@@ -5,6 +5,102 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-26 — Second Wind v1 + feature_uses gate (PR #33)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Closes the chain from PR #31 (runner Action Surge) → PR #32 (auto-
+  wired resources) → PR #33 (auto-wired Second Wind ACTION + the
+  generic `feature_uses` gate that consumes the counter). A `pc:`
+  spec with `class: c_fighter, level: 1+` now ships a wounded fighter
+  who self-heals on the bonus slot without any manual setup.
+- New `engine/core/feature_uses.py`: mirrors the `spell_slots.py`
+  pattern. Actions declare `feature_use: <resource_key>` (a key in
+  `actor.resources`); the candidate filter drops actions whose key
+  is missing or ≤ 0, and execution decrements the counter and logs
+  a `feature_use_consumed` event. Designed to be generic — Wizard
+  Arcane Recovery, Lay on Hands, monster legendary actions, etc.
+  will all hang off the same gate.
+- `engine/core/pipeline.py`: added the feature_uses filter alongside
+  the existing spell-slot filter in `generate_candidates`, and the
+  consumption call alongside `consume_slot` in `execute`. Spell slots
+  and feature uses are independent gates (an action could in
+  principle consume both — no RAW spell does today).
+- `engine/core/basic_actions.py`: added `is_self_targeted_heal` —
+  sibling of `is_self_targeted_defensive_buff` — so a self-only heal
+  emits ONE candidate instead of per-ally enumeration. Without this,
+  Second Wind on a multi-ally party would emit N redundant candidates
+  all targeting the caster.
+- `engine/pc_schema.py`: extracted shared helpers
+  `_features_known_at_level` + `_class_resources_at_level` (used by
+  both `derive_pc_resources` and `build_pc_template`). New
+  `_build_feature_actions` + `_build_second_wind_action`: when
+  `f_second_wind` is in features_known and class is `c_fighter`,
+  append the auto-generated bonus-action heal (type=heal, slot=
+  bonus_action, target=self, dice=1d10, fixed=fighter_level,
+  feature_use=second_wind_uses_remaining, is_signature=True).
+- `is_signature: True` on the generated action is load-bearing —
+  matches `f_second_wind.yaml`'s declared flag, and gates the bonus-
+  slot roll against the 0.95 signature threshold instead of 0.60
+  tactical. Without it, a wounded Fighter would skip Second Wind
+  ~40% of the time even when it's the clear high-eHP play.
+- Tests:
+  - `test_feature_uses.py`: 16 tests covering all the gate primitives
+    (required_feature_use, has_use, consume_use, remaining_uses) +
+    pipeline candidate-filter integration + execution-consumption.
+  - `test_second_wind.py`: 7 tests — action shape, level-scaled
+    `fixed` modifier, feature-action generation guarded on
+    f_second_wind + class=c_fighter, template integration, behavioral
+    end-to-end with a wounded L2 Fighter (verifies the heal fires,
+    counter decrements, `feature_use_consumed` event logs).
+  - `test_pc_schema.py`: updated `test_level_3_fighter_full_template`
+    to expect 2 actions (longsword + Second Wind) — was 1 (longsword
+    only).
+- New fixture `tests/fixtures/second_wind_encounter.yaml`: L2
+  Fighter (`pc:` schema, no manual resources block) starting at 5/20
+  HP vs goblin warrior. Seed 1: turn 1 fighter swings sword (Action
+  Surge fires), then Second Wind on bonus slot (+7 HP, 5 → 12),
+  `feature_use_consumed` event with `remaining: 1`. Goblin dies
+  round 3.
+- Test count: 423 → 446. All green.
+
+**Key decisions:**
+- **Feature uses as their own module, not a tag on spell_slots.**
+  Different scoring (no opportunity-cost formula for features — flat
+  candidate gate is right), different rest cadence (short-rest
+  partial restore vs. long-rest-only spells), different schema (one
+  named resource per feature vs. nine slot levels). Smaller blast
+  radius for future features that want this gate.
+- **Auto-generated Second Wind is_signature=True.** The bonus-slot
+  resolution rolls against a tactical threshold by default (0.60)
+  and a signature threshold for is_signature actions (0.95). Without
+  the flag, a wounded fighter would skip Second Wind too often. The
+  flag matches `f_second_wind.yaml`'s explicit declaration.
+- **Self-targeted heal emits one candidate.** Same dedup pattern as
+  defensive_buff/self (PR #29). Without it, an N-ally party with a
+  self-targeted heal would generate N redundant candidates.
+- **Inline `fixed` modifier, not modifier_source.** Fighter level
+  doesn't change during an encounter, so resolving via a runtime
+  expression is wasted work. Inlining at template-build time is the
+  simpler choice.
+
+**Open items carried forward:**
+- [ ] Short / long rest semantics — counters never refresh in a
+  multi-encounter session because no rest cycle exists in-engine.
+  PR #31 documented this; same issue applies to second_wind_uses_
+  remaining now. Multi-encounter sessions + rest mechanics are their
+  own arc.
+- [ ] Fighting Style passive modifiers — Great Weapon Fighting
+  damage re-roll, Defense +1 AC, etc. Always-on, not action-gated.
+- [ ] Extra Attack auto-generation (L5/L11/L20 → multiattack action
+  with appropriate count)
+- [ ] Weapon Mastery property tags
+- [ ] Wizard Arcane Recovery (`slot_recovery_partial` primitive
+  pending) — first non-Fighter consumer of the feature_uses gate
+
+---
+
 ## Session: 2026-05-26 — Class-features auto-wiring v1 (PR #32)
 
 **Participants:** Phil, Claude

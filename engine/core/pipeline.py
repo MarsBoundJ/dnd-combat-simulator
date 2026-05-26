@@ -78,6 +78,7 @@ def generate_candidates(actor: Actor, state: CombatState,
     from engine.core.spell_slots import has_slot, required_slot_level
     from engine.core.basic_actions import (
         built_in_actions_for, is_self_targeted_defensive_buff,
+        is_self_targeted_heal,
     )
 
     candidates: list[dict] = []
@@ -95,6 +96,14 @@ def generate_candidates(actor: Actor, state: CombatState,
     # `spell_slot_level: 0` and also pass.
     actions = [a for a in actions
                 if has_slot(actor, required_slot_level(a))]
+    # Filter out feature-use-gated actions whose resource is depleted.
+    # Actions without a `feature_use` field pass through (not gated).
+    from engine.core.feature_uses import (
+        required_feature_use as _req_feat,
+        has_use as _has_feat,
+    )
+    actions = [a for a in actions
+                if _has_feat(actor, _req_feat(a))]
 
     enemies = [a for a in state.encounter.actors
                if a.side != actor.side and a.is_alive()]
@@ -138,13 +147,17 @@ def generate_candidates(actor: Actor, state: CombatState,
             # buff yourself); decision_layer's scoring decides whether to.
             # v1: generous range on ally-targeted abilities (defer touch-
             # range gating).
-            # EXCEPTION: defensive_buff actions whose modifiers target
-            # `self` (e.g., Dodge) emit only ONE candidate (target=self).
-            # Otherwise we'd generate N redundant candidates in a 2+
-            # ally party, all scoring identically and all executing the
-            # same self-modifier attachment.
-            if (action_type == "defensive_buff"
-                    and is_self_targeted_defensive_buff(action)):
+            # EXCEPTION: actions that target `self` only (e.g., Dodge,
+            # Second Wind) emit ONE candidate. Otherwise we'd generate N
+            # redundant candidates in a 2+ ally party, all scoring
+            # identically and all executing the same self-effect.
+            self_only = (
+                (action_type == "defensive_buff"
+                    and is_self_targeted_defensive_buff(action))
+                or (action_type == "heal"
+                    and is_self_targeted_heal(action))
+            )
+            if self_only:
                 candidates.append({
                     "kind": action_type,
                     "action": action,
@@ -441,6 +454,18 @@ def execute(chosen: dict, state: CombatState, event_bus, primitives) -> None:
     level = required_slot_level(action)
     if level > 0:
         consume_slot(actor, level, state, action_id=action.get("id"))
+
+    # Feature-use consumption — only fires for actions with a
+    # `feature_use` resource key (Second Wind, Lay on Hands, etc.).
+    # Spell slots and feature uses are independent gates — an action
+    # could in principle consume both, though no RAW spell does.
+    from engine.core.feature_uses import (
+        required_feature_use as _req_feat,
+        consume_use as _consume_feat,
+    )
+    feature_key = _req_feat(action)
+    if feature_key is not None:
+        _consume_feat(actor, feature_key, state, action_id=action.get("id"))
 
 
 def _execute_single(chosen: dict, state: CombatState, event_bus, primitives) -> None:

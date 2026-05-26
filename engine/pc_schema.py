@@ -131,6 +131,12 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
     # Build action list from weapons
     actions = [_build_weapon_action(w, ability_scores, proficiency_bonus)
                 for w in (pc_spec.get("weapons") or [])]
+    # Auto-append class-feature actions (Second Wind etc.) for features
+    # the PC has at this level. Resource counters were derived
+    # separately by `derive_pc_resources`; this generates the actual
+    # action declarations that consume those counters at runtime.
+    features_known = _features_known_at_level(class_def, level)
+    actions += _build_feature_actions(features_known, level, class_id)
 
     # Composite template
     template = {
@@ -207,19 +213,8 @@ def derive_pc_resources(pc_spec: dict, content_registry: Any) -> dict:
     if class_def is None:
         return {}
 
-    # Walk the level_table, accumulating features + class_resources
-    # up to the PC's level. `class_resources` at higher levels
-    # OVERWRITES lower-level values — that matches the RAW pattern
-    # (second_wind_uses goes 2 → 3 → 4 by level).
-    features_known: set[str] = set()
-    class_resources_at_level: dict = {}
-    for row in (class_def.get("level_table") or []):
-        if int(row.get("level", 0)) > level:
-            continue
-        for fid in (row.get("features") or []):
-            features_known.add(fid)
-        for k, v in (row.get("class_resources") or {}).items():
-            class_resources_at_level[k] = v
+    features_known = _features_known_at_level(class_def, level)
+    class_resources_at_level = _class_resources_at_level(class_def, level)
 
     resources: dict = {}
 
@@ -252,6 +247,80 @@ def derive_pc_resources(pc_spec: dict, content_registry: Any) -> dict:
 # ============================================================================
 
 _ABILITY_KEYS = ("str", "dex", "con", "int", "wis", "cha")
+
+
+def _features_known_at_level(class_def: dict, level: int) -> set[str]:
+    """Set of feature IDs gained at or before `level` from class_def's
+    level_table. Shared by `derive_pc_resources` (drives resource init)
+    and `build_pc_template` (drives feature-action generation)."""
+    features: set[str] = set()
+    for row in (class_def.get("level_table") or []):
+        if int(row.get("level", 0)) > level:
+            continue
+        for fid in (row.get("features") or []):
+            features.add(fid)
+    return features
+
+
+def _class_resources_at_level(class_def: dict, level: int) -> dict:
+    """Class resources dict for the highest-applicable level row. Later
+    levels OVERWRITE earlier values — matches RAW progression
+    (second_wind_uses goes 2 → 3 → 4 across L1/L4/L10)."""
+    out: dict = {}
+    for row in (class_def.get("level_table") or []):
+        if int(row.get("level", 0)) > level:
+            continue
+        for k, v in (row.get("class_resources") or {}).items():
+            out[k] = v
+    return out
+
+
+def _build_feature_actions(features_known: set[str], level: int,
+                             class_id: str) -> list[dict]:
+    """Generate action dicts for the feature IDs the PC has at this
+    level. v1: Second Wind only. Future features that need action
+    representation get added here.
+
+    Each generated action carries a `feature_use:` field naming the
+    actor.resources key it consumes — the pipeline's feature-use gate
+    filters out actions whose resource is depleted (see
+    engine/core/feature_uses.py).
+    """
+    actions: list[dict] = []
+    if "f_second_wind" in features_known and class_id == "c_fighter":
+        actions.append(_build_second_wind_action(level))
+    return actions
+
+
+def _build_second_wind_action(fighter_level: int) -> dict:
+    """RAW (2024 PHB): Bonus Action, regain 1d10 + fighter_level HP.
+    Consumes one `second_wind_uses_remaining` charge.
+
+    `fighter_level` is inlined as a flat damage modifier (computed at
+    template-build time) rather than referenced via a `modifier_source`
+    expression, because the value is fixed for the life of this PC
+    instance — no need for runtime resolution.
+    """
+    return {
+        "id": "a_second_wind",
+        "name": "Second Wind",
+        "type": "heal",
+        "slot": "bonus_action",
+        "feature_use": "second_wind_uses_remaining",
+        # Marked signature so the bonus-slot gate (`should_use_bonus_
+        # action`) rolls against the high signature_bonus threshold
+        # (default 0.95) rather than the lower tactical_bonus default.
+        # Matches `f_second_wind.yaml`'s declared `is_signature: true`.
+        "is_signature": True,
+        "pipeline": [
+            {"primitive": "heal",
+              "params": {
+                  "target": "self",
+                  "dice": "1d10",
+                  "fixed": int(fighter_level),
+              }},
+        ],
+    }
 
 
 def _resolve_ability_scores(raw: dict) -> dict:
