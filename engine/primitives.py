@@ -678,24 +678,41 @@ def _recurring_save(params: dict, state: CombatState, bus: EventBus) -> None:
 # ============================================================================
 
 def _persistent_aura(params: dict, state: CombatState, bus: EventBus) -> None:
-    """Register a persistent self-anchored area effect.
+    """Register a persistent self-anchored or point-anchored area effect.
 
-    The aura moves with the caster and triggers forced saves on
-    creatures who satisfy `trigger_event` (v1: `target_turn_start_in_area`
-    — fires at each enemy's turn-start while they're within the
-    radius). The runner resolves triggers via
+    The aura triggers forced saves (or no-save damage) on creatures who
+    satisfy `trigger_event` (v1: `target_turn_start_in_area` — fires at
+    each affected creature's turn-start while they're within the area).
+    The runner resolves triggers via
     `_resolve_persistent_aura_triggers`.
 
     Params:
-      radius_ft: int — area radius centered on the caster
-      trigger_event: str — when the save fires (v1 only supports
+      shape: 'sphere' (default) | 'cube'
+      radius_ft: int — radius for sphere shapes (centered on the
+        aura's anchor)
+      size_ft: int — cube side length for cube shapes (centered on
+        anchor; see `actors_in_cube` for the half-extent convention)
+      anchor: 'caster' (default) — aura moves with caster (Spirit
+              Guardians). The runner reads the live caster.position at
+              each trigger.
+              | 'point' — aura placed at cast time, doesn't move
+              (Moonbeam, Cloud of Daggers, Sickening Radiance). The
+              origin comes from `state.current_attack.area_origin`
+              (set by the candidate generator for point-anchored).
+      trigger_event: str — when the trigger fires (v1 only supports
         'target_turn_start_in_area')
-      ability: str — save ability ('wisdom', 'dexterity', ...)
-      dc: int — save DC
-      on_fail: list[dict] — sub-primitives to invoke on failed save
-      on_success: list[dict] — sub-primitives to invoke on successful
-        save (typically a half-damage variant)
-      affected: 'enemies' (default v1) | 'all_creatures'
+      ability: str — save ability ('wisdom', etc.). Pass 'none' or
+        omit to skip the save and apply on_fail damage directly
+        (Cloud of Daggers, Sleet Storm-class spells).
+      dc: int — save DC (ignored if ability == 'none' or absent)
+      on_fail: list[dict] — sub-primitives invoked on failed save
+        (also fires unconditionally when there's no save)
+      on_success: list[dict] — sub-primitives invoked on successful
+        save (typically a half-damage variant). Ignored if no save.
+      affected: 'enemies' (default) | 'all_creatures' — RAW exclusion
+        for spells like Spirit Guardians is modeled via 'enemies';
+        spells with true friendly fire (Cloud of Daggers, Sickening
+        Radiance) use 'all_creatures'.
 
     Tagged with the caster's concentration source so end_concentration
     can scrub the aura when concentration drops.
@@ -704,15 +721,40 @@ def _persistent_aura(params: dict, state: CombatState, bus: EventBus) -> None:
     if actor is None:
         raise ValueError("persistent_aura requires a current actor")
     action = (state.current_attack or {}).get("action") or {}
+    anchor = params.get("anchor", "caster")
+    # Point-anchored auras read origin from state.current_attack —
+    # candidate generator sets area_origin on the chosen candidate.
+    if anchor == "point":
+        origin = (state.current_attack or {}).get("area_origin")
+        if origin is None:
+            # Fallback: caster position. Test fixtures may call the
+            # primitive directly without setting area_origin.
+            origin = tuple(actor.position)
+        else:
+            origin = tuple(origin)
+    else:
+        # Caster-anchored auras don't record a fixed origin; the runner
+        # reads caster.position live at each trigger.
+        origin = None
+    # `ability='none'` (or omitted entirely) means no save — on_fail
+    # damage is applied unconditionally. Normalize to None for the
+    # entry so the runner can branch cleanly.
+    ability = params.get("ability")
+    if ability == "none":
+        ability = None
     entry = {
         "caster_id": actor.id,
         "action_id": action.get("id"),
         "named_effect": action.get("named_effect"),
-        "radius_ft": int(params.get("radius_ft", 15)),
+        "shape": params.get("shape", "sphere"),
+        "radius_ft": int(params.get("radius_ft", 0)),
+        "size_ft": int(params.get("size_ft", 0)),
+        "anchor": anchor,
+        "origin": origin,         # None for caster-anchored
         "trigger_event": params.get("trigger_event",
                                        "target_turn_start_in_area"),
-        "ability": params.get("ability", "wisdom"),
-        "dc": _resolve_dc(params, state),
+        "ability": ability,       # None means no-save
+        "dc": _resolve_dc(params, state) if ability else 0,
         "on_fail": params.get("on_fail") or [],
         "on_success": params.get("on_success") or [],
         "affected": params.get("affected", "enemies"),
@@ -723,7 +765,11 @@ def _persistent_aura(params: dict, state: CombatState, bus: EventBus) -> None:
         "event": "persistent_aura_registered",
         "caster": actor.id,
         "action": action.get("id"),
+        "shape": entry["shape"],
         "radius_ft": entry["radius_ft"],
+        "size_ft": entry["size_ft"],
+        "anchor": entry["anchor"],
+        "origin": list(origin) if origin is not None else None,
         "trigger_event": entry["trigger_event"],
     })
 

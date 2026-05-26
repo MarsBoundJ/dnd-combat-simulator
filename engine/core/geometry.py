@@ -107,6 +107,29 @@ def actors_in_radius(origin: tuple[int, int], radius_ft: int,
     return [a for a in actors if distance_ft(a.position, origin) <= radius_ft]
 
 
+def actors_in_cube(origin: tuple[int, int], size_ft: int,
+                     actors: list[Actor]) -> list[Actor]:
+    """Return all actors whose position is within a cube of side
+    `size_ft` centered on `origin`.
+
+    Cube semantics (RAW 2024): "centered on a point" — the cube
+    extends size_ft / 2 in each direction from origin. In our 5-ft
+    grid that's `size_ft // 10` squares per half-extent (integer
+    truncation):
+      - 5-ft cube  → half=0 → only the origin square
+      - 10-ft cube → half=1 → 3×3 (origin + 8 neighbors)
+      - 20-ft cube → half=2 → 5×5
+
+    This matches Cloud of Daggers (5-ft cube = 1 square) and Sleet
+    Storm-class spells. Returns actors in arbitrary-order list
+    preserving input order.
+    """
+    half = size_ft // 10
+    return [a for a in actors
+            if abs(a.position[0] - origin[0]) <= half
+            and abs(a.position[1] - origin[1]) <= half]
+
+
 def unit_direction(from_pos: tuple[int, int],
                      to_pos: tuple[int, int]) -> tuple[int, int]:
     """Snap a vector from `from_pos` to `to_pos` to one of 8 cardinal/

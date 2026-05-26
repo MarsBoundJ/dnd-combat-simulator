@@ -673,12 +673,28 @@ priority order:
    enemies × EXPECTED_AURA_ROUNDS (2.5). v1 scope: turn-start
    trigger only (no entry-on-move trigger), no speed-halving —
    both deferred. `affected: enemies` default is RAW-faithful
-   for Spirit Guardians specifically (the spell explicitly lets
-   the caster exclude any creatures; the rational AI choice is
-   to exclude allies). Other persistent_aura spells without that
-   RAW exclusion (Cloud of Daggers, Sickening Radiance) will
-   opt into `affected: all_creatures` when they land. Opens up
-   the Spiritual Weapon / Moonbeam shape.
+   for Spirit Guardians specifically.
+16. ~~**More persistent_aura spells** (Moonbeam + Cloud of
+   Daggers)~~ — **Shipped in PR #44.** Three pieces of new infra
+   on top of PR #43:
+   - **`anchor: point`** mode — area placed at a chosen point at
+     cast time, doesn't move (vs. `anchor: caster` which moves
+     with the caster). Origin captured from
+     `state.current_attack.area_origin` (set by the candidate
+     generator for point-anchored auras, same pattern as Fireball).
+   - **Cube area shape** — new `actors_in_cube` geometry helper
+     with center-on-origin semantics (5-ft cube = 1 square,
+     10-ft = 3×3, 20-ft = 5×5).
+   - **No-save path** — `ability: 'none'` in the persistent_aura
+     params skips `forced_save` and invokes `on_fail`
+     sub-primitives directly (always-damage). Emits the new
+     `persistent_aura_no_save_trigger` event.
+   Two new spell YAMLs ship in `schema/content/features/`:
+   `f_moonbeam.yaml` (Druid 2nd, SRD — sphere/point/all_creatures/CON
+   save) and `f_cloud_of_daggers.yaml` (Wizard 2nd, SRD — cube/
+   point/all_creatures/no-save). Spiritual Weapon was deliberately
+   cut from this PR — it's a summoned-creature mechanic, not a
+   persistent_aura, and deserves its own design pass.
 9. ~~**Per-creature recurring save** to break Hypnotic Pattern at
    end-of-turn — would mirror single-target `recurring_save` for AoE.~~
    **Shipped in PR #35.** The existing single-target `recurring_save`

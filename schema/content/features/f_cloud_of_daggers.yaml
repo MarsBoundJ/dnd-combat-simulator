@@ -1,0 +1,59 @@
+# f_cloud_of_daggers — Cloud of Daggers (Wizard 2nd-level, SRD CC v5.2.1)
+#
+# RAW: 5-foot Cube of whirling magical blades, centered on a point
+# within range. A creature takes 4d4 slashing damage when it enters
+# the area for the first time on a turn OR starts its turn there.
+# NO save. Concentration, 1 minute.
+#
+# Engine application:
+#   - type: persistent_aura
+#   - shape: cube, size_ft: 5
+#   - anchor: point (placed at cast time, doesn't move)
+#   - affected: all_creatures (friendly fire — RAW has no exclusion)
+#   - ability: 'none' → no save, always damages on trigger
+#   - on_fail: 4d4 slashing
+#   - Trigger: turn-start (entry trigger deferred per PR #43)
+
+id: f_cloud_of_daggers
+name: Cloud of Daggers
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 3                 # Wizards gain access to 2nd-level spells at L3
+type: active
+spell:
+  class: c_wizard
+  level: 2
+
+description: |
+  5-ft cube of whirling blades centered on a chosen point. Any
+  creature that starts its turn in the area takes 4d4 slashing
+  damage. No save. Concentration, 1 minute.
+
+action_template:
+  id: a_cloud_of_daggers
+  name: Cloud of Daggers
+  type: persistent_aura
+  spell_slot_level: 2
+  concentration: true
+  named_effect: cloud_of_daggers
+  area:
+    shape: cube
+    size_ft: 5
+    range_ft: 60
+  pipeline:
+    - primitive: persistent_aura
+      params:
+        shape: cube
+        size_ft: 5
+        anchor: point
+        trigger_event: target_turn_start_in_area
+        affected: all_creatures
+        ability: none           # no-save: always damages
+        on_fail:
+          - primitive: damage
+            params: { dice: "4d4", type: slashing }
+
+deferred:
+  - entry_on_move_trigger: "RAW also fires on first-time-entry-this-turn; v1 turn-start only."
+  - bonus_action_recast: "RAW lets caster recast (uses a Spell Slot) to relocate the cube; v1 doesn't model spell-slot recasting mid-spell."

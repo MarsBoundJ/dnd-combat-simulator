@@ -5,6 +5,120 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-26 — More persistent_aura: Moonbeam + Cloud of Daggers (PR #44)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Pre-discussion confirmed scope: Moonbeam + Cloud of Daggers in
+  this PR. Spiritual Weapon explicitly cut — it's a summoned-
+  creature mechanic (separate stat block, bonus-action attack
+  chain, 1-min non-concentration duration), not a persistent_aura.
+  Will be its own PR.
+- Three pieces of new infra on top of PR #43's persistent_aura:
+  - **`anchor: point` mode** — area placed at a chosen point at
+    cast time, doesn't move (vs. `anchor: caster`). Origin
+    captured from `state.current_attack.area_origin` (set by the
+    candidate generator for point-anchored auras, mirroring the
+    existing Fireball-style sphere AoE pattern).
+  - **Cube area shape** — new `actors_in_cube` geometry helper.
+    Center-on-origin semantics: half-extent in squares =
+    `size_ft // 10` (5-ft = 1 square, 10-ft = 3×3, 20-ft = 5×5).
+  - **No-save path** — `ability: 'none'` in the persistent_aura
+    params skips `forced_save` and invokes `on_fail`
+    sub-primitives directly (always-damage). Emits the new
+    `persistent_aura_no_save_trigger` event for telemetry.
+- `engine/primitives.py` `_persistent_aura`: gained `anchor` /
+  `shape` / `size_ft` / origin recording. `ability == 'none'`
+  normalizes to `None` internally so the runner can branch cleanly.
+  Registration event log expanded with `shape`, `size_ft`, `anchor`,
+  `origin`.
+- `engine/core/runner.py` `_resolve_persistent_aura_triggers`:
+  rewritten to handle the new modes. Computes area origin based
+  on anchor (caster.position vs. aura.origin). Area check uses
+  `actors_in_cube` for cube shapes; sphere uses radius_ft. If
+  `aura.ability is None`, invokes on_fail sub-primitives directly
+  via `_invoke_subprimitive`; otherwise invokes `forced_save` as
+  before.
+- `engine/core/pipeline.py` candidate gen: persistent_aura branch
+  now splits on anchor. `caster`-anchored emits ONE candidate
+  (current SG behavior). `point`-anchored emits ONE PER LIVING
+  ENEMY as candidate origin (Fireball pattern), so AI picks the
+  best placement. New helpers `_persistent_aura_anchor` /
+  `_persistent_aura_cast_range`.
+- `engine/ai/ehp_scoring.py` `offensive_ehp_persistent_aura`:
+  added `origin` parameter (defaults to None = caster.position).
+  Handles shape (sphere/cube via the right geometry helper) and
+  no-save path (full damage every turn when no ability). Dispatch
+  in `score_candidate` passes the candidate's `origin_point` so
+  point-anchored candidates score against their actual placement
+  rather than the caster's position.
+- New feature YAMLs in `schema/content/features/`:
+  - `f_moonbeam.yaml` (Druid 2nd, SRD CC v5.2.1): sphere/point/
+    all_creatures/CON save vs 2d10 radiant on fail, half on
+    success. `granted_by: c_druid L3` (when Druids gain access to
+    2nd-level spells).
+  - `f_cloud_of_daggers.yaml` (Wizard 2nd, SRD CC v5.2.1): cube/
+    point/all_creatures/no-save/4d4 slashing.
+  Both document deferred items (bonus-action movement for
+  Moonbeam, entry-on-move trigger for both).
+- 14 new tests in `tests/test_more_persistent_auras.py`: cube
+  geometry helper (5-ft = 1 square, 10-ft = 3×3, 20-ft = 5×5),
+  point anchor mechanics (primitive records origin from
+  area_origin / falls back to caster pos / caster anchor records
+  no origin / point aura stays even if caster moves), all_creatures
+  friendly fire (ally in radius takes damage), no-save path
+  (invokes on_fail directly without forced_save event, emits
+  no_save_trigger event), cube shape in runner (only origin square
+  hit for 5-ft cube), scoring (point-anchored uses origin not
+  caster pos, no-save scoring uses full damage), Moonbeam end-to-
+  end via runner, Cloud of Daggers end-to-end via runner.
+- New fixtures `moonbeam_encounter.yaml` (druid + 3 goblins) and
+  `cloud_of_daggers_encounter.yaml` (wizard + 2 orcs — one in
+  the cube, one outside).
+- Test count: 584 → 598. All green, stable across full-suite
+  re-runs.
+
+**Key decisions:**
+- **Spiritual Weapon cut from this PR.** It's a different mechanic
+  entirely (summoned floating weapon with bonus-action attacks,
+  separate stat block, 1-minute non-concentration duration). Phil
+  agreed. Will be its own PR with proper design space for the
+  summoned-creature pattern.
+- **Cube uses center-on-origin semantics.** RAW: "centered on a
+  point" — half-extent = size_ft / 2 ft. In our 5-ft grid that
+  rounds to `size_ft // 10` squares (5-ft = 0 → 1×1, 10-ft = 1
+  → 3×3, 20-ft = 2 → 5×5). Matches Cloud of Daggers' "5-ft cube =
+  1 square" intuition.
+- **`anchor: point` mirrors Fireball's per-enemy candidate gen.**
+  Each living enemy becomes a possible cube/sphere origin, AI
+  picks best per eHP. Same pattern as existing AoE sphere
+  (PR #24).
+- **No-save path emits its own event** (`persistent_aura_no_save_trigger`)
+  rather than reusing `forced_save`. Telemetry stays clean — log
+  inspection cleanly distinguishes save-based from no-save aura
+  triggers.
+- **Spell-level grant from L3** for both spells (Druids and
+  Wizards access 2nd-level slots at L3). Pragmatic — multiclass
+  / subclass nuances aren't modeled. `granted_by.level: 3` is
+  accurate for single-class.
+
+**Open items carried forward:**
+- [ ] Spiritual Weapon (separate PR — summoned-creature mechanic)
+- [ ] Sickening Radiance (XGtE non-SRD; can ship as user_authored
+  alongside an Exhaustion condition impl)
+- [ ] Moonbeam bonus-action move (caster moves the beam 60 ft as
+  bonus action; needs a "move existing aura" mechanic)
+- [ ] Entry-on-move trigger (still deferred from PR #43 — needed
+  for fully RAW-correct Moonbeam / CoD / Spirit Guardians)
+- [ ] Cross-aura dedup (two casters drop CoD on same square;
+  RAW: don't stack damage)
+- [ ] Pacing-aware concentration-spell scoring (similar to
+  Action Surge pacing from PR #42 but for spells that lock the
+  caster's concentration slot)
+
+---
+
 ## Session: 2026-05-26 — Spirit Guardians + persistent_aura primitive (PR #43)
 
 **Participants:** Phil, Claude
