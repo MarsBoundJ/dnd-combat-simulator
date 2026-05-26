@@ -74,7 +74,12 @@ actors:
               params:
                 target: ally
                 modifier: attack_bonus
-                value: 2            # mean of +1d4
+                value: 8            # boosted from RAW +1d4 (mean +2)
+                                    # so Bless's raw eHP exceeds the
+                                    # mace's eHP plus preset preference
+                                    # bonuses (+3) on the closest enemy.
+                                    # Models a stronger version of the
+                                    # buff for demo clarity.
                 lifetime: until_short_rest
 
   - instance_id: fighter_ally

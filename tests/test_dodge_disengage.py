@@ -317,7 +317,10 @@ class DodgeOverWeakAttackTest(unittest.TestCase):
     def test_pc_picks_dodge_when_only_weak_attack_available(self) -> None:
         """A PC with only a weak (low-DPR) attack option but a Dodge
         available should pick Dodge when surrounded by high-DPR enemies."""
-        attacker_atk = _strong_attack(bonus=8, dice="2d6", modifier=5)
+        # Bump enemy damage so their DPR drives Dodge's eHP above the
+        # weak attack's eHP+preference bonuses (weak attack against the
+        # closest enemy gets +3 from preset preference matching).
+        attacker_atk = _strong_attack(bonus=8, dice="4d10", modifier=10)
         # PC has a feeble attack (bonus 0, 1d4) + Dodge
         pc = _make_actor("pc", side="pc",
                            actions=[_weak_attack(), _dodge_action()])

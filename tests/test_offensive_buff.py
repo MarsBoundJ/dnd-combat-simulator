@@ -292,11 +292,15 @@ class BlessOverAttackTest(unittest.TestCase):
         high-DPR fighter ally + a tough enemy, should choose Bless
         over the mace swing — the buff to the fighter delivers more
         eHP over 2.5 rounds than the cleric's own attack does."""
+        # Bless severity bumped to 5 (above the framework's default 2)
+        # so Bless's raw eHP clearly exceeds mace's eHP-plus-preference-
+        # bonuses (mace gets +3 from preset preference matching the
+        # closest enemy; Bless's ally target doesn't trigger that bonus).
         mace = _weapon_attack("a_mace", bonus=3, dice="1d6", modifier=1)
         fighter_sword = _weapon_attack("a_sword", bonus=8, dice="2d6",
                                           modifier=5)
         cleric = _make_actor("cleric", side="pc",
-                               actions=[mace, _bless_action(value=2)])
+                               actions=[mace, _bless_action(value=5)])
         fighter = _make_actor("fighter", side="pc", hp=40,
                                 actions=[fighter_sword])
         enemy = _make_actor("enemy", side="enemy", hp=80, ac=18)

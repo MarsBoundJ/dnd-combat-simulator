@@ -76,11 +76,20 @@ def generate_candidates(actor: Actor, state: CombatState,
     """
     from engine.core.geometry import is_within_ft
     from engine.core.spell_slots import has_slot, required_slot_level
+    from engine.core.basic_actions import (
+        built_in_actions_for, is_self_targeted_defensive_buff,
+    )
 
     candidates: list[dict] = []
     template = actor.template
     actions = [a for a in (template.get("actions") or [])
                 if a.get("slot", "action") == slot]
+    # Append built-in basic actions (Dodge / Disengage on main slot)
+    # not already declared on the template. Per RAW: every creature
+    # has these available implicitly. The threat-range gate inside
+    # built_in_actions_for skips when no enemy can hit `actor` this
+    # turn (otherwise actors would dodge in place instead of closing).
+    actions += built_in_actions_for(actor, slot, state)
     # Filter out spell actions whose required slot is unavailable. Free
     # actions (no `spell_slot_level`) pass through. Cantrips would have
     # `spell_slot_level: 0` and also pass.
@@ -129,13 +138,27 @@ def generate_candidates(actor: Actor, state: CombatState,
             # buff yourself); decision_layer's scoring decides whether to.
             # v1: generous range on ally-targeted abilities (defer touch-
             # range gating).
-            for ally in allies:
+            # EXCEPTION: defensive_buff actions whose modifiers target
+            # `self` (e.g., Dodge) emit only ONE candidate (target=self).
+            # Otherwise we'd generate N redundant candidates in a 2+
+            # ally party, all scoring identically and all executing the
+            # same self-modifier attachment.
+            if (action_type == "defensive_buff"
+                    and is_self_targeted_defensive_buff(action)):
                 candidates.append({
                     "kind": action_type,
                     "action": action,
-                    "target": ally,
+                    "target": actor,
                     "actor": actor,
                 })
+            else:
+                for ally in allies:
+                    candidates.append({
+                        "kind": action_type,
+                        "action": action,
+                        "target": ally,
+                        "actor": actor,
+                    })
         elif action_type == "offensive_buff":
             # Per-ally enumeration; skip self (a caster doesn't Bless
             # themselves to raise their own hit chance in v1 — the AI
