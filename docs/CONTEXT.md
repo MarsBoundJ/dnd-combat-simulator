@@ -273,14 +273,14 @@ step, eHP framework coverage map, and the honest roadmap gap list.
    in-reach attack candidate + per-short-rest charge in
    `actor.resources["action_surge_uses_remaining"]`.)
 5. **Class features auto-wiring** — *Action Surge + Second Wind
-   counters shipped in PR #32* via `derive_pc_resources`: a `pc:`
-   spec with `class: c_fighter, level: 2+` now auto-populates
-   `action_surge_uses_remaining` and `second_wind_uses_remaining`
-   from the class level_table; no manual `resources:` block needed.
-   Still pending: Second Wind ACTION generation (needs a feature_uses
-   consumption gate similar to spell-slot consumption), Fighting
-   Style passive modifiers, Extra Attack → multiattack generation,
-   Weapon Mastery.
+   shipped via PRs #31-33.* Auto-derivation pulls counters from the
+   class level_table; auto-generation appends the Second Wind action
+   to PC templates; the `feature_uses` gate in PR #33 is the generic
+   infrastructure that filters depleted-resource actions and
+   decrements at execution (mirrors the spell-slot gate). Still
+   pending: Fighting Style passive modifiers, Extra Attack →
+   multiattack generation, Weapon Mastery property tags, Wizard
+   Arcane Recovery (pending `slot_recovery_partial` primitive).
 6. **Named-effect tagging** for cross-caster buff dedup — follow-on to
    #20 (currently dedup is per-(caster, action) only; cross-caster
    same-spell stacking is not yet prevented).

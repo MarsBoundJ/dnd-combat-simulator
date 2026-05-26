@@ -574,12 +574,14 @@ priority order:
    Darkness), Hide can land as a natural follow-on with the same
    built-in / explicit-declaration shape as Dodge.
 4. **Class features auto-wiring** — Action Surge + Second Wind
-   counters shipped in PR #32 (`pc_schema.derive_pc_resources` reads
-   `level_table.features` + `level_table.class_resources` and
-   populates `actor.resources` at load time). Remaining: Second Wind
-   ACTION generation (needs a feature_uses-gated action analogous to
-   spell-slot gating), Fighting Style passive modifiers, Extra Attack
-   → multiattack generation, Weapon Mastery.
+   shipped via PRs #31-33. PR #31 added the runner-level Action Surge
+   activation; PR #32 added `derive_pc_resources` for the counters;
+   PR #33 added the generic `feature_uses` gate + the auto-generated
+   Second Wind bonus-action (heal 1d10 + fighter_level on self,
+   consumes `second_wind_uses_remaining`). Remaining: Fighting Style
+   passive modifiers, Extra Attack → multiattack generation, Weapon
+   Mastery property tags, Wizard Arcane Recovery (pending
+   `slot_recovery_partial` primitive — also feature_uses-shaped).
 6. **Spirit Guardians + persistent-aura primitives** —
    `persistent_aura` + `triggered_save` (movement-triggered damage in
    an area around the caster).

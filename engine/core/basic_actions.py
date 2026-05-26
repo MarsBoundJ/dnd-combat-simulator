@@ -281,6 +281,24 @@ def _has_adjacent_ally(actor: Actor, state: CombatState) -> bool:
 # Self-target detection (used by pipeline candidate gen to dedup self-buffs)
 # ============================================================================
 
+def is_self_targeted_heal(action: dict) -> bool:
+    """True if the action is a heal whose primary heal step targets
+    `self`. Used by `generate_candidates` to emit a single self-
+    candidate instead of per-ally enumeration — Second Wind heals
+    the caster only, so we shouldn't emit N redundant candidates in
+    an N-ally party that all execute the same self-heal.
+    """
+    if action.get("type") != "heal":
+        return False
+    for step in (action.get("pipeline") or []):
+        if step.get("primitive") != "heal":
+            continue
+        params = step.get("params") or {}
+        if params.get("target") == "self":
+            return True
+    return False
+
+
 def is_self_targeted_defensive_buff(action: dict) -> bool:
     """True if the action is a defensive_buff whose primary modifier
     targets `self` rather than `ally`. Used by `generate_candidates` to

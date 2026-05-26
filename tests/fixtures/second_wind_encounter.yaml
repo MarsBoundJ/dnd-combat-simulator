@@ -1,0 +1,103 @@
+# Second Wind demo — wounded fighter heals themselves on bonus slot.
+#
+# Setup:
+#   - Fighter (PC, L2 via `pc:` schema, starting at 5 HP — wounded
+#     deeply enough that the heal eHP outweighs everything else on
+#     the bonus slot). Retreat preset = ftd so they don't flee.
+#   - Goblin (enemy, AC 13, 10 HP) — survivable opponent that lets
+#     the fight continue across multiple rounds, so we can see
+#     Second Wind fire AND the counter eventually deplete.
+#
+# Expected behavior:
+#   - Round 1+: fighter uses their main action to attack the goblin,
+#     then their bonus action to cast Second Wind on themselves
+#     (heal 1d10 + 2 fighter levels = 3-12 HP).
+#   - Event log: `feature_use_consumed` for `second_wind_uses_remaining`,
+#     followed by a `healed` event with `target: fighter_pc`.
+#   - After 2 uses are consumed, Second Wind is filtered out of the
+#     bonus candidate pool — fighter falls back to no-op on the bonus
+#     slot (or to other bonus-slot options, none in this fixture).
+#
+# Demonstrates the full feature_uses gate + auto-wired Second Wind
+# action path. No manual `resources:` block needed — the L2 Fighter's
+# `second_wind_uses_remaining` is derived from the class level_table.
+
+id: second_wind_encounter
+
+environment:
+  template: open_battlefield
+
+actors:
+  - instance_id: fighter_pc
+    name: Wounded Fighter L2
+    side: pc
+    position: [0, 0]
+    hp_current: 5            # start wounded so Second Wind is the
+                              # high-eHP bonus-slot pick
+    pc:
+      class: c_fighter
+      level: 2
+      ability_scores:
+        str: 16
+        dex: 12
+        con: 14
+        int: 10
+        wis: 10
+        cha: 10
+      armor:
+        base_ac: 16            # chain mail
+        max_dex_bonus: 2
+      speed:
+        walk: 30
+      weapons:
+        - id: a_longsword
+          name: Longsword
+          attack_ability: str
+          damage_dice: 1d8
+          damage_type: slashing
+          reach_ft: 5
+      behavior_profile:
+        presets:
+          retreat: ftd          # don't flee when bloodied — let the
+                                 # demo run
+
+  - instance_id: goblin
+    name: Goblin Warrior
+    side: enemy
+    position: [0, 1]
+    template:
+      id: m_goblin
+      name: Goblin Warrior
+      source: user_authored
+      combat:
+        armor_class: 13
+        hit_points:
+          average: 10
+          dice: "2d6"
+          con_contribution: 0
+        speed:
+          walk: 30
+        initiative:
+          modifier: 2
+          score: 8
+      abilities:
+        str: { score: 8, save: -1 }
+        dex: { score: 14, save: 2 }
+        con: { score: 10, save: 0 }
+        int: { score: 10, save: 0 }
+        wis: { score: 8, save: -1 }
+        cha: { score: 8, save: -1 }
+      cr: { value: 0.25, xp: 50, proficiency_bonus: 2 }
+      behavior_profile:
+        presets:
+          retreat: ftd
+      actions:
+        - id: a_scimitar
+          name: Scimitar
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: melee, bonus: 4, reach_ft: 5 }
+            - primitive: damage
+              params: { dice: "1d6", modifier: 2, type: slashing }
+              when: { event: damage_roll, condition: "combat.attack_state == hit" }

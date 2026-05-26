@@ -239,10 +239,22 @@ class BuildPCTemplateTest(unittest.TestCase):
         self.assertEqual(template["abilities"]["dex"]["save"], 1)
         # WIS save: +1 mod, not proficient = +1
         self.assertEqual(template["abilities"]["wis"]["save"], 1)
-        # One weapon action, longsword with +5 to hit
-        self.assertEqual(len(template["actions"]), 1)
+        # Actions: weapon (longsword +5 to hit) + Second Wind auto-
+        # injected (Fighter feature at L1+). PR #33 added feature-action
+        # generation; weapon stays the first action.
+        weapon_actions = [a for a in template["actions"]
+                            if a.get("type") == "weapon_attack"]
+        feature_actions = [a for a in template["actions"]
+                            if a.get("type") != "weapon_attack"]
+        self.assertEqual(len(weapon_actions), 1)
         self.assertEqual(
-            template["actions"][0]["pipeline"][0]["params"]["bonus"], 5)
+            weapon_actions[0]["pipeline"][0]["params"]["bonus"], 5)
+        # Second Wind action present (heal, bonus action, feature_use)
+        self.assertEqual(len(feature_actions), 1)
+        sw = feature_actions[0]
+        self.assertEqual(sw["type"], "heal")
+        self.assertEqual(sw["slot"], "bonus_action")
+        self.assertEqual(sw["feature_use"], "second_wind_uses_remaining")
 
     def test_missing_class_raises(self):
         spec = {"level": 1}
