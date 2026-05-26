@@ -130,16 +130,24 @@ def apply_hard_filters(candidates: list[dict], actor: Actor,
                        state: CombatState) -> list[dict]:
     """Step 3: RP Hard Filters remove candidates from the set.
 
-    SKELETON: no filters (no RP constraints in skeleton fixtures).
+    Delegates to `engine.ai.rp_constraints.apply_hard_filters`. Per §6.4
+    Tier 1: set intersection of all active hard_filter constraints;
+    candidate must survive ALL to remain. Empty result is legal — the
+    runner falls back to a pass-turn event.
     """
-    return candidates
+    from engine.ai.rp_constraints import apply_hard_filters as _apply
+    return _apply(candidates, actor, state)
 
 
 def apply_forced_choices(candidates: list[dict], actor: Actor,
                          state: CombatState) -> list[dict]:
-    """Step 4: RP Forced Choices narrow to required subset when triggered.
+    """Step 4: RP Forced Choices.
 
-    SKELETON: no forced choices in skeleton fixtures.
+    Pass-through: per §6.3 Forced Choice severity is a SCORE WEIGHT, not
+    a narrowing filter — the actual work happens at scoring time
+    (`apply_forced_choice_boosts` inside score_candidates_v1). This stub
+    preserves pipeline shape and is a natural seam if filter-style
+    semantics are ever added.
     """
     return candidates
 

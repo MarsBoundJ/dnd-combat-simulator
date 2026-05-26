@@ -78,6 +78,16 @@ from engine.ai.retreat import (
     resolve_retreat_preset as resolve_retreat_preset_for_actor,
     check_retreat,
 )
+from engine.ai.rp_constraints import (
+    CANONICAL_CONSTRAINTS,
+    ConstraintDef,
+    ActiveConstraint,
+    get_active_constraints,
+    apply_hard_filters as apply_rp_hard_filters,
+    apply_forced_choice_boosts,
+    apply_weighted_preferences,
+    apply_score_modifications as apply_rp_score_modifications,
+)
 
 __all__ = [
     "score_candidates_v1",
@@ -116,4 +126,12 @@ __all__ = [
     "get_retreat_bundle",
     "resolve_retreat_preset_for_actor",
     "check_retreat",
+    "CANONICAL_CONSTRAINTS",
+    "ConstraintDef",
+    "ActiveConstraint",
+    "get_active_constraints",
+    "apply_rp_hard_filters",
+    "apply_forced_choice_boosts",
+    "apply_weighted_preferences",
+    "apply_rp_score_modifications",
 ]
