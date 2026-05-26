@@ -5,6 +5,100 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-26 — Multi-encounter session runner (PR #41)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- The "adventuring day" macro item — composes EncounterRunner +
+  the rest helpers (PRs #37, #40) into a sequence of encounters
+  with rests interleaved. Resource-management mechanics (Action
+  Surge, Second Wind, Arcane Recovery, spell slots) finally have
+  a flow that exercises them across multiple combats.
+- New `engine/core/session.py`:
+  - `SessionEncounter` dataclass: one (Encounter, rest_after) pair
+  - `SessionSpec` dataclass: list of SessionEncounter + the set of
+    party_actor_ids that persist across encounters
+  - `SessionResult` dataclass: per-encounter terminal states + rest
+    summaries + final party state dict
+  - `run_session(spec, seed)` — iterates encounters, swaps persisted
+    party actors in at each encounter boundary, runs via
+    EncounterRunner, ends concentration on party (RAW: time passes),
+    applies rest if specified
+- Persistence semantics:
+  - HP / slots / resources / active_modifiers → carry across
+  - Concentration → ends at each boundary (5+ minutes pass)
+  - Dead party members → excluded from subsequent encounters
+  - Fled members → return for next encounter (tactical retreat,
+    not session exit)
+  - Position → from new encounter spec (party doesn't carry
+    spatial position between encounters)
+- `tests/test_session.py` (7 tests): two-encounter party state
+  carryover, short-rest refresh of Action Surge across encounters,
+  long-rest HP restoration, dead member excluded from subsequent,
+  fled member returns, concentration ends at boundary, end-to-end
+  via cli._build_actor for a L2 Fighter + L5 Wizard 3-encounter
+  adventuring day with short rest after enc1 + long rest after enc2.
+- **Bug found + fixed**: the session test failed when run as part
+  of the full suite but passed in isolation. Root cause:
+  `engine.primitives._get_rng(state, bus)` returns the module-level
+  `_rng` and ignores state/bus. When other tests had set the
+  module RNG via `primitives.set_rng()` then exited, our session
+  runner's per-encounter `runner.rng` wasn't being read by the
+  primitive layer. Fix: `run_session` now calls
+  `primitives.set_rng(runner.rng)` before each `runner.run()`, so
+  encounter outcomes depend on the per-encounter seed instead of
+  whichever test ran last. Existing pattern in other tests —
+  generalized into session.py.
+- Test count: 553 → 560. All green, and stable across full-suite
+  re-runs.
+
+**Key decisions:**
+- **Concentration ends at encounter boundary.** RAW concentration
+  spells have minute-scale durations (Bless / Hold Person = 1
+  minute = 10 rounds); 5+ minutes pass between encounters in any
+  sensible adventuring day. Don't try to model "did 5 minutes pass
+  or was it 30 seconds"; just end concentration cleanly.
+- **Fled members return.** Fleeing is a tactical retreat — the
+  party member goes back to camp, joins the next fight when the
+  party catches up. Session-ending death is the only permanent
+  removal in v1.
+- **Position from new encounter spec.** Party doesn't carry
+  spatial position between encounters (different rooms, different
+  battlefields). The encounter declaration's positions are
+  authoritative.
+- **Per-encounter seed derivation: `seed + i`.** Simple, deterministic,
+  avoids all encounters rolling identical dice (which would happen
+  if every runner used the same seed).
+- **SessionRunner is a function, not a class.** Single entry point
+  with clear inputs / outputs is the cleaner shape for now. A class
+  would make sense if we needed to pause / resume sessions, expose
+  per-encounter callbacks, etc. — none of those are v1 needs.
+
+**Open items carried forward:**
+- [ ] YAML session format — sessions are constructed in Python for
+  v1. A `sessions/` schema directory with `.yaml` files referencing
+  encounter files would be the natural follow-on for
+  fixture-driven "adventuring day" demos.
+- [ ] "Should I nova or pace?" AI awareness — party is on
+  EncounterRunner autopilot which has no concept of "save Action
+  Surge for encounter 3." The eHP scoring framework could be
+  extended with an encounters_remaining_today weight (already
+  passed to the slot cost formula but not yet used for feature
+  uses).
+- [ ] Resurrection / fallback for dead party members
+- [ ] Damaged equipment / consumables (potions used = gone forever)
+- [ ] Cross-encounter narrative state (NPC reactions, faction
+  tracking)
+- [ ] `_get_rng` cleanup — currently the primitives module's
+  global RNG is the source of truth for all primitives. A
+  state.rng / bus-attached pattern would let primitives read from
+  the runner's per-encounter RNG without the `set_rng` workaround.
+  Worth refactoring once 2-3 callers besides the session runner
+  have to do the same dance.
+
+---
+
 ## Session: 2026-05-26 — apply_long_rest closes the rest-cycle arc (PR #40)
 
 **Participants:** Phil, Claude

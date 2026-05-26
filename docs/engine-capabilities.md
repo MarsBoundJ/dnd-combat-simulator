@@ -636,6 +636,17 @@ priority order:
    Surge full / Second Wind full), Wizard (Arcane Recovery → 1).
    Closes the rest-cycle arc; multi-encounter session work is the
    next obvious macro item.
+13. ~~**Multi-encounter session runner**~~ — **Shipped in PR #41.**
+   `engine/core/session.py` exposes `run_session(spec, seed)` and
+   composes EncounterRunner + rest helpers into an "adventuring
+   day" sim. `SessionSpec` declares the encounter sequence + rest
+   plan + party_actor_ids. Party state (HP / slots / resources /
+   modifiers) carries across encounters; concentration ends at
+   each boundary; dead party members are excluded from subsequent
+   encounters; fled members return. This is what makes the
+   resource-management mechanics (AS / SW / AR / spell slots)
+   actually matter — pre-#41 those decrement-once mechanics never
+   refreshed because nothing called the rest helpers.
 9. ~~**Per-creature recurring save** to break Hypnotic Pattern at
    end-of-turn — would mirror single-target `recurring_save` for AoE.~~
    **Shipped in PR #35.** The existing single-target `recurring_save`
