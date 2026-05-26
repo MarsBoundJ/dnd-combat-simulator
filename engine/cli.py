@@ -154,6 +154,11 @@ def _build_actor(actor_spec: dict, registry) -> Actor:
     # spellcaster). Accepts integer-keyed dict from YAML.
     spell_slots_raw = actor_spec.get("spell_slots") or {}
     spell_slots = {int(k): int(v) for k, v in spell_slots_raw.items()}
+    # Optional per-actor resources dict — feature uses, charges, etc.
+    # (e.g., `action_surge_uses_remaining: 1` for a L2 Fighter). Default
+    # empty. Distinct from spell_slots since resource decrementation
+    # and refresh cadence (short / long rest) is feature-specific.
+    resources = dict(actor_spec.get("resources") or {})
 
     return Actor(
         id=instance_id,
@@ -167,6 +172,7 @@ def _build_actor(actor_spec: dict, registry) -> Actor:
         position=position,
         abilities=abilities,
         spell_slots=spell_slots,
+        resources=resources,
     )
 
 

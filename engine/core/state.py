@@ -76,6 +76,20 @@ class Actor:
     # your turn"). See engine.core.reactions.find_oa_triggers.
     disengaging: bool = False
 
+    # Set to True when this actor has consumed their per-turn movement
+    # (via _move_to_engage). Cleared by reset_turn(). The runner checks
+    # this when Action Surge re-runs the main slot — RAW gives one move
+    # per turn, not one per action, so the Action Surge second action
+    # cannot trigger another _move_to_engage.
+    moved_this_turn: bool = False
+
+    # Set to True when this actor activated Action Surge this turn. The
+    # runner re-runs the main slot once after the regular action +
+    # bonus action complete. Cleared by reset_turn(). Resource charge
+    # (`resources["action_surge_uses_remaining"]`) is decremented at
+    # activation time, NOT here — that's per-short-rest, not per-turn.
+    action_surge_used_this_turn: bool = False
+
     def is_alive(self) -> bool:
         return self.hp_current > 0 and not self.is_dead and not self.is_fled
 
@@ -90,6 +104,11 @@ class Actor:
         # We clear at the next turn's start (== this actor's reset_turn);
         # the prior turn's flag is moot since OAs only fire during movement.
         self.disengaging = False
+        # Per-turn movement / Action Surge flags. Resources (per-short-
+        # rest charges) are NOT cleared here — those live longer than
+        # one turn and only reset on short / long rest.
+        self.moved_this_turn = False
+        self.action_surge_used_this_turn = False
 
 
 # ============================================================================

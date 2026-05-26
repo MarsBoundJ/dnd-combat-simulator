@@ -112,6 +112,67 @@ class EncounterRunner:
 
         state.advance_turn()
 
+    def _maybe_activate_action_surge(self, actor: Actor,
+                                       state: CombatState) -> None:
+        """Decide whether `actor` activates Action Surge this turn.
+
+        Per RAW (2024 PHB): Fighter feature, 1/short-rest (2/short-rest
+        at L17 but still only once per turn). Grants one additional
+        action this turn (not a Magic action — v1 ignores the
+        spell-action gating since we don't yet distinguish Magic
+        actions from other actions).
+
+        Activation heuristic (v1):
+          1. Actor has `action_surge_uses_remaining` > 0 in resources
+          2. At least one in-reach weapon_attack / multiattack candidate
+             exists this turn (otherwise the extra action would be
+             wasted — we'd burn the charge on a second move-to-engage
+             that goes nowhere). This is the same in-reach check the
+             main-slot candidate generator does; we evaluate it here
+             to gate AS activation.
+          3. At least one enemy is alive (no point spending AS if combat
+             is effectively over)
+
+        Real cooldown intelligence (save for emergencies, burn on
+        bloodied target, etc.) is deferred. Fighters in real play tend
+        to dump AS early in a fight; the v1 "fire when in reach"
+        heuristic matches that behavior.
+
+        Side effects when activated:
+          - Decrements `actor.resources["action_surge_uses_remaining"]`
+          - Sets `actor.action_surge_used_this_turn = True`
+          - Logs `action_surge_activated` event
+        """
+        charges = int(actor.resources.get("action_surge_uses_remaining", 0))
+        if charges <= 0:
+            return
+        if actor.action_surge_used_this_turn:
+            return     # already fired this turn (e.g., L17 fighter
+                       # cannot AS twice in one turn even with 2 charges)
+
+        # Any living enemy?
+        enemies_alive = any(a.side != actor.side and a.is_alive()
+                              for a in state.encounter.actors)
+        if not enemies_alive:
+            return
+
+        # In-reach attack candidate available now?
+        candidates = pipeline.generate_candidates(actor, state, slot="action")
+        attack_candidates = [c for c in candidates
+                              if c.get("kind") in ("weapon_attack",
+                                                    "multiattack")]
+        if not attack_candidates:
+            return
+
+        # Activate
+        actor.resources["action_surge_uses_remaining"] = charges - 1
+        actor.action_surge_used_this_turn = True
+        state.event_log.append({
+            "event": "action_surge_activated",
+            "actor": actor.id,
+            "charges_remaining": charges - 1,
+        })
+
     def _move_to_engage(self, actor: Actor, state: CombatState) -> None:
         """Move actor toward the dial-preferred enemy up to walk speed.
 
@@ -122,7 +183,14 @@ class EncounterRunner:
         options after closing.
 
         Logs `moved` event with from/to positions and distance.
+
+        RAW gives one move per turn. If `actor.moved_this_turn` is
+        already True, return without moving — the Action Surge second
+        action does not grant a second move (Action Surge grants an
+        extra action, not extra movement). See `_run_actor_turn`.
         """
+        if actor.moved_this_turn:
+            return
         from engine.core.geometry import move_toward, distance_ft
         from engine.ai.behavior_profile import resolve_targeting_preset
         from engine.ai.targeting import pick_target
@@ -153,6 +221,7 @@ class EncounterRunner:
         moved_ft = move_toward(actor, target, speed_ft, stop_at_ft=stop_at)
         if moved_ft <= 0:
             return
+        actor.moved_this_turn = True
         state.event_log.append({
             "event": "moved",
             "actor": actor.id,
@@ -235,6 +304,13 @@ class EncounterRunner:
 
         Two slots per turn (Action + Bonus Action). Reactions are
         triggered, not turn-scheduled — deferred to a future PR.
+
+        Action Surge: if the actor has the feature + charges and
+        passes the activation heuristic, fires BEFORE the main slot
+        and grants a second main-slot pass AFTER the bonus slot. RAW
+        gives the second action, not extra movement or a second bonus
+        action — the runner suppresses double-moves via
+        `actor.moved_this_turn` and only re-runs the main slot.
         """
         # Step 0: resolve effective profile
         profile = pipeline.resolve_effective_profile(actor, state)
@@ -250,6 +326,12 @@ class EncounterRunner:
             })
             return
 
+        # ---- Action Surge: pre-action activation check ----
+        # Decision fires once, before the main slot. If activated, the
+        # `action_surge_used_this_turn` flag is set; the post-bonus-slot
+        # check below re-runs the main slot once.
+        self._maybe_activate_action_surge(actor, state)
+
         # ---- Main slot ----
         self._run_slot(actor, state, slot="action")
 
@@ -257,6 +339,17 @@ class EncounterRunner:
         # Skip if the main slot killed the actor or terminated the encounter.
         if actor.is_alive() and not state.terminated:
             self._run_slot(actor, state, slot="bonus_action")
+
+        # ---- Action Surge: second main slot ----
+        # Only runs if AS was activated this turn AND actor is still
+        # alive AND encounter not terminated. Resets the main-slot
+        # usage flag so `apply_action_economy` and downstream logic
+        # treat this as a fresh action. Movement remains gated by
+        # `moved_this_turn` so the actor can't move twice.
+        if (actor.action_surge_used_this_turn
+                and actor.is_alive() and not state.terminated):
+            actor.actions_used_this_turn["action"] = False
+            self._run_slot(actor, state, slot="action")
 
     def _run_slot(self, actor: Actor, state: CombatState, slot: str) -> None:
         """Execute one turn slot (action or bonus_action) via the

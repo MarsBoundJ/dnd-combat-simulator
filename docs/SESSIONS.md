@@ -5,6 +5,76 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-26 — Action Surge v1 (PR #31)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Fighter class feature: 1/short-rest extra Action per turn (2/short-
+  rest at L17 but still 1/turn per RAW). Activation is a pre-action
+  runner-level decision, NOT a candidate in the AI's main pool — RAW
+  Action Surge GRANTS a second action; it doesn't replace one.
+- `Actor.moved_this_turn` + `Actor.action_surge_used_this_turn` flags
+  (both reset by `reset_turn`). `resources["action_surge_uses_remaining"]`
+  is per-short-rest, NOT reset per turn — fixture-authored initial
+  value at L2+ fighter setup.
+- `EncounterRunner._maybe_activate_action_surge` heuristic:
+  - charges > 0
+  - at least one living enemy
+  - at least one in-reach weapon_attack / multiattack candidate
+  - not already activated this turn
+- `_run_actor_turn` flow: activation check → main slot → bonus slot →
+  re-run main slot once if AS fired. Main-slot re-run resets
+  `actions_used_this_turn["action"]` so `apply_action_economy` treats
+  it as fresh.
+- `_move_to_engage` gated on `moved_this_turn` so Action Surge's
+  second action can't grant a second move (RAW: one move per turn).
+- `engine/cli.py` `_build_actor` now reads optional `resources:` block
+  on actor spec (same pattern as `spell_slots`).
+- 13 new tests in `tests/test_action_surge.py`: state defaults +
+  reset_turn semantics + 5 activation-gate cases + single-turn cap
+  with 2 charges + movement gate + integration (L2 fighter deals 2x
+  damage in round 1) + control (no AS resource → one attack/turn) +
+  no-double-move regression.
+- New fixture `tests/fixtures/action_surge_encounter.yaml`: L2
+  fighter with greatsword + 1 AS charge vs ogre (AC 18, 100 HP).
+  Seed 1: `action_surge_activated` round 1, two `attack_roll` events
+  from fighter before ogre's turn, single attack each round
+  thereafter.
+- Test count: 393 → 406. All green.
+
+**Key decisions:**
+- **Action Surge as runner-level activation, not a candidate.** RAW
+  Action Surge doesn't cost an action — it GRANTS one. Modeling it
+  as a candidate would mean the AI chooses AS *instead of* attacking,
+  which is wrong. Pre-action evaluation in `_run_actor_turn` is the
+  semantically correct fit.
+- **In-reach-attack gate.** Without it, a L2 fighter would burn AS
+  to take two `_move_to_engage` calls when they're out of range —
+  pointless. With the `moved_this_turn` gate the second movement is
+  suppressed anyway, but the AS charge would still be spent. Better
+  to gate activation conservatively.
+- **No `additional_action` primitive yet.** Action Surge's mechanic
+  is purely a runner-loop concern; no pipeline / primitive needed.
+  If a similar mechanic ever needs to fire from a pipeline (e.g., a
+  spell that grants the target an extra action), the primitive can
+  be added then.
+
+**Open items carried forward:**
+- [ ] Class features auto-wiring — when a L2+ fighter is loaded,
+  auto-initialize `resources["action_surge_uses_remaining"]` from
+  the class level table instead of requiring fixture authors to set
+  it manually.
+- [ ] Short / long rest semantics — currently no rest cycle exists
+  in-encounter (the engine simulates single encounters). When multi-
+  encounter sessions land, short rest needs to refresh AS charges.
+- [ ] Magic-action gate — RAW 2024 Action Surge cannot be used to
+  take a Magic action (cast a spell). v1 doesn't distinguish Magic
+  actions; the AS second action could be any weapon_attack. Tighten
+  when spell-action tagging arrives.
+
+---
+
 ## Session: 2026-05-26 — Capabilities-doc refresh #5 (post-PR #26)
 
 **Participants:** Phil, Claude

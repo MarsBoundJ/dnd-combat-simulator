@@ -573,11 +573,13 @@ priority order:
    bonuses on ranged attacks and obscurement spells like Fog Cloud /
    Darkness), Hide can land as a natural follow-on with the same
    built-in / explicit-declaration shape as Dodge.
-4. **Action Surge primitive** — `additional_action` grants an extra
-   main slot; fighter class feature.
-5. **Class features auto-wiring** — `c_fighter.level_table` references
-   Second Wind, Action Surge, Fighting Style by id but unwired. A
-   "consume class features" pass on PC schema would pull them in.
+4. **Class features auto-wiring** — `c_fighter.level_table` references
+   Second Wind, Fighting Style by id but unwired. A "consume class
+   features" pass on PC schema would pull them in. (Action Surge
+   shipped in PR #31; it currently requires fixture-level resource
+   initialization. Auto-wiring would populate
+   `actor.resources["action_surge_uses_remaining"]` from the L2+
+   fighter level table at load time.)
 6. **Spirit Guardians + persistent-aura primitives** —
    `persistent_aura` + `triggered_save` (movement-triggered damage in
    an area around the caster).

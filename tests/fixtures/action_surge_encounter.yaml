@@ -1,0 +1,117 @@
+# Action Surge demo — L2 fighter dumps Action Surge on a tough ogre.
+#
+# Setup:
+#   - Fighter (PC, L2-shape, greatsword +6 2d6+4, 1 charge of
+#     Action Surge in resources) — forced first via initiative bonus.
+#   - Ogre (enemy, AC 18, 100 HP) — single beefy target, in melee
+#     range so Action Surge's activation gates pass round 1.
+#
+# Expected behavior (round 1):
+#   - Initial state: fighter adjacent to ogre, charges=1.
+#   - Turn start: `_maybe_activate_action_surge` fires:
+#       - charges > 0 ✓
+#       - at least one living enemy ✓
+#       - in-reach weapon_attack candidate ✓
+#       - Charges → 0, `action_surge_used_this_turn` = True
+#       - Event log: `action_surge_activated`
+#   - Main slot: greatsword attack #1 on ogre.
+#   - Bonus slot: skipped (no bonus actions declared).
+#   - Action Surge second pass: `actions_used_this_turn["action"]`
+#     reset, main slot runs again → greatsword attack #2 on ogre.
+#   - Event log shows TWO `attack_roll` events from `fighter` against
+#     `ogre` before the ogre's turn_start.
+#
+# Round 2:
+#   - Charges remain at 0; `_maybe_activate_action_surge` returns
+#     immediately. Fighter attacks once per turn from here on.
+#   - The fighter dealt ~2x damage in round 1 vs the no-AS baseline.
+
+id: action_surge_encounter
+
+environment:
+  template: open_battlefield
+
+actors:
+  - instance_id: fighter
+    name: Fighter
+    side: pc
+    position: [0, 0]
+    resources:
+      action_surge_uses_remaining: 1
+    template:
+      id: pc_fighter_l2
+      name: Fighter
+      source: user_authored
+      combat:
+        armor_class: 18
+        hit_points:
+          average: 22
+          dice: "2d10"
+          con_contribution: 4
+        speed:
+          walk: 30
+        initiative:
+          modifier: 30        # force first for demo clarity
+          score: 40
+      abilities:
+        str: { score: 18, save: 6 }
+        dex: { score: 12, save: 1 }
+        con: { score: 14, save: 2 }
+        int: { score: 10, save: 0 }
+        wis: { score: 12, save: 1 }
+        cha: { score: 10, save: 0 }
+      cr: { value: 2.0, xp: 450, proficiency_bonus: 2 }
+      behavior_profile:
+        presets:
+          retreat: ftd
+      actions:
+        - id: a_greatsword
+          name: Greatsword
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: melee, bonus: 6, reach_ft: 5 }
+            - primitive: damage
+              params: { dice: "2d6", modifier: 4, type: slashing }
+              when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  - instance_id: ogre
+    name: Ogre
+    side: enemy
+    position: [0, 1]
+    template:
+      id: m_ogre
+      name: Ogre
+      source: user_authored
+      combat:
+        armor_class: 18
+        hit_points:
+          average: 100
+          dice: "12d10"
+          con_contribution: 30
+        speed:
+          walk: 30
+        initiative:
+          modifier: 0
+          score: 5
+      abilities:
+        str: { score: 19, save: 6 }
+        dex: { score: 8, save: -1 }
+        con: { score: 16, save: 5 }
+        int: { score: 5, save: -3 }
+        wis: { score: 10, save: 0 }
+        cha: { score: 7, save: -2 }
+      cr: { value: 2.0, xp: 450, proficiency_bonus: 2 }
+      behavior_profile:
+        presets:
+          retreat: ftd
+      actions:
+        - id: a_greatclub
+          name: Greatclub
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: melee, bonus: 6, reach_ft: 5 }
+            - primitive: damage
+              params: { dice: "2d8", modifier: 4, type: bludgeoning }
+              when: { event: damage_roll, condition: "combat.attack_state == hit" }

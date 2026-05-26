@@ -267,11 +267,16 @@ step, eHP framework coverage map, and the honest roadmap gap list.
    model yet (`geometry.py` is explicit: bare positions, no occlusion).
    Hide therefore blocks on the terrain layer; do not ship a degenerate
    "Hide while invisible" stub.
-4. **Action Surge + spellcasting primitives** — `additional_action`
-   grants extra main slot; `persistent_aura` + `triggered_save` for
-   Spirit Guardians; `slot_recovery_partial` for Arcane Recovery.
-5. **Class features auto-wiring** — Second Wind, Action Surge, Fighting
-   Style are referenced in `c_fighter.level_table` but unwired.
+4. **Spellcasting primitives** — `persistent_aura` + `triggered_save`
+   for Spirit Guardians; `slot_recovery_partial` for Arcane Recovery.
+   (Action Surge shipped in PR #31 — runner-level activation gated by
+   in-reach attack candidate + per-short-rest charge in
+   `actor.resources["action_surge_uses_remaining"]`.)
+5. **Class features auto-wiring** — Second Wind, Fighting Style are
+   referenced in `c_fighter.level_table` but unwired. Action Surge
+   currently requires fixture-level resource initialization; auto-
+   wiring would pull `action_surge_uses_remaining: 1` from the level
+   table when a L2+ fighter is loaded.
 6. **Named-effect tagging** for cross-caster buff dedup — follow-on to
    #20 (currently dedup is per-(caster, action) only; cross-caster
    same-spell stacking is not yet prevented).
