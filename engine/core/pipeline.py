@@ -317,6 +317,12 @@ def execute(chosen: dict, state: CombatState, event_bus, primitives) -> None:
     else:
         actor.actions_used_this_turn[slot] = True   # safe to add
 
+    # Concentration: if the action is flagged `concentration: true`,
+    # the actor takes up (or replaces) their concentration slot.
+    if action.get("concentration"):
+        from engine.core.concentration import apply_concentration
+        apply_concentration(actor, action, state)
+
 
 def _execute_single(chosen: dict, state: CombatState, event_bus, primitives) -> None:
     """Execute one action's primitive pipeline."""

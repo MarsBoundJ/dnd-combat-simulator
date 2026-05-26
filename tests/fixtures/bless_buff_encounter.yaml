@@ -66,6 +66,7 @@ actors:
         - id: a_bless
           name: Bless
           type: offensive_buff
+          concentration: true       # RAW: Bless is a concentration spell
           pipeline:
             - primitive: attack_modifier
               params:

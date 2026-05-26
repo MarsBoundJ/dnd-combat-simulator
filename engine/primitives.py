@@ -202,8 +202,20 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
                             "target": target.id, "amount": total, "type": dmg_type,
                             "target_hp_remaining": target.hp_current})
 
+    # Concentration check on damage taken (5e RAW: DC = max(10,
+    # ceil(damage/2))). Lives in primitives.py so all damage paths get
+    # the check uniformly — AoE on_fail / on_success, weapon attack
+    # damage, OA damage, sub-attack damage in multiattack, etc.
+    if total > 0 and target.concentration_on is not None:
+        from engine.core.concentration import attempt_concentration_save
+        attempt_concentration_save(target, total, state, rng)
+
     if target.hp_current == 0:
         target.is_dead = True
+        # Death ends any concentration the deceased was maintaining
+        if target.concentration_on is not None:
+            from engine.core.concentration import end_concentration
+            end_concentration(target, state, reason="caster_died")
         bus.emit("creature_dropped", {"creature": target})
         state.event_log.append({"event": "creature_dropped", "creature": target.id})
     elif target.is_bloodied():

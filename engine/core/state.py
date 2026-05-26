@@ -56,6 +56,14 @@ class Actor:
     is_dead: bool = False
     is_fled: bool = False
 
+    # Concentration tracking — at most ONE concentration spell active.
+    # None when not concentrating; otherwise:
+    #   {action_id: str, caster_id: str, applied_at_round: int}
+    # Modifiers tied to this concentration are tagged via their
+    # source.action_id + source.caster_id, so end_concentration can scan
+    # all actors and remove them.
+    concentration_on: dict | None = None
+
     def is_alive(self) -> bool:
         return self.hp_current > 0 and not self.is_dead and not self.is_fled
 
