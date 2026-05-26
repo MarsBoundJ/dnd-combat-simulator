@@ -5,6 +5,337 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-25 — Capabilities-doc refresh after AoE (post-PR #17)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Rewrote `docs/engine-capabilities.md` to reflect post-PR #17 state
+  (was last refreshed after PR #12; 4 PRs of progress since: #14
+  Pyodide doc, #15 positioning, #16 OAs, #17 AoE). Major updates:
+  - Header bumped: post-PR #17, 238 tests across 9 modules, 9 fixtures
+  - Status headline expanded to include positioning, reactions, AoE
+  - §1 added subsections for Positioning / Movement / Reachability,
+    Opportunity Attacks, AoE attacks
+  - §1 Action Economy section updated to note OAs are LIVE (not
+    wired-but-dormant)
+  - §3 eHP Coverage Map: AoE multi-target + friendly fire flipped to
+    ✅; added "Cone + Line AoE shapes" as deferred
+  - §4 Primitives note updates to `damage` (multiplier) and
+    `forced_save` (area filtering + per-target target-swap)
+  - §5 Worked Examples: added 3 new examples (ranged_vs_melee, OA,
+    Fireball cluster)
+  - §6 Test Surface: 178 → 238 tests; added 3 new test modules
+  - §7 Roadmap: dropped positioning + AoE (now shipped); promoted PC
+    schema to #1; added Cone+Line as #4
+  - §8 Source pointers: added browser-deployment doc reference
+- Refreshed `docs/CONTEXT.md` status table — added rows for PRs #15
+  (Positioning), #16 (OAs), #17 (AoE). Refreshed "Current phase"
+  prose to reflect 13 PRs shipped and the now-complete spatial axis.
+  Refreshed "Next substantive steps" — PC schema at #1; positioning/
+  AoE dropped from list.
+- Added five new entries to `docs/SESSIONS.md` (this refresh + #17
+  AoE + #16 OAs + #15 Positioning + a small entry for the #14
+  browser-deployment doc note).
+
+**Key decisions:**
+- **Third clean rewrite of engine-capabilities.md** — patches across 8+
+  sections aren't worth the diff-review burden. Same shape, fresh
+  content. Pattern: rewrite the capabilities doc roughly every 3-4
+  feature PRs.
+- **Status headline now explicitly notes spatial axis is complete** —
+  big inflection: with positioning, OAs, and AoE in, the engine's
+  big-architecture work is done. Future PRs are content + depth.
+
+**Open items carried forward:**
+- [ ] Pick next priority: PC schema, offensive buff for allies, spell
+  slot opportunity cost, Cone+Line AoE, or more primitives (see
+  `docs/engine-capabilities.md` §7 roadmap).
+
+---
+
+## Session: 2026-05-25 — AoE Geometry v1 (PR #17)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Implemented Area-of-Effect attacks — **the first multi-target eHP
+  scoring in the engine**. Every prior candidate scored against
+  exactly one target; AoE candidates now score against the set of
+  creatures caught in the blast.
+- `engine/core/geometry.py`: new `actors_in_radius(origin, radius_ft,
+  actors)` using Chebyshev (2024 PHB "diagonals = 5 ft" rule).
+- `engine/primitives.py`:
+  - `_damage` accepts `multiplier: float` param (default 1.0). 0.5 =
+    half-damage-on-save (AoE on_success); 2.0 doubles. Applied after
+    resistance/vuln/immunity.
+  - `_resolve_save_targets` for `affected: all_creatures_in_area`:
+    filters by `actors_in_radius` when `area_origin` + `area.radius_ft`
+    are set; falls back to legacy "all enemies" for backward
+    compatibility.
+  - `_forced_save` swaps `state.current_attack.target` per iteration
+    so damage primitives in `on_fail`/`on_success` hit the right
+    creature, then restores.
+- `engine/core/pipeline.py`:
+  - `generate_candidates`: new `aoe_attack` action type emits one
+    candidate per living enemy whose position is within the action's
+    `area.range_ft`. Candidate's `origin_point` = enemy position
+    (naturally tries cluster centers).
+  - `_execute_single` propagates `candidate.origin_point` into
+    `state.current_attack.area_origin`. Logs `aoe_origin_placed`
+    event.
+- `engine/ai/ehp_scoring.py`: new `offensive_ehp_aoe(actor, origin,
+  action, state)` — for each living creature in radius:
+  `(p_fail × full_dmg) + (p_save × half_dmg)` capped at HP. Positive
+  for enemies, **negative for allies** (friendly fire, 1.0 weight in
+  v1). Caster counts as ally. `score_candidate` dispatches
+  `kind='aoe_attack'` to it.
+- New fixture `tests/fixtures/fireball_cluster_encounter.yaml`:
+  Evocation Wizard with Magic Dart + Fireball vs 3 clustered goblins.
+  Seed 1 trace: AI casts Fireball at cluster center; 1 goblin dies,
+  2 left at 3 HP each. 2-round PC victory.
+- 15 new tests across geometry, damage multiplier, AoE scoring
+  (no-creatures = 0, single enemy positive, 3-enemy cluster scores
+  more, friendly fire subtracts, self-fireball negative), candidate
+  generation, end-to-end.
+- 238/238 tests pass.
+
+**Key decisions:**
+- **Sphere only for v1.** Cone + Line shapes deferred — they need
+  direction vectors which add a complexity layer. Sphere covers
+  Fireball, Shatter, Spirit Guardians, Sleep — most common AoE.
+- **Per-enemy-position origin enumeration** is the v1 origin search
+  strategy. Captures "cast on the cluster" naturally without
+  combinatorial scan. Smarter origin search (centroid, fine-grid scan)
+  deferred.
+- **Friendly fire is RAW.** AoE catches everyone in radius including
+  allies and the caster. eHP scoring subtracts ally damage from
+  candidate's total. **Don't fireball yourself** is now a real
+  engine invariant verified by test.
+- **Target-swap pattern in `_forced_save`** preserves the damage
+  primitive's `state.current_attack.target` invariant while iterating
+  multiple targets. Restored after.
+- **Backward compatible.** `_resolve_save_targets` falls back to
+  legacy "all enemies" if `area_origin` not set. All 9 existing
+  fixtures behave identically.
+
+**Open items carried forward:**
+- [ ] Cone + Line AoE shapes (sphere only v1).
+- [ ] Spell slot opportunity cost (proper caster eHP scoring).
+- [ ] Concentration mechanics (Hold Person, Spirit Guardians etc.).
+- [ ] "Smart" origin candidates beyond per-enemy (centroid, fine-grid
+  scan).
+- [ ] Spell template integration (`cast_spell` action referencing
+  a YAML spell template).
+- [ ] Wall spells / persistent areas (Wall of Fire, Spike Growth).
+- [ ] Cover affecting AoE saves.
+- [ ] `self_preservation_coefficient` scaling on friendly fire.
+
+---
+
+## Session: 2026-05-25 — Opportunity Attacks v1 (PR #16)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Activated Opportunity Attacks — the first reaction type wired. The
+  Action Economy dial's `oa_reaction` percentages (80-100% across all
+  5 presets) were already in the table; this PR makes them actually
+  fire.
+- New module `engine/core/reactions.py`:
+  - `find_oa_triggers(mover, pre_position, state)` — returns
+    (reactor, melee_attack_action) pairs. Trigger condition: reactor's
+    melee reach covered mover's pre-position AND does not cover
+    mover's post-position (mover left their reach). Filters out: dead
+    reactors, same-side, no-melee-weapon, reaction-already-used.
+  - `resolve_opportunity_attacks(mover, pre_position, state, bus,
+    primitives, rng)` — orchestration. Per trigger: roll vs
+    `oa_reaction` AE percentage. On pass: temporarily snap mover back
+    to pre_position so `attack_roll`'s out-of-range guard sees the
+    in-reach distance; execute the OA attack pipeline (inline so the
+    action's `slot` field doesn't trigger main-action-slot marking);
+    mark reactor's reaction slot used. Stop if OA killed the mover.
+- `engine/core/runner.py`: `_move_to_engage` calls
+  `resolve_opportunity_attacks` after the move completes. `_run_slot`
+  checks `actor.is_alive()` after movement and skips cleanly if the
+  OA dropped the actor.
+- New fixture `tests/fixtures/opportunity_attack_encounter.yaml`:
+  Polearm Guardian (glaive reach 10) + immobile Wounded Cleric +
+  Goblin Scout (weakest_target preset, can't reach guardian with own
+  scimitar). Seed 1 trace shows OA firing as goblin moves to engage
+  healer:
+    moved: goblin from [3,0] to [1,0]
+    opportunity_attack_triggered: reactor=guardian, mover=goblin
+    attack_roll: guardian → goblin (the OA)
+    attack_roll: goblin → healer (main action completes)
+- 16 new tests across trigger detection (8 cases), orchestration
+  (AE percentage gating, reaction slot tracking, position restoration,
+  no-OA on no-trigger), and runner integration (real encounter fires
+  OA; ranged-only attacker never OAs).
+- 223/223 tests pass.
+
+**Key decisions:**
+- **Inline OA execution** (separate from `pipeline.execute`) — needed
+  because `pipeline.execute` marks the action's `slot` field which
+  would clobber main-action tracking. OA marks `reaction` instead.
+- **Position snap during OA** — mover's position temporarily restored
+  to pre-move so `attack_roll`'s out-of-range guard (added in
+  positioning PR #15) sees the in-reach distance. Restored to
+  post-move after (unless mover died).
+- **One OA per reactor per round** via existing
+  `actions_used_this_turn["reaction"]`, reset at the reactor's own
+  turn-start by `actor.reset_turn()`.
+- **AE gating uses already-wired percentages.** Optimal 100%, Skilled
+  100%, Average 95%, Casual 85%, Reactive_only 80%. Even mindless
+  creatures OA per spec "they moved, I swing."
+- **Multi-square path checking deferred.** Only pre/post positions
+  compared. "Pass-through" OAs (mover enters then leaves reach in one
+  move) are missed. Most common case (leaving an established melee)
+  works correctly.
+- **Discovered during testing**: my first integration test had a
+  healer moving toward the goblin and engaging in melee — which then
+  meant the goblin had a reachable target and didn't need to move at
+  all (no OA). Fixed by making the demo healer immobile (speed=0).
+  The interaction itself is correct AI behavior — close-by reachable
+  targets get attacked, distant ones get movement.
+
+**Open items carried forward:**
+- [ ] Multi-square path checking (pass-through OAs).
+- [ ] Sentinel / Polearm Master feats (extra OA triggers).
+- [ ] Disengage action grants no-OA-from-leaving (needs Disengage
+  primitive).
+- [ ] Sophisticated OA action selection (uses first available melee).
+- [ ] OA from forced movement (push / pull / teleport).
+- [ ] OA against ranged attacks made in melee.
+- [ ] OA-aware path planning (mover avoids them).
+
+---
+
+## Session: 2026-05-25 — Positioning v1 (PR #15)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- **The biggest structural unblock in the engine's history.**
+  Creatures had `(x, y)` fields but they were always `(0, 0)`; melee
+  reach defaulted to TRUE for everyone; ranged weapons had no range
+  field; movement didn't exist. All four are now wired.
+- New module `engine/core/geometry.py`:
+  - `distance_ft` — Chebyshev × 5 (5e 2024 "diagonals = 5 ft" rule;
+    simpler than alternating 5/10)
+  - `is_within_ft`, `required_movement_ft`
+  - `move_toward` with `stop_at_ft` parameter so creatures land
+    adjacent (in reach), not stacked on the target's square
+- Six surgical edits in existing modules:
+  - `engine/cli.py` — `_build_actor` accepts optional `position: [x, y]`
+    per actor_spec (defaults `(0, 0)`)
+  - `engine/ai/targeting.py` — `_closest_enemy` now uses real
+    distance, ties broken by turn order
+  - `engine/core/modifiers.py` — `attacker_within_ft(N)` /
+    `attacker_not_within_ft(N)` when-clauses actually evaluate
+  - `engine/core/pipeline.py` — `generate_candidates` filters by reach
+    (melee uses `reach_ft`, ranged uses `range_ft`, multiattack uses
+    max sub-action reach)
+  - `engine/primitives.py` — `attack_roll` guards against out-of-range
+    execution (auto-miss with `reason='out_of_range'` telemetry)
+  - `engine/core/runner.py` — `_run_actor_turn` has a movement phase
+    via `_move_to_engage`. Two-phase main slot: try to act → move
+    toward dial-preferred target up to walk speed (stops at MAX reach
+    across actor's actions, so creatures land adjacent for melee not
+    stacked on target) → try again → log `passed_turn` if still
+    nothing reachable. Bonus slot doesn't move.
+- New fixture `tests/fixtures/ranged_vs_melee_encounter.yaml`:
+  Halfling Archer (Longbow, range 80) at (0,0) vs Goblin Brawler
+  (Scimitar, reach 5) at (12, 0) = 60 ft. Trace:
+    - Round 1: goblin moves 30 ft → still 30 ft out → passed_turn
+    - Round 1: archer shoots from position (no moved event)
+    - Round 2: goblin moves 25 ft (stops at melee adjacency, NOT
+      stacked) → hits for 3
+    - Round 3-4: melee exchange, archer wins
+- 29 new tests across pure geometry, reachability filter, when-clause
+  evaluation, attack_roll out-of-range guard, and runner integration.
+- 207/207 tests pass.
+
+**Key decisions:**
+- **2D only.** No Z-axis / flying / climbing for v1.
+- **Open battlefield assumption.** No walls / obstacles / path-finding
+  for v1.
+- **Chebyshev × 5 distance** per 2024 PHB. Alternating 5/10 rule
+  deferred.
+- **`move_toward` stops at `stop_at_ft`** — caught a real bug during
+  testing where creatures were ending up in the same square as their
+  target. Fixed by passing the actor's max reach so they land adjacent.
+- **Two-phase movement** in `_run_actor_turn`: try to act → if no
+  in-range candidates, move toward dial-preferred target → try again.
+  Movement is a main-slot resource; bonus slot doesn't move.
+- **`attack_roll` out-of-range guard** auto-miss with telemetry as a
+  safety net for multiattack execution paths that might invoke a
+  short-reach sub-action beyond its reach.
+- **Existing 6 fixtures behave identically** — all positions default
+  to `(0, 0)`, preserving the "everyone in melee range" assumption
+  baked into pre-positioning tests and fixtures.
+
+**Open items carried forward:**
+- [ ] Opportunity attacks — movement-triggered reaction events;
+  would activate the already-wired `oa_reaction` AE percentages. ←
+  CLOSED in PR #16.
+- [ ] Soft control / movement denial scoring (the deferred eHP family).
+- [ ] `frontline` / `library_protect` RP constraints (proximity-aware).
+- [ ] AoE geometry (radius / cone / line) — sphere CLOSED in PR #17;
+  cone + line deferred.
+- [ ] Difficult terrain (speed halving).
+- [ ] Cover (half / three-quarters).
+- [ ] Flanking (optional 5e rule).
+- [ ] 3D / flying / climbing.
+- [ ] Path-finding around obstacles.
+- [ ] Visibility / line-of-sight beyond existing Blinded condition.
+- [ ] Dash / Disengage / Withdraw action primitives.
+- [ ] "Kiting" / stay-at-preferred-range optimization for ranged.
+
+---
+
+## Session: 2026-05-25 — Browser deployment option doc (PR #14)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Documented Pyodide / browser deployment as the **Stage 2 deployment
+  target**. Came out of Phil asking whether Gemini's suggestion fit
+  the plan.
+- New doc `docs/architecture/browser-deployment.md` (~160 lines):
+  - Why this engine is unusually Pyodide-friendly (invariants table
+    aligning with existing Foundry-bridge invariants)
+  - Where browser deployment fits the 4-stage plan (Stage 2
+    report-companion layer, NOT a Foundry replacement)
+  - Invariants to preserve: no native C deps, loader supports string
+    content when built, CLI stays a thin wrapper, plain-data state,
+    synchronous only
+  - Performance reality check (~50-85ms per encounter; MC 1k ≈
+    1-2 min in browser; MC 10k+ stays backend)
+  - ~1-3 day build scope when triggered
+  - Trigger conditions: first Stage 2 report ready, "no Python
+    install" community ask, or outreach demo
+- Added a status-table row in `docs/CONTEXT.md` pointing to the doc
+  with the dependency-check reminder.
+- Added a "Next substantive steps" item so it's discoverable as
+  future work.
+
+**Key decisions:**
+- **Engine architecture already enables it** — Foundry-bridge
+  invariants (plain-data state, library-first, no native deps) also
+  unlock browser deployment as a side effect. No engine refactor
+  needed; just preserve the invariants.
+- **Captured as documented option, not immediate build task.**
+  Pyodide build itself becomes a Stage 2 task. Until triggered, the
+  doc just makes sure future PRs don't break the enabling invariants.
+
+**Open items carried forward:**
+- [ ] `engine/loader.py:load_yaml_string` sibling (when build triggered).
+- [ ] Static frontend + Web Worker + GitHub Pages/Firebase setup.
+- [ ] "Run in browser" links on each Stage 2 published report.
+
+---
+
 ## Session: 2026-05-25 — Capabilities-doc refresh after RP Constraints
 
 **Participants:** Phil, Claude

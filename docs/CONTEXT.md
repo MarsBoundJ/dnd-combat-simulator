@@ -217,49 +217,58 @@ utility ratings* as a disclosed input axis, never sim-computed.
 | Action Economy dial v1 | ✅ (2026-05-25) — `engine/ai/action_economy.py`. 4th of 4 dials. Full 5-preset percentage table (Optimal/Skilled/Average/Casual/Reactive_only) × 5 knobs (main_optimality / signature_bonus / tactical_bonus / oa_reaction / sophisticated_reaction). Main-slot "miss" downgrades to default attack preserving target. Bonus action slot added to runner with signature/tactical gating. PC `play_context: solo` shifts preset down one tier. New nimble_goblin fixture shows both slots firing in one turn. PR #10. |
 | Retreat dial v1 | ✅ (2026-05-25) — `engine/ai/retreat.py`. Last of 4 dials. DMG p48 algorithm (dmg_ammann mode) with 5 presets (FtD/Resolute/Default/Cowardly/Pacifist) × 4 parameter columns. Mindless override (INT ≤ 2 OR archetype mindless_aggressor → never flee). Compound triggers: Resolute requires Bloodied AND another trigger; others accept any single. WIS save vs in_combat_dc; fail = flee. Existing fixtures now show emergent retreat — goblins flee alive at low HP, party members panic when half the team falls. PR #11. |
 | RP Constraints v1 | ✅ (2026-05-25) — `engine/ai/rp_constraints.py`. Closes the last stubbed pipeline steps (3 + 4). 3 constraint types (Hard Filter / Forced Choice / Weighted Preference) per §6.2. 4 of 12 canonical constraints shipped (pacifist_strict, heal_priority, signature_first, resource_hoarder) — one+ per type. Tier 1 set-intersection, Tier 2 highest-priority-wins boost, Tier 3 cumulative additive. Empty-set fallback logs passed_turn event. New pacifist fixture proves end-to-end: PC Pass-turns every round, never attacks, eventually flees alive. **All 8 pipeline steps now live.** PR #12. |
+| Positioning v1 | ✅ (2026-05-25) — `engine/core/geometry.py`. The biggest structural unblock. 2D grid positions (`Actor.position` finally used), Chebyshev × 5 distance (5e 2024 "diagonals = 5 ft" rule), `move_toward` with `stop_at_ft` to land creatures adjacent rather than stacked, reachability filter in `generate_candidates` (melee `reach_ft` / ranged `range_ft`), `closest_enemy` targeting now picks by distance, `attacker_within_ft(N)` when-clauses evaluate properly, `attack_roll` out-of-range guard. Runner movement phase: two-phase main slot tries to act → moves toward dial-preferred target → tries again → passes if still unreachable. New ranged_vs_melee fixture demonstrates archer-stays-back / goblin-engages end-to-end. PR #15. |
+| Opportunity Attacks v1 | ✅ (2026-05-25) — `engine/core/reactions.py`. First reaction type wired. AE dial's `oa_reaction` percentages (80-100%) now actually fire. Trigger: reactor's melee reach covered mover's pre-position AND does not cover post-position. Decision: roll vs `oa_reaction`. Execution: single melee weapon attack against the mover at pre-position (position snapped/restored). Reaction slot tracking via `actions_used_this_turn["reaction"]`. New opportunity_attack fixture: Polearm Guardian catches Goblin slipping past to attack a healer. PR #16. |
+| AoE Geometry v1 | ✅ (2026-05-25) — `engine/core/geometry.py:actors_in_radius` + new `aoe_attack` action type. **First multi-target eHP scoring in the engine.** Sphere shape only (cone/line deferred). Candidate generation: one per enemy position as origin (catches "cast on cluster"). `damage` primitive gains `multiplier` param (half-damage-on-save). `forced_save` filters by area when `area_origin` set; swaps `state.current_attack.target` per iteration so damage primitives hit the right creature. eHP: positive for enemies, negative for allies (friendly fire — caster counts as ally). New fireball_cluster fixture: wizard nukes 3 clustered goblins in one cast at seed 1. PR #17. |
 
 **Current phase:** Engine skeleton (Phase 1 v0) landed 2026-05-25, followed by
-8 substantial PRs on the same day: primitives v1 (#5), targeting dial v1 (#6),
+13 substantial PRs on the same day: primitives v1 (#5), targeting dial v1 (#6),
 offensive eHP v1 (#7), defensive eHP v1 (#8), capabilities-doc checkpoint (#9),
-action economy dial v1 (#10), retreat dial v1 (#11), RP Constraints v1 (#12).
-**The full 8-step decision pipeline from `pillars-reconciliation.md` §7 is now
+action economy dial v1 (#10), retreat dial v1 (#11), RP Constraints v1 (#12),
+capabilities-doc refresh (#13), browser-deployment doc (#14), positioning v1
+(#15), opportunity attacks v1 (#16), AoE geometry v1 (#17).
+**The full 8-step decision pipeline from `pillars-reconciliation.md` §7 is
 live. All 4 dials have v1 implementations. RP Constraints provide the
-identity/personality overlay.** Remaining work is content breadth (more
-primitives, positions, schema content) and depth-within-system (defer-tagged
-behaviors), not new architecture. 13 primitives implemented; ~30 stubbed.
+identity/personality overlay. Positioning + movement + reachability gives the
+spatial axis. Opportunity attacks are the first reaction type wired. AoE
+geometry adds the engine's first multi-target eHP scoring.** Remaining work
+is content breadth (more primitives, PC schema, content) and depth-within-
+system (defer-tagged behaviors), not new architecture. 13 primitives
+implemented; ~30 stubbed.
 
 **See `docs/engine-capabilities.md` for the full reader-facing capability
 checkpoint** — behavioral worked examples, decision-pipeline status per
 step, eHP framework coverage map, and the honest roadmap gap list.
 
 **Next substantive steps** (parallel, prioritize per use case):
-1. **Positioning / movement / reachability** — biggest missing axis.
-   Currently all creatures at (0,0); melee reachability defaults to TRUE.
-   Unblocks proper `closest_enemy`, opportunity attacks (which activates
-   the already-wired `oa_reaction` AE percentages), ranged-vs-melee
-   tradeoffs, soft control / movement denial, AoE geometry, several
-   deferred RP constraints (`frontline`, `library_protect` proximity).
-2. **PC schema** — currently using inline monster-template hack in PC
+1. **PC schema** — currently using inline monster-template hack in PC
    fixtures. A first-class PC schema with class/level/feats/equipment
-   slots would clean this up substantially.
-3. **Offensive buff for allies (Bless shape)** — math symmetric to defensive
+   slots would clean this up substantially and let us load proper
+   classed PCs from existing schema content.
+2. **Offensive buff for allies (Bless shape)** — math symmetric to defensive
    buff; needs cross-actor `attack_modifier` lookup at score-time. Small
    focused PR.
-4. **Spell slot opportunity cost** — needed for proper caster eHP scoring.
+3. **Spell slot opportunity cost** — needed for proper caster eHP scoring.
    Unlocks the Fireball-vs-Hypnotic-Pattern worked example from
    `ehp-action-framework.md`.
-5. **More primitives** — Dodge (would replace Pass-turn RP fallback),
-   Action Surge, Spirit Guardians (persistent_aura + triggered_save),
-   spellcasting infrastructure.
-6. **3-level profile inheritance** (archetype → faction → instance) +
+4. **Cone + Line AoE shapes** — natural follow-on to sphere AoE. Covers
+   Burning Hands, Cone of Cold, Lightning Bolt. Geometry helpers parallel
+   to `actors_in_radius`.
+5. **More primitives** — Dodge (replaces Pass-turn RP fallback), Disengage
+   (grants no-OA-from-leaving, interacts with PR #16), Action Surge,
+   Spirit Guardians (`persistent_aura` + `triggered_save`), spellcasting
+   infrastructure.
+6. **Concentration management** — auto CON saves on damage; AI choice of
+   whether to break current concentration to cast new spell.
+7. **3-level profile inheritance** (archetype → faction → instance) +
    runtime override layer (Frightened / Dominate / Confusion) per §4.4.
-7. **Phase 2 Foundry bridge** — when Stage 2 timing is right. Thin JS module that
+8. **Phase 2 Foundry bridge** — when Stage 2 timing is right. Thin JS module that
    uses the engine in observation mode + the schema as translation target.
-8. **Pyodide / browser deployment** — zero-cost Stage 2 option for a "try it
+9. **Pyodide / browser deployment** — zero-cost Stage 2 option for a "try it
    in your browser" demo accompanying published reports. Documented in
    `docs/architecture/browser-deployment.md`; build deferred until a Stage 2
    report is ready to ship with a "click to re-run" affordance.
-9. **Content expansion** — remaining ~11 classes / ~23 subclasses / ~300 monsters /
+10. **Content expansion** — remaining ~11 classes / ~23 subclasses / ~300 monsters /
    ~300 spells / equipment / magic items / backgrounds / species / feats. Parallel
    iterative work; schemas are stable.
 
