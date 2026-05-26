@@ -366,9 +366,14 @@ def offensive_ehp_buff_ally(actor: Actor, target_ally: Actor, action: dict,
 
 
 def offensive_ehp_aoe(actor: Actor, origin: tuple[int, int], action: dict,
-                        state: CombatState) -> float:
-    """Expected HP delivered by an AoE save-or-half action centered at
-    `origin`.
+                        state: CombatState,
+                        direction: tuple[int, int] | None = None) -> float:
+    """Expected HP delivered by an AoE save-or-half action.
+
+    Geometry depends on action.area.shape:
+      - sphere: origin = center; `direction` ignored
+      - cone:  origin = apex; `direction` = unit vector (required)
+      - line:  origin = start; `direction` = unit vector (required)
 
     For each living creature in the area:
       - p_fail × full_damage  (creature failed save → full dmg)
@@ -380,19 +385,42 @@ def offensive_ehp_aoe(actor: Actor, origin: tuple[int, int], action: dict,
     weight in v1; `self_preservation_coefficient` modulation deferred).
     Caster themselves count as an ally — don't fireball yourself.
 
-    Returns 0.0 if no creatures in area or action shape malformed.
+    Returns 0.0 if no creatures in area, action shape malformed, or
+    a non-sphere shape is missing its direction.
     """
     # Lazy import to avoid circular (defensive_ehp imports from this file)
     from engine.ai.defensive_ehp import save_fail_probability
-    from engine.core.geometry import actors_in_radius
+    from engine.core.geometry import (
+        actors_in_radius, actors_in_cone, actors_in_line,
+    )
 
     area = action.get("area") or {}
-    radius_ft = area.get("radius_ft")
-    if radius_ft is None:
+    shape = (area.get("shape") or "sphere").lower()
+    living = [a for a in state.encounter.actors if a.is_alive()]
+    affected: list = []
+
+    if shape == "sphere":
+        radius_ft = area.get("radius_ft")
+        if radius_ft is None:
+            return 0.0
+        affected = actors_in_radius(tuple(origin), int(radius_ft), living)
+    elif shape == "cone":
+        length_ft = area.get("length_ft")
+        if length_ft is None or direction is None:
+            return 0.0
+        affected = actors_in_cone(tuple(origin), tuple(direction),
+                                     int(length_ft), living)
+    elif shape == "line":
+        length_ft = area.get("length_ft")
+        width_ft = area.get("width_ft", 5)
+        if length_ft is None or direction is None:
+            return 0.0
+        affected = actors_in_line(tuple(origin), tuple(direction),
+                                     int(length_ft), int(width_ft),
+                                     living)
+    else:
         return 0.0
 
-    living = [a for a in state.encounter.actors if a.is_alive()]
-    affected = actors_in_radius(tuple(origin), int(radius_ft), living)
     if not affected:
         return 0.0
 
@@ -563,7 +591,10 @@ def score_candidate(candidate: dict, state: CombatState) -> float:
         origin = candidate.get("origin_point")
         if origin is None:
             return 0.0
-        return offensive_ehp_aoe(actor, tuple(origin), action, state)
+        direction = candidate.get("direction")
+        return offensive_ehp_aoe(actor, tuple(origin), action, state,
+                                    direction=tuple(direction) if direction
+                                                else None)
     if kind == "offensive_buff" or action.get("type") == "offensive_buff":
         return offensive_ehp_buff_ally(actor, target, action, state)
 

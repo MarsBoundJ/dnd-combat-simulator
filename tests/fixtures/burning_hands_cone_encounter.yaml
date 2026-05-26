@@ -1,0 +1,114 @@
+# Burning Hands cone demo — exercises AoE cone shape.
+#
+# Setup:
+#   - Wizard (PC) at (0, 0) with Magic Dart + Burning Hands (15-ft
+#     cone from caster, 3d6 fire, DEX save DC 13).
+#   - 3 goblins in a line east of the wizard at (1, 0), (2, 0), (3, 0).
+#     All within the cone's reach when wizard targets east.
+#   - 1 distant goblin north at (0, 5) — out of cone reach toward east.
+#
+# Expected behavior (round 1):
+#   - Wizard goes first (high init mod).
+#   - Burning Hands candidates: one per enemy direction.
+#     - East direction (toward g_east_1): cone catches g_east_1,
+#       g_east_2, g_east_3 (all in 15-ft cone)
+#     - North direction (toward g_north): catches just g_north
+#   - East direction eHP = 3 goblins × (3d6 × ~50% × overkill cap) >
+#     north direction's 1-goblin eHP.
+#   - Wizard casts east; event log shows aoe_origin_placed with
+#     direction [1, 0] and 3 forced_save events for the east goblins.
+#
+# Proves: cone candidate gen (per-enemy direction), cone scoring
+# (direction-aware), execution propagates direction to forced_save.
+
+id: burning_hands_cone_encounter
+
+environment:
+  template: open_battlefield
+
+actors:
+  - instance_id: wizard_pc
+    name: Evocation Wizard
+    side: pc
+    position: [0, 0]
+    template:
+      id: pc_evocation_wizard_bh
+      name: Evocation Wizard
+      source: user_authored
+      combat:
+        armor_class: 12
+        hit_points:
+          average: 22
+          dice: "5d6"
+          con_contribution: 5
+        speed:
+          walk: 30
+        initiative:
+          modifier: 20             # forced first for demo clarity
+          score: 30
+      abilities:
+        str: { score: 8, save: -1 }
+        dex: { score: 14, save: 2 }
+        con: { score: 12, save: 1 }
+        int: { score: 18, save: 6 }
+        wis: { score: 12, save: 1 }
+        cha: { score: 10, save: 0 }
+      cr: { value: 2.0, xp: 450, proficiency_bonus: 3 }
+      behavior_profile:
+        presets:
+          retreat: ftd
+      actions:
+        - id: a_dart
+          name: Magic Dart
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: ranged, bonus: 6, range_ft: 60 }
+            - primitive: damage
+              params: { dice: "1d4", modifier: 4, type: force }
+              when: { event: damage_roll, condition: "combat.attack_state == hit" }
+        - id: a_burning_hands
+          name: Burning Hands
+          type: aoe_attack
+          area:
+            shape: cone
+            length_ft: 15
+            range_ft: 0           # cone originates at caster
+          pipeline:
+            - primitive: forced_save
+              params:
+                ability: dexterity
+                dc: 13
+                affected: all_creatures_in_area
+                on_fail:
+                  - primitive: damage
+                    params: { dice: "3d6", type: fire }
+                on_success:
+                  - primitive: damage
+                    params: { dice: "3d6", type: fire, multiplier: 0.5 }
+
+  # Three goblins in a line east of the wizard — all in the 15-ft cone
+  - instance_id: goblin_east_1
+    name: Goblin (east 5ft)
+    side: enemy
+    position: [1, 0]
+    template_ref: { entity_type: monster, id: m_goblin_warrior }
+
+  - instance_id: goblin_east_2
+    name: Goblin (east 10ft)
+    side: enemy
+    position: [2, 0]
+    template_ref: { entity_type: monster, id: m_goblin_warrior }
+
+  - instance_id: goblin_east_3
+    name: Goblin (east 15ft)
+    side: enemy
+    position: [3, 0]
+    template_ref: { entity_type: monster, id: m_goblin_warrior }
+
+  # Lone goblin north — out of the east-facing cone
+  - instance_id: goblin_north
+    name: Goblin (north 25ft)
+    side: enemy
+    position: [0, 5]
+    template_ref: { entity_type: monster, id: m_goblin_warrior }

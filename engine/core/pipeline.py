@@ -164,25 +164,58 @@ def generate_candidates(actor: Actor, state: CombatState,
                     "actor": actor,
                 })
         elif action_type == "aoe_attack":
-            # AoE actions are scored per ORIGIN point. v1 enumerates each
-            # living enemy's position as a candidate origin (catches the
-            # "cast it on the cluster" decision naturally — placing the
-            # area on enemy A hits A + neighbors). The candidate's
-            # `target` field is just the anchor enemy (informational); the
-            # actual affected set is computed from origin + area shape at
-            # scoring AND execution time.
+            # AoE candidate shape depends on area.shape:
+            #   - sphere: origin = enemy.position; no direction. Each
+            #     living enemy in cast_range becomes a candidate origin
+            #     (catches "cast on the cluster" naturally).
+            #   - cone / line: origin = caster.position; direction =
+            #     unit_vector toward enemy. Each living enemy in cast_range
+            #     becomes a candidate direction (same enemy → same direction
+            #     after snapping; duplicates score identically and tie-break
+            #     by first listed).
+            from engine.core.geometry import unit_direction
             area = action.get("area") or {}
-            cast_range = int(area.get("range_ft", 60))
-            for anchor in enemies:
-                if not is_within_ft(actor, anchor, cast_range):
-                    continue
-                candidates.append({
-                    "kind": "aoe_attack",
-                    "action": action,
-                    "target": anchor,
-                    "origin_point": anchor.position,
-                    "actor": actor,
-                })
+            shape = (area.get("shape") or "sphere").lower()
+            # `range_ft` semantics differ by shape:
+            #   - sphere: how far the caster can place the origin
+            #     (e.g., Fireball 150 ft)
+            #   - cone / line: origin IS the caster, so range_ft is
+            #     irrelevant. We gate by `length_ft` instead so we
+            #     don't generate candidates pointed at enemies the
+            #     spell can't reach at all.
+            if shape == "sphere":
+                cast_range = int(area.get("range_ft", 60))
+                for anchor in enemies:
+                    if not is_within_ft(actor, anchor, cast_range):
+                        continue
+                    candidates.append({
+                        "kind": "aoe_attack",
+                        "action": action,
+                        "target": anchor,
+                        "origin_point": anchor.position,
+                        "actor": actor,
+                    })
+            elif shape in ("cone", "line"):
+                # No range_ft filter; gate by length_ft so we skip
+                # directions whose anchor enemy is beyond reach. The
+                # scoring still handles "no affected enemies" gracefully
+                # (returns 0) — this just trims obviously-useless
+                # candidates.
+                length_ft = int(area.get("length_ft", 30))
+                for anchor in enemies:
+                    if not is_within_ft(actor, anchor, length_ft):
+                        continue
+                    direction = unit_direction(actor.position, anchor.position)
+                    if direction == (0, 0):
+                        continue   # caster on top of enemy: skip
+                    candidates.append({
+                        "kind": "aoe_attack",
+                        "action": action,
+                        "target": anchor,
+                        "origin_point": actor.position,
+                        "direction": direction,
+                        "actor": actor,
+                    })
     return candidates
 
 
@@ -342,9 +375,11 @@ def _execute_single(chosen: dict, state: CombatState, event_bus, primitives) -> 
     actor = chosen["actor"]
     target = chosen.get("target")
     action = chosen["action"]
-    # AoE actions: propagate the candidate's origin_point into state so
-    # forced_save's area resolver can filter creatures by geometry.
+    # AoE actions: propagate origin (sphere/cone/line) and direction
+    # (cone/line) into state so forced_save's area resolver can filter
+    # creatures by geometry.
     origin = chosen.get("origin_point")
+    direction = chosen.get("direction")
 
     state.current_attack = {
         "actor": actor,
@@ -354,15 +389,19 @@ def _execute_single(chosen: dict, state: CombatState, event_bus, primitives) -> 
         "had_advantage": False,
         "had_disadvantage": False,
         "area_origin": tuple(origin) if origin is not None else None,
+        "area_direction": tuple(direction) if direction is not None else None,
     }
 
     if origin is not None:
-        state.event_log.append({
+        log_entry = {
             "event": "aoe_origin_placed",
             "actor": actor.id,
             "action": action.get("id"),
             "origin": list(origin),
-        })
+        }
+        if direction is not None:
+            log_entry["direction"] = list(direction)
+        state.event_log.append(log_entry)
 
     for step in action.get("pipeline", []):
         primitive_name = step["primitive"]
