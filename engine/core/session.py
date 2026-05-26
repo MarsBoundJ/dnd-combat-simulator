@@ -141,7 +141,13 @@ def run_session(spec: SessionSpec, seed: int | None = None) -> SessionResult:
         # encounter outcomes would depend on whichever test ran last.
         import engine.primitives as _primitives_module
         _primitives_module.set_rng(runner.rng)
-        state = runner.run(seed=enc_seed)
+        # Pace-aware AI (PR #42): pass the number of encounters STILL
+        # AHEAD of (and including) this one so the urgency factor
+        # decreases across the day. Encounter 1 of 3 → encounters_
+        # remaining_today=3; encounter 3 of 3 → 1.
+        encounters_remaining = len(spec.encounters) - i
+        state = runner.run(seed=enc_seed,
+                            encounters_remaining_today=encounters_remaining)
 
         # 3. End concentration on surviving party members (time passes)
         _end_party_concentration(actors, spec.party_actor_ids, state)

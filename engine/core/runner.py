@@ -122,26 +122,22 @@ class EncounterRunner:
         spell-action gating since we don't yet distinguish Magic
         actions from other actions).
 
-        Activation heuristic (v1):
+        Activation gates (PR #31 + PR #42):
           1. Actor has `action_surge_uses_remaining` > 0 in resources
-          2. At least one in-reach weapon_attack / multiattack candidate
+          2. Not already activated this turn (L17 cap)
+          3. At least one enemy is alive
+          4. At least one in-reach weapon_attack / multiattack candidate
              exists this turn (otherwise the extra action would be
-             wasted — we'd burn the charge on a second move-to-engage
-             that goes nowhere). This is the same in-reach check the
-             main-slot candidate generator does; we evaluate it here
-             to gate AS activation.
-          3. At least one enemy is alive (no point spending AS if combat
-             is effectively over)
-
-        Real cooldown intelligence (save for emergencies, burn on
-        bloodied target, etc.) is deferred. Fighters in real play tend
-        to dump AS early in a fight; the v1 "fire when in reach"
-        heuristic matches that behavior.
+             wasted)
+          5. **Pace-aware gain-vs-cost check (PR #42):** score the best
+             in-reach attack candidate via the eHP framework; compute
+             the AS opportunity cost from `state.encounters_remaining_today`
+             via `action_surge_cost_ehp`. Activate only if gain > cost.
 
         Side effects when activated:
           - Decrements `actor.resources["action_surge_uses_remaining"]`
           - Sets `actor.action_surge_used_this_turn = True`
-          - Logs `action_surge_activated` event
+          - Logs `action_surge_activated` event with gain / cost / charges
         """
         charges = int(actor.resources.get("action_surge_uses_remaining", 0))
         if charges <= 0:
@@ -164,6 +160,21 @@ class EncounterRunner:
         if not attack_candidates:
             return
 
+        # Pace-aware: weigh expected gain (eHP of best attack candidate)
+        # against the opportunity cost of spending an AS charge now.
+        # encounters_remaining_today on the state drives the urgency
+        # factor — session runners pass per-encounter values; single-
+        # encounter sims default to mid-day (3).
+        from engine.ai.ehp_scoring import score_candidate
+        from engine.core.feature_pacing import action_surge_cost_ehp
+        best_gain = max(score_candidate(c, state) for c in attack_candidates)
+        cost = action_surge_cost_ehp(
+            charges_remaining=charges,
+            encounters_remaining=state.encounters_remaining_today,
+        )
+        if best_gain <= cost:
+            return     # save the charge for a more impactful moment
+
         # Activate
         actor.resources["action_surge_uses_remaining"] = charges - 1
         actor.action_surge_used_this_turn = True
@@ -171,6 +182,8 @@ class EncounterRunner:
             "event": "action_surge_activated",
             "actor": actor.id,
             "charges_remaining": charges - 1,
+            "gain_eHP": round(best_gain, 2),
+            "cost_eHP": round(cost, 2),
         })
 
     def _move_to_engage(self, actor: Actor, state: CombatState) -> None:
@@ -442,12 +455,24 @@ class EncounterRunner:
                                       "from": chosen["downgraded_from"],
                                       "to": chosen["action"].get("id")})
 
-    def run(self, seed: int | None = None) -> CombatState:
-        """Run the encounter to termination. Returns final CombatState."""
+    def run(self, seed: int | None = None,
+            encounters_remaining_today: int = 3) -> CombatState:
+        """Run the encounter to termination. Returns final CombatState.
+
+        `encounters_remaining_today` (default 3 = mid-day baseline)
+        feeds the pace-aware AI: spell-slot opportunity cost (PR #22)
+        and Action Surge activation gate (PR #42) both consult it.
+        Session runners pass per-encounter values so the AI sees
+        urgency decrease across the day. Single-encounter sims use
+        the default.
+        """
         if seed is not None:
             self.rng = random.Random(seed)
-        state = CombatState(encounter=self.encounter,
-                             content_registry=self.content_registry)
+        state = CombatState(
+            encounter=self.encounter,
+            content_registry=self.content_registry,
+            encounters_remaining_today=encounters_remaining_today,
+        )
         self.event_bus.emit("round_start", {"round": 1})
         self.roll_initiative(state)
         state.round = 1
