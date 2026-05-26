@@ -1,0 +1,113 @@
+# Archer vs goblin — exercises positioning v1.
+#
+# Setup:
+#   - Archer (PC) at (0, 0) with a Longbow (range 80 ft).
+#   - Goblin Brawler (enemy) at (12, 0) — 60 ft away — with a Scimitar
+#     (melee reach 5).
+#
+# Expected behavior:
+#   - Round 1: Archer is already within bow range; shoots from position.
+#     Goblin is 60 ft from archer; melee reach 5 → can't reach. Moves
+#     30 ft (full walk speed) toward archer.
+#   - Round 2: Archer shoots again. Goblin closes another 25 ft (stops
+#     5 ft short of archer — adjacent, melee range).
+#   - Round 3+: Both attack. Goblin in melee, archer point-blank with
+#     bow (no special disadvantage in v1).
+#
+# Event log will show:
+#   - `attack_roll` events from archer in round 1 BEFORE any goblin move
+#   - `moved` events from goblin closing 30 ft each turn until in reach
+#   - `passed_turn` events from goblin if it's still out of range after
+#     movement (only on round 1 — distance 60 - 30 = 30, still > 5)
+#
+# Proves: ranged attacker doesn't move; melee attacker engages; reach
+# filter works end-to-end; movement preserves the 5-ft adjacent spacing.
+
+id: ranged_vs_melee_encounter
+
+environment:
+  template: open_battlefield
+
+actors:
+  - instance_id: archer_pc
+    name: Halfling Archer
+    side: pc
+    position: [0, 0]
+    template:
+      id: pc_archer_v1
+      name: Halfling Archer
+      source: user_authored
+      combat:
+        armor_class: 14
+        hit_points:
+          average: 30
+          dice: "5d8"
+          con_contribution: 5
+        speed:
+          walk: 25
+        initiative:
+          modifier: 3
+          score: 17
+      abilities:
+        str: { score: 10, save: 0 }
+        dex: { score: 16, save: 5 }
+        con: { score: 12, save: 1 }
+        int: { score: 10, save: 0 }
+        wis: { score: 12, save: 1 }
+        cha: { score: 10, save: 0 }
+      cr: { value: 1.0, xp: 200, proficiency_bonus: 2 }
+      actions:
+        - id: a_longbow
+          name: Longbow
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: ranged, bonus: 5, range_ft: 80 }
+            - primitive: damage
+              params: { dice: "1d8", modifier: 3, type: piercing }
+              when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  - instance_id: goblin_brawler
+    name: Goblin Brawler
+    side: enemy
+    position: [12, 0]   # 60 ft from archer
+    template:
+      id: m_goblin_brawler
+      name: Goblin Brawler
+      source: user_authored
+      combat:
+        armor_class: 13
+        hit_points:
+          average: 14
+          dice: "4d6"
+          con_contribution: 0
+        speed:
+          walk: 30
+        initiative:
+          modifier: 2
+          score: 14
+      abilities:
+        str: { score: 8, save: -1 }
+        dex: { score: 14, save: 2 }
+        con: { score: 10, save: 0 }
+        int: { score: 10, save: 0 }
+        wis: { score: 8, save: -1 }
+        cha: { score: 8, save: -1 }
+      cr: { value: 0.25, xp: 50, proficiency_bonus: 2 }
+      behavior_profile:
+        archetype: mindless_aggressor   # always closes, never flees
+        presets:
+          # Default retreat would make a low-HP cowardly goblin flee mid-encounter
+          # — for a clean positioning demo we want it to FtD instead, so the
+          # focus stays on the movement system, not retreat.
+          retreat: ftd
+      actions:
+        - id: a_scimitar
+          name: Scimitar
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: melee, bonus: 4, reach_ft: 5 }
+            - primitive: damage
+              params: { dice: "1d6", modifier: 2, type: slashing }
+              when: { event: damage_roll, condition: "combat.attack_state == hit" }

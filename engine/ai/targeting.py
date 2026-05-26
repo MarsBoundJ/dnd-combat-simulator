@@ -73,18 +73,17 @@ def pick_target(actor: Actor, enemies: list[Actor], state: CombatState,
 
 def _closest_enemy(actor: Actor, enemies: list[Actor],
                     state: CombatState) -> Actor:
-    """Pick the nearest living enemy.
+    """Pick the nearest living enemy by grid distance.
 
-    v1: with no positions, falls back to first in turn order (deterministic).
+    Ties broken by turn-order index (earlier-in-init wins) for
+    determinism — important since same-distance ties are common in
+    open-battlefield fixtures where multiple enemies share a side.
     """
-    # Sort by turn-order index; pick first one. If actor's not in turn order
-    # (edge case), just return first enemy.
-    if not state.turn_order:
-        return enemies[0]
-    # Index by turn order
-    turn_idx = {aid: i for i, aid in enumerate(state.turn_order)}
-    enemies_sorted = sorted(enemies, key=lambda e: turn_idx.get(e.id, 999))
-    return enemies_sorted[0]
+    from engine.core.geometry import distance_ft
+    turn_idx = {aid: i for i, aid in enumerate(state.turn_order or [])}
+    return min(enemies,
+                key=lambda e: (distance_ft(actor, e),
+                                turn_idx.get(e.id, 999)))
 
 
 def _weakest_target(actor: Actor, enemies: list[Actor],
