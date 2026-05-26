@@ -1,15 +1,18 @@
-# Strict Pacifist PC — exercises RP Constraints (Hard Filter / Tier 1).
+# Strict Pacifist PC — exercises RP Constraints (Hard Filter / Tier 1)
+# AND the PR #27 §6.4 PC Dodge fallback.
 #
 # A pacifist PC with `pacifist_strict` is faced with an attacking goblin.
 # The pacifist has ONLY weapon attacks in their action list, so the hard
 # filter empties the candidate set every turn. Per §6.4 guaranteed-legal
-# fallback, the runner logs `passed_turn` events instead of executing
-# an action. The pacifist takes damage from the goblin but never strikes
-# back — outcome is enemy victory or a stalemate with the pacifist down.
+# fallback ("PCs default to Dodge"), the runner now executes the built-in
+# Dodge action instead of Pass-turning. Goblin attacks against the
+# pacifist roll at disadvantage; she absorbs ~5× more damage before
+# the retreat dial fires (8 rounds vs 7; ending HP 10/30 vs 2/30).
 #
-# Expected event log: each pacifist turn produces a `passed_turn` event
-# with reason 'rp_hard_filter_empty_set' and zero attack_roll events
-# from the pacifist.
+# Expected event log: each pacifist turn produces a `dodge_fallback`
+# event with reason 'rp_hard_filter_empty_set' AND zero attack_roll
+# events from the pacifist (RP constraint still prevents attacking).
+# Goblin attack rolls against pacifist show `advantage_state: disadvantage`.
 
 id: pacifist_encounter
 

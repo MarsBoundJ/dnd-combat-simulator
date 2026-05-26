@@ -29,6 +29,32 @@ from engine.primitives import PrimitiveRegistry, remove_condition
 MAX_ROUNDS = 50
 
 
+# Synthetic built-in Dodge action used as the PC fallback when RP hard
+# filters empty the candidate set. Per pillars-reconciliation.md §6.4:
+#   "Guaranteed-legal fallback when candidate set drops to zero:
+#    PCs default to Dodge; Monsters default to Pass turn."
+# Shape matches an explicitly-declared Dodge (e.g., pacifist_strict-filtered
+# PCs still get the defensive benefit). Reused for every fallback —
+# the unified modifier registry handles per-actor attachment cleanly.
+_BUILT_IN_DODGE_ACTION = {
+    "id": "_builtin_dodge",
+    "name": "Dodge (built-in)",
+    "type": "defensive_buff",
+    "defensive_buff_rounds": 1,   # Dodge lasts 1 round per RAW
+    "pipeline": [
+        {"primitive": "attack_modifier",
+          "params": {"target": "self",
+                      "modifier": "disadvantage_for_attacker",
+                      "lifetime": "until_actor_next_turn_start"}},
+        {"primitive": "save_modifier",
+          "params": {"target": "self",
+                      "modifier": "advantage",
+                      "when": "save_ability == dexterity",
+                      "lifetime": "until_actor_next_turn_start"}},
+    ],
+}
+
+
 @dataclass
 class EncounterRunner:
     encounter: Encounter
@@ -285,9 +311,27 @@ class EncounterRunner:
         candidates = pipeline.apply_hard_filters(candidates, actor, state)
         # §6.4 guaranteed-legal fallback: if hard filters emptied the set
         # (e.g., pacifist_strict on a creature with only attack actions),
-        # log a pass-turn event and skip execution. v1 has no Dodge
-        # primitive — both PCs and monsters Pass.
+        # PCs default to Dodge (RAW); monsters default to Pass turn.
+        # Only applies to the main slot (Dodge is a main-action thing).
         if not candidates and pre_filter_count > 0:
+            if actor.side == "pc" and slot == "action":
+                # Execute the built-in Dodge action. The defensive
+                # modifiers attach via the existing pipeline.
+                fallback_chosen = {
+                    "kind": "defensive_buff",
+                    "actor": actor,
+                    "target": actor,
+                    "action": _BUILT_IN_DODGE_ACTION,
+                }
+                state.event_log.append({
+                    "event": "dodge_fallback",
+                    "actor": actor.id,
+                    "slot": slot,
+                    "reason": "rp_hard_filter_empty_set",
+                })
+                pipeline.execute(fallback_chosen, state, self.event_bus,
+                                  self.primitives)
+                return
             state.event_log.append({
                 "event": "passed_turn",
                 "actor": actor.id,
