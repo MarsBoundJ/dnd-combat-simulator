@@ -29,30 +29,13 @@ from engine.primitives import PrimitiveRegistry, remove_condition
 MAX_ROUNDS = 50
 
 
-# Synthetic built-in Dodge action used as the PC fallback when RP hard
-# filters empty the candidate set. Per pillars-reconciliation.md §6.4:
+# Built-in Dodge action used as the PC fallback when RP hard filters
+# empty the candidate set. Per pillars-reconciliation.md §6.4:
 #   "Guaranteed-legal fallback when candidate set drops to zero:
 #    PCs default to Dodge; Monsters default to Pass turn."
-# Shape matches an explicitly-declared Dodge (e.g., pacifist_strict-filtered
-# PCs still get the defensive benefit). Reused for every fallback —
-# the unified modifier registry handles per-actor attachment cleanly.
-_BUILT_IN_DODGE_ACTION = {
-    "id": "_builtin_dodge",
-    "name": "Dodge (built-in)",
-    "type": "defensive_buff",
-    "defensive_buff_rounds": 1,   # Dodge lasts 1 round per RAW
-    "pipeline": [
-        {"primitive": "attack_modifier",
-          "params": {"target": "self",
-                      "modifier": "disadvantage_for_attacker",
-                      "lifetime": "until_actor_next_turn_start"}},
-        {"primitive": "save_modifier",
-          "params": {"target": "self",
-                      "modifier": "advantage",
-                      "when": "save_ability == dexterity",
-                      "lifetime": "until_actor_next_turn_start"}},
-    ],
-}
+# Sourced from engine.core.basic_actions (same constant that the
+# candidate generator uses for built-in availability — see PR #29).
+from engine.core.basic_actions import BUILT_IN_DODGE as _BUILT_IN_DODGE_ACTION
 
 
 @dataclass

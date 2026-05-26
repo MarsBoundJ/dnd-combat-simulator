@@ -253,17 +253,20 @@ class ReachabilityFilterTest(unittest.TestCase):
                                  actions=[_melee_attack(reach=5)])
         far_enemy = _make_actor("far", side="enemy", position=(10, 0))
         state = _state_with([attacker, far_enemy])
-        candidates = generate_candidates(attacker, state)
+        # Filter to weapon attacks (built-ins Dodge/Disengage always present)
+        candidates = [c for c in generate_candidates(attacker, state)
+                       if c["kind"] == "weapon_attack"]
         self.assertEqual(candidates, [],
                           "Melee attack against 50-ft enemy should generate "
-                          "no candidates")
+                          "no weapon_attack candidates")
 
     def test_melee_in_reach_kept(self) -> None:
         attacker = _make_actor("att", side="pc", position=(0, 0),
                                  actions=[_melee_attack(reach=5)])
         close_enemy = _make_actor("close", side="enemy", position=(1, 0))
         state = _state_with([attacker, close_enemy])
-        candidates = generate_candidates(attacker, state)
+        candidates = [c for c in generate_candidates(attacker, state)
+                       if c["kind"] == "weapon_attack"]
         self.assertEqual(len(candidates), 1)
         self.assertEqual(candidates[0]["target"].id, "close")
 
@@ -273,7 +276,8 @@ class ReachabilityFilterTest(unittest.TestCase):
         # 70 ft away
         enemy = _make_actor("e", side="enemy", position=(14, 0))
         state = _state_with([attacker, enemy])
-        candidates = generate_candidates(attacker, state)
+        candidates = [c for c in generate_candidates(attacker, state)
+                       if c["kind"] == "weapon_attack"]
         self.assertEqual(len(candidates), 1,
                           "Ranged attack should reach the 70-ft enemy")
 
@@ -285,7 +289,8 @@ class ReachabilityFilterTest(unittest.TestCase):
         close = _make_actor("close", side="enemy", position=(1, 0))
         far = _make_actor("far", side="enemy", position=(10, 0))
         state = _state_with([attacker, close, far])
-        candidates = generate_candidates(attacker, state)
+        candidates = [c for c in generate_candidates(attacker, state)
+                       if c["kind"] == "weapon_attack"]
         self.assertEqual(len(candidates), 1)
         self.assertEqual(candidates[0]["target"].id, "close")
 
@@ -395,9 +400,14 @@ class RunnerMovementTest(unittest.TestCase):
                                 template_extras={"combat": {
                                     "initiative": {"modifier": 0, "score": 12},
                                 }})
+        # Dummy is immobile (speed 0) AND has no attack actions, so the
+        # warrior doesn't see dummy as an in-range threat and doesn't
+        # generate a built-in Dodge candidate — warrior's only option is
+        # to move and engage. Without these properties, dummy would close
+        # on warrior or warrior would Dodge in place.
         dummy = _make_actor("dummy", side="pc", hp=200, ac=10,
-                              position=(0, 0),
-                              actions=[sword])
+                              position=(0, 0), speed=0,
+                              actions=[])
         encounter = Encounter(id="movement_test", actors=[warrior, dummy])
 
         primitives_module.set_rng(random.Random(1))

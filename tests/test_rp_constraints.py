@@ -425,10 +425,17 @@ class ChainedModificationTest(unittest.TestCase):
 
 class PacifistDodgesFallbackTest(unittest.TestCase):
 
-    def test_pacifist_dodges_instead_of_attacking(self) -> None:
-        """A pacifist PC with no non-damaging actions should fall back to
-        the built-in Dodge (per pillars-reconciliation.md §6.4 RAW
-        fallback) instead of Pass-turning. Still never attacks."""
+    def test_pacifist_defends_via_dodge_never_attacks(self) -> None:
+        """A pacifist with no non-damaging actions should never attack
+        — pacifist_strict filters all weapon_attack candidates. With
+        PR #29 (built-in basic actions), the built-in Dodge candidate
+        survives the filter (no `damage` primitive), so the pacifist
+        Dodges via the normal candidate path instead of triggering
+        the PR #28 `dodge_fallback` safety net.
+
+        Enemy attacks against the pacifist should show
+        `advantage_state: disadvantage` (Dodge modifier active).
+        """
         import random as _random
         from engine import primitives as primitives_module
         from engine.core.runner import EncounterRunner
@@ -449,48 +456,42 @@ class PacifistDodgesFallbackTest(unittest.TestCase):
         primitives_module.set_rng(runner.rng)
         state = runner.run(seed=1)
 
-        # Pacifist PC should use the Dodge fallback, not Pass turn
-        dodge_events = [e for e in state.event_log
-                          if e.get("event") == "dodge_fallback"
-                          and e.get("actor") == "pacifist"]
-        self.assertGreater(len(dodge_events), 0,
-                            "Pacifist PC should have logged dodge_fallback "
-                            "events per §6.4 RAW fallback")
-        self.assertEqual(dodge_events[0]["reason"],
-                          "rp_hard_filter_empty_set")
-
-        # And pacifist should never have produced an attack_roll
+        # Pacifist should NEVER attack — constraint enforced
         pacifist_attacks = [e for e in state.event_log
                              if e.get("event") == "attack_roll"
                              and e.get("actor") == "pacifist"]
         self.assertEqual(len(pacifist_attacks), 0,
                           "Pacifist should NEVER have attacked")
 
-        # Enemy attacks against the dodging pacifist should show
-        # disadvantage_state (the built-in Dodge modifier is working)
+        # Enemy attacks should show disadvantage (Dodge active)
         enemy_attacks = [e for e in state.event_log
                           if e.get("event") == "attack_roll"
                           and e.get("actor") == "enemy"
                           and e.get("target") == "pacifist"]
-        if enemy_attacks:
-            # At least one enemy attack should show disadvantage
-            disad = [a for a in enemy_attacks
-                      if a.get("advantage_state") == "disadvantage"]
-            self.assertGreater(len(disad), 0,
-                                "Built-in Dodge should impose disadvantage "
-                                "on enemy attacks against pacifist")
+        self.assertGreater(len(enemy_attacks), 0,
+                            "Enemy should have attacked at least once")
+        disad = [a for a in enemy_attacks
+                  if a.get("advantage_state") == "disadvantage"]
+        self.assertGreater(len(disad), 0,
+                            "Built-in Dodge should impose disadvantage on "
+                            "enemy attacks against the pacifist")
 
-    def test_monster_still_passes_turn_on_filter_empty(self) -> None:
-        """Monsters (side != 'pc') keep the existing pass-turn behavior
-        per §6.4: 'Monsters default to Pass turn (or archetype-specified
-        emergency action if defined)' — the emergency action path is
-        deferred; v1 monsters just Pass."""
+    def test_monster_pacifist_also_dodges_via_built_in(self) -> None:
+        """Per RAW every creature has Dodge available — including
+        monsters. With PR #29 built-in basic actions, a monster-side
+        pacifist behaves like a PC pacifist: never attacks (constraint
+        enforced), defends via built-in Dodge.
+
+        The PR #28 PC/monster `dodge_fallback` vs `passed_turn` split
+        only fires when even built-in Dodge is somehow filtered (rare;
+        no canonical constraint does this in v1). With built-ins in the
+        candidate pool, both sides reach Dodge through normal selection.
+        """
         import random as _random
         from engine import primitives as primitives_module
         from engine.core.runner import EncounterRunner
 
         attack = _weapon_attack("a_sword", dice="1d8", modifier=3)
-        # Monster side with a pacifist-style constraint
         monster_pacifist = _make_actor(
             "monster_pacifist", side="enemy", hp=30, ac=15,
             actions=[attack],
@@ -499,26 +500,35 @@ class PacifistDodgesFallbackTest(unittest.TestCase):
                 "initiative": {"modifier": 5, "score": 18},
             }},
         )
-        enemy = _make_actor("pc_enemy", side="pc", hp=20, ac=15,
-                              actions=[attack])
+        pc_attacker = _make_actor("pc_enemy", side="pc", hp=20, ac=15,
+                                     actions=[attack])
         encounter = Encounter(id="monster_pacifist_test",
-                                actors=[monster_pacifist, enemy])
+                                actors=[monster_pacifist, pc_attacker])
 
         primitives_module.set_rng(_random.Random(1))
         runner = EncounterRunner.new(encounter, seed=1)
         primitives_module.set_rng(runner.rng)
         state = runner.run(seed=1)
 
-        passed_events = [e for e in state.event_log
-                          if e.get("event") == "passed_turn"
-                          and e.get("actor") == "monster_pacifist"]
-        self.assertGreater(len(passed_events), 0,
-                            "Monster should still Pass-turn, NOT Dodge")
-        dodge_events = [e for e in state.event_log
-                          if e.get("event") == "dodge_fallback"
-                          and e.get("actor") == "monster_pacifist"]
-        self.assertEqual(len(dodge_events), 0,
-                          "Monster should NOT trigger Dodge fallback")
+        # Monster pacifist never attacks
+        monster_attacks = [e for e in state.event_log
+                            if e.get("event") == "attack_roll"
+                            and e.get("actor") == "monster_pacifist"]
+        self.assertEqual(len(monster_attacks), 0,
+                          "Monster pacifist should NEVER have attacked")
+
+        # PC's attacks against the monster show disadvantage
+        pc_attacks = [e for e in state.event_log
+                       if e.get("event") == "attack_roll"
+                       and e.get("actor") == "pc_enemy"
+                       and e.get("target") == "monster_pacifist"]
+        self.assertGreater(len(pc_attacks), 0)
+        disad = [a for a in pc_attacks
+                  if a.get("advantage_state") == "disadvantage"]
+        self.assertGreater(len(disad), 0,
+                            "Built-in Dodge should give monster pacifist "
+                            "disadvantage on incoming attacks too (RAW: every "
+                            "creature has Dodge available)")
 
 
 # ============================================================================
@@ -536,14 +546,15 @@ class HealPriorityForcesHealTest(unittest.TestCase):
         heal = _heal_action("a_cure", dice="1d4")   # small heal
         cleric_no_rp = _make_actor("c_baseline", side="pc",
                                       actions=[strong_attack, heal])
-        # Use severity 2.0 so the boost is unambiguously strong enough to
-        # override even a high-eHP attack. The default 0.7 may or may not
-        # flip the choice depending on relative magnitudes — this test
+        # Use severity 3.0 so the boost is unambiguously strong enough
+        # to override the strong attack's combined eHP + preset
+        # preference bonuses (the attack candidate gets +3 from
+        # target+action matching the closest-enemy preset). This test
         # proves the MECHANISM works at sufficient severity.
         cleric_with_rp = _make_actor("c_with_rp", side="pc",
                                         actions=[strong_attack, heal],
                                         rp_constraints=[{"id": "heal_priority",
-                                                          "severity": 2.0}])
+                                                          "severity": 3.0}])
         ally = _make_actor("ally", side="pc", hp=30, hp_current=10)  # 33%
         enemy = _make_actor("e", side="enemy", ac=15, hp=40)
 

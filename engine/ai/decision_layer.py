@@ -57,8 +57,14 @@ def score_candidates_v1(candidates: list[dict], actor: Actor,
     # Resolve dials + preferred picks for the preference layer.
     targeting_preset = behavior_profile.resolve_targeting_preset(actor)
     ability_preset = behavior_profile.resolve_ability_selection_preset(actor)
+    # IMPORTANT: filter to ACTUAL enemies (other-side, alive). Defensive
+    # candidates (heal/buff/Dodge/etc.) target allies or self; including
+    # those in this list would let the targeting dial accidentally pick
+    # self as the "preferred enemy" (distance 0 → closest_enemy wins),
+    # inflating Dodge / Disengage scores via the TARGET_PREFERENCE_BONUS.
     enemies = [c["target"] for c in candidates
-                if c.get("target") and c["target"].is_alive()]
+                if c.get("target") and c["target"].is_alive()
+                and c["target"].side != actor.side]
     enemies = list({e.id: e for e in enemies}.values())   # dedupe by id
 
     preferred_target = targeting.pick_target(actor, enemies, state,
