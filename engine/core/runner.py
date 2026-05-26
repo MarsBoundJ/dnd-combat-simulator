@@ -155,6 +155,16 @@ class EncounterRunner:
             "distance_after": distance_ft(actor, target),
         })
 
+        # Trigger opportunity attacks from any enemy whose melee reach
+        # the mover just left. The mover may take damage / drop here;
+        # subsequent `_run_slot` candidate generation will see
+        # actor.is_alive() == False and skip cleanly.
+        from engine.core import reactions
+        reactions.resolve_opportunity_attacks(
+            actor, from_pos, state,
+            self.event_bus, self.primitives, self.rng,
+        )
+
     def _resolve_recurring_saves(self, actor: Actor, state: CombatState) -> None:
         """At actor's turn_end, roll any recurring saves registered against them.
 
@@ -255,6 +265,10 @@ class EncounterRunner:
         # Bonus slot doesn't move (movement is a main-slot resource).
         if not candidates and slot == "action":
             self._move_to_engage(actor, state)
+            # Movement may have triggered OAs that dropped the actor —
+            # skip cleanly if so.
+            if not actor.is_alive():
+                return
             candidates = pipeline.generate_candidates(actor, state, slot=slot)
             if not candidates:
                 state.event_log.append({

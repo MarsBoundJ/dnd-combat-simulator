@@ -1,0 +1,158 @@
+# Opportunity Attack demo — guardian with polearm catches a goblin
+# trying to slip past to attack the healer.
+#
+# Setup:
+#   - Polearm Guardian (PC) at (5, 0) with a Glaive (reach 10 ft).
+#     His reach covers a 10-ft zone around him.
+#   - Healer (PC) at (0, 0), immobile (speed 0), AC 14.
+#   - Goblin (enemy) at (3, 0) — within glaive reach (10 ft from
+#     guardian) but NOT in its own scimitar reach (only 5 ft). Goblin's
+#     targeting dial is `weakest_target` so it wants the healer (15 HP)
+#     not the guardian (40 HP).
+#
+# Expected behavior (round 1):
+#   - Goblin acts first (high initiative). No in-range candidates:
+#     guardian at 10 ft is beyond its 5-ft scimitar; healer at 15 ft
+#     is also unreachable.
+#   - Goblin moves toward healer (preferred target). Closes 10 ft to
+#     (1, 0) — now 5 ft from healer.
+#   - **OA trigger:** goblin was 10 ft from guardian (in glaive reach)
+#     pre-move; now 20 ft (out of reach). Guardian's reaction fires.
+#   - Event log shows `opportunity_attack_triggered` → `attack_roll`
+#     from guardian → likely `damage_dealt`.
+#   - Goblin then attacks healer from (1, 0).
+#
+# Proves: OA detection on leave-reach, reaction slot tracking,
+# AE-percentage gating, and the position snapshot/restore around OA
+# execution all work end-to-end through the runner.
+
+id: opportunity_attack_encounter
+
+environment:
+  template: open_battlefield
+
+actors:
+  - instance_id: guardian_pc
+    name: Polearm Guardian
+    side: pc
+    position: [5, 0]
+    template:
+      id: pc_polearm_guardian
+      name: Polearm Guardian
+      source: user_authored
+      combat:
+        armor_class: 18
+        hit_points:
+          average: 40
+          dice: "5d10"
+          con_contribution: 10
+        speed:
+          walk: 30
+        initiative:
+          modifier: 0
+          score: 8
+      abilities:
+        str: { score: 18, save: 6 }
+        dex: { score: 12, save: 1 }
+        con: { score: 16, save: 5 }
+        int: { score: 10, save: 0 }
+        wis: { score: 12, save: 1 }
+        cha: { score: 10, save: 0 }
+      cr: { value: 2.0, xp: 450, proficiency_bonus: 2 }
+      behavior_profile:
+        presets:
+          action_economy: optimal     # always takes reactions
+          retreat: ftd                # stays to protect the healer
+      actions:
+        - id: a_glaive
+          name: Glaive
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: melee, bonus: 6, reach_ft: 10 }
+            - primitive: damage
+              params: { dice: "1d10", modifier: 4, type: slashing }
+              when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  - instance_id: healer_pc
+    name: Wounded Cleric
+    side: pc
+    position: [0, 0]
+    template:
+      id: pc_immobile_cleric
+      name: Wounded Cleric
+      source: user_authored
+      combat:
+        armor_class: 14
+        hit_points:
+          average: 15
+          dice: "3d8"
+          con_contribution: 0
+        speed:
+          walk: 0                   # immobile — keeps demo geometry stable
+        initiative:
+          modifier: 0
+          score: 5
+      abilities:
+        str: { score: 10, save: 0 }
+        dex: { score: 10, save: 0 }
+        con: { score: 12, save: 1 }
+        int: { score: 10, save: 0 }
+        wis: { score: 16, save: 5 }
+        cha: { score: 10, save: 0 }
+      cr: { value: 0.5, xp: 100, proficiency_bonus: 2 }
+      behavior_profile:
+        presets:
+          retreat: ftd
+      actions:
+        - id: a_mace
+          name: Mace
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: melee, bonus: 2, reach_ft: 5 }
+            - primitive: damage
+              params: { dice: "1d6", modifier: 0, type: bludgeoning }
+              when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  - instance_id: goblin_attacker
+    name: Goblin Scout
+    side: enemy
+    position: [3, 0]               # 10 ft from guardian, 15 ft from healer
+    template:
+      id: m_goblin_scout
+      name: Goblin Scout
+      source: user_authored
+      combat:
+        armor_class: 13
+        hit_points:
+          average: 40                # tanky enough to survive the OA + retaliation
+          dice: "8d6"
+          con_contribution: 0
+        speed:
+          walk: 30
+        initiative:
+          modifier: 20               # forced to act first for demo clarity
+          score: 30
+      abilities:
+        str: { score: 8, save: -1 }
+        dex: { score: 14, save: 2 }
+        con: { score: 10, save: 0 }
+        int: { score: 10, save: 0 }
+        wis: { score: 8, save: -1 }
+        cha: { score: 8, save: -1 }
+      cr: { value: 1.0, xp: 200, proficiency_bonus: 2 }
+      behavior_profile:
+        presets:
+          targeting: weakest_target  # picks healer (15 HP) over guardian (40 HP)
+          retreat: ftd
+      actions:
+        - id: a_scimitar
+          name: Scimitar
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: melee, bonus: 4, reach_ft: 5 }
+            - primitive: damage
+              params: { dice: "1d6", modifier: 2, type: slashing }
+              when: { event: damage_roll, condition: "combat.attack_state == hit" }
