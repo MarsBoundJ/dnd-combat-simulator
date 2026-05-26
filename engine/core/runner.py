@@ -199,7 +199,20 @@ class EncounterRunner:
         candidates = pipeline.generate_candidates(actor, state, slot=slot)
         if not candidates:
             return
+        pre_filter_count = len(candidates)
         candidates = pipeline.apply_hard_filters(candidates, actor, state)
+        # §6.4 guaranteed-legal fallback: if hard filters emptied the set
+        # (e.g., pacifist_strict on a creature with only attack actions),
+        # log a pass-turn event and skip execution. v1 has no Dodge
+        # primitive — both PCs and monsters Pass.
+        if not candidates and pre_filter_count > 0:
+            state.event_log.append({
+                "event": "passed_turn",
+                "actor": actor.id,
+                "slot": slot,
+                "reason": "rp_hard_filter_empty_set",
+            })
+            return
         candidates = pipeline.apply_forced_choices(candidates, actor, state)
         scored = pipeline.score_candidates(candidates, actor, state)
         chosen = pipeline.select_max(scored)

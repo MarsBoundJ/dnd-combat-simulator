@@ -79,6 +79,13 @@ def score_candidates_v1(candidates: list[dict], actor: Actor,
                 c["action"].get("id") == preferred_action.get("id"):
             score += ACTION_PREFERENCE_BONUS
         scored.append((score, c))
+
+    # Apply RP Constraint score modifications (Tier 2 forced choices +
+    # Tier 3 weighted preferences). Per §6.3 + §6.4 these run AFTER the
+    # base eHP + preference scoring as part of the single coherent
+    # scoring pass. Hard filters (Tier 1) already ran in pipeline step 3.
+    from engine.ai.rp_constraints import apply_score_modifications
+    scored = apply_score_modifications(scored, actor, state)
     return scored
 
 
