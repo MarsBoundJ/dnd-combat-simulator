@@ -1,0 +1,51 @@
+# f_fs_protection — Protection Fighting Style
+# Source: user_authored (non-SRD; the SRD CC v5.2.1 only includes
+# Defense + Dueling per the f_fighting_style.yaml accepted set).
+# Faithful implementation of the standard PHB version.
+#
+# RAW: "When a creature you can see attacks a target other than you
+# that is within 5 feet of you, you can use your reaction to impose
+# disadvantage on the attack roll. You must be wielding a shield."
+#
+# Engine modeling (PR #45):
+#   - trigger: attack_targeting_resolved — fires after the attacker
+#     has picked a target but BEFORE the d20 is rolled. The reaction
+#     applies disadvantage_for_attacker to the ally, which the
+#     attack_roll primitive then folds in when it queries
+#     attack_modifiers.
+#   - condition: attack_against_ally_within_5_ft — target is on the
+#     reactor's side, within 5 ft, and not the reactor themselves.
+#   - effect: disadvantage_for_attacker on the ally, per_single_attack
+#     lifetime (consumes after one attack).
+#
+# v1 deferred:
+#   - "must be wielding a shield" gate (no equipment / shield tracking)
+#   - "you can see" gate (no vision / line-of-sight system)
+
+id: f_fs_protection
+name: Protection
+source: user_authored
+granted_by:
+  class: c_fighter
+  level: 1
+  parent_feature: f_fighting_style
+type: passive
+
+description: |
+  Reaction: when a creature attacks an ally within 5 ft of you,
+  impose disadvantage on that attack. RAW requires you to be wielding
+  a shield; v1 skips that gate.
+
+action_template:
+  id: a_protection
+  name: Protection
+  type: defensive_buff
+  slot: reaction
+  trigger: attack_targeting_resolved
+  condition: attack_against_ally_within_5_ft
+  pipeline:
+    - primitive: attack_modifier
+      params:
+        target: current_target
+        modifier: disadvantage_for_attacker
+        lifetime: per_single_attack

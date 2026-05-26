@@ -109,6 +109,16 @@ def _attack_roll(params: dict, state: CombatState, bus: EventBus) -> dict:
         })
         return {"state": "miss", "reason": "out_of_range"}
 
+    # PR #45: reactions fire here. Protection Fighting Style imposes
+    # disadvantage on attacks against an adjacent ally. The reaction
+    # applies its modifier to the target BEFORE we query
+    # attack_modifiers below, so the disadvantage is folded in.
+    from engine.core.reactions import resolve_reaction_triggers
+    resolve_reaction_triggers("attack_targeting_resolved",
+                                {"actor": actor, "target": target,
+                                  "reach_ft": reach},
+                                state, bus)
+
     # Query unified modifier registry for attack adjustments + crit changes
     attack_mods = _modifiers.query_attack_modifiers(actor, target, state)
     crit_mods = _modifiers.query_crit_modifiers(actor, target, state)
@@ -125,6 +135,21 @@ def _attack_roll(params: dict, state: CombatState, bus: EventBus) -> dict:
 
     total = d20 + effective_bonus
     is_crit = (d20 >= crit_mods.crit_threshold)
+    pre_reaction_hit = is_crit or (total >= effective_ac)
+
+    # PR #45: Shield-shape reactions fire here. Their condition gets
+    # the current `total` and `current_ac`; on fire, they can apply
+    # an ac_modifier (e.g., +5 from Shield) that takes effect
+    # immediately for this attack's hit/miss check.
+    resolve_reaction_triggers("attack_roll_pending",
+                                {"actor": actor, "target": target,
+                                  "d20": d20, "total": total,
+                                  "current_ac": effective_ac,
+                                  "was_going_to_hit": pre_reaction_hit},
+                                state, bus)
+    # Re-query attack_modifiers — Shield may have bumped the AC.
+    post_attack_mods = _modifiers.query_attack_modifiers(actor, target, state)
+    effective_ac = target.ac + post_attack_mods.ac_modifier
     is_hit = is_crit or (total >= effective_ac)
     # Forced crit (e.g., Paralyzed target within 5ft): only fires if hit
     if is_hit and crit_mods.force_crit_if_hit:
@@ -225,6 +250,22 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
         state.event_log.append({"event": "creature_dropped", "creature": target.id})
     elif target.is_bloodied():
         bus.emit("creature_bloodied", {"creature": target})
+
+    # PR #45: damage_taken reaction trigger. Hellish Rebuke hooks
+    # here — fires only if target is still alive (RAW: HR requires
+    # the rebuker to be able to see the attacker and respond, which
+    # the dead can't do). Skip if the damage source is the target
+    # itself (avoid feedback loop on self-damage primitives).
+    if total > 0 and target.is_alive() and actor.id != target.id:
+        from engine.core.reactions import resolve_reaction_triggers
+        resolve_reaction_triggers("damage_taken", {
+            "target_id": target.id,
+            "target": target,
+            "attacker": actor,
+            "attacker_id": actor.id,
+            "amount": total,
+            "type": dmg_type,
+        }, state, bus)
 
     return {"amount": total, "target_hp": target.hp_current}
 

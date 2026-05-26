@@ -85,6 +85,10 @@ def generate_candidates(actor: Actor, state: CombatState,
     template = actor.template
     actions = [a for a in (template.get("actions") or [])
                 if a.get("slot", "action") == slot]
+    # PR #45: reactions (declared with `trigger: <event_name>`) are
+    # NOT main / bonus candidates — they fire from event triggers via
+    # the reaction system, not from turn-initiated decisions.
+    actions = [a for a in actions if not a.get("trigger")]
     # Append built-in basic actions (Dodge / Disengage on main slot)
     # not already declared on the template. Per RAW: every creature
     # has these available implicitly. The threat-range gate inside

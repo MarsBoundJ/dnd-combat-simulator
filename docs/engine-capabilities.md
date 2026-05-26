@@ -675,7 +675,25 @@ priority order:
    both deferred. `affected: enemies` default is RAW-faithful
    for Spirit Guardians specifically.
 16. ~~**More persistent_aura spells** (Moonbeam + Cloud of
-   Daggers)~~ — **Shipped in PR #44.** Three pieces of new infra
+   Daggers)~~ — **Shipped in PR #44.**
+17. ~~**Reaction infrastructure + Shield + Protection + Hellish
+   Rebuke**~~ — **Shipped in PR #45.** New trigger event vocabulary
+   (`attack_targeting_resolved`, `attack_roll_pending`, `damage_taken`)
+   + generic reaction system in `engine/core/reactions.py`
+   (`resolve_reaction_triggers` / `try_use_reaction` / condition
+   vocabulary). Actions tagged `trigger: <event>` register as
+   reactions; `pipeline.generate_candidates` filters them out of
+   main / bonus pools. Reactions auto-fire when events match + slot
+   available (v1 always-use; pace-aware scoring deferred).
+   `_attack_roll` re-queries `attack_modifiers` after
+   `attack_roll_pending` so Shield's +5 AC takes effect on the
+   triggering attack. Three spells shipped: `f_shield.yaml` (SRD,
+   wizard 1st — retroactive AC bump), `f_fs_protection.yaml` (4th
+   Fighting Style option, non-SRD — impose disadvantage on attack
+   against adjacent ally), `f_hellish_rebuke.yaml` (SRD warlock 1st,
+   not class-wired — fixtures attach manually; retaliation against
+   damaging attacker). Counterspell explicitly deferred — needs
+   cast-event hook + spell-fizzle + ability-check infra; own PR. Three pieces of new infra
    on top of PR #43:
    - **`anchor: point`** mode — area placed at a chosen point at
      cast time, doesn't move (vs. `anchor: caster` which moves
