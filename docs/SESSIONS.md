@@ -5,6 +5,200 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-26 — Capabilities-doc refresh #5 (post-PR #26)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Fifth clean rewrite of `docs/engine-capabilities.md` to reflect the
+  post-PR #26 state (3 PRs since last refresh: #24 Cone+Line AoE, #25
+  Hypnotic Pattern, #26 Dodge+Disengage). Major updates:
+  - Header bumped: post-PR #26, 375 tests across 15 modules, 14 fixtures
+  - Status headline expanded to note all 3 RAW AoE shapes + AoE control
+    + Dodge/Disengage + canonical Fireball-vs-HP worked example
+  - §1 added subsections for AoE Cone+Line, AoE Control, Dodge,
+    Disengage with the geometry / formula tables inline
+  - §1 OA section updated to note Disengage suppression
+  - §3 eHP Coverage Map: AoE Cone+Line, AoE control, Dodge,
+    Disengage all flipped to ✅; Cone+Line dropped from deferred
+  - §4 Primitives: added action-types section noting Dodge piggy-backs
+    on defensive_buff; Disengage is a new action type
+  - §5 Worked Examples: added Examples 8-10 (Burning Hands cone, HP
+    vs Fireball canonical, Dodge under pressure)
+  - §6 Test Surface: 324 → 375 tests; added 3 new test modules
+  - §7 Roadmap: dropped Cone+Line, Hypnotic Pattern fixture, Dodge,
+    Disengage; promoted PCs-default-to-Dodge, built-in basic actions,
+    Help+Hide to top
+- Refreshed `docs/CONTEXT.md` status table — added rows for PRs #24
+  (Cone+Line), #25 (HP), #26 (Dodge+Disengage). Refreshed "Current
+  phase" prose to reflect 21 PRs shipped. Refreshed "Next substantive
+  steps" — PCs-default-to-Dodge at #1.
+- Added 4 new entries to `docs/SESSIONS.md` (this refresh + #26 +
+  #25 + #24).
+
+**Key decisions:**
+- **Status headline now notes the canonical worked example is wired**
+  — the framework doc's "Hypnotic Pattern vs. Fireball" example is
+  no longer aspirational; it's a deterministic CLI demo at seed 1.
+- **Fifth clean rewrite** — pattern continues: every 3-4 feature PRs.
+
+**Open items carried forward:**
+- [ ] Pick next priority: PCs-default-to-Dodge, built-in basic
+  actions, Help/Hide, Action Surge / Spirit Guardians, class features
+  auto-wiring (see `docs/engine-capabilities.md` §7).
+
+---
+
+## Session: 2026-05-26 — Dodge + Disengage v1 (PR #26)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Two RAW defensive actions hooked into existing systems.
+- **Dodge**: `defensive_buff` self-targeted action with
+  `disadvantage_for_attacker` + DEX-advantage modifiers; lifetime
+  `until_actor_next_turn_start`. **Zero new primitives** — piggy-backs
+  on existing modifier registry + PR #20 `target: ally` work (which
+  also supports `target: self`).
+- **`defensive_buff_rounds: 1` action override** in
+  `defensive_ehp_defensive_buff` for accurate Dodge scoring (lasts
+  1 round, not the framework default 2.5).
+- **Disengage**: new `type: disengage` action; execution sets
+  `Actor.disengaging = True` (new field) and logs `disengage_taken`.
+- **`Actor.disengaging` field** cleared by `reset_turn()` at start of
+  next turn (correct RAW expiry: "until end of your turn").
+- **OA suppression**: `find_oa_triggers` short-circuits to `[]` when
+  `mover.disengaging` is True; logs `disengage_suppressed_oa`.
+- **Disengage AI scoring**: flat 0.5 eHP constant — pickable but rarely
+  beats real attacks. Real picking needs movement-aware AI (deferred).
+- New `dodge_disengage_encounter.yaml`: Apprentice (weak mace + Dodge
+  + Disengage) vs 2 brawlers. Seed 1: Apprentice picks Dodge each
+  round; brawler attacks show `advantage_state: disadvantage`; PC
+  absorbs heavy hits via misses.
+- 11 new tests in `tests/test_dodge_disengage.py`. 375/375 total.
+
+**Key decisions:**
+- **Zero-new-primitive Dodge** — proved that the existing modifier
+  + action-type system was rich enough to support new RAW actions
+  declaratively. Future basic actions (Help, Hide) should follow the
+  same pattern.
+- **Disengage uses a new action type, not a primitive** — the
+  mechanic is "set a flag, suppress OAs"; that's lighter than a
+  full primitive in the registry. Could be revisited if more
+  flag-setting actions emerge.
+- **Disengage scoring is conservative** — flat 0.5 constant is
+  rarely chosen by the AI, which is correct because Disengage's
+  real eHP requires "what move am I about to make" planning that
+  v1 doesn't have.
+
+**Open items carried forward:**
+- [ ] PCs default to Dodge in RP empty-set fallback per §6.4
+- [ ] Built-in basic actions (Dodge/Disengage/Help/Hide for all actors)
+- [ ] Movement-aware Disengage scoring
+- [ ] Help / Hide — same shape, separate PRs
+- [ ] Incapacitation ending Dodge
+
+---
+
+## Session: 2026-05-26 — Hypnotic Pattern + AoE Control v1 (PR #25)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Closes the **canonical Fireball-vs-Hypnotic-Pattern worked example**
+  from `ehp-action-framework.md`. The AI now demonstrably chooses
+  Hypnotic Pattern over Fireball when targets are too tanky.
+- `engine/ai/ehp_scoring.py` extension — `offensive_ehp_aoe` now also
+  scores `apply_condition` steps in the forced_save's on_fail /
+  on_success. Without this, HP would score 0 (no damage) and never
+  be cast.
+- New helpers `_aoe_control_components(action, on)` (extracts
+  apply_condition entries with their `denial_fraction`) and
+  `_aoe_target_control_ehp(target, components)` (per-target eHP =
+  `DPR × denial × EXPECTED_CONTROL_ROUNDS`).
+- Main scoring loop now sums damage AND control per affected target;
+  friendly fire applies to both. Mixed damage+control AoE spells
+  automatically sum both contributions.
+- New fixture `hypnotic_pattern_vs_fireball_encounter.yaml`: Wizard
+  with both spells vs 3 beefy ogres (200 HP, 4d12+5 attacks, low
+  WIS save). Seed 1: HP wins (~120 eHP vs Fireball's ~73 eHP per
+  framework math).
+- 13 new tests in `tests/test_aoe_control.py`. 364/364 total.
+
+**Key decisions:**
+- **Sphere as cube approximation** for HP's 30-ft cube — Chebyshev
+  `actors_in_radius` already produces cube-equivalent semantics on
+  a grid. Documented and acceptable for v1; distinct cube primitive
+  deferred.
+- **Per-target control helper factored cleanly** — same architecture
+  as damage. `DPR × denial × rounds` returned per-target; caller
+  multiplies by `p_fail` in the shared loop. Mixed damage+control
+  spells (Witch Bolt-shape) "just work" by virtue of the structure.
+- **Friendly fire applies to control too** — incapacitating an ally
+  is correctly penalized.
+
+**Open items carried forward:**
+- [ ] True cube primitive (distinct from sphere)
+- [ ] Per-creature recurring save to break HP at end-of-turn (single-
+  target `recurring_save` works today; AoE-aware version deferred)
+- [ ] HP-pool-based AoE controls (Sleep, Color Spray — different
+  mechanic)
+- [ ] "Damage breaks HP early" interaction (RAW: damage to a
+  hypnotized creature breaks the charm)
+
+---
+
+## Session: 2026-05-26 — AoE Cone + Line v1 (PR #24)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Extends sphere AoE (PR #17) with the other two RAW 5e AoE shapes:
+  cone (Burning Hands, Cone of Cold) and line (Lightning Bolt).
+- `engine/core/geometry.py` — three new helpers:
+  - `unit_direction(from_pos, to_pos)` — snaps a vector to 8
+    cardinal/ordinal directions
+  - `actors_in_cone(origin, direction, length_ft, actors)` — 5e RAW
+    "length = width at far end" semantics; `2 * lateral ≤ forward + 1`
+    grid-snap tolerance; origin excluded
+  - `actors_in_line(origin, direction, length_ft, width_ft, actors)` —
+    `lateral ≤ (width_squares - 1) // 2`; diagonal lines one square
+    wide on rotated diagonal
+- `engine/primitives.py:_resolve_save_targets` dispatches on
+  `area.shape` (sphere/cone/line).
+- `engine/core/pipeline.py:generate_candidates` for `aoe_attack`
+  handles three shapes:
+  - Sphere unchanged (origin = enemy.position)
+  - Cone/line: origin = caster.position, direction = unit_vector
+    toward enemy
+  - Range gating differs: spheres gate by `range_ft` (placement
+    range); cones/lines gate by `length_ft` (since origin IS caster)
+- `_execute_single` propagates `area_direction` alongside
+  `area_origin` into `state.current_attack`.
+- `offensive_ehp_aoe` accepts optional `direction` parameter;
+  dispatches on shape.
+- New fixture `burning_hands_cone_encounter.yaml`: Wizard at (0,0) +
+  3 east-line goblins + 1 lone north goblin. AI picks east direction
+  (catches 3 goblins) over north (1 goblin). 27 new tests. 351/351
+  total.
+
+**Key decisions:**
+- **8-direction snapping for v1.** 16-direction deferred.
+- **Origin square excluded** from cones/lines (RAW).
+- **`range_ft` semantics differ by shape** — spheres use it as
+  placement range; cones/lines as length reach.
+- **Direction flows through the candidate dict** — scoring at
+  candidate-evaluation time can't read `state.current_attack`
+  (not set up yet), so direction lives on the candidate.
+
+**Open items carried forward:**
+- [ ] 16-direction cones
+- [ ] Spread origin (cone from remote point)
+- [ ] Wider lines beyond width_ft
+- [ ] Cone spread around obstacles (open-battlefield only v1)
+
+---
+
 ## Session: 2026-05-26 — Capabilities-doc refresh #4 (post-PR #22)
 
 **Participants:** Phil, Claude

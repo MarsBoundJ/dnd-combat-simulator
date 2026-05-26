@@ -224,48 +224,49 @@ utility ratings* as a disclosed input axis, never sim-computed.
 | Offensive Buff v1 | ✅ (2026-05-25) — `engine/ai/ehp_scoring.py:offensive_ehp_buff_ally`. Bless-shape ally attack-bonus buffs. New `offensive_buff` action type with `target: ally` on `attack_modifier`. eHP = `ally_DPR × Δhit × 2.5 rounds`. Δhit math: +1 flat ≈ +5%; advantage ≈ +22.5% (framework reference). Buff-source-tagging in `_build_modifier_entry` enables dedup — cleric doesn't re-cast Bless every round (returns 0 if target already has matching buff from same caster). New bless_buff fixture flipped from enemy victory → PC victory after the dedup landed. PR #20. |
 | Concentration v1 | ✅ (2026-05-25) — `engine/core/concentration.py`. RAW single-slot concentration: `Actor.concentration_on` + `concentration: true` action flag. Auto-drops prior on new cast. CON save on damage taken (`DC = max(10, ⌈dmg/2⌉)`) — hook lives in `_damage` so every damage path triggers automatically. Death ends concentration before `creature_dropped` event. Scan-all-actors to remove tagged modifiers + applied_conditions when concentration ends. Bless re-tagged `concentration: true`. Fixture trace shows full lifecycle: started → multiple saves → failed → ended → re-cast. PR #21. |
 | Spell Slots v1 | ✅ (2026-05-26) — `engine/core/spell_slots.py`. Per-actor slot tracking (`Actor.spell_slots: {level: count}`) + opportunity cost in eHP scoring. `slot_cost_ehp = slot_level × 3.0 × scarcity × (1 - urgency)` matches framework worked example exactly (3rd-level slot, last one, end-of-day = 9.0 eHP). Candidate filter excludes unavailable-slot spells (hard gate); scoring subtracts cost (soft nudge). `_execute_single` decrements at cast. PC schema accepts `spell_slots` field. Closes the most-referenced deferred item across 5 prior PRs (#7, #8, #17, #20, #21). PR #22. |
+| AoE Cone + Line v1 | ✅ (2026-05-26) — `engine/core/geometry.py:actors_in_cone` + `actors_in_line` + `unit_direction`. Extends sphere AoE to the other two RAW AoE shapes. Cone uses "length = width at far end" math (`2*lateral ≤ forward + 1`); Line uses `lateral ≤ (width_squares-1)//2`. 8-direction snapping (cardinals + ordinals). Origin = caster.position; direction = unit vector toward each enemy. New burning_hands_cone fixture: wizard at (0,0) vs 3 east-line goblins + 1 lone north goblin — AI picks east direction, catches all 3, spares the north one. PR #24. |
+| Hypnotic Pattern + AoE Control v1 | ✅ (2026-05-26) — `engine/ai/ehp_scoring.py` extended with `_aoe_control_components` + `_aoe_target_control_ehp`. AoE actions with `apply_condition` in forced_save's on_fail/on_success now score control eHP per affected target alongside damage. Closes the canonical Fireball-vs-Hypnotic-Pattern worked example from `ehp-action-framework.md` — new fixture: wizard with both spells vs 3 beefy ogres (200 HP, 4d12+5 attacks, low WIS save) picks HP because per-target control eHP outpaces damage eHP when targets are too tanky to drop. PR #25. |
+| Dodge + Disengage v1 | ✅ (2026-05-26) — Two RAW defensive actions. **Dodge**: `defensive_buff` action self-targeted with `disadvantage_for_attacker` + DEX-advantage modifiers (lifetime `until_actor_next_turn_start`); **zero new primitives** (rides on existing modifier registry + PR #20 `target: ally` extension which supports `target: self`). New `defensive_buff_rounds` action override (default 2.5; Dodge uses 1). **Disengage**: new `type: disengage` action; sets `Actor.disengaging = True` (new field); `find_oa_triggers` short-circuits to `[]` when mover is disengaging (per RAW: "speed doesn't provoke OAs for rest of turn"); cleared by `reset_turn()`. New dodge_disengage fixture: PC surrounded by 2 brawlers picks Dodge each round; brawler attack rolls show `advantage_state: disadvantage`. PR #26. |
 
 **Current phase:** Engine skeleton (Phase 1 v0) landed 2026-05-25, followed by
-17 substantial PRs (#5 → #22) shipped 2026-05-25/26: primitives, all 4 dials,
-RP Constraints, positioning, opportunity attacks, sphere AoE, PC schema,
-offensive buff, concentration, spell slot opportunity cost — plus 3
-capabilities-doc refreshes + the browser-deployment option doc.
+21 substantial PRs (#5 → #26) shipped 2026-05-25/26: primitives, all 4 dials,
+RP Constraints, positioning, opportunity attacks, all 3 RAW AoE shapes
+(sphere/cone/line), PC schema, offensive buff, concentration, spell slot
+opportunity cost, AoE control eHP (Hypnotic Pattern), Dodge + Disengage —
+plus 4 capabilities-doc refreshes + the browser-deployment option doc.
 **The full 8-step decision pipeline is live. All 4 dials. RP Constraints
 identity overlay. Positioning + movement + reachability (spatial axis).
-Opportunity attacks (first reaction type). Multi-target AoE with
-friendly-fire scoring. PC schema for compact authoring. Offensive +
-defensive ally buffs. Concentration with damage-triggered CON saves.
-Spell slot opportunity cost in eHP.** With the spatial + resource shapes
-both right, the engine's big-architecture work is done. Future PRs are
-content breadth, additional primitives, and depth-within-system. 13
-primitives implemented (with extensions to `damage.multiplier`,
-`forced_save` area filtering + target swap, `attack_modifier target:ally`);
-~30 stubbed.
+Opportunity attacks with Disengage suppression. All 3 RAW AoE shapes
+(sphere + cone + line) scoring both damage AND control on the same
+per-target pipeline. PC schema for compact authoring. Offensive +
+defensive ally buffs (Bless). Concentration with damage-triggered CON
+saves. Spell slot opportunity cost in eHP. Dodge + Disengage defensive
+actions. The framework doc's canonical Fireball-vs-Hypnotic-Pattern
+worked example is now a deterministic CLI demo.** With the spatial,
+resource, and basic-action shapes all wired, the engine's big-
+architecture work is done. Future PRs are content breadth, additional
+primitives, and depth-within-system. 13 primitives implemented (with
+extensions to `damage.multiplier`, `forced_save` area filtering + target
+swap, `attack_modifier target:ally`); ~30 stubbed.
 
 **See `docs/engine-capabilities.md` for the full reader-facing capability
 checkpoint** — behavioral worked examples, decision-pipeline status per
 step, eHP framework coverage map, and the honest roadmap gap list.
 
 **Next substantive steps** (parallel, prioritize per use case):
-1. **Cone + Line AoE shapes** — natural follow-on to sphere AoE. Covers
-   Burning Hands, Cone of Cold, Lightning Bolt. Geometry helpers parallel
-   to `actors_in_radius`.
-2. **More primitives** — Dodge (replaces Pass-turn RP fallback), Disengage
-   (grants no-OA-from-leaving, interacts with PR #16), Action Surge
-   (`additional_action`), Spirit Guardians (`persistent_aura` +
-   `triggered_save`), Arcane Recovery (`slot_recovery_partial`),
-   spellcasting infrastructure.
-3. **Class features auto-wiring** — Second Wind, Action Surge, Fighting
-   Style are referenced in `c_fighter.level_table` but unwired. A
-   "consume class features" pass on PC schema (#19) would pull them in
-   automatically.
-4. **Hypnotic Pattern fixture** — would showcase the canonical
-   Fireball-vs-Hypnotic-Pattern eHP example. Needs Incapacitated-applying
-   AoE (forced_save → apply_condition with sphere shape). Small
-   primitive composition.
-5. **Incapacitation ending concentration** — small follow-on to #21;
-   hook the apply_condition path so Paralyzed/Stunned/Unconscious end
-   concentration on the affected caster.
+1. **PCs default to Dodge in RP empty-set fallback** per §6.4 — small
+   follow-on to #26. Replaces `passed_turn` with Dodge execution when
+   PC has Dodge available.
+2. **Built-in basic actions** — Dodge / Disengage / Help / Hide
+   should be available to ALL actors implicitly per RAW. v1 requires
+   explicit template declaration; built-in pool is small QoL.
+3. **Help + Hide actions** — same shape as Dodge / Disengage; both
+   small focused PRs.
+4. **Action Surge + spellcasting primitives** — `additional_action`
+   grants extra main slot; `persistent_aura` + `triggered_save` for
+   Spirit Guardians; `slot_recovery_partial` for Arcane Recovery.
+5. **Class features auto-wiring** — Second Wind, Action Surge, Fighting
+   Style are referenced in `c_fighter.level_table` but unwired.
 6. **Named-effect tagging** for cross-caster buff dedup — follow-on to
    #20 (currently dedup is per-(caster, action) only; cross-caster
    same-spell stacking is not yet prevented).
