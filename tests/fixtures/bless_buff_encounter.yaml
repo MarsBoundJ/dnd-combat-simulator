@@ -27,6 +27,7 @@ actors:
     name: Cleric of Bahamut
     side: pc
     position: [0, 0]
+    spell_slots: { 1: 3 }      # 3× 1st-level slots (cleric L3 standard)
     template:
       id: pc_cleric_caster
       name: Cleric of Bahamut
@@ -67,6 +68,7 @@ actors:
           name: Bless
           type: offensive_buff
           concentration: true       # RAW: Bless is a concentration spell
+          spell_slot_level: 1       # Bless is a 1st-level spell
           pipeline:
             - primitive: attack_modifier
               params:

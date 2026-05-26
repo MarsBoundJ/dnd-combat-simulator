@@ -68,9 +68,17 @@ def score_candidates_v1(candidates: list[dict], actor: Actor,
     )
     aggression = aggression_coefficient(actor)
 
+    # Lazy import to keep core engine free of AI ↔ core circularity
+    from engine.core.spell_slots import candidate_slot_cost
+
     scored: list[tuple[float, dict]] = []
     for c in candidates:
         ehp = score_candidate(c, state)
+        # Subtract spell slot opportunity cost BEFORE aggression scaling.
+        # Cost is in eHP units per ehp-action-framework.md §"Opportunity
+        # Cost"; same scale as the gain. Free actions / cantrips → 0.
+        cost = candidate_slot_cost(actor, c.get("action") or {}, state)
+        ehp -= cost
         score = ehp * aggression
         if preferred_target and c.get("target") and \
                 c["target"].id == preferred_target.id:

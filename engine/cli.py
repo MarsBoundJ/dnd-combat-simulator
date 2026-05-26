@@ -124,6 +124,12 @@ def _build_actor(actor_spec: dict, registry) -> Actor:
     elif "pc" in actor_spec:
         from engine.pc_schema import build_pc_template
         template = build_pc_template(actor_spec["pc"], registry)
+        # Surface spell_slots from the PC spec onto the actor_spec for
+        # _build_actor's slot-population block below.
+        if actor_spec["pc"].get("spell_slots") is not None \
+                and actor_spec.get("spell_slots") is None:
+            actor_spec = dict(actor_spec)
+            actor_spec["spell_slots"] = actor_spec["pc"]["spell_slots"]
     else:
         template = actor_spec["template"]
 
@@ -144,6 +150,10 @@ def _build_actor(actor_spec: dict, registry) -> Actor:
     # Fixtures use this to lay out ranged-vs-melee starting distances.
     position_raw = actor_spec.get("position") or [0, 0]
     position = (int(position_raw[0]), int(position_raw[1]))
+    # Optional spell_slots {level: count} dict; default empty (no
+    # spellcaster). Accepts integer-keyed dict from YAML.
+    spell_slots_raw = actor_spec.get("spell_slots") or {}
+    spell_slots = {int(k): int(v) for k, v in spell_slots_raw.items()}
 
     return Actor(
         id=instance_id,
@@ -156,6 +166,7 @@ def _build_actor(actor_spec: dict, registry) -> Actor:
         speed=speed,
         position=position,
         abilities=abilities,
+        spell_slots=spell_slots,
     )
 
 
