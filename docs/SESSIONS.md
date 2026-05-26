@@ -5,6 +5,87 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-26 — Named-effect tagging for cross-caster buff dedup (PR #36)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Closes the cross-caster buff stacking gap. PR #20 introduced
+  per-(caster, action_id) dedup so the same wizard doesn't re-Bless
+  every round, but two clerics both Blessing the same fighter would
+  stack (different caster_id → dedup miss → +4 attack bonus instead
+  of +2). RAW (PHB 2024 p.243): "The effects of the SAME spell cast
+  multiple times don't combine."
+- **Schema:** actions declare an optional `named_effect: <string>`
+  (RAW spell identity — lowercase convention: `bless`, `heroism`,
+  `hypnotic_pattern`). Two casts of the same spell share a
+  named_effect; different spells don't.
+- **Stamping:** `_build_modifier_entry` in primitives.py now copies
+  `named_effect` from the executing action onto the generated
+  modifier's `source` dict alongside the existing `caster_id` and
+  `action_id` tags.
+- **New helper module `engine/ai/named_effects.py`:**
+  `buff_already_active(target, action, caster, primitive)` returns
+  True if any modifier on target matches the action's effect — either
+  by named_effect equality (cross-caster aware) OR by legacy
+  (caster_id, action_id) tuple (untagged fallback).
+- **Scoring wired:** `offensive_ehp_buff_ally` and `offensive_ehp_help`
+  both replaced their inline per-(caster, action_id) checks with a
+  single `buff_already_active` call. Untagged actions still get the
+  legacy behavior (backward compatible — no migration required).
+- **`bless_buff_encounter.yaml`:** the canonical Bless demo now
+  declares `named_effect: bless` so cross-caster dedup is the
+  exhibited behavior.
+- **New fixture `two_clerics_bless_dedup_encounter.yaml`:** explicit
+  proof — two clerics + fighter + ogre. Round 1 cleric_b casts Bless;
+  cleric_a's scoring sees the Bless-tagged modifier on the fighter
+  and chooses to attack with a mace instead. Without the dedup,
+  cleric_a would have stacked their own Bless.
+- 13 new tests in `tests/test_named_effects.py`:
+  - `buff_already_active` detection (same caster legacy, different
+    caster via named_effect, different named_effect doesn't dedup,
+    untagged action falls back to legacy per-caster check)
+  - `_build_modifier_entry` source-stamping (named_effect propagates;
+    untagged action gets no named_effect on source; explicit source
+    overrides the auto-stamp path)
+  - Scoring integration via `offensive_ehp_buff_ally` and
+    `offensive_ehp_help` (Heroism + Bless on same ally NOT deduped
+    because different named_effect)
+  - End-to-end fixture-driven test: fighter never carries 2+ Bless
+    modifiers across the encounter
+- Test count: 464 → 476. All green.
+
+**Key decisions:**
+- **Named effect is opt-in.** Untagged actions keep legacy
+  per-(caster, action_id) dedup — fixtures pre-dating this PR
+  continue to work. The "tag your spells with named_effect"
+  recommendation is in `named_effects.py` docstring; we can migrate
+  more fixtures incrementally.
+- **Cross-caster check is the PRIMARY path, not a fallback.** When
+  both paths could match, the named_effect check fires first. The
+  per-(caster, action_id) check is kept only for untagged actions.
+- **Don't auto-derive named_effect from action_id.** Tempting (every
+  Bless fixture uses `id: a_bless`) but the convention isn't enforced
+  — some test fixtures use scoped IDs like `a_bless_test`. Explicit
+  named_effect avoids accidental cross-fixture aliasing.
+- **"Most-potent-wins" deferred.** RAW lets a stronger casting
+  supersede a weaker one. v1 just blocks the re-cast outright; in
+  practice the duplicate case rarely matters because our current
+  schema doesn't model upcasting that changes Bless's potency.
+
+**Open items carried forward:**
+- [ ] Defensive-buff dedup (Shield of Faith etc.) — same pattern
+  would apply but isn't wired yet; defensive buffs go through a
+  different scoring path
+- [ ] Auto-end existing concentration when same caster re-casts
+  the same named_effect on a DIFFERENT target — currently relies on
+  the `apply_concentration` "new_cast_replaced" path which fires
+  regardless of named_effect
+- [ ] Most-potent-wins replacement (RAW: stronger upcast wins over
+  weaker existing one)
+
+---
+
 ## Session: 2026-05-26 — Per-creature recurring save for AoE control (PR #35)
 
 **Participants:** Phil, Claude

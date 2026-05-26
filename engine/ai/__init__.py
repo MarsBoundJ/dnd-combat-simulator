@@ -83,6 +83,7 @@ from engine.ai.retreat import (
     resolve_retreat_preset as resolve_retreat_preset_for_actor,
     check_retreat,
 )
+from engine.ai.named_effects import buff_already_active
 from engine.ai.rp_constraints import (
     CANONICAL_CONSTRAINTS,
     ConstraintDef,
@@ -113,6 +114,7 @@ __all__ = [
     "offensive_ehp_buff_ally",
     "offensive_ehp_help",
     "extract_offensive_buff_effect",
+    "buff_already_active",
     "desperation_multiplier",
     "expected_healing",
     "estimate_dpr",

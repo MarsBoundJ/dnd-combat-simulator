@@ -1,36 +1,43 @@
-# Bless buff demo — cleric blesses fighter instead of swinging mace.
+# Cross-caster buff dedup demo — two clerics, one fighter, one ogre.
+#
+# RAW (PHB 2024 p.243): "The effects of the SAME spell cast multiple
+# times don't combine ... the most potent effect ... applies while the
+# durations of the effects overlap." Two Blesses on the same fighter
+# don't stack.
 #
 # Setup:
-#   - Cleric (PC) with weak Mace (+3, 1d6+1) and Bless (+2 attack
-#     bonus to ally for "until short rest").
-#   - Fighter (PC) with high-DPR Greatsword (+8, 2d6+5).
-#   - Bruiser (enemy, AC 18, 80 HP) — tough target where the buff
-#     matters most.
+#   - Cleric A (PC, has Bless w/ named_effect: bless) — forced first.
+#   - Cleric B (PC, identical to A) — acts second.
+#   - Fighter (PC, high-DPR greatsword) — natural Bless target for both.
+#   - Ogre (enemy, AC 18, 100 HP) — tough target where Bless matters.
 #
-# Expected behavior (round 1):
-#   - Cleric goes first (forced init bonus).
-#   - Cleric's candidate scores: mace eHP ≈ low (1d6+1, hit_prob ~50%
-#     vs AC 18 = 0.35 × 4.5 ≈ 1.6 eHP). Bless on fighter ≈ fighter_DPR
-#     × 0.10 × 2.5 rounds. Fighter DPR ≈ 0.7 × 12 = 8.4. Bless eHP ≈
-#     8.4 × 0.10 × 2.5 = 2.1 eHP. Bless WINS.
-#   - Event log: cleric casts Bless on fighter (attack_modifier
-#     attached to fighter); on fighter's turn, the +2 bonus shows up
-#     in the attack_roll's effective_bonus.
+# Expected behavior round 1:
+#   - Cleric A: Bless eHP on fighter > mace eHP → casts Bless on
+#     fighter. Modifier attached with named_effect=bless.
+#   - Cleric B: Bless eHP on fighter SCORES 0.0 because a Bless-tagged
+#     modifier is already on the fighter (cross-caster dedup). Cleric B
+#     falls back to attacking with their own weapon (or some other
+#     bonus-slot action). The event log should NOT show a second
+#     concentration_started for Bless on the fighter from cleric_b.
+#
+# Pre-PR #36 (legacy behavior): both clerics would cast Bless on the
+# fighter, the fighter would carry two attack_modifier entries
+# stacking to +4 attack bonus — wrong per RAW.
 
-id: bless_buff_encounter
+id: two_clerics_bless_dedup_encounter
 
 environment:
   template: open_battlefield
 
 actors:
-  - instance_id: cleric_caster
-    name: Cleric of Bahamut
+  - instance_id: cleric_a
+    name: Cleric A
     side: pc
     position: [0, 0]
-    spell_slots: { 1: 3 }      # 3× 1st-level slots (cleric L3 standard)
+    spell_slots: { 1: 3 }
     template:
-      id: pc_cleric_caster
-      name: Cleric of Bahamut
+      id: pc_cleric_a
+      name: Cleric A
       source: user_authored
       combat:
         armor_class: 18
@@ -41,7 +48,7 @@ actors:
         speed:
           walk: 25
         initiative:
-          modifier: 30        # force first for demo clarity
+          modifier: 30        # forced first
           score: 40
       abilities:
         str: { score: 10, save: 0 }
@@ -67,23 +74,72 @@ actors:
         - id: a_bless
           name: Bless
           type: offensive_buff
-          concentration: true       # RAW: Bless is a concentration spell
-          spell_slot_level: 1       # Bless is a 1st-level spell
-          named_effect: bless       # PR #36: cross-caster dedup so a
-                                    # second cleric's Bless on the same
-                                    # ally doesn't stack (PHB 2024
-                                    # p.243 "Combining Magical Effects")
+          concentration: true
+          spell_slot_level: 1
+          named_effect: bless      # cross-caster dedup tag
           pipeline:
             - primitive: attack_modifier
               params:
                 target: ally
                 modifier: attack_bonus
-                value: 8            # boosted from RAW +1d4 (mean +2)
-                                    # so Bless's raw eHP exceeds the
-                                    # mace's eHP plus preset preference
-                                    # bonuses (+3) on the closest enemy.
-                                    # Models a stronger version of the
-                                    # buff for demo clarity.
+                value: 8             # boosted (same as bless_buff_encounter)
+                                      # so the buff beats the mace + preset
+                                      # preference bonuses
+                lifetime: until_short_rest
+
+  - instance_id: cleric_b
+    name: Cleric B
+    side: pc
+    position: [0, 2]
+    spell_slots: { 1: 3 }
+    template:
+      id: pc_cleric_b
+      name: Cleric B
+      source: user_authored
+      combat:
+        armor_class: 18
+        hit_points:
+          average: 22
+          dice: "3d8"
+          con_contribution: 3
+        speed:
+          walk: 25
+        initiative:
+          modifier: 20        # second
+          score: 30
+      abilities:
+        str: { score: 10, save: 0 }
+        dex: { score: 10, save: 0 }
+        con: { score: 12, save: 1 }
+        int: { score: 10, save: 0 }
+        wis: { score: 16, save: 5 }
+        cha: { score: 12, save: 1 }
+      cr: { value: 1.0, xp: 200, proficiency_bonus: 2 }
+      behavior_profile:
+        presets:
+          retreat: ftd
+      actions:
+        - id: a_mace
+          name: Mace
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: melee, bonus: 3, reach_ft: 5 }
+            - primitive: damage
+              params: { dice: "1d6", modifier: 1, type: bludgeoning }
+              when: { event: damage_roll, condition: "combat.attack_state == hit" }
+        - id: a_bless
+          name: Bless
+          type: offensive_buff
+          concentration: true
+          spell_slot_level: 1
+          named_effect: bless      # same tag — share dedup identity
+          pipeline:
+            - primitive: attack_modifier
+              params:
+                target: ally
+                modifier: attack_bonus
+                value: 8
                 lifetime: until_short_rest
 
   - instance_id: fighter_ally
@@ -103,8 +159,8 @@ actors:
         speed:
           walk: 30
         initiative:
-          modifier: 20            # acts second
-          score: 30
+          modifier: 10
+          score: 20
       abilities:
         str: { score: 18, save: 6 }
         dex: { score: 12, save: 1 }
@@ -138,9 +194,9 @@ actors:
       combat:
         armor_class: 18
         hit_points:
-          average: 80
-          dice: "10d10"
-          con_contribution: 20
+          average: 100
+          dice: "12d10"
+          con_contribution: 30
         speed:
           walk: 30
         initiative:

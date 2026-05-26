@@ -488,6 +488,13 @@ def _build_modifier_entry(primitive_name: str, params: dict, owner: Actor,
             "action_id": action.get("id"),
             "caster_id": caster.id if caster else None,
         }
+        # PR #36: if the action declares a `named_effect` (RAW spell
+        # identity — e.g., "bless", "heroism"), stamp it on the source
+        # so cross-caster dedup can fire. Two Blesses on the same
+        # target shouldn't stack per PHB 2024 p.243.
+        named_effect = action.get("named_effect")
+        if named_effect:
+            source["named_effect"] = named_effect
     return {
         "primitive": primitive_name,
         "params": dict(params),  # copy, don't share
