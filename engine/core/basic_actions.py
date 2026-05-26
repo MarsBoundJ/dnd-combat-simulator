@@ -6,9 +6,12 @@ stat block. Most templates don't declare them explicitly because the
 AI usually prefers attacking; built-ins ensure they're in the candidate
 pool for the rare cases where they're the right choice.
 
-This v1 ships Dodge + Disengage (the two action types that already exist
-as primitives in the engine). Help / Hide will land as separate small PRs
-once their action types are wired.
+This module ships Dodge + Disengage + Help — the three basic actions
+whose mechanics map cleanly onto existing engine primitives. **Hide is
+deferred until a terrain / cover / line-of-sight layer exists** — Hide
+RAW requires heavy obscurement or total cover to break LOS from
+observers, and `geometry.py` is bare positions with no occlusion. See
+`docs/engine-capabilities.md` §7.
 
 **Usage:** `generate_candidates` calls `built_in_actions_for(actor, slot)`
 and appends the result to the actor's per-slot action list before the
@@ -16,13 +19,13 @@ existing per-action loop. Built-ins are skipped if the actor's template
 already declares an action of that type — avoids duplicate candidates
 when a fixture explicitly opts into the action.
 
-**v1 scope:**
-  - Dodge + Disengage on the main slot for all actors (PC + monster)
+**Scope:**
+  - Dodge + Disengage + Help on the main slot for all actors (PC + monster)
   - Skips if the actor has an explicit declaration of that type
-  - No bonus-slot built-ins (Dodge/Disengage are full Actions per RAW)
+  - No bonus-slot built-ins (Dodge/Disengage/Help are full Actions per RAW)
 
 **Deferred:**
-  - Help / Hide (need their action types first)
+  - Hide (blocked on terrain / cover / LOS modeling, see above)
   - Ready / Use an Object / Search
   - Dodge ineligibility (Incapacitated / speed=0 prevents Dodge)
   - Built-in actions for bonus slot (e.g., off-hand attack for two-weapon)
@@ -67,6 +70,36 @@ BUILT_IN_DISENGAGE = {
 }
 
 
+# Built-in Help: matches an explicit Help declaration. Grants the helped
+# ally advantage on their next attack roll (lifetime `per_single_attack`,
+# expires after one attack). The candidate generator gates on helper
+# being adjacent to at least one enemy and the chosen ally being within
+# 5 ft of the helper (RAW Help requires both).
+BUILT_IN_HELP = {
+    "id": "_builtin_help",
+    "name": "Help (built-in)",
+    "type": "help",
+    "pipeline": [
+        # `advantage_for_self` = the owner of this modifier has advantage
+        # on their OWN attack rolls. The target=ally resolution attaches
+        # the modifier to the ally, so when the ally next attacks, the
+        # query iterates their modifiers (as attacker) and lights up
+        # advantage. The `when: attacker_is_self` gate is REQUIRED so
+        # the modifier doesn't also light up when the ally is being
+        # ATTACKED (a bare `advantage_for_self` fires regardless of
+        # which side of the attack the owner is on — same pattern as
+        # the Invisible condition in co_invisible.yaml). Plain
+        # `advantage` is not recognized for attack rolls; use the
+        # _for_self / _for_attacker pair.
+        {"primitive": "attack_modifier",
+          "params": {"target": "ally",
+                      "when": "attacker_is_self",
+                      "modifier": "advantage_for_self",
+                      "lifetime": "per_owner_attack"}},
+    ],
+}
+
+
 # ============================================================================
 # Public API
 # ============================================================================
@@ -106,6 +139,14 @@ def built_in_actions_for(actor: Actor, slot: str,
         out.append(BUILT_IN_DODGE)
     if not _has_explicit_disengage(template_actions):
         out.append(BUILT_IN_DISENGAGE)
+    # Help: only inject if at least one ally is adjacent. The candidate
+    # generator does the precise per-ally filter; this is a coarse gate
+    # so we don't bloat the candidate list for solo actors. Adjacent-
+    # enemy gating happens in the candidate generator (no candidates
+    # are emitted if Help can't pay off).
+    if state is not None and not _has_explicit_help(template_actions):
+        if _has_adjacent_ally(actor, state):
+            out.append(BUILT_IN_HELP)
     return out
 
 
@@ -209,6 +250,31 @@ def _has_explicit_dodge(actions: list[dict]) -> bool:
 def _has_explicit_disengage(actions: list[dict]) -> bool:
     """Any action with type=disengage counts as an explicit Disengage."""
     return any(a.get("type") == "disengage" for a in actions)
+
+
+def _has_explicit_help(actions: list[dict]) -> bool:
+    """Any action with type=help counts as an explicit Help."""
+    return any(a.get("type") == "help" for a in actions)
+
+
+def _has_adjacent_ally(actor: Actor, state: CombatState) -> bool:
+    """True if at least one living ally (excluding self) is within 5 ft.
+
+    Coarse gate for built-in Help. The candidate generator does the
+    precise per-ally adjacency check + adjacent-enemy requirement; this
+    only filters out the obvious "no allies anywhere near" case so we
+    don't bloat the candidate pool with a Help action that will produce
+    zero candidates downstream.
+    """
+    from engine.core.geometry import distance_ft
+    for ally in state.encounter.actors:
+        if ally.id == actor.id or ally.side != actor.side:
+            continue
+        if not ally.is_alive():
+            continue
+        if distance_ft(actor.position, ally.position) <= 5:
+            return True
+    return False
 
 
 # ============================================================================

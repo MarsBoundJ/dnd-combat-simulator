@@ -228,7 +228,9 @@ def expire_modifiers(actor: Actor, lifetime_events: set[str]) -> int:
     """Remove modifiers whose lifetime matches any of the trigger events.
 
     Trigger events: 'turn_start' (clears until_actor_next_turn_start),
-    'attack_complete' (clears per_single_attack), etc.
+    'attack_complete' (clears per_single_attack — both sides of an
+    attack), 'owner_made_attack' (clears per_owner_attack — only the
+    attacker side), etc.
 
     Returns count of removed modifiers.
     """
@@ -293,6 +295,12 @@ def _lifetime_matches(lifetime: Any, trigger_events: set[str]) -> bool:
     if isinstance(lifetime, str):
         lookup = {
             "per_single_attack": {"attack_complete"},
+            # per_owner_attack: consume only when the owner of the
+            # modifier was the ATTACKER (not when they were targeted).
+            # Used by Help-shape buffs — modifier attached to the helped
+            # ally, must persist if the ally is attacked, then consume
+            # when the ally next swings.
+            "per_owner_attack": {"owner_made_attack"},
             "until_actor_next_turn_start": {"turn_start"},
             "until_short_rest": {"short_rest_end"},
             "until_long_rest": {"long_rest_end"},

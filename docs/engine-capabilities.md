@@ -564,8 +564,15 @@ priority order:
 2. **Built-in basic actions** — Dodge / Disengage / Help / Hide
    should be available to ALL actors implicitly per RAW. v1 requires
    explicit template declaration; built-in pool is a small follow-on.
-3. **Help + Hide actions** — same shape as Dodge / Disengage; both
-   small focused PRs.
+3. **Help action** — same shape as Dodge / Disengage (new action type
+   + built-in entry). Small focused PR. **Hide is deferred until a
+   terrain / cover / line-of-sight layer exists** — Hide RAW requires
+   heavy obscurement or total cover to break LOS from observers, and
+   `geometry.py` currently models bare positions with no occlusion.
+   When terrain modeling is built (its own arc — it also unlocks cover
+   bonuses on ranged attacks and obscurement spells like Fog Cloud /
+   Darkness), Hide can land as a natural follow-on with the same
+   built-in / explicit-declaration shape as Dodge.
 4. **Action Surge primitive** — `additional_action` grants an extra
    main slot; fighter class feature.
 5. **Class features auto-wiring** — `c_fighter.level_table` references

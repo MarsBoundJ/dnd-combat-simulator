@@ -148,8 +148,13 @@ def _attack_roll(params: dict, state: CombatState, bus: EventBus) -> dict:
                             "advantage_state": adv_state,
                             "crit_threshold": crit_mods.crit_threshold})
 
-    # Lifetime: any per_single_attack modifiers on attacker / target expire
-    _modifiers.expire_modifiers(actor, {"attack_complete"})
+    # Lifetime expiry after this attack:
+    #   - per_single_attack: both attacker & target (consumed by either-side
+    #     participation in one attack)
+    #   - per_owner_attack: ONLY the attacker side (Help-shape buffs that
+    #     must survive incoming attacks on the owner and only consume
+    #     when the owner themselves makes an attack)
+    _modifiers.expire_modifiers(actor, {"attack_complete", "owner_made_attack"})
     _modifiers.expire_modifiers(target, {"attack_complete"})
 
     return {"state": attack_state, "d20": d20, "total": total}

@@ -70,7 +70,7 @@
     "modifier_lifetime": {
       "description": "When a modifier expires. The Q5 unification: every modifier primitive carries this regardless of source (condition, spell, feature, magic item). See docs/architecture/schema-design.md §4.",
       "oneOf": [
-        { "type": "string", "enum": ["per_single_attack", "until_actor_next_turn_start", "until_condition_ends", "until_spell_ends", "until_dispelled", "until_long_rest", "until_short_rest"] },
+        { "type": "string", "enum": ["per_single_attack", "per_owner_attack", "until_actor_next_turn_start", "until_condition_ends", "until_spell_ends", "until_dispelled", "until_long_rest", "until_short_rest"] },
         {
           "type": "object",
           "properties": {

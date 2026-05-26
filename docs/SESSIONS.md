@@ -44,8 +44,15 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 **Open items carried forward:**
 - [ ] Pick next priority: PCs-default-to-Dodge, built-in basic
-  actions, Help/Hide, Action Surge / Spirit Guardians, class features
-  auto-wiring (see `docs/engine-capabilities.md` §7).
+  actions, Help (Hide deferred — see below), Action Surge / Spirit
+  Guardians, class features auto-wiring (see
+  `docs/engine-capabilities.md` §7).
+- [ ] **Hide is blocked on terrain modeling.** Hide RAW requires
+  heavy obscurement or total cover to break LOS from observers;
+  `geometry.py` is bare-positions-no-occlusion. When a cover / LOS /
+  terrain layer lands (its own arc), Hide can ship with the same
+  shape as Dodge. Do not bundle Hide with Help — they are not the
+  same complexity class.
 
 ---
 
@@ -95,7 +102,10 @@ Add a new entry at the top for each session that produces a non-obvious decision
 - [ ] PCs default to Dodge in RP empty-set fallback per §6.4
 - [ ] Built-in basic actions (Dodge/Disengage/Help/Hide for all actors)
 - [ ] Movement-aware Disengage scoring
-- [ ] Help / Hide — same shape, separate PRs
+- [ ] Help — same shape as Dodge, separate PR
+- [ ] Hide — DEFERRED until terrain / cover / LOS layer lands
+  (Hide RAW needs obscurement or total cover to break LOS, which the
+  engine doesn't model yet — see CONTEXT.md "Next substantive steps")
 - [ ] Incapacitation ending Dodge
 
 ---

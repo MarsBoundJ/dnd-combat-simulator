@@ -189,6 +189,40 @@ def _approximate_damage_on_hit(action: dict) -> float:
     return total
 
 
+def estimate_per_attack_damage(creature: Actor) -> float:
+    """Expected damage from a SINGLE attack roll vs default AC 15.
+
+    Used by Help-shape scoring where the buff applies to one attack
+    only, not a full round's worth of attacks. Multiattack does NOT
+    multiply here (unlike `estimate_dpr`): Help grants advantage on
+    "the next attack roll the target makes", which is one swing of
+    the multiattack chain — not all of them.
+
+    Mirrors the AC 15 hit-prob proxy used by `estimate_dpr` so the
+    two scoring paths stay calibrated to the same baseline.
+    Returns 0.0 for creatures with no usable attack actions.
+    """
+    actions = (creature.template or {}).get("actions") or []
+    if not actions:
+        return 0.0
+    best_with_hit = 0.0
+    for action in actions:
+        if action.get("type") != "weapon_attack":
+            continue
+        bonus = _attack_bonus(action) or 0
+        needed = 15 - bonus
+        if needed <= 2:
+            p_hit = 19 / 20
+        elif needed > 20:
+            p_hit = 1 / 20
+        else:
+            p_hit = (21 - needed) / 20
+        single_value = _approximate_damage_on_hit(action) * p_hit
+        if single_value > best_with_hit:
+            best_with_hit = single_value
+    return best_with_hit
+
+
 # ============================================================================
 # Defensive buff eHP (AC bonus / disadvantage on attackers)
 # ============================================================================

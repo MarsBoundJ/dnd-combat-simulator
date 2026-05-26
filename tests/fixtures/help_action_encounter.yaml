@@ -1,0 +1,171 @@
+# Help action demo — weak helper aids a high-DPR striker.
+#
+# Setup:
+#   - Squire (PC, weak +0 1d4 punch) adjacent to:
+#   - Striker (PC, exalted greatsword +8 4d10+8, paladin-smite shape)
+#     adjacent to:
+#   - Bruiser (enemy, AC 18, 80 HP).
+#
+# Expected behavior (round 1):
+#   - Squire goes first (forced initiative bonus).
+#   - Squire's candidates and their raw eHP scores:
+#       punch eHP        ≈ 0.15 × 2.5 ≈ 0.4 eHP (+0 vs AC 18 ≈ 15% hit)
+#       Help → striker   ≈ striker_per_attack × 0.225
+#                       ≈ (30 mean damage × 0.7 hit_prob) × 0.225 ≈ 4.7
+#       Built-in Dodge   ≈ small (1-round disadvantage on incoming hit)
+#   - The striker's per-attack damage is inflated (mean ~30 on hit, a
+#     paladin-smite-shape combined weapon+divine roll) so that Help's
+#     raw eHP exceeds the punch's eHP PLUS the preset preference
+#     bonuses (+2 closest-enemy + +1 action match ≈ +3) that nudge the
+#     AI toward attacking. Without this inflation, the +3 default
+#     bonuses sweep the choice toward the punch even though Help is
+#     mechanically the better play — same dynamic acknowledged in
+#     `bless_buff_encounter.yaml`.
+#   - On striker's turn, attack_roll's `advantage_state: advantage`
+#     proves the per_single_attack advantage modifier landed; on the
+#     turn after, advantage is gone (lifetime consumed).
+
+id: help_action_encounter
+
+environment:
+  template: open_battlefield
+
+actors:
+  - instance_id: squire_helper
+    name: Squire
+    side: pc
+    position: [0, 0]
+    template:
+      id: pc_squire_helper
+      name: Squire
+      source: user_authored
+      combat:
+        armor_class: 14
+        hit_points:
+          average: 22
+          dice: "3d8"
+          con_contribution: 3
+        speed:
+          walk: 30
+        initiative:
+          modifier: 30        # force first for demo clarity
+          score: 40
+      abilities:
+        str: { score: 12, save: 1 }
+        dex: { score: 10, save: 0 }
+        con: { score: 12, save: 1 }
+        int: { score: 10, save: 0 }
+        wis: { score: 10, save: 0 }
+        cha: { score: 10, save: 0 }
+      cr: { value: 0.5, xp: 100, proficiency_bonus: 2 }
+      behavior_profile:
+        presets:
+          retreat: ftd
+      actions:
+        - id: a_punch
+          name: Punch
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: melee, bonus: 0, reach_ft: 5 }
+            - primitive: damage
+              params: { dice: "1d4", modifier: 0, type: bludgeoning }
+              when: { event: damage_roll, condition: "combat.attack_state == hit" }
+        - id: a_help
+          name: Help
+          type: help
+          pipeline:
+            - primitive: attack_modifier
+              params:
+                target: ally
+                when: attacker_is_self   # only fires when ally is the
+                                         # attacker, not when attacked
+                modifier: advantage_for_self
+                lifetime: per_owner_attack
+
+  - instance_id: striker_ally
+    name: Striker
+    side: pc
+    position: [0, 1]
+    template:
+      id: pc_striker_ally
+      name: Striker
+      source: user_authored
+      combat:
+        armor_class: 18
+        hit_points:
+          average: 40
+          dice: "5d10"
+          con_contribution: 10
+        speed:
+          walk: 30
+        initiative:
+          modifier: 20
+          score: 30
+      abilities:
+        str: { score: 18, save: 6 }
+        dex: { score: 12, save: 1 }
+        con: { score: 16, save: 5 }
+        int: { score: 10, save: 0 }
+        wis: { score: 12, save: 1 }
+        cha: { score: 10, save: 0 }
+      cr: { value: 2.0, xp: 450, proficiency_bonus: 2 }
+      behavior_profile:
+        presets:
+          retreat: ftd
+      actions:
+        - id: a_exalted_greatsword
+          name: Exalted Greatsword
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: melee, bonus: 8, reach_ft: 5 }
+            # Inflated damage — paladin-smite-shape (weapon + divine
+            # roll combined into a single damage step for demo
+            # simplicity). The high per-attack damage makes Help's eHP
+            # high enough to overcome the AI's default closest-enemy
+            # preset bonuses; see the file-header note.
+            - primitive: damage
+              params: { dice: "4d10", modifier: 8, type: slashing }
+              when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  - instance_id: bruiser
+    name: Bruiser
+    side: enemy
+    position: [1, 0]
+    template:
+      id: m_bruiser
+      name: Bruiser
+      source: user_authored
+      combat:
+        armor_class: 18
+        hit_points:
+          average: 80
+          dice: "10d10"
+          con_contribution: 20
+        speed:
+          walk: 30
+        initiative:
+          modifier: 0
+          score: 5
+      abilities:
+        str: { score: 18, save: 6 }
+        dex: { score: 12, save: 1 }
+        con: { score: 16, save: 5 }
+        int: { score: 8, save: -1 }
+        wis: { score: 12, save: 1 }
+        cha: { score: 10, save: 0 }
+      cr: { value: 3.0, xp: 700, proficiency_bonus: 2 }
+      behavior_profile:
+        presets:
+          retreat: ftd
+      actions:
+        - id: a_claws
+          name: Claws
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: melee, bonus: 6, reach_ft: 5 }
+            - primitive: damage
+              params: { dice: "1d8", modifier: 4, type: slashing }
+              when: { event: damage_roll, condition: "combat.attack_state == hit" }

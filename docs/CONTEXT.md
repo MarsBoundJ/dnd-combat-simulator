@@ -260,8 +260,13 @@ step, eHP framework coverage map, and the honest roadmap gap list.
 2. **Built-in basic actions** — Dodge / Disengage / Help / Hide
    should be available to ALL actors implicitly per RAW. v1 requires
    explicit template declaration; built-in pool is small QoL.
-3. **Help + Hide actions** — same shape as Dodge / Disengage; both
-   small focused PRs.
+3. **Help action** — same shape as Dodge / Disengage (new action type
+   + built-in entry). Small focused PR. **Hide is NOT bundled here:**
+   Hide RAW requires heavy obscurement or total cover to break line of
+   sight from observers, and the engine has no cover / LOS / terrain
+   model yet (`geometry.py` is explicit: bare positions, no occlusion).
+   Hide therefore blocks on the terrain layer; do not ship a degenerate
+   "Hide while invisible" stub.
 4. **Action Surge + spellcasting primitives** — `additional_action`
    grants extra main slot; `persistent_aura` + `triggered_save` for
    Spirit Guardians; `slot_recovery_partial` for Arcane Recovery.

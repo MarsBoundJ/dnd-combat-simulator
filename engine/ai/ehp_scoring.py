@@ -365,6 +365,62 @@ def offensive_ehp_buff_ally(actor: Actor, target_ally: Actor, action: dict,
     return ally_dpr * delta_hit * EXPECTED_BUFF_ROUNDS
 
 
+def offensive_ehp_help(actor: Actor, target_ally: Actor, action: dict,
+                         state: CombatState) -> float:
+    """eHP from the Help action — advantage on one attack by an adjacent ally.
+
+      eHP = ally_per_attack_damage × Δhit_advantage
+
+    Where:
+      - ally_per_attack_damage is the ally's best single-attack expected
+        damage at AC 15 (NOT scaled by multiattack count — Help boosts
+        one attack roll, not the whole multiattack chain).
+      - Δhit_advantage = 0.225 (framework constant, same as offensive
+        buff with `ally_advantage`).
+
+    Notes:
+      - No EXPECTED_BUFF_ROUNDS multiplier here. Help's lifetime is
+        explicitly per_single_attack — it buys one attack's worth of
+        advantage, period. Bless gets ×2.5 because it's concentration
+        over multiple rounds and many attacks; Help does not.
+      - Per RAW the helped ally's attack must target a creature within
+        5 ft of the helper. v1 doesn't filter the ally's eventual
+        target by that constraint (we'd need a "who will the ally
+        actually swing at" projection); we accept the small overscoring
+        in exchange for a simple, robust v1.
+
+    Returns 0.0 if:
+      - target is not an ally / is dead / is self
+      - ally has no weapon-attack actions to score against
+      - Help is already active on the ally from this caster (don't
+        stack)
+    """
+    if target_ally is None or not target_ally.is_alive():
+        return 0.0
+    if target_ally.side != actor.side:
+        return 0.0
+    if target_ally.id == actor.id:
+        return 0.0   # can't Help yourself per RAW
+
+    # Don't re-cast Help if a previous Help from this caster is still
+    # waiting on the ally to make an attack. Same source-tag check as
+    # offensive_ehp_buff_ally.
+    action_id = action.get("id")
+    for mod in target_ally.active_modifiers:
+        if mod.get("primitive") != "attack_modifier":
+            continue
+        src = mod.get("source") or {}
+        if (src.get("action_id") == action_id
+                and src.get("caster_id") == actor.id):
+            return 0.0
+
+    from engine.ai.defensive_ehp import estimate_per_attack_damage
+    per_attack = estimate_per_attack_damage(target_ally)
+    if per_attack <= 0:
+        return 0.0
+    return per_attack * DELTA_HIT_FROM_ADVANTAGE
+
+
 def offensive_ehp_aoe(actor: Actor, origin: tuple[int, int], action: dict,
                         state: CombatState,
                         direction: tuple[int, int] | None = None) -> float:
@@ -672,6 +728,8 @@ def score_candidate(candidate: dict, state: CombatState) -> float:
                                                 else None)
     if kind == "offensive_buff" or action.get("type") == "offensive_buff":
         return offensive_ehp_buff_ally(actor, target, action, state)
+    if kind == "help" or action.get("type") == "help":
+        return offensive_ehp_help(actor, target, action, state)
     if kind == "disengage" or action.get("type") == "disengage":
         # Disengage's real eHP depends on what move comes after (avoid
         # an OA from a specific reactor). v1 returns a small constant
