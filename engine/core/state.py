@@ -159,6 +159,15 @@ class Actor:
     # engine.core.weapon_masteries.KNOWN_MASTERIES.
     weapon_masteries: list = field(default_factory=list)
 
+    # Creature size (PR #65). Default "medium" for actors with no
+    # explicit size. Loaded from monster template's top-level `size:`
+    # (SRD shape; lowercase like "small" / "large") or from an
+    # actor_spec override. Consumed by Push weapon mastery (RAW: only
+    # Large or smaller targets) and future grapple / squeezing /
+    # carry-capacity mechanics. See engine.core.sizes for the
+    # KNOWN_SIZES ordering and PUSH_SIZES filter.
+    size: str = "medium"
+
     def is_alive(self) -> bool:
         return self.hp_current > 0 and not self.is_dead and not self.is_fled
 

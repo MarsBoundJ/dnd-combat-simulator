@@ -232,6 +232,18 @@ def _build_actor(actor_spec: dict, registry) -> Actor:
         weapon_masteries = template.get("weapon_masteries") or []
     weapon_masteries = list(weapon_masteries)
 
+    # PR #65: creature size. Precedence:
+    #   1. Explicit `size:` on actor_spec (fixture override)
+    #   2. Template's top-level `size:` (monster SRD shape)
+    #   3. 'medium' (default — Actor field default)
+    # Normalized + validated via engine.core.sizes.normalize_size
+    # (rejects typos with a clear error).
+    raw_size = actor_spec.get("size")
+    if raw_size is None:
+        raw_size = template.get("size")
+    from engine.core.sizes import normalize_size
+    size = normalize_size(raw_size)
+
     return Actor(
         id=instance_id,
         name=actor_spec.get("name", template.get("name", instance_id)),
@@ -252,6 +264,7 @@ def _build_actor(actor_spec: dict, registry) -> Actor:
         blindsight_range_ft=blindsight_range_ft,
         passive_perception=passive_perception,
         weapon_masteries=weapon_masteries,
+        size=size,
     )
 
 
