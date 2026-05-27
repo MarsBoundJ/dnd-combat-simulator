@@ -196,12 +196,19 @@ def _build_actor(actor_spec: dict, registry) -> Actor:
     #      race modeling lands)
     #   2. Template's `senses.special.darkvision` (numeric feet)
     #   3. 0 (no darkvision)
-    darkvision_range_ft = actor_spec.get("darkvision_range_ft")
-    if darkvision_range_ft is None:
-        tpl_senses = (template.get("senses") or {})
-        tpl_special = (tpl_senses.get("special") or {})
-        darkvision_range_ft = tpl_special.get("darkvision", 0)
-    darkvision_range_ft = int(darkvision_range_ft or 0)
+    # PR #52: truesight_range_ft + blindsight_range_ft follow the same
+    # precedence pattern (override → template.senses.special.<name> → 0).
+    def _load_sense(name: str) -> int:
+        raw = actor_spec.get(f"{name}_range_ft")
+        if raw is None:
+            tpl_senses = (template.get("senses") or {})
+            tpl_special = (tpl_senses.get("special") or {})
+            raw = tpl_special.get(name, 0)
+        return int(raw or 0)
+
+    darkvision_range_ft = _load_sense("darkvision")
+    truesight_range_ft = _load_sense("truesight")
+    blindsight_range_ft = _load_sense("blindsight")
 
     # PR #51: passive Perception. Precedence:
     #   1. Explicit `passive_perception:` on actor_spec (fixture override)
@@ -231,6 +238,8 @@ def _build_actor(actor_spec: dict, registry) -> Actor:
         resources=resources,
         cover=cover,
         darkvision_range_ft=darkvision_range_ft,
+        truesight_range_ft=truesight_range_ft,
+        blindsight_range_ft=blindsight_range_ft,
         passive_perception=passive_perception,
     )
 

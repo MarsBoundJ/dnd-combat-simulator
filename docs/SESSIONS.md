@@ -5,6 +5,96 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-26 — Truesight + Blindsight + Magical darkness (PR #52)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Closes the vision-type arc. Pre-scoped twice up front:
+  - Magical darkness as a separate `magical_dark_zones` field
+    (parallel to `dark_zones`), not a `magical: true` flag on
+    existing dark zones. Keeps the one-helper-per-zone-type
+    symmetry; cleaner precedence in `can_actor_see`.
+  - Truesight bypasses Invisible + magical darkness + ordinary
+    darkness. Does NOT bypass heavy obscurement — RAW says
+    truesight pierces magic, not physical obscuring substances.
+- **Two new Actor fields:** `truesight_range_ft` + `blindsight_range_ft`
+  (both int, default 0). Loaded by `cli._build_actor` with the same
+  precedence pattern as `darkvision_range_ft` (actor_spec override →
+  `template.senses.special.<name>` → 0). Refactored the load logic
+  into an inner `_load_sense(name)` helper so the three sense
+  fields don't duplicate the dispatch.
+- **New environment field `magical_dark_zones`** + helper
+  `vision.is_in_magical_dark_zone`. Same axis-aligned-rect shape as
+  the other zone types.
+- **`can_actor_see` precedence reorganized into seven explicit
+  steps** with the new vision-type gates:
+  1. Self-sees-self short-circuit (unchanged)
+  2. **Blindsight bypass** (within range) — dominant override.
+     Pierces Invisible, fog, darkness, magical darkness, AND
+     self-Blinded (per RAW: blindsight perceives without sight).
+  3. Blinded observer (only fires if step 2 didn't bypass).
+  4. Invisible target — **Truesight in range** bypasses both
+     Hide-source and spell-source. PR #51's passive-Perception
+     auto-spot still handles Hide-source for non-truesight observers.
+  5. Heavy obscurement — Truesight does NOT bypass (RAW: fog is
+     physical). Only Blindsight bypasses, handled at step 2.
+  6. **Magical darkness zones** — only Truesight pierces. Ordinary
+     darkvision does NOT (this is the whole point of the Darkness
+     spell vs darkvision in 5e RAW).
+  7. Ordinary darkness — Truesight OR Darkvision in range.
+- **Why fog blocks truesight but darkness doesn't:** The 5e 2024
+  Truesight RAW lists what it bypasses: "magical and nonmagical
+  darkness," "invisible creatures and objects," "visual illusions,"
+  and shapechanger original-form. Notably absent: physical
+  obscuring substances. Fog, leaves, dense foliage — those are
+  geometry, not deception. Pinned with a specific test.
+- **Why blindsight overrides self-Blinded:** Blindsight perceives
+  surroundings *without* relying on sight (echolocation /
+  tremorsense / etc.). So even if your sight is suppressed, the
+  blindsight sense still works. Pinned with a specific test where
+  observer is blinded AND target is invisible AND in magical
+  darkness — blindsight within range still returns True.
+- **Tests (29 new in `test_truesight_blindsight.py`):**
+  - Magical-darkness zone detection
+  - `cli._build_actor` loads truesight + blindsight from template
+    senses or actor_spec overrides
+  - Blindsight: bypasses Invisible, fog, darkness, magical
+    darkness, self-Blinded; out-of-range falls back; exact-range
+    boundary works
+  - Truesight: bypasses spell-source Invisible (which passive
+    Perception can't), bypasses Hide-source Invisible, bypasses
+    magical darkness, bypasses ordinary darkness (substitutes for
+    DV), does NOT bypass fog, out-of-range falls back, exact-
+    range boundary works
+  - Magical darkness specifics: ordinary DV blocked, observer-in-
+    magical-dark with truesight sees out, observer-in-magical-
+    dark with only DV blind, overlapping regular+magical zones
+    use magical's strictness
+  - Precedence: blindsight beats self-Blinded AND Invisible AND
+    magical darkness all at once; truesight + fog still blocked;
+    no-senses + magical darkness blocked; self-sees-self short-
+    circuits even with senses
+- **Fixture:** `vision_types_showcase_encounter.yaml` — four
+  observers (human guard / dwarf darkvision / paladin truesight /
+  bat familiar blindsight) facing an invisible wizard inside a
+  magical-darkness zone. Each observer's vision result on the
+  invisible-wizard target is the showcase: only paladin (truesight)
+  and (theoretically) bat-if-within-range can see them.
+- 774 tests pass (+29, no regressions).
+
+**Future-roadmap items (recorded, not in this PR):**
+- Devil's Sight (Warlock invocation) — bypasses magical darkness
+  without truesight; needs a new flag distinct from truesight
+  (probably `magical_darkness_bypass: bool` on Actor)
+- Illusion auto-detection (truesight RAW part)
+- Shapechanger original-form perception (truesight RAW part)
+- Magical-darkness as a persistent_aura cast effect (when the
+  Darkness spell lands, it should auto-declare a magical_dark_zone
+  rather than fixture-authoring one)
+
+---
+
 ## Session: 2026-05-26 — Skill proficiencies + passive Perception (PR #51)
 
 **Participants:** Phil, Claude

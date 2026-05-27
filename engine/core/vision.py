@@ -35,16 +35,25 @@ Used by:
   - Passive Perception auto-spot for Hide-source Invisible (PR #51):
     `observer.passive_perception` >= hider's stealth_total ⇒ visible
     (spell-source Invisible still bypasses Perception per RAW)
+  - Truesight (PR #52) — bypasses Invisible (both Hide-source and
+    spell-source) + magical darkness + ordinary darkness within
+    range. Does NOT bypass heavy obscurement (fog).
+  - Blindsight (PR #52) — dominant override; bypasses everything
+    visual (Invisible / fog / darkness / magical darkness / Blinded
+    self) within range.
+  - Magical-darkness zones (PR #52) — only Truesight pierces; ordinary
+    darkvision does NOT.
 
 **v1 deferred (still):**
-  - Truesight — bypasses Invisible + magical darkness
-  - Blindsight — sees within a range regardless of vision conditions
+  - Devil's Sight (Warlock invocation) — bypasses magical darkness
+    without truesight; needs a new flag distinct from truesight
   - Per-tile light levels (vs zone-based)
-  - Active Perception search-as-action (vs passive PP, which is now
+  - Active Perception search-as-action (vs passive PP, which is
     automatic)
-  - Magical darkness (a higher tier than ordinary dark zones —
-    Devil's Sight / Truesight bypass; ordinary darkvision does NOT)
   - Skill expertise (double PB on Stealth / Perception)
+  - Illusion auto-detection + shapechanger original-form (parts of
+    truesight RAW we can't model until illusions / shapechangers
+    are in the engine)
 
 When those land, `can_actor_see` is the right place to extend.
 """
@@ -189,38 +198,65 @@ def is_in_dark_zone(position: tuple[int, int],
                                     _env_zones(state, "dark_zones"))
 
 
+def is_in_magical_dark_zone(position: tuple[int, int],
+                               state: CombatState) -> bool:
+    """True if `position` is inside any declared magical-darkness zone
+    (PR #52). Shape matches `dark_zones`; same axis-aligned rects.
+
+    Magical darkness is a stricter form of darkness — RAW: ordinary
+    darkvision does NOT pierce it. Only Truesight (and future Devil's
+    Sight, the Warlock invocation) can see through. Created by the
+    Darkness spell + Hunger of Hadar etc.; fixture authors declare
+    the zone directly until those spells land as persistent_aura
+    feature-files.
+    """
+    return _position_in_any_zone(position,
+                                    _env_zones(state, "magical_dark_zones"))
+
+
 def can_actor_see(observer: Actor, target: Actor,
                     state: CombatState) -> bool:
     """Does `observer` have line of sight on `target`?
 
     v1 model (precedence order — first match wins):
-      - False if `observer` is Blinded
-      - If `target` has Invisible:
-          - PR #51: Hide-source Invisible (source_action_id=a_hide)
-            can be bypassed by `observer.passive_perception` >=
-            target's recorded `stealth_total`. Spell-source Invisible
-            (Invisibility / Greater Invisibility) is NOT bypassable —
-            those return False unconditionally.
-          - If bypassed, fall through to the remaining gates (fog /
-            darkness still block sight even after a successful
-            passive-Perception spot).
-      - False if either is in a heavy-obscurement zone (PR #48)
-        — same-zone approximated as still-blocked per RAW.
-      - PR #50: dark zones (no light + no darkvision = blind):
-          - If target is in a dark zone: observer sees only if their
-            darkvision range covers the (observer → target) distance
-            (RAW: darkvision treats darkness as dim light within
-            range). Without darkvision, or beyond range, sight fails.
-          - If observer is in a dark zone: observer can't see ANYTHING
-            outside their darkvision range (they're in the dark
-            themselves). Within darkvision range, they see fine.
+      0. **Self-sees-self short-circuit** (modifier when-clauses).
+      1. **Blindsight bypass (PR #52)** — if `observer.blindsight_range_ft
+         > 0` AND target is within that range, return True. Blindsight
+         doesn't rely on sight at all, so it pierces every visual
+         obstruction (Invisible, fog, darkness, magical darkness,
+         Blinded condition on self, etc.). This is the dominant
+         override.
+      2. False if `observer` is Blinded (and didn't have blindsight to
+         override above).
+      3. If `target` has Invisible:
+           - **PR #52: Truesight in range** bypasses Invisible
+             entirely (both Hide-source and spell-source).
+           - PR #51: Hide-source Invisible (source_action_id=a_hide)
+             can be bypassed by `observer.passive_perception` >=
+             target's recorded `stealth_total`. Spell-source Invisible
+             (Invisibility / Greater Invisibility) is NOT
+             passive-Perception bypassable.
+           - If bypassed (either way), fall through to the remaining
+             gates (fog / darkness still block sight even after a
+             successful spot).
+      4. False if either is in a heavy-obscurement zone (PR #48) —
+         same-zone approximated as still-blocked per RAW. **Truesight
+         does NOT bypass heavy obscurement** (fog is physical, not
+         magical) — only Blindsight does, handled at step 1.
+      5. **PR #52: magical_dark_zones** (Darkness spell etc.):
+           - Ordinary darkvision does NOT pierce magical darkness.
+           - Only Truesight in range (or Blindsight, handled above)
+             bypasses.
+      6. PR #50: ordinary dark zones (no light):
+           - Truesight in range OR Darkvision in range bypasses.
+           - Without either, return False.
         Dim light (PR #50) does NOT block sight — it imposes
         Perception disadvantage, modeled in a future perception PR.
-      - True otherwise
+      7. True otherwise.
 
-    Truesight / Blindsight / per-tile light levels (vs zones) /
-    active-Perception-search-as-action all deferred. When they
-    land, this is the place to extend.
+    Devil's Sight (Warlock invocation — magical-darkness-bypass without
+    truesight) / illusion bypass / shapechanger original-form / per-tile
+    light levels / active-Perception-search-as-action all deferred.
     """
     if observer is None or target is None:
         return False
@@ -230,52 +266,74 @@ def can_actor_see(observer: Actor, target: Actor,
         # condition's own primitives shouldn't gate on whether the
         # invisible creature can see themselves).
         return True
+    # Late import to avoid a circular dependency between vision.py
+    # and geometry.py (geometry imports Actor from state; vision
+    # imports Actor too; both are foundational — keeping geometry
+    # out of the module-level import list keeps the import graph
+    # clean).
+    from engine.core.geometry import distance_ft
+
+    # 1. Blindsight bypass (dominant override). Blindsight perceives
+    # surroundings without sight, so Invisible / fog / darkness / etc.
+    # all yield to it within range.
+    bs_range = int(getattr(observer, "blindsight_range_ft", 0) or 0)
+    if bs_range > 0 and distance_ft(observer, target) <= bs_range:
+        return True
+
     if is_blinded(observer):
         return False
+
+    # Truesight range used by multiple gates below — compute once.
+    ts_range = int(getattr(observer, "truesight_range_ft", 0) or 0)
+    has_truesight_to_target = (
+        ts_range > 0 and distance_ft(observer, target) <= ts_range
+    )
+
     if is_invisible(target):
-        # PR #51: Hide-source Invisible can be auto-spotted by an
-        # observer whose passive Perception meets or beats the
-        # hider's recorded Stealth total. Spell-source Invisible
-        # (Invisibility / Greater Invisibility) bypasses Perception
-        # per RAW — those go straight to False below.
-        hide_conditions = _hide_source_invisibilities(target)
-        if not hide_conditions:
-            return False
-        observer_pp = int(getattr(observer, "passive_perception", 10) or 10)
-        # If ANY Hide-source instance still beats the observer, target
-        # remains hidden. (v1 actors only ever carry one Hide-source
-        # Invisible at a time; loop kept for robustness.)
-        all_spotted = all(
-            observer_pp >= int(c.get("stealth_total", 9999))
-            for c in hide_conditions
-        )
-        if not all_spotted:
-            return False
-        # Else: fall through — observer beat the Stealth roll, so the
-        # remaining vision checks (obscurement / darkness) still apply.
-    # PR #48: heavy obscurement zones block sight. Either-side-in-zone
-    # blocks per RAW (heavily obscured creatures are effectively
-    # Blinded toward whatever's in the obscurement).
+        if not has_truesight_to_target:
+            # PR #51: Hide-source Invisible can be auto-spotted via
+            # passive Perception. Spell-source Invisible has no roll
+            # to beat; only Truesight pierces it.
+            hide_conditions = _hide_source_invisibilities(target)
+            if not hide_conditions:
+                return False
+            observer_pp = int(getattr(observer, "passive_perception", 10) or 10)
+            all_spotted = all(
+                observer_pp >= int(c.get("stealth_total", 9999))
+                for c in hide_conditions
+            )
+            if not all_spotted:
+                return False
+        # Else (truesight or passive-Perception spot): fall through —
+        # the remaining vision checks (obscurement / darkness) still
+        # apply.
+
+    # PR #48: heavy obscurement zones block sight regardless of
+    # Truesight. RAW: truesight sees through magical darkness +
+    # invisibility, NOT through physical obscuring substances. Only
+    # Blindsight pierces fog, and that's handled above.
     if is_in_obscured_zone(target.position, state):
         return False
     if is_in_obscured_zone(observer.position, state):
         return False
-    # PR #50: dark zones + darkvision. Late import to avoid a circular
-    # dependency between vision.py and geometry.py (geometry imports
-    # Actor from state; vision imports Actor too; both are foundational
-    # — keeping geometry out of the module-level import list keeps the
-    # import graph clean).
-    from engine.core.geometry import distance_ft
+
+    # PR #52: magical darkness zones — only Truesight bypasses.
+    # Ordinary darkvision is explicitly NOT sufficient.
+    target_in_mdark = is_in_magical_dark_zone(target.position, state)
+    observer_in_mdark = is_in_magical_dark_zone(observer.position, state)
+    if target_in_mdark or observer_in_mdark:
+        if not has_truesight_to_target:
+            return False
+
+    # PR #50: ordinary dark zones — Truesight OR Darkvision bypasses.
     dv_range = int(getattr(observer, "darkvision_range_ft", 0) or 0)
     target_in_dark = is_in_dark_zone(target.position, state)
     observer_in_dark = is_in_dark_zone(observer.position, state)
     if target_in_dark or observer_in_dark:
-        # Both-in-dark and one-in-dark resolve the same way: observer
-        # needs darkvision that reaches the target. RAW: darkvision
-        # treats darkness within range as dim light (still sees;
-        # Perception disadvantage is a separate, deferred concern).
-        if dv_range <= 0:
-            return False
-        if distance_ft(observer, target) > dv_range:
+        if has_truesight_to_target:
+            pass    # truesight covers it
+        elif dv_range > 0 and distance_ft(observer, target) <= dv_range:
+            pass    # darkvision covers it
+        else:
             return False
     return True

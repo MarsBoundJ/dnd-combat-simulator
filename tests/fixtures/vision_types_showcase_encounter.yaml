@@ -1,0 +1,216 @@
+# Vision-types showcase — four different observers (no senses,
+# darkvision, truesight, blindsight) facing three different targets
+# (visible, invisible, in-magical-darkness) on a map with a magical-
+# darkness zone in the middle.
+#
+# Map layout (x, y):
+#
+#       0   2   4   6   8   10  12  14  16  18  20
+#   0   .   .   .   .   .   .   .   .   .   .   .
+#   2   .  [M] [M] [M]  .   .   .   .   .   .   .
+#   4   .  [M] [M] [M]  .   .   .   .   .   .   .
+#   6   .  [M] [M] [M]  .   .   .   .   .   .   .
+#   8   .   .   .   .   .   .   .   .   .   .   .
+#
+#   [M] = magical darkness zone (x:2-6, y:2-6)
+#
+# Observers along y = 8 looking at targets in the M zone (y = 4):
+#   - human_guard at (10, 8): no senses → can't see into M
+#   - dwarf_fighter at (12, 8): darkvision 60 ft → STILL can't see
+#     into M (RAW: ordinary darkvision can't pierce magical darkness)
+#   - paladin at (14, 8): truesight 60 ft → CAN see into M (pierces
+#     both magical darkness AND any Invisible target inside)
+#   - bat_familiar at (16, 8): blindsight 30 ft → CAN see anything
+#     within 30 ft regardless of M / Invisible / fog (dominant
+#     override)
+#
+# Targets in the M zone at (4, 4): an invisible wizard hiding in
+# magical darkness — the "worst case" for vision.
+#
+# This is a vision-validation fixture: no combat is expected (all
+# actors are flagged as the same side and start far apart with
+# 0 speed). The runner verifies the encounter loads with all
+# senses populated correctly. Vision-truth-table assertions live
+# in tests/test_truesight_blindsight.py.
+
+id: vision_types_showcase_encounter
+
+environment:
+  template: open_battlefield
+  magical_dark_zones:
+    - { x_min: 2, x_max: 6, y_min: 2, y_max: 6 }
+
+actors:
+  # ----- Invisible wizard inside the magical darkness -----
+  - instance_id: invisible_wizard
+    name: Invisible Wizard
+    side: enemy
+    position: [4, 4]
+    template:
+      id: m_inv_wiz
+      name: Invisible Wizard
+      source: user_authored
+      combat:
+        armor_class: 12
+        hit_points:
+          average: 30
+          dice: "5d8"
+          con_contribution: 5
+        speed: { walk: 0 }
+        initiative: { modifier: 30, score: 40 }
+      abilities:
+        str: { score: 8, save: -1 }
+        dex: { score: 14, save: 2 }
+        con: { score: 12, save: 1 }
+        int: { score: 18, save: 8 }
+        wis: { score: 12, save: 1 }
+        cha: { score: 10, save: 0 }
+      cr: { value: 2.0, xp: 450, proficiency_bonus: 2 }
+      behavior_profile:
+        presets:
+          retreat: ftd
+      # Pre-applied Invisible (simulating a cast Invisibility spell)
+      starting_conditions:
+        - condition_id: co_invisible
+          source_action_id: a_invisibility_spell
+      actions:
+        - id: a_idle
+          name: Idle
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: melee, bonus: 0, reach_ft: 5 }
+            - primitive: damage
+              params: { dice: "1d1", modifier: 0, type: bludgeoning }
+              when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  # ----- Human guard: no special senses -----
+  - instance_id: human_guard
+    name: Human Guard
+    side: pc
+    position: [10, 8]
+    template:
+      id: m_human_guard
+      name: Human Guard
+      source: user_authored
+      combat:
+        armor_class: 16
+        hit_points: { average: 30, dice: "5d8", con_contribution: 5 }
+        speed: { walk: 0 }
+        initiative: { modifier: 1, score: 11 }
+      abilities:
+        str: { score: 14, save: 2 }
+        dex: { score: 12, save: 1 }
+        con: { score: 12, save: 1 }
+        int: { score: 10, save: 0 }
+        wis: { score: 10, save: 0 }
+        cha: { score: 10, save: 0 }
+      cr: { value: 1.0, xp: 200, proficiency_bonus: 2 }
+      # No senses block → no special vision
+      behavior_profile: { presets: { retreat: ftd } }
+      actions:
+        - id: a_idle
+          name: Idle
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: melee, bonus: 0, reach_ft: 5 }
+
+  # ----- Dwarf fighter: darkvision 60 ft (NOT enough vs magical) -----
+  - instance_id: dwarf_fighter
+    name: Dwarf Fighter
+    side: pc
+    position: [12, 8]
+    darkvision_range_ft: 60     # racial override
+    template:
+      id: m_dwarf_fighter
+      name: Dwarf Fighter
+      source: user_authored
+      combat:
+        armor_class: 18
+        hit_points: { average: 40, dice: "6d10", con_contribution: 12 }
+        speed: { walk: 0 }
+        initiative: { modifier: 0, score: 10 }
+      abilities:
+        str: { score: 16, save: 5 }
+        dex: { score: 10, save: 0 }
+        con: { score: 16, save: 5 }
+        int: { score: 10, save: 0 }
+        wis: { score: 12, save: 1 }
+        cha: { score: 10, save: 0 }
+      cr: { value: 2.0, xp: 450, proficiency_bonus: 2 }
+      behavior_profile: { presets: { retreat: ftd } }
+      actions:
+        - id: a_idle
+          name: Idle
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: melee, bonus: 5, reach_ft: 5 }
+
+  # ----- Paladin: truesight 60 ft (pierces M AND Invisible) -----
+  - instance_id: paladin
+    name: Paladin
+    side: pc
+    position: [14, 8]
+    truesight_range_ft: 60       # Find Steed / divine boon override
+    template:
+      id: m_paladin
+      name: Paladin
+      source: user_authored
+      combat:
+        armor_class: 18
+        hit_points: { average: 50, dice: "7d10", con_contribution: 14 }
+        speed: { walk: 0 }
+        initiative: { modifier: 0, score: 10 }
+      abilities:
+        str: { score: 16, save: 5 }
+        dex: { score: 10, save: 0 }
+        con: { score: 16, save: 5 }
+        int: { score: 10, save: 0 }
+        wis: { score: 12, save: 1 }
+        cha: { score: 16, save: 5 }
+      cr: { value: 3.0, xp: 700, proficiency_bonus: 2 }
+      behavior_profile: { presets: { retreat: ftd } }
+      actions:
+        - id: a_idle
+          name: Idle
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: melee, bonus: 5, reach_ft: 5 }
+
+  # ----- Bat familiar: blindsight 30 ft (dominant within range) -----
+  - instance_id: bat_familiar
+    name: Bat Familiar
+    side: pc
+    position: [16, 8]
+    template:
+      id: m_bat_familiar
+      name: Bat Familiar
+      source: user_authored
+      combat:
+        armor_class: 12
+        hit_points: { average: 1, dice: "1d4", con_contribution: -1 }
+        speed: { walk: 0 }
+        initiative: { modifier: 2, score: 12 }
+      senses:
+        passive_perception: 11
+        special:
+          blindsight: 30         # template-sourced
+      abilities:
+        str: { score: 2, save: -4 }
+        dex: { score: 15, save: 2 }
+        con: { score: 8, save: -1 }
+        int: { score: 2, save: -4 }
+        wis: { score: 12, save: 1 }
+        cha: { score: 4, save: -3 }
+      cr: { value: 0, xp: 10, proficiency_bonus: 2 }
+      behavior_profile: { presets: { retreat: ftd } }
+      actions:
+        - id: a_idle
+          name: Idle
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: melee, bonus: 0, reach_ft: 5 }
