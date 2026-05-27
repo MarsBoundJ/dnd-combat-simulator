@@ -5,6 +5,85 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-27 — AI eHP scoring for Hide + Search (PR #59)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Closes two scoring residues at once: PR #48 (Hide had no scorer,
+  defaulted to 0) and PR #55 (Search relied on gated emission with
+  no real eHP value). Both now have first-class eHP scoring that
+  competes against weapon_attack candidates on the same scale.
+- **Hide value model** (`offensive_ehp_hide`):
+  - Gate check: returns 0 if neither heavy obscurement nor 3/4+
+    cover is satisfied (matches the `_execute_hide` runtime guard).
+  - `p_success` = probability the Stealth roll (d20 + skill_mod)
+    meets DC 15.
+  - `p_evade_perception` = fraction of enemies whose passive
+    Perception is below the expected stealth_total (those who
+    can't auto-spot via PR #51's check).
+  - Offensive value = own `estimate_per_attack_damage(actor)` ×
+    `DELTA_HIT_FROM_ADVANTAGE` (one boosted attack from Invisible
+    advantage next turn — RAW: Hide ends on attack, so we only
+    score one swing).
+  - Defensive value = sum over enemies in their own threat range
+    (speed + reach) of `enemy_per_attack_damage ×
+    DELTA_HIT_FROM_ADVANTAGE` (each enemy attacks at disadvantage
+    while we're Invisible).
+  - Total = `(offensive + defensive) × p_evade × p_success`.
+- **Search value model** (`offensive_ehp_search`):
+  - For each Hide-source-Invisible enemy, computes p_reveal =
+    P(d20 + perception_mod >= stealth_total).
+  - Multiplies by own per-attack damage (proxy for "value
+    unlocked by being able to target them next turn").
+  - Spell-source Invisible explicitly NOT counted (only Hide is
+    Perception-bypassable per RAW).
+  - Conservative: doesn't subtract lost current-turn DPR — that
+    opportunity cost is captured implicitly by competing against
+    weapon_attack on the same scale.
+- **New module helpers** exposed for test reuse:
+  - `_stealth_success_probability(mod)` → P(d20+mod >= 15)
+  - `_expected_stealth_total(mod)` → 11 + mod (success-conditional
+    d20 average proxy)
+  - `HIDE_DC = 15` constant
+- **`score_candidate` dispatch** extended with two new branches:
+  `kind='hide'` and `kind='search'`. Each falls through to the
+  new scorer.
+- **`pipeline.generate_candidates`** now emits `kind='search'`
+  candidates for explicit `type: search` actions on the actor's
+  template (the built-in Search continues to be injected by
+  `built_in_actions_for` with the same gated-emission logic from
+  PR #55). The hide candidate comment updated to reflect that PR
+  #59 brings real scoring.
+- **Tests (23 new in `test_hide_search_scoring.py`):**
+  - `_stealth_success_probability`: DC constant, mod 0 → 6/20,
+    mod +5 → 11/20, mod +15 → auto-pass, negative mod → low prob,
+    very-negative → 0
+  - `offensive_ehp_hide`: gate-fail returns 0, no-enemies returns
+    0, all-auto-spot returns 0, heavy obscurement + evading enemy
+    → positive, 3/4 cover also triggers, higher stealth → higher
+    score, out-of-range enemies don't contribute to defensive
+  - `offensive_ehp_search`: no-hidden returns 0, no-attacks
+    returns 0, low-stealth + high-perception → high score, high
+    stealth → lower score, multiple enemies sum, spell-Invisible
+    not counted, mixed-Invisible only Hide counted
+  - `score_candidate`: kind='hide' and kind='search' route
+    correctly
+  - `pipeline`: explicit search action emits candidate
+- 962 tests pass (+23 new, 1 skip, no regressions).
+
+**Future-roadmap items (recorded, not in this PR):**
+- Opportunity-cost subtraction for Search (lost current-turn DPR)
+- Per-enemy weighted defensive value for Hide (each enemy's
+  auto-spot probability, not coarse fraction)
+- Expected-stealth-total based on success-conditional d20 average
+  (v1 uses 11+mod proxy)
+- Per-target enemy DPR estimation including their actual
+  movement-to-engage capability (v1 assumes if in range, they
+  attack)
+
+---
+
 ## Session: 2026-05-26 — Cleave / Push / Slow masteries (PR #58)
 
 **Participants:** Phil, Claude

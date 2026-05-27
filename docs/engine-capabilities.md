@@ -680,6 +680,47 @@ priority order:
    Rebuke**~~ — **Shipped in PR #45.**
 18. ~~**Counterspell + cast-event infra**~~ — **Shipped in PR #46.**
 19. ~~**Vision system v1**~~ — **Shipped in PR #47.**
+31. ~~**AI eHP scoring for Hide + Search**~~ — **Shipped in PR #59.**
+   Closes the residues from PR #48 (Hide had no scorer; returned 0
+   by default) and PR #55 (Search relied on gated emission, no
+   real eHP value). New `offensive_ehp_hide` and
+   `offensive_ehp_search` in `engine/ai/ehp_scoring.py`.
+   - **Hide value model:** `p_success_stealth × p_evade_perception ×
+     (offensive_value + defensive_value)`. Offensive value = own
+     per-attack damage × `DELTA_HIT_FROM_ADVANTAGE` (one boosted
+     attack from Invisible advantage next turn). Defensive value
+     = sum over in-threat-range enemies of `enemy_dpr ×
+     DELTA_HIT_FROM_ADVANTAGE` (each enemy attacks at disadvantage
+     while we're Invisible). Returns 0 when gate fails (no heavy
+     obscurement AND no 3/4+ cover), no enemies, or all enemies
+     auto-spot via passive Perception.
+   - **Search value model:** `Σ_hidden_enemies(p_perception_success
+     × own_per_attack_damage)`. Conservative — doesn't subtract
+     lost current-turn DPR (opportunity cost captured implicitly
+     by competing against weapon_attack candidates on the same
+     scale). Spell-source Invisible NOT counted (only Hide-source
+     per RAW). Returns 0 when no Hide-source hidden enemies exist
+     or the actor has no scorable attacks.
+   - `score_candidate` dispatch extended: `kind='hide'` →
+     `offensive_ehp_hide`; `kind='search'` → `offensive_ehp_search`.
+   - `pipeline.generate_candidates` now emits search candidates for
+     explicit `type: search` actions on the actor's template
+     (built-in Search continues to be emitted by
+     `built_in_actions_for` with its own gated emission).
+   - New helpers `_stealth_success_probability(mod)` and
+     `_expected_stealth_total(mod)` exposed at module level for
+     test reuse.
+   - 23 new tests across the probability helper, hide scoring (gate
+     fail / no enemies / all auto-spot / heavy obscurement / 3/4
+     cover / higher stealth / out-of-range enemies), search
+     scoring (no targets / no attacks / low-vs-high stealth_total /
+     multiple enemies / spell-Invisible-ignored / mixed-Invisible-
+     only-Hide), dispatch routing, and candidate emission.
+   - Deferred refinements: opportunity-cost subtraction for Search
+     (lost current-turn DPR), per-enemy weighted defensive value
+     (each enemy's auto-spot probability, not just a coarse
+     fraction), expected-stealth-total based on success-conditional
+     d20 average (v1 uses a simple 11+mod proxy).
 30. ~~**Cleave / Push / Slow weapon masteries**~~ — **Shipped in
    PR #58.** Closes the Weapon Mastery arc with the three
    remaining v1 properties. `DEFERRED_MASTERIES` is now empty.
