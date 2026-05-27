@@ -680,6 +680,35 @@ priority order:
    Rebuke**~~ — **Shipped in PR #45.**
 18. ~~**Counterspell + cast-event infra**~~ — **Shipped in PR #46.**
 19. ~~**Vision system v1**~~ — **Shipped in PR #47.**
+28. ~~**Pace-aware reactions (Shield / Counterspell / Hellish Rebuke)**~~
+   — **Shipped in PR #56.** Closes the always-fire residue from
+   PR #45 and PR #46. `engine/core/feature_pacing.py` gains
+   `reaction_cost_ehp(slot_level, slots_remaining, encounters_
+   remaining)` — same `scarcity × urgency × base_cost` shape as
+   `feature_use_cost_ehp`, with a per-slot-level base cost table
+   (`REACTION_SLOT_BASE_COSTS`, levels 1-9). New
+   `engine/ai/reaction_scoring.py` module with per-reaction value
+   estimators:
+   - `shield_value_ehp` — estimates the attacker's best weapon DPR
+     (Shield converts hit → miss, so value = avoided damage)
+   - `counterspell_value_ehp` — uses the target spell's slot level
+     via the same base-cost curve
+   - `hellish_rebuke_value_ehp` — 2d10 fire avg with ~50% save
+     rate, modulated by fire resistance / immunity / vulnerability
+   `estimate_reaction_value_ehp` dispatch returns `float("inf")`
+   for unknown reactions (forward-compat: always-fire for reactions
+   not yet scored). `reactions.try_use_reaction` gates after
+   resource availability checks but before pipeline execution: if
+   `cost > value`, skip and log `reaction_skipped_pace` with
+   diagnostic fields. Bypassable via `signature_reaction: true`
+   on the action (always fire when eligible) or `slot_level == 0`
+   (OA-shape reactions never weighed). Existing reaction tests
+   still pass (cost ≤ value for all in-fixture scenarios with
+   typical slot loadouts and 3 encounters remaining). 36 new
+   tests across the cost formula, three value estimators, dispatch
+   logic, and `try_use_reaction` gate behavior (skip-on-high-cost,
+   fire-on-high-value, signature override, last-encounter cost
+   drop, many-slots cost drop, skip-event diagnostics).
 27. ~~**Active Search action + AI gated emission**~~ — **Shipped in
    PR #55.** First non-damage information action. New built-in
    `BUILT_IN_SEARCH` (type=search, slot=action) injected by

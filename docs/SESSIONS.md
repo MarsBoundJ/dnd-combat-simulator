@@ -5,6 +5,96 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-26 — Pace-aware reactions (PR #56)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Closes the always-fire-reactions residue from PR #45 (reaction
+  infra) and PR #46 (Counterspell). Pre-scoped tight: reactions
+  only; Hide / Search AI scoring deferred to a future PR.
+- **`engine/core/feature_pacing.py` extension:**
+  - New `REACTION_SLOT_BASE_COSTS` dict (levels 1-9 with eHP
+    values calibrated to spell potency). Tunable per-call.
+  - New `reaction_cost_ehp(slot_level, slots_remaining,
+    encounters_remaining, base_cost_per_level=None)` — same
+    `scarcity × urgency × base_cost` shape as
+    `feature_use_cost_ehp`, slot-level-aware.
+- **New `engine/ai/reaction_scoring.py` module:**
+  - `_dice_avg` helper: parses dice expressions like "2d6" → 7.0
+  - `_estimate_attack_damage(attacker)` — scans
+    `template.actions` for weapon_attack actions and returns the
+    highest expected damage (dice avg + flat modifier)
+  - `shield_value_ehp` — uses `_estimate_attack_damage` because
+    the Shield condition (`shield_would_help`) already guarantees
+    the attack converts hit → miss; value = avoided damage.
+    Returns `float("inf")` when attacker is missing (defensive)
+    or has no scorable attacks (fall back to always-fire).
+  - `counterspell_value_ehp` — reads `event_data.spell_slot_level`
+    (with `spell_level` fallback for test-shaped event_data) and
+    returns the corresponding base cost. RAW intuition: same-
+    level counterspell trades value-for-value.
+  - `hellish_rebuke_value_ehp` — 2d10 fire (avg 11) with ~50%
+    save rate → 8.25 eHP; modulated by attacker's fire
+    resistance / immunity / vulnerability. Returns inf when
+    attacker is missing.
+  - `estimate_reaction_value_ehp` dispatch:
+    `a_shield` → `shield_value_ehp`,
+    `a_counterspell` → `counterspell_value_ehp`,
+    `a_hellish_rebuke` → `hellish_rebuke_value_ehp`,
+    anything else → `float("inf")` (forward-compat for unscored
+    reactions; preserves v1 always-fire semantics for them).
+- **`reactions.try_use_reaction` pace gate** added after the
+  spell-slot + feature-use availability checks but BEFORE pipeline
+  execution. Compares `cost` to `value` from the module above;
+  if cost > value, log `reaction_skipped_pace` (with cost/value/
+  slot diagnostics) and return False. Resources NOT consumed on
+  skip. Bypassed when:
+  - `slot_level == 0` (no slot → no opportunity cost; OA-shape
+    reactions always fire on availability)
+  - `action.signature_reaction == True` (escape hatch; rarely
+    used but available for hand-tuned monsters)
+- **One discovered bug fixed during integration:** the initial
+  `counterspell_value_ehp` read `event_data.spell_level` but the
+  pipeline emits `spell_slot_level`. Added both-key fallback for
+  robustness (some tests use the shorter key). Pinned with
+  `test_fallback_to_spell_level_key`.
+- **Test default `encounters_remaining_today = 3`** kept by design
+  — matches the framework's mid-day baseline. All existing
+  reaction tests pass cleanly under the new gate at default
+  slot loadouts.
+- **Tests (36 new in `test_pace_aware_reactions.py`):**
+  - `reaction_cost_ehp` formula: zero-slot-level, zero-slots,
+    scarcity scales cost up, urgency scales cost up, last-
+    encounter cost drop, higher slot levels cost more, custom
+    base-cost map override, slot-level-above-table clamps
+  - `shield_value_ehp`: missing attacker → inf, attacker with no
+    attacks → inf, DPR estimate correct, picks highest among multi
+  - `counterspell_value_ehp`: spell_slot_level used, fallback to
+    spell_level, default-when-missing, high-level clamp
+  - `hellish_rebuke_value_ehp`: missing attacker → inf, default
+    8.25, immunity zeros, resistance halves, vulnerability doubles
+  - `estimate_reaction_value_ehp` dispatch: unknown reaction →
+    inf, each known reaction dispatches correctly
+  - `try_use_reaction` gate: cost > value skips with no slot
+    consumption, value > cost fires, last-encounter lowers cost,
+    `signature_reaction: true` bypasses, many slots lowers cost,
+    skip event diagnostics complete
+- 894 tests pass (+36, no regressions).
+
+**Future-roadmap items (recorded, not in this PR):**
+- Calibration of `REACTION_SLOT_BASE_COSTS` against
+  Treantmonk damage rankings (current values are eyeballed)
+- AI scoring for Hide and Search (real eHP, not just gated
+  emission) — closes residue from PRs #48 and #55
+- More reaction-aware value estimators when new reactions land
+  (e.g., Silvery Barbs, Resilient subclass features)
+- "Boss alarm" / Difficulty-aware activation — let the AI
+  recognize a high-CR enemy as worth burning reactions on even
+  when pacing would normally suppress them
+
+---
+
 ## Session: 2026-05-26 — Active Search action + AI gated emission (PR #55)
 
 **Participants:** Phil, Claude
