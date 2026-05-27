@@ -286,14 +286,29 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
     # state.current_attack.action.pipeline (set by the pipeline at
     # execution time). Safe to read-or-default to ranged/None gate.
     from engine.core import rage as _rage
+    attack_params = _extract_attack_params(state)
     if _rage.is_raging(actor):
-        attack_params = _extract_attack_params(state)
         if _rage.applies_rage_damage_bonus(actor, attack_params):
             total = rolled + modifier + actor.rage_damage_bonus
         else:
             total = rolled + modifier
     else:
         total = rolled + modifier
+
+    # PR #72: Sneak Attack rider. Fires on hit/crit only (this
+    # branch only runs when the `when: combat.attack_state == hit`
+    # filter passes, which is enforced by the pipeline before
+    # _damage is invoked — but we double-check here for direct-call
+    # callers like tests). Adds 0 if the actor doesn't qualify
+    # (non-Rogue, already-used-this-turn, non-finesse-non-ranged,
+    # or trigger condition not met).
+    from engine.core import sneak_attack as _sa
+    sa_state = state.current_attack.get("state")
+    if sa_state in ("hit", "crit"):
+        sa_damage = _sa.try_apply_sneak_attack(
+            actor, target, state, attack_params, rng,
+            is_crit=(sa_state == "crit"))
+        total += sa_damage
 
     # Resistance / vulnerability / immunity (template-level)
     template = target.template or {}
