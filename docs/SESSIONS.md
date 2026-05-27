@@ -5,6 +5,84 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-27 — Hunger of Hadar + Cloudkill (PR #68)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Closes the "other zone-creating spells" residue from PR #60.
+  Two SRD spells ship that exercise the `creates_zone` hook with
+  a NEW zone type (`heavy_obscurement`, alongside the existing
+  `magical_dark`).
+- **`_persistent_aura` generalization:**
+  - New module-level `_CREATES_ZONE_TO_ENV_KEY` dict maps the
+    creates_zone string to the environment list key:
+    `"magical_dark" → magical_dark_zones`,
+    `"heavy_obscurement" → heavily_obscured_zones`.
+  - Body of the creates_zone branch refactored to look up the
+    env_key from the dict; raises with the known list on
+    unknown values. Future zone types (Stinking Cloud, Silence,
+    Web, difficult_terrain) extend the dict.
+- **`concentration.end_concentration` generalization:**
+  - Replaces the magical_dark_zones-only scrub with a loop over
+    a list of scrubbable zone keys (currently
+    magical_dark_zones + heavily_obscured_zones). Each iter
+    runs the same caster_id + action_id matcher.
+  - Listed in concentration.py (not imported from primitives)
+    to keep the engine.core → primitives import direction
+    one-way. A drift hazard but lightweight; documented in a
+    code comment.
+- **`f_hunger_of_hadar.yaml`** (Warlock 3rd):
+  - 20-ft sphere of magical darkness + per-turn damage.
+  - RAW says 2d6 Cold (no save) + 2d6 Acid (STR save half) per
+    turn. v1 models as a single CON save: 4d6 cold on fail,
+    2d6 cold on success. The combined cold/acid damage and the
+    STR-vs-CON save are approximated for runtime simplicity.
+  - The "Acid save = STR" RAW detail deferred — primitive's
+    `ability=constitution` is the closest existing fit for
+    "this hurts you" saves.
+- **`f_cloudkill.yaml`** (Wizard 5th):
+  - 20-ft sphere of heavily-obscuring poison fog + per-turn
+    damage.
+  - RAW: 5d8 Poison CON save (half on success).
+  - Cloud movement (10 ft/round away from caster) deferred —
+    same shape as Moonbeam's deferred bonus-action movement.
+  - Upcast scaling deferred (+1d8 per slot above 5).
+- **Vision integration via existing infra:**
+  - Cloudkill's `heavy_obscurement` blocks ordinary sight +
+    truesight (RAW: fog is physical; only Blindsight pierces).
+  - HoH's `magical_dark` blocks ordinary darkvision; Truesight
+    + Blindsight pierce.
+  - PR #60's sphere-shape support in `_position_in_any_zone`
+    Just Works™ — no vision.py changes needed.
+- **Tests (17 new in `test_zone_spells.py`):**
+  - `_CREATES_ZONE_TO_ENV_KEY` mapping completeness for both
+    zone types
+  - `_persistent_aura` with creates_zone=heavy_obscurement
+    appends a sphere zone correctly
+  - magical_dark regression (existing path still works)
+  - Unknown creates_zone value raises with known-list
+  - `end_concentration` scrubs both types; preserves static
+    zones; multi-caster independent
+  - Cloudkill vision: blocked for ordinary; not pierced by
+    truesight; pierced by blindsight; helper recognizes sphere
+  - HoH vision: blocked for darkvision; pierced by truesight
+    in range; helper recognizes sphere
+  - YAML files load + match expected shape
+- 1139 tests pass (+17 new, 1 skip, no regressions).
+
+**Future-roadmap items (recorded, not in this PR):**
+- HoH RAW dual-save mechanic (STR vs Acid + always-on Cold) —
+  v1 combines as one CON save event for runtime simplicity
+- Cloudkill wind-direction movement
+- Upcast scaling (Cloudkill: +1d8 per slot above 5)
+- AI scoring for HoH / Cloudkill (PR #61's Darkness scoring
+  would generalize but doesn't yet handle damage+zone hybrids)
+- More zone-creating spells (Stinking Cloud, Silence, Web,
+  Fog Cloud) — the hook is ready
+
+---
+
 ## Session: 2026-05-27 — REACTION_SLOT_BASE_COSTS calibration (PR #67)
 
 **Participants:** Phil, Claude

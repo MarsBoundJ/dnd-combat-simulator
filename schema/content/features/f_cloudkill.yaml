@@ -1,0 +1,76 @@
+# f_cloudkill — Cloudkill (Wizard 5th-level, SRD CC v5.2.1)
+#
+# RAW summary: A 20-ft-radius Sphere of yellow-green fog centered on
+# a point within 120 ft. The fog spreads around corners; its area is
+# heavily obscured. When a creature enters the area for the first
+# time on a turn or starts its turn there, it makes a CON save:
+# 5d8 Poison damage on fail, half on success. Concentration, up to
+# 10 minutes. Cloud moves 10 ft per round away from the caster (or
+# in the prevailing wind direction).
+#
+# Engine modeling (PR #68):
+#   - type: persistent_aura with creates_zone=heavy_obscurement
+#     (the fog is heavily obscured per RAW — vision into / out of
+#     the sphere is blocked except via blindsight).
+#   - shape: sphere, radius_ft: 20, anchor: point
+#   - CON save vs spell DC; 5d8 poison on fail, half on success.
+#   - Triggers at turn_start_in_area (the "enters first time on
+#     turn" mechanic is approximated via turn_start only — same
+#     simplification as Moonbeam).
+#
+# Deferred RAW bits:
+#   - Cloud movement: RAW says the sphere moves 10 ft per round
+#     away from caster (or wind direction). v1 keeps it static
+#     at the cast point — Moonbeam has the same deferred movement.
+#   - "Enters first time on turn" trigger; v1 only fires on
+#     turn_start in area
+#   - "Spreads around corners" — the sphere shape already covers
+#     the area; corner-wrapping would matter only with terrain
+#     blocking, which v1 doesn't model.
+#   - Upcast scaling (+1d8 per slot level above 5); v1 doesn't
+#     yet model upcast.
+
+id: f_cloudkill
+name: Cloudkill
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 9                 # Wizards gain access to 5th-level slots at L9
+type: active
+spell:
+  class: c_wizard
+  level: 5
+
+description: |
+  20-ft radius sphere of heavily-obscuring poison fog. CON save vs
+  spell DC at each creature's turn-start in area: 5d8 poison on
+  fail, half on success. Concentration, 10 minutes.
+
+action_template:
+  id: a_cloudkill
+  name: Cloudkill
+  type: persistent_aura
+  spell_slot_level: 5
+  concentration: true
+  named_effect: cloudkill
+  area:
+    shape: sphere
+    radius_ft: 20
+    range_ft: 120
+  pipeline:
+    - primitive: persistent_aura
+      params:
+        shape: sphere
+        radius_ft: 20
+        anchor: point
+        trigger_event: target_turn_start_in_area
+        affected: all_creatures
+        ability: constitution
+        dc: 15                  # caster's spell save DC; fixture-overridable
+        on_fail:
+          - primitive: damage
+            params: { dice: "5d8", type: poison }
+        on_success:
+          - primitive: damage
+            params: { dice: "5d8", type: poison, multiplier: 0.5 }
+        creates_zone: heavy_obscurement

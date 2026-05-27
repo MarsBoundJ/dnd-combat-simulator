@@ -680,6 +680,44 @@ priority order:
    Rebuke**~~ — **Shipped in PR #45.**
 18. ~~**Counterspell + cast-event infra**~~ — **Shipped in PR #46.**
 19. ~~**Vision system v1**~~ — **Shipped in PR #47.**
+40. ~~**Hunger of Hadar + Cloudkill (zone-spell extensions)**~~ —
+   **Shipped in PR #68.** Closes the "other zone-creating
+   spells" residue from PR #60. Two SRD spells ship that
+   exercise the `creates_zone` hook with a new zone type
+   (`heavy_obscurement` alongside `magical_dark`).
+   - `_persistent_aura` extended via a new
+     `_CREATES_ZONE_TO_ENV_KEY` mapping: `"magical_dark"` →
+     `magical_dark_zones`, `"heavy_obscurement"` →
+     `heavily_obscured_zones`. Future zone types (e.g.,
+     `difficult_terrain`) extend the dict.
+   - `concentration.end_concentration` generalized to scrub ALL
+     zone-type lists when a caster's aura drops (not just
+     `magical_dark_zones`). Statically-declared zones (no
+     caster_id stamp) still preserved.
+   - **`f_hunger_of_hadar.yaml`** (Warlock 3rd): 20-ft sphere of
+     magical darkness + 2d6 cold per turn (no save) + 2d6 acid
+     CON save. v1 models the combined damage as 4d6 cold on
+     fail / 2d6 cold on success (the dual-save mechanic deferred
+     for runtime clarity).
+   - **`f_cloudkill.yaml`** (Wizard 5th): 20-ft sphere of
+     heavily-obscuring poison fog + 5d8 poison CON save (half
+     on success). Cloud movement (RAW: 10 ft/round away from
+     caster) deferred — same as Moonbeam.
+   - Vision integration: Cloudkill's heavy obscurement blocks
+     ordinary sight + truesight (RAW: fog is physical, not
+     magical); blindsight pierces. HoH's magical darkness
+     blocks ordinary darkvision; truesight pierces; blindsight
+     pierces.
+   - 17 new tests across the mapping, the new zone-creation
+     path, magical_dark regression, unknown-type rejection,
+     end_concentration scrub (both types + static preserved +
+     multi-caster), Cloudkill + HoH vision integration, and
+     YAML loading.
+   - Deferred refinements: HoH RAW dual STR/Acid + always-Cold
+     save mechanic (v1 combines as one CON-save event);
+     Cloudkill wind-direction movement; upcast scaling; spell-
+     created zone AI scoring (Darkness scoring from PR #61
+     would extend to these but doesn't yet).
 39. ~~**REACTION_SLOT_BASE_COSTS calibration**~~ — **Shipped in
    PR #67.** Closes the PR #56 residue. Per-slot-level base eHP
    costs recalibrated from eyeballed values (4/6/10/14/18/22/26/

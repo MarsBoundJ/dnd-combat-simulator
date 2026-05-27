@@ -1,0 +1,80 @@
+# f_hunger_of_hadar — Hunger of Hadar (Warlock 3rd-level, SRD CC v5.2.1)
+#
+# RAW summary: A 20-ft-radius Sphere of otherworldly darkness centered
+# on a point within 150 ft. The area is filled with absolute darkness;
+# no light can illuminate it. Each creature that starts its turn in
+# the area takes 2d6 Cold damage. Each creature that enters the area
+# for the first time on a turn or starts its turn there must make a
+# Strength save or take 2d6 Acid damage (no save = no damage).
+# Concentration, up to 1 minute.
+#
+# Engine modeling (PR #68):
+#   - type: persistent_aura with creates_zone=magical_dark
+#     (the absolute darkness is treated as magical darkness; ordinary
+#     darkvision can't pierce per RAW).
+#   - shape: sphere, radius_ft: 20, anchor: point
+#   - Per-turn damage: 2d6 Cold (no save) — uses ability=none.
+#   - Acid save-or-suffer modeled in v1 as a CON save (we approximate
+#     the STR-or-Acid as a CON-save shape — close enough for damage
+#     estimation purposes). The RAW STR/DEX-flavored save is a
+#     deferred refinement.
+#
+# Deferred RAW bits:
+#   - Acid save = STR vs spell DC; v1 uses CON (the primitive's most
+#     common save ability for "this hurts you")
+#   - Two distinct per-turn damage events (cold + acid); v1 models
+#     as one combined event with cold typing
+#   - "Enters the area for first time on a turn" trigger; v1 only
+#     fires on turn_start in area
+#   - Vision: the spell is described as "filled with otherworldly
+#     darkness"; we treat as magical darkness. RAW doesn't
+#     explicitly call out truesight, but the spirit of the spell
+#     matches.
+
+id: f_hunger_of_hadar
+name: Hunger of Hadar
+source: srd_5.2.1
+granted_by:
+  class: c_warlock
+  level: 5                 # Warlocks gain access to 3rd-level Pact slots at L5
+type: active
+spell:
+  class: c_warlock
+  level: 3
+
+description: |
+  20-ft radius sphere of magical darkness. Each turn-start in area:
+  2d6 Cold + CON save vs 2d6 Acid (half on save). Concentration,
+  1 minute.
+
+action_template:
+  id: a_hunger_of_hadar
+  name: Hunger of Hadar
+  type: persistent_aura
+  spell_slot_level: 3
+  concentration: true
+  named_effect: hunger_of_hadar
+  area:
+    shape: sphere
+    radius_ft: 20
+    range_ft: 150
+  pipeline:
+    - primitive: persistent_aura
+      params:
+        shape: sphere
+        radius_ft: 20
+        anchor: point
+        trigger_event: target_turn_start_in_area
+        affected: all_creatures
+        ability: constitution
+        dc: 15                  # caster's spell save DC; fixture-overridable
+        on_fail:
+          # Combined cold + acid damage on failed save (v1 approximation
+          # for the RAW STR-or-Acid + always-Cold dual mechanic).
+          - primitive: damage
+            params: { dice: "4d6", type: cold }
+        on_success:
+          # Just the always-on cold component
+          - primitive: damage
+            params: { dice: "2d6", type: cold }
+        creates_zone: magical_dark
