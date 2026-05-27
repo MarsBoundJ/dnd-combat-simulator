@@ -1,0 +1,76 @@
+# c_barbarian — Barbarian (minimal v1)
+# Source: SRD CC v5.2.1 (PHB 2024)
+#
+# **Minimal class definition** (PR #64). Only the data needed to
+# support Weapon Mastery wiring is included:
+#   - core_traits: hit_die, save_proficiencies, weapon/armor profs
+#   - level_table: PB per level + weapon_mastery_count progression
+#     + f_weapon_mastery feature reference at L1
+#
+# Other Barbarian features (Rage, Reckless Attack, Danger Sense,
+# Brutal Strike, etc.) are NOT yet wired. Each becomes its own
+# follow-on PR when it lands. Action Surge / Second Wind do not
+# apply (Fighter-only).
+#
+# Weapon Mastery RAW (Barbarian): 2 at L1, 3 at L4. The
+# class_resources.weapon_mastery_count tracks the per-level cap;
+# pc_schema's _validate_weapon_masteries_cap raises if the PC
+# declares more than this.
+
+id: c_barbarian
+name: Barbarian
+source: srd_5.2.1
+
+core_traits:
+  primary_abilities: [strength, constitution]
+  hit_die: d12
+  save_proficiencies: [strength, constitution]
+  skill_proficiencies:
+    choose: 2
+    from: [animal_handling, athletics, intimidation, nature,
+            perception, survival]
+  weapon_proficiencies: [simple, martial]
+  armor_training: [light, medium, shields]
+  tool_proficiencies: []
+
+multiclass_entry:
+  traits_gained: [hit_die, martial_weapons, light_armor, medium_armor, shields]
+  features_gained: [f_weapon_mastery]
+  multiclass_slot_contribution: none
+
+# No spellcasting at the base class. Barbarians don't gain spell
+# slots; subclasses (Path of the World Tree, etc.) may grant
+# limited spell access at higher tiers.
+
+level_table:
+  - level: 1
+    proficiency_bonus: 2
+    features: [f_weapon_mastery]
+    class_resources: { weapon_mastery_count: 2 }
+  - level: 2
+    proficiency_bonus: 2
+    features: []
+    class_resources: { weapon_mastery_count: 2 }
+  - level: 3
+    proficiency_bonus: 2
+    features: [grant_subclass]
+    class_resources: { weapon_mastery_count: 2 }
+  - level: 4
+    proficiency_bonus: 2
+    features: [grant_asi_or_feat]
+    class_resources: { weapon_mastery_count: 3 }
+  - level: 5
+    proficiency_bonus: 3
+    features: []
+    class_resources: { weapon_mastery_count: 3 }
+
+subclass_grant_level: 3
+
+# Deferred class features (PR scope-tracking only):
+#   - Rage (uses + damage bonus + resistance) — needs concentration-
+#     adjacent infra
+#   - Reckless Attack (advantage + grant advantage to attackers)
+#   - Danger Sense (advantage on DEX saves vs visible effects)
+#   - Unarmored Defense (AC formula change)
+#   - Brutal Strike (2024 PHB; trade-off mechanic on attacks)
+#   - Subclass paths (Berserker / Wild Heart / World Tree / Zealot)

@@ -680,6 +680,51 @@ priority order:
    Rebuke**~~ — **Shipped in PR #45.**
 18. ~~**Counterspell + cast-event infra**~~ — **Shipped in PR #46.**
 19. ~~**Vision system v1**~~ — **Shipped in PR #47.**
+36. ~~**Other-class Weapon Mastery wirings + cap enforcement**~~ —
+   **Shipped in PR #64.** Closes the PR #54 residue that left
+   Weapon Mastery wired on Fighter only. All five RAW-mastery-
+   knowing classes (Fighter / Barbarian / Paladin / Ranger /
+   Rogue) now have class YAMLs with the proper
+   `weapon_mastery_count` progression baked into their
+   `level_table`. Also enforces the class-level cap at build
+   time — closes another PR #54 residue ("v1 trusts the spec").
+   - New minimal class YAMLs: `c_barbarian.yaml`, `c_paladin.yaml`,
+     `c_ranger.yaml`, `c_rogue.yaml`. Each carries
+     `core_traits` (hit_die, save_proficiencies, weapon/armor
+     profs) + a `level_table` with `weapon_mastery_count` per
+     RAW progression. Other class features (Rage / Lay on Hands /
+     Sneak Attack / etc.) deferred — each becomes a follow-on
+     PR when its mechanic lands. Each YAML lists deferred
+     features in comments so future PR authors have a checklist.
+   - RAW progressions baked: Barbarian 2@L1, 3@L4; Paladin 2@L1,
+     3@L11; Ranger 2@L1, 3@L9; Rogue 1@L1, 2@L9. (Fighter
+     unchanged: 3@L1, 4@L4, 5@L10, 6@L16.)
+   - New `pc_schema._validate_weapon_masteries_cap(masteries,
+     class_def, level, class_id)` helper. Reads the highest-
+     applicable `class_resources.weapon_mastery_count` from the
+     class's level_table; raises if `len(masteries)` exceeds it
+     with a clear message naming the class + level + cap.
+     Carries forward through gap rows (Paladin L6-L10 inherit
+     L5's cap of 2). Wizard / non-mastery classes → cap=0;
+     declaring any masteries raises with a "pick a class that
+     grants Weapon Mastery" hint.
+   - Empty `weapon_masteries` list always legal (declaring zero
+     masteries works for any class).
+   - One existing test fixed: `test_nick_mastery.py`'s mock
+     Fighter class def now declares `weapon_mastery_count: 3`
+     so its tests can declare 1 mastery without tripping the
+     new cap.
+   - 29 new tests across class YAML loading, per-level
+     progression for each of the four classes, cap validator
+     (empty / at-cap / under-cap / over-cap / Wizard / carry-
+     forward), and end-to-end `build_pc_template` for
+     Barbarian + Rogue + Paladin + Ranger with at-cap and
+     over-cap cases.
+   - Deferred: full class spec content (Rage / Sneak Attack /
+     Divine Smite / Favored Enemy / etc. — each its own PR);
+     auto-emission of Expertise choices from the Rogue level
+     table (PR #62 wired the mechanic; the class table just
+     names which levels grant it).
 35. ~~**Blind Fighting style**~~ — **Shipped in PR #63.** Closes
    the Fighting Style arc — all 6 styles (Defense / Dueling /
    Archery / GWF / TWF / Blind Fighting) now ship in the engine.

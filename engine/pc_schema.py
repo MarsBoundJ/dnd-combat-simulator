@@ -151,13 +151,17 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
     # onto the template top-level so cli._build_actor can read it
     # onto Actor.weapon_masteries.
     #
-    # v1 does NOT enforce the class-level "masteries known" cap from
-    # the level table — the PC schema trusts the spec. Future:
-    # validate `len(weapon_masteries) <= class.weapon_masteries_known
-    # at level`.
+    # PR #64: enforce the class-level "masteries known" cap from
+    # the level_table. _validate_weapon_masteries_cap reads
+    # `class_resources.weapon_mastery_count` at the PC's level and
+    # raises if `len(weapon_masteries)` exceeds it. Allows under-
+    # budgeted PCs (RAW: you can know fewer than the max) but
+    # rejects over-budgeted ones (no free masteries).
     from engine.core.weapon_masteries import validate_mastery_list
     weapon_masteries = validate_mastery_list(
         pc_spec.get("weapon_masteries"))
+    _validate_weapon_masteries_cap(
+        weapon_masteries, class_def, level, class_id)
 
     # Derive HP
     hit_die = class_def.get("core_traits", {}).get("hit_die", "d8")
@@ -604,6 +608,55 @@ def _validate_skill_bonuses(value) -> dict:
             )
         out[n] = bonus
     return out
+
+
+def _validate_weapon_masteries_cap(weapon_masteries: list,
+                                        class_def: dict,
+                                        level: int,
+                                        class_id: str) -> None:
+    """Raise ValueError if the PC declares more weapon masteries
+    than their class permits at the given level (PR #64).
+
+    Closes the v1 TODO from PR #54 ("trusts the spec"). Reads the
+    `weapon_mastery_count` from the highest-applicable level_table
+    row (≤ `level`); raises if `len(weapon_masteries)` exceeds it.
+
+    Classes that don't grant Weapon Mastery (Wizard, etc.) have
+    `weapon_mastery_count` absent from their level_table —
+    declaring any weapon_masteries on such a PC raises (cap = 0).
+
+    Silent (no-op) when `weapon_masteries` is empty: declaring zero
+    masteries is always legal, even for non-mastery-having classes.
+    """
+    if not weapon_masteries:
+        return
+    # Find the highest applicable level_table row
+    cap = 0
+    cap_level = 0
+    for row in (class_def.get("level_table") or []):
+        if int(row.get("level", 0)) > level:
+            continue
+        row_cap = ((row.get("class_resources") or {})
+                       .get("weapon_mastery_count"))
+        if row_cap is not None:
+            cap = int(row_cap)
+            cap_level = int(row.get("level", 0))
+    if len(weapon_masteries) > cap:
+        if cap == 0:
+            raise ValueError(
+                f"Class {class_id!r} at level {level} grants no "
+                f"weapon masteries (cap=0), but PC declares "
+                f"{len(weapon_masteries)}: {weapon_masteries}. "
+                f"Remove the weapon_masteries field, OR pick a "
+                f"class that grants Weapon Mastery (Fighter, "
+                f"Barbarian, Paladin, Ranger, Rogue)."
+            )
+        raise ValueError(
+            f"Class {class_id!r} at level {level} grants "
+            f"{cap} weapon masteries (set at level {cap_level}), "
+            f"but PC declares {len(weapon_masteries)}: "
+            f"{weapon_masteries}. Reduce the list to {cap} entries."
+        )
 
 
 def _compute_passive_perception(ability_scores: dict,

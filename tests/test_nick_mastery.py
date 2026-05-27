@@ -68,7 +68,8 @@ def _fighter_class_def():
         "level_table": [
             {"level": 1, "proficiency_bonus": 2,
               "features": ["f_fighting_style", "f_second_wind"],
-              "class_resources": {"second_wind_uses": 2}},
+              "class_resources": {"second_wind_uses": 2,
+                                       "weapon_mastery_count": 3}},
         ],
     }
 

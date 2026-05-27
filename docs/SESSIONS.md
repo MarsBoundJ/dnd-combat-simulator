@@ -5,6 +5,85 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-27 — Other-class Weapon Mastery wirings (PR #64)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Closes the PR #54 residue. Weapon Mastery was wired on Fighter
+  only; the other four mastery-knowing classes (Barbarian /
+  Paladin / Ranger / Rogue) had no class YAML at all. Pre-scoped
+  to "minimal class YAMLs + cap enforcement" — full class specs
+  (Rage / Sneak Attack / Divine Smite / etc.) deferred to
+  dedicated follow-on PRs.
+- **Four new class YAMLs** under
+  `schema/content/classes/`:
+  - `c_barbarian.yaml` — d12 HD, STR+CON saves, weapon mastery
+    2@L1 → 3@L4
+  - `c_paladin.yaml` — d10 HD, WIS+CHA saves, 2@L1 → 3@L11
+  - `c_ranger.yaml` — d10 HD, STR+DEX saves, 2@L1 → 3@L9
+  - `c_rogue.yaml` — d8 HD, DEX+INT saves, 1@L1 → 2@L9
+  Each declares `core_traits` (hit_die, save_proficiencies,
+  weapon/armor profs, skill choices) + a `level_table` with
+  `weapon_mastery_count` per RAW progression + `f_weapon_mastery`
+  at L1. Other class features listed as deferred in trailing
+  comments (Rage, Lay on Hands, Sneak Attack, etc.) so future
+  PR authors have a checklist.
+- **`_validate_weapon_masteries_cap` helper** in pc_schema:
+  - Reads the highest-applicable
+    `class_resources.weapon_mastery_count` from the class's
+    level_table (rows with `level <= PC.level`).
+  - Raises with class + level + cap in the message when
+    `len(weapon_masteries) > cap`.
+  - Carries forward through gap rows (Paladin L6-L10 inherit
+    L5's cap of 2 because the next mastery-count row isn't
+    until L11).
+  - Wizard / non-mastery classes have no
+    `weapon_mastery_count` → cap=0. Declaring any masteries
+    raises with a "pick a class that grants Weapon Mastery"
+    hint listing the five valid classes.
+  - Empty `weapon_masteries` list always legal — even for
+    Wizards / non-mastery classes — because declaring zero
+    masteries is a no-op (no cap to check).
+- **`build_pc_template` calls the cap helper** right after
+  validating + normalizing the masteries list. Build-time gate;
+  errors surface at fixture load, not in the middle of an
+  encounter.
+- **One existing test fixed:** `test_nick_mastery.py`'s mock
+  Fighter class def didn't declare `weapon_mastery_count` →
+  the new cap helper raised. Updated the mock to include
+  `weapon_mastery_count: 3` so the existing Nick tests that
+  declare 1 mastery still pass. No production code change
+  for this fix; just the test fixture.
+- **Tests (29 new in `test_other_class_mastery.py`):**
+  - Each class YAML loads + correct hit_die per RAW
+  - `weapon_mastery_count` progression: Barbarian (2→3 at L4),
+    Paladin (2→3 at L11), Ranger (2→3 at L9), Rogue (1→2 at L9)
+    — multiple level samples each, including carry-forward
+  - `_validate_weapon_masteries_cap` directly: empty list /
+    at-cap / under-cap / over-cap / Wizard-no-grant raises /
+    cap carries forward through gap rows
+  - End-to-end `build_pc_template`: each class at L1 with
+    at-cap passes; over-cap raises; Barbarian L4 with 3
+    masteries passes; no-masteries-declared works for all
+    classes
+- 1071 tests pass (+29 new, 1 skip, no regressions).
+
+**Future-roadmap items (recorded, not in this PR):**
+- Full class spec content (Rage / Reckless Attack / Lay on
+  Hands / Divine Smite / Favored Enemy / Hunter's Mark /
+  Sneak Attack / Cunning Action / etc.) — each becomes its
+  own PR
+- Auto-emission of Expertise choices from the Rogue level
+  table (PR #62 wired the mechanic; the class table just
+  needs to declare which levels grant Expertise + the
+  player-choice infra)
+- Subclass support (oaths, archetypes, paths, schools)
+- Half-caster / third-caster spell progressions (Paladin /
+  Ranger / Arcane Trickster / Eldritch Knight)
+
+---
+
 ## Session: 2026-05-27 — Blind Fighting style (PR #63)
 
 **Participants:** Phil, Claude
