@@ -74,6 +74,32 @@ def is_blinded(actor: Actor) -> bool:
     return False
 
 
+def is_in_obscured_zone(position: tuple[int, int],
+                           state: CombatState) -> bool:
+    """True if `position` is inside any declared heavy-obscurement
+    zone in the encounter environment (PR #48).
+
+    Zones are axis-aligned rectangles declared as
+    `encounter.environment.heavily_obscured_zones`:
+      [{"x_min": int, "x_max": int, "y_min": int, "y_max": int}, ...]
+
+    A position (x, y) is in a zone iff
+    `x_min <= x <= x_max AND y_min <= y <= y_max`.
+
+    Returns False if no zones declared / position is None.
+    """
+    if state is None or position is None:
+        return False
+    env = (state.encounter.environment or {}) if state.encounter else {}
+    zones = env.get("heavily_obscured_zones") or []
+    x, y = position
+    for z in zones:
+        if (z.get("x_min", 0) <= x <= z.get("x_max", 0)
+                and z.get("y_min", 0) <= y <= z.get("y_max", 0)):
+            return True
+    return False
+
+
 def can_actor_see(observer: Actor, target: Actor,
                     state: CombatState) -> bool:
     """Does `observer` have line of sight on `target`?
@@ -81,14 +107,17 @@ def can_actor_see(observer: Actor, target: Actor,
     v1 model:
       - False if `observer` is Blinded
       - False if `target` is Invisible
+      - False if `target` is inside a heavy-obscurement zone (PR #48)
+        — observers outside the zone can't see in. Same-zone case
+        is approximated: if observer ALSO in the zone, still False
+        (heavily obscured creatures are blinded toward each other
+        per RAW). Tighter same-zone-with-vision-types treatment
+        deferred.
       - True otherwise
 
-    Truesight / Blindsight / Darkvision / light levels / Heavily
-    Obscured zones all deferred. When they land, this is the place
+    Truesight / Blindsight / Darkvision / light levels (bright / dim /
+    dark per tile) all deferred. When they land, this is the place
     to extend.
-
-    `state` is accepted for forward compatibility (light levels will
-    need it) but unused in v1.
     """
     if observer is None or target is None:
         return False
@@ -101,5 +130,12 @@ def can_actor_see(observer: Actor, target: Actor,
     if is_blinded(observer):
         return False
     if is_invisible(target):
+        return False
+    # PR #48: heavy obscurement zones block sight. Either-side-in-zone
+    # blocks per RAW (heavily obscured creatures are effectively
+    # Blinded toward whatever's in the obscurement).
+    if is_in_obscured_zone(target.position, state):
+        return False
+    if is_in_obscured_zone(observer.position, state):
         return False
     return True

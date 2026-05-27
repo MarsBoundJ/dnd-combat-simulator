@@ -270,6 +270,18 @@ def generate_candidates(actor: Actor, state: CombatState,
                 "target": actor,    # self for telemetry; no real target
                 "actor": actor,
             })
+        elif action_type == "hide":
+            # Hide is a self-targeted utility action (PR #48). Gated
+            # at execute time on heavily-obscured / 3-quarters-cover.
+            # No eHP scoring for the candidate in v1 — fixtures that
+            # want Hide picked typically declare it as the actor's
+            # only action OR via an RP-constraint forced choice.
+            candidates.append({
+                "kind": "hide",
+                "action": action,
+                "target": actor,
+                "actor": actor,
+            })
         elif action_type == "hard_control":
             # Spells have a `range_ft` in the action; default to 60 ft for
             # v1 since most save-or-lose spells in 5e are 30-90 ft range.
@@ -541,6 +553,14 @@ def execute(chosen: dict, state: CombatState, event_bus, primitives) -> None:
         })
         if action.get("pipeline"):
             _execute_single(chosen, state, event_bus, primitives)
+    elif action.get("type") == "hide":
+        # Hide action (PR #48): gate on heavy obscurement OR
+        # three-quarters-or-total cover. Then roll DEX (Stealth)
+        # check vs DC 15. On success, apply co_invisible with
+        # source-tag "hide" (so we can scrub it later when the
+        # actor attacks). RAW 2024 simplification: fixed DC 15;
+        # passive Perception variant deferred.
+        _execute_hide(actor, action, state, event_bus, primitives)
     else:
         _execute_single(chosen, state, event_bus, primitives)
 
@@ -622,6 +642,78 @@ def _execute_single(chosen: dict, state: CombatState, event_bus, primitives) -> 
             if cond and not _evaluate_simple_condition(cond, state):
                 continue
         primitives.invoke(primitive_name, params, state, event_bus)
+
+
+def _execute_hide(actor, action: dict, state: CombatState,
+                    event_bus, primitives) -> None:
+    """Execute a Hide action (PR #48).
+
+    Gates (RAW 2024): actor must be either Heavily Obscured (in a
+    declared obscurement zone) OR behind three-quarters or total
+    cover. If neither applies, the hide attempt is logged as failed
+    with reason=no_cover_or_obscurement.
+
+    On a passing gate, roll d20 + DEX_mod vs DC 15. v1 doesn't add
+    Stealth proficiency (PB). On success, apply `co_invisible`
+    condition with source.action_id="a_hide" so it can be scrubbed
+    when the actor next attacks (see primitives._attack_roll).
+
+    The action's `pipeline` is run AFTER the gate / check (in case
+    a fixture wants extra effects on hide). v1 fixtures don't use
+    this; the apply_condition is hard-coded here.
+    """
+    import random as _random
+    from engine.core.state import ability_modifier
+    from engine.core.vision import is_in_obscured_zone
+
+    # Gate
+    heavily_obscured = is_in_obscured_zone(actor.position, state)
+    has_cover_3_4_plus = actor.cover in ("three_quarters", "total")
+    if not (heavily_obscured or has_cover_3_4_plus):
+        state.event_log.append({
+            "event": "hide_attempted",
+            "actor": actor.id,
+            "outcome": "failed",
+            "reason": "no_cover_or_obscurement",
+        })
+        return
+
+    # Stealth check — v1 d20 + DEX mod (no proficiency bonus yet)
+    import engine.primitives as primitives_module
+    rng = primitives_module._rng    # use module-level rng (test-friendly)
+    d20 = rng.randint(1, 20)
+    dex_score = (actor.abilities.get("dex") or {}).get("score", 10)
+    dex_mod = ability_modifier(dex_score)
+    total = d20 + dex_mod
+    DC = 15
+    success = total >= DC
+
+    state.event_log.append({
+        "event": "hide_attempted",
+        "actor": actor.id,
+        "d20": d20,
+        "dex_mod": dex_mod,
+        "total": total,
+        "dc": DC,
+        "outcome": "success" if success else "failed",
+        "gate": "heavy_obscurement" if heavily_obscured else "cover",
+    })
+    if not success:
+        return
+
+    # Apply co_invisible with source tagged as a_hide so attack
+    # primitives can scrub it after the actor attacks.
+    actor.applied_conditions.append({
+        "condition_id": "co_invisible",
+        "source_id": actor.id,
+        "source_action_id": "a_hide",
+        "applied_at_round": state.round,
+    })
+    state.event_log.append({
+        "event": "hidden",
+        "actor": actor.id,
+        "source": "a_hide",
+    })
 
 
 def _execute_multiattack(actor, action: dict, state: CombatState,

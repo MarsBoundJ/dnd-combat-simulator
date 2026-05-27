@@ -679,7 +679,20 @@ priority order:
 17. ~~**Reaction infrastructure + Shield + Protection + Hellish
    Rebuke**~~ — **Shipped in PR #45.**
 18. ~~**Counterspell + cast-event infra**~~ — **Shipped in PR #46.**
-19. ~~**Vision system v1**~~ — **Shipped in PR #47.** New
+19. ~~**Vision system v1**~~ — **Shipped in PR #47.**
+20. ~~**Cover + Heavy Obscurement zones + Hide action**~~ —
+   **Shipped in PR #48.** Cover: per-actor `cover` field (`half` /
+   `three_quarters` / `none`) gives +2/+5 AC + DEX-save bonus. No
+   total cover (would need attack-cancellation; deferred).
+   Heavy Obscurement: `encounter.environment.heavily_obscured_zones`
+   declares axis-aligned rects; `can_actor_see` returns False if
+   either side is in a zone. Hide action: new `type: hide` gated on
+   heavy obscurement OR ≥ 3/4 cover; rolls d20 + DEX_mod vs DC 15
+   (no Stealth proficiency yet); on success applies `co_invisible`
+   with source-tag `a_hide` so subsequent attacks scrub it. Closes
+   the Hide arc deferred since PR #29. Cover-from-creatures,
+   active-Perception checks, AI scoring for Hide, hide-ends-on-cast,
+   and Stealth proficiency still deferred. New
    `engine/core/vision.py` exposes `can_actor_see(observer, target,
    state)` — returns False if observer Blinded OR target Invisible,
    True otherwise. Wired into `_eval_when` so the
