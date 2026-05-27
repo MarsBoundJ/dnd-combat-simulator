@@ -116,8 +116,30 @@ class Actor:
     # deferred to a perception-check PR.
     # Loaded from monster template's `senses.special.darkvision` (numeric
     # feet) or from a fixture-level `darkvision_range_ft` override.
-    # Blindsight + Truesight are separate fields, deferred to a future PR.
+    # NOTE: ordinary darkvision does NOT pierce magical_dark_zones —
+    # only Truesight (or future Devil's Sight) does.
     darkvision_range_ft: int = 0
+
+    # Truesight range in feet (PR #52). 0 = no truesight (most actors).
+    # Per RAW: truesight sees in nonmagical AND magical darkness, sees
+    # invisible creatures and objects, automatically detects visual
+    # illusions and succeeds on saves against them, and perceives the
+    # original form of a shapechanger. v1 models the first two only —
+    # illusions + shapechangers aren't in the engine yet. Truesight
+    # does NOT bypass heavy obscurement (fog) per RAW — fog is
+    # physical, not magical.
+    # Loaded from template senses.special.truesight or actor_spec override.
+    truesight_range_ft: int = 0
+
+    # Blindsight range in feet (PR #52). 0 = no blindsight (most
+    # actors). Per RAW: a creature with blindsight can perceive its
+    # surroundings without relying on sight, within a specific
+    # radius. Bypasses Invisible, darkness (magical + nonmagical),
+    # heavy obscurement (fog) — the lot. Blindsight wins over every
+    # other vision check within range; this is the dominant override
+    # in can_actor_see.
+    # Loaded from template senses.special.blindsight or actor_spec override.
+    blindsight_range_ft: int = 0
 
     # Passive Perception (PR #51). Used by vision.can_actor_see to
     # auto-spot a Hide-source-Invisible target whose recorded

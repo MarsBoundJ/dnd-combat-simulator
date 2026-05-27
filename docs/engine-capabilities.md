@@ -680,6 +680,36 @@ priority order:
    Rebuke**~~ — **Shipped in PR #45.**
 18. ~~**Counterspell + cast-event infra**~~ — **Shipped in PR #46.**
 19. ~~**Vision system v1**~~ — **Shipped in PR #47.**
+24. ~~**Truesight + Blindsight + Magical darkness**~~ — **Shipped in
+   PR #52.** Closes the vision-type arc. Two new per-actor sense
+   fields: `Actor.truesight_range_ft` and
+   `Actor.blindsight_range_ft` (both int, default 0). Loaded from
+   monster template `senses.special.truesight` / `.blindsight` or
+   actor_spec overrides — same precedence pattern as darkvision.
+   New environment field `magical_dark_zones` (axis-aligned rect
+   list, parallel to `dark_zones` / `dim_light_zones` /
+   `heavily_obscured_zones`). New helper
+   `vision.is_in_magical_dark_zone`. `can_actor_see` precedence
+   reorganized into seven explicit steps with new vision-type
+   gates: **(1) Blindsight bypass** within range overrides
+   everything (Invisible, fog, darkness, magical darkness, self-
+   Blinded). **(3) Truesight** within range bypasses both Hide-
+   source and spell-source Invisible. **(5) Magical darkness**
+   zones block ordinary darkvision; only Truesight (or Blindsight
+   from step 1) pierces. **(6) Ordinary darkness** zones: Truesight
+   in range substitutes for darkvision. Heavy obscurement (fog)
+   still blocks even with Truesight per RAW — only Blindsight
+   bypasses fog. Deferred: Devil's Sight (Warlock invocation that
+   bypasses magical darkness without truesight), illusion auto-
+   detection, shapechanger original-form. 29 new tests across the
+   magical-darkness helper, cli loading, blindsight bypass cases
+   (including self-Blinded), truesight bypass cases (including
+   spell-source Invisible + range boundary), magical-darkness
+   specifics (ordinary DV blocked, truesight pierces, overlapping
+   zones), and precedence interactions. New
+   `vision_types_showcase_encounter.yaml` fixture with four
+   observers (no-senses / DV-only / truesight / blindsight) facing
+   an invisible target inside a magical-darkness zone.
 23. ~~**Skill proficiencies + passive Perception + Hide auto-spot**~~ —
    **Shipped in PR #51.** Closes the Hide arc with the
    detection-side mechanic. New `engine/core/skills.py` centralizes
