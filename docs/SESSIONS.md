@@ -5,6 +5,43 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-27 — Free-action scoring v1 (PR #70)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Wired AI scoring into the free-slot action phase. Free actions
+  (auto-fired between action and bonus-action phases by
+  `_run_free_phase` — today only PR #57's Nick mastery off-hand)
+  now route through `score_candidate` before firing.
+- Added optional `min_score_to_fire` per-action gate. When set
+  above 0, candidates whose score falls below the threshold are
+  suppressed with a `free_action_skipped` event (reason
+  `below_min_score`); the threshold defaults to 0.0 so v1 Nick
+  behavior is preserved bit-for-bit.
+- `free_action_fired` event now carries a `score` field
+  (rounded to 2 decimals) for telemetry.
+- 6 new tests in `tests/test_free_action_scoring.py`. Full suite:
+  1148 passed, 1 skipped (was 1143 + 6 new).
+
+**Scope decisions:**
+- "Score + log only (no behavior change)" — Phil picked tight
+  scope. The gate is wired everywhere but inactive by default
+  (no shipping action sets `min_score_to_fire`), so the change is
+  observable in event logs only until future free actions opt in.
+- Re-selection of target against the free-action's profile
+  deferred — runner currently reuses the action-phase target.
+  Future work: pick targets per-free-action when a different
+  enemy would score higher.
+- Scoring for non-weapon free actions deferred (none ship yet).
+
+**Open items:**
+- Next BA Cleave / Vex+Sap off-hand combos can opt into the
+  gate by adding `min_score_to_fire` to their YAML.
+- Per-target re-selection for free-phase candidates.
+
+---
+
 ## Session: 2026-05-27 — Blindsight bypass for Darkness scoring (PR #69)
 
 **Participants:** Phil, Claude
