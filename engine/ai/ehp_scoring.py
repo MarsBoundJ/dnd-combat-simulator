@@ -636,33 +636,58 @@ EXPECTED_AURA_ROUNDS = 2.5     # matches EXPECTED_BUFF_ROUNDS for consistency
 #     (could subtract concentration opportunity cost)
 
 DARKNESS_RADIUS_SQUARES = 3       # 15-ft sphere = 3 squares radius
+                                    # (RAW Darkness spell radius). Kept
+                                    # for the wrapper below; HoH /
+                                    # Cloudkill / future zone spells
+                                    # pass their own radius.
+
+# PR #78: zone types that drive vision-denial scoring. Each value
+# determines which special senses pierce the zone:
+#   - "magical_dark": blindsight OR truesight pierces (Darkness,
+#     Hunger of Hadar — RAW magical darkness)
+#   - "heavy_obscurement": blindsight ONLY pierces; truesight does
+#     NOT (Cloudkill, future Fog Cloud / Stinking Cloud — RAW
+#     non-magical heavy obscurement aka fog)
+_VISION_DENIAL_ZONE_TYPES = frozenset({"magical_dark", "heavy_obscurement"})
 
 
-def offensive_ehp_darkness(actor: Actor, action: dict,
-                              state: CombatState,
-                              origin: tuple[int, int] | None = None
-                              ) -> float:
-    """eHP scoring for Darkness-shape persistent_auras (PR #61).
+def offensive_ehp_zone_vision_denial(actor: Actor, action: dict,
+                                          state: CombatState,
+                                          origin: tuple[int, int] | None,
+                                          *, radius_ft: int,
+                                          zone_type: str) -> float:
+    """eHP value of dropping a vision-denial zone (PR #78,
+    generalizes PR #61's offensive_ehp_darkness to handle both
+    magical darkness AND heavy obscurement / fog).
 
-    Classifies actors as in-sphere vs out-of-sphere allies/enemies
-    via Chebyshev distance from the origin. Computes:
+    Classifies all living actors as in-sphere vs out-of-sphere via
+    Chebyshev distance from origin (matches the engine's grid
+    convention). Computes:
       benefit = sum over (in-sphere ally × out-sphere enemy who can
-                reach them, no truesight piercing) of enemy_DPR ×
+                reach them, no piercing sense) of enemy_DPR ×
                 DELTA_HIT_FROM_ADVANTAGE
               + sum over in-sphere allies of ally_DPR ×
-                DELTA_HIT_FROM_ADVANTAGE (one boosted attack per
-                round per ally) when there exist reachable
-                out-sphere enemies
-      cost   = mirror computation with sides swapped (in-sphere
-                enemies + out-sphere allies)
-      net    = benefit − cost, scaled by EXPECTED_AURA_ROUNDS
+                DELTA_HIT_FROM_ADVANTAGE when reachable out-sphere
+                enemies exist (ally swings with advantage)
+      cost   = mirror with sides swapped (in-sphere enemies + out-
+                sphere allies)
+      net    = (benefit - cost) × EXPECTED_AURA_ROUNDS
 
-    Returns max(0.0, net) — Darkness with a NEGATIVE net value (the
-    AI shouldn't cast it at all) clamps to 0 so it loses to any
-    damage option.
+    Returns max(0.0, net). Negative values clamp to 0 so the AI
+    never PREFERS dropping a vision-denial zone that hurts the
+    party more than the enemy.
 
-    `origin` defaults to actor.position when not provided (caster
-    drops Darkness on themselves, the most common pattern).
+    `origin` defaults to actor.position when None (caster drops the
+    zone on themselves, common Darkness pattern).
+
+    Sense-bypass rules by `zone_type`:
+      - "magical_dark": blindsight OR truesight pierces. RAW:
+        truesight sees through magical darkness; blindsight bypasses
+        every vision-blocking effect within range.
+      - "heavy_obscurement": ONLY blindsight pierces. RAW: fog /
+        cloud / smoke is physical, not magical — truesight doesn't
+        see through it, but blindsight (which perceives without
+        sight) still works.
     """
     from engine.ai.defensive_ehp import estimate_per_attack_damage
     from engine.core.basic_actions import _max_attack_reach
@@ -671,10 +696,15 @@ def offensive_ehp_darkness(actor: Actor, action: dict,
     if origin is None:
         origin = tuple(actor.position)
     ox, oy = int(origin[0]), int(origin[1])
+    # Convert radius_ft → grid squares (5 ft per square, integer
+    # truncation matches the existing DARKNESS_RADIUS_SQUARES
+    # convention). For HoH/Cloudkill (20 ft) → 4 squares; Darkness
+    # (15 ft) → 3 squares.
+    radius_squares = max(0, int(radius_ft) // 5)
 
     def _in_sphere(actor_obj: Actor) -> bool:
         ax, ay = actor_obj.position
-        return max(abs(ax - ox), abs(ay - oy)) <= DARKNESS_RADIUS_SQUARES
+        return max(abs(ax - ox), abs(ay - oy)) <= radius_squares
 
     in_allies: list[Actor] = []
     out_allies: list[Actor] = []
@@ -689,19 +719,15 @@ def offensive_ehp_darkness(actor: Actor, action: dict,
         else:
             (in_enemies if in_zone else out_enemies).append(a)
 
-    # Special-sense bypass helper — observer can see target through
-    # magical darkness if EITHER Truesight OR Blindsight range covers
-    # the (observer, target) distance. Matches the can_actor_see
-    # precedence from PR #52: Blindsight is the dominant override
-    # (pierces fog / Invisible / darkness / magical darkness /
-    # self-Blinded); Truesight pierces magical darkness + Invisible
-    # but NOT fog. For magical-darkness scoring both apply, so we
-    # OR them.
+    # Sense-bypass: which special senses pierce this zone type?
+    truesight_pierces = (zone_type == "magical_dark")
+
     def _sense_pierces(observer: Actor, target: Actor) -> bool:
         d = distance_ft(observer, target)
-        ts_range = int(getattr(observer, "truesight_range_ft", 0) or 0)
-        if ts_range > 0 and d <= ts_range:
-            return True
+        if truesight_pierces:
+            ts_range = int(getattr(observer, "truesight_range_ft", 0) or 0)
+            if ts_range > 0 and d <= ts_range:
+                return True
         bs_range = int(getattr(observer, "blindsight_range_ft", 0) or 0)
         if bs_range > 0 and d <= bs_range:
             return True
@@ -750,6 +776,23 @@ def offensive_ehp_darkness(actor: Actor, action: dict,
     return max(0.0, net)
 
 
+def offensive_ehp_darkness(actor: Actor, action: dict,
+                              state: CombatState,
+                              origin: tuple[int, int] | None = None
+                              ) -> float:
+    """Backward-compatible wrapper (PR #61 → PR #78 generalization).
+    Routes to `offensive_ehp_zone_vision_denial` with Darkness-spell
+    defaults: radius_ft=15, zone_type='magical_dark'. Existing
+    callers and tests that target the Darkness spell don't need to
+    change; new hybrid auras (HoH / Cloudkill) should call the
+    generalized function with their own radius + zone_type.
+    """
+    return offensive_ehp_zone_vision_denial(
+        actor, action, state, origin,
+        radius_ft=15, zone_type="magical_dark",
+    )
+
+
 def offensive_ehp_persistent_aura(actor: Actor, action: dict,
                                        state: CombatState,
                                        origin: tuple[int, int] | None = None
@@ -789,14 +832,13 @@ def offensive_ehp_persistent_aura(actor: Actor, action: dict,
     if aura_params is None:
         return 0.0
 
-    # PR #61: Darkness-shape auras (creates_zone=magical_dark) use a
-    # vision-denial scorer instead of the damage-aura formula below.
-    # Delegating here keeps the dispatch table simple — score_candidate
-    # routes all persistent_aura kinds to this function, and we fork
-    # based on the aura's payload.
-    if aura_params.get("creates_zone") == "magical_dark":
-        return offensive_ehp_darkness(actor, action, state,
-                                          origin=origin)
+    # PR #78: hybrid aura scoring. Auras may contribute via BOTH a
+    # damage payload AND a vision-denial zone (HoH = cold damage +
+    # magical_dark; Cloudkill = poison damage + heavy_obscurement).
+    # Compute both components below and SUM them at the end. PR #61
+    # added Darkness-only routing here; PR #78 lifts that fork so
+    # zone-only spells (Darkness — no damage payload) still get
+    # zone value (damage component = 0), and hybrids get both.
 
     shape = aura_params.get("shape", "sphere")
     anchor = aura_params.get("anchor", "caster")
@@ -826,40 +868,61 @@ def offensive_ehp_persistent_aura(actor: Actor, action: dict,
 
     full_dmg = _sum_damage(aura_params.get("on_fail") or [])
     half_dmg = _sum_damage(aura_params.get("on_success") or [])
-    if full_dmg <= 0 and half_dmg <= 0:
-        return 0.0
 
-    # Find enemies currently in area (sphere via radius / cube via size)
-    living_enemies = [e for e in state.encounter.actors
-                       if e.side != actor.side and e.is_alive()]
-    if shape == "cube":
-        size_ft = int(aura_params.get("size_ft", 0))
-        if size_ft <= 0:
-            return 0.0
-        enemies_in_aura = actors_in_cube(area_origin, size_ft,
-                                            living_enemies)
-    else:
-        radius = int(aura_params.get("radius_ft", 0))
-        if radius <= 0:
-            return 0.0
-        enemies_in_aura = [e for e in living_enemies
-                            if distance_ft(e.position, area_origin) <= radius]
-    if not enemies_in_aura:
-        return 0.0
-
-    total_per_turn = 0.0
-    for e in enemies_in_aura:
-        if ability is None:
-            # No-save: full damage every turn (Cloud of Daggers shape)
-            per_turn = full_dmg
+    # PR #78: damage-component computation. Returns 0 when the aura
+    # has no damage payload (Darkness) OR no enemies in area OR a
+    # malformed shape. The zone-component computation below ALWAYS
+    # runs regardless — that's the load-bearing fix for hybrid
+    # damage+zone auras (HoH / Cloudkill) and zone-only auras
+    # (Darkness).
+    damage_value = 0.0
+    if full_dmg > 0 or half_dmg > 0:
+        living_enemies = [e for e in state.encounter.actors
+                           if e.side != actor.side and e.is_alive()]
+        enemies_in_aura: list[Actor] = []
+        if shape == "cube":
+            size_ft = int(aura_params.get("size_ft", 0))
+            if size_ft > 0:
+                enemies_in_aura = actors_in_cube(area_origin, size_ft,
+                                                    living_enemies)
         else:
-            p_fail = save_fail_probability(e, ability, dc, state)
-            per_turn = p_fail * full_dmg + (1.0 - p_fail) * half_dmg
-        # Cap per-turn at enemy remaining HP
-        per_turn = min(per_turn, float(max(0, e.hp_current)))
-        total_per_turn += per_turn
+            radius = int(aura_params.get("radius_ft", 0))
+            if radius > 0:
+                enemies_in_aura = [
+                    e for e in living_enemies
+                    if distance_ft(e.position, area_origin) <= radius]
 
-    return total_per_turn * EXPECTED_AURA_ROUNDS
+        total_per_turn = 0.0
+        for e in enemies_in_aura:
+            if ability is None:
+                # No-save: full damage every turn (Cloud of Daggers shape)
+                per_turn = full_dmg
+            else:
+                p_fail = save_fail_probability(e, ability, dc, state)
+                per_turn = p_fail * full_dmg + (1.0 - p_fail) * half_dmg
+            # Cap per-turn at enemy remaining HP
+            per_turn = min(per_turn, float(max(0, e.hp_current)))
+            total_per_turn += per_turn
+        damage_value = total_per_turn * EXPECTED_AURA_ROUNDS
+
+    # PR #78: hybrid zone-component score. If the aura also creates
+    # a vision-denial zone (magical_dark or heavy_obscurement),
+    # add the zone's eHP value to the damage value. Zero contribution
+    # when creates_zone is absent or set to an unsupported type.
+    # The zone scorer reads radius from the aura params directly so
+    # HoH/Cloudkill (20 ft) and Darkness (15 ft) all work uniformly.
+    zone_value = 0.0
+    creates_zone = aura_params.get("creates_zone")
+    if creates_zone in _VISION_DENIAL_ZONE_TYPES:
+        aura_radius_ft = int(aura_params.get("radius_ft", 0))
+        if aura_radius_ft > 0:
+            zone_value = offensive_ehp_zone_vision_denial(
+                actor, action, state, area_origin,
+                radius_ft=aura_radius_ft,
+                zone_type=creates_zone,
+            )
+
+    return damage_value + zone_value
 
 
 def offensive_ehp_aoe(actor: Actor, origin: tuple[int, int], action: dict,

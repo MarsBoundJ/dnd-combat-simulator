@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-05-27
 **Engine state:** Phase 1, post-PR #26 (Dodge + Disengage merged).
-**Test surface:** 1327 tests across 60+ modules; 14 CLI fixtures.
+**Test surface:** 1337 tests across 60+ modules; 14 CLI fixtures.
 
 This document captures what the simulator can actually do today — in
 observable behavioral terms, not module inventories. The companion
@@ -680,6 +680,56 @@ priority order:
    Rebuke**~~ — **Shipped in PR #45.**
 18. ~~**Counterspell + cast-event infra**~~ — **Shipped in PR #46.**
 19. ~~**Vision system v1**~~ — **Shipped in PR #47.**
+50. ~~**AI scoring for damage+zone hybrid auras**~~ — **Shipped
+   in PR #78.** Closes the PR #68 residue. Auras that BOTH
+   deal damage AND create a vision-denial zone (HoH = cold +
+   magical_dark; Cloudkill = poison + heavy_obscurement) now
+   score with BOTH components summed instead of one masking
+   the other.
+   - **Generalized `offensive_ehp_zone_vision_denial`** —
+     parameterized version of PR #61's Darkness scorer. Takes
+     explicit `radius_ft` + `zone_type` instead of hardcoding
+     the 15-ft Darkness sphere. Handles both `magical_dark`
+     (blindsight OR truesight pierces) and `heavy_obscurement`
+     (blindsight ONLY pierces; truesight does NOT — fog is
+     physical per RAW).
+   - **Backward-compat `offensive_ehp_darkness` wrapper** —
+     calls the generalized helper with Darkness defaults
+     (radius_ft=15, zone_type='magical_dark'). Existing
+     callers / tests unchanged.
+   - **`offensive_ehp_persistent_aura` restructure** — no
+     longer early-returns to the Darkness scorer for
+     `magical_dark`. Instead always computes the damage
+     component (returns 0 when the aura has no damage
+     payload), then ALWAYS adds the zone component when
+     `creates_zone` is in
+     `_VISION_DENIAL_ZONE_TYPES` (`magical_dark` /
+     `heavy_obscurement`). Sum = final score.
+   - **`_VISION_DENIAL_ZONE_TYPES` constant** centralizes the
+     zone-type registry; new zone types extend the set.
+   - **Effect on HoH / Cloudkill scoring**: AI now prefers
+     these spells when BOTH the damage AND the zone are
+     valuable (party can capitalize on the zone effect AND
+     enemies sit in the damage area). Previously HoH was
+     routed to vision-denial-only (missed cold damage);
+     Cloudkill was routed to damage-only (missed heavy
+     obscurement value).
+   - **Effect on Darkness scoring** — unchanged. No damage
+     payload, full zone score.
+   - **Effect on Cloud of Daggers scoring** — unchanged. No
+     `creates_zone`, damage-only.
+   - 10 new tests across 10 layers (zone scorer parameterization,
+     magical_dark TS/BS pierce, heavy_obscurement TS-does-NOT
+     pierce / BS pierces, radius respects param, wrapper
+     parity, HoH hybrid, Cloudkill hybrid, CoD unchanged,
+     Darkness unchanged).
+   - Deferred:
+     * AI scoring of allies who would lose vision in the
+       zone (currently the cost mirrors the benefit; per-
+       creature attack-frequency weighting deferred)
+     * "Caster forgot to put themselves in the sphere"
+       opportunity-cost subtraction
+
 49. ~~**Upcast scaling for damage spells**~~ — **Shipped in
    PR #77.** Closes the PR #67 residue. Spells that declare an
    `upcast_scaling` block now actually cast at higher slot
