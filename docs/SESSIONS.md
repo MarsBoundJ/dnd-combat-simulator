@@ -5,6 +5,102 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-26 — Cleave / Push / Slow masteries (PR #58)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Closes the Weapon Mastery v1 arc by shipping the three remaining
+  properties. `DEFERRED_MASTERIES` is now empty; all 8 v1 masteries
+  ship (Vex / Sap / Topple / Graze from PR #54, Nick from PR #57,
+  Cleave / Push / Slow here).
+- Pre-scoped twice: all three at once (vs piecemeal), and "trust
+  weapon spec, no size gate" for Push (avoids the larger Actor.size
+  refactor).
+- **`KNOWN_MASTERIES` extended** to include cleave/push/slow.
+  `DEFERRED_MASTERIES` is now `frozenset()` — kept as a frozenset so
+  future RAW additions can slot in without changing the validator
+  branching.
+- **`engine/core/geometry.push_creature(pusher, target, distance_ft)`**
+  new helper: snaps to 8-direction unit vector via `unit_direction`,
+  moves the target in 5-ft steps. v1 doesn't check collisions or
+  map bounds — trusts the open-battlefield assumption.
+- **`_mastery_cleave`** implementation:
+  - Per-turn dedup via `actor._cleave_fired_this_turn` attribute
+    (cleared by `reset_turn`)
+  - Finds a candidate second target: living enemy ≠ primary,
+    within 5 ft of primary AND within attacker's reach (v1: 5 ft
+    melee assumption)
+  - Sub-attack via `_invoke_subprimitive` reuses the weapon's
+    own pipeline. `_find_attacker_weapon_for_cleave` scans the
+    actor's template.actions for the highest-DPR weapon action
+    with mastery=cleave to source the pipeline (the mastery
+    params don't carry the full weapon spec, so we look it back
+    up).
+  - Logs `weapon_mastery_skipped` (reason: already_fired_this_turn
+    OR no_second_target OR no_weapon_action_found) or
+    `weapon_mastery_applied` with primary + second target ids.
+- **`_mastery_push`** implementation:
+  - On hit, calls `geometry.push_creature(actor, target, 10)`
+  - Logs `weapon_mastery_applied` with pushed_ft + from/to
+    positions
+- **`_mastery_slow`** implementation:
+  - No-op (with skip event) if target already has `_slow_data`
+    set — RAW "doesn't exceed 10 ft if hit multiple times"
+  - Direct mutation: `target.speed["walk"] = max(0, current - 10)`
+  - Stashes `_slow_data: {source_id, original_speed,
+    applied_at_round}` on target
+  - Logs reduction amount + new speed (handles the speed-5 →
+    speed-0 case correctly, logging actual reduction = 5)
+- **`expire_slow_from_source(source_actor_id, state)`** public
+  helper: scans all actors for `_slow_data` whose source_id
+  matches; restores `original_speed` and clears the record. Returns
+  count restored.
+- **Runner integration**: `_run_actor_turn` calls
+  `expire_slow_from_source(actor.id, state)` at turn start (right
+  after `expire_modifiers`). This is the "until start of slow-
+  applier's next turn" hook.
+- **`reset_turn` extension**: clears `_cleave_fired_this_turn` if
+  set. Attribute-style (not dataclass field) — same convention as
+  PR #57's `_free_actions_fired_this_turn`.
+- **`apply_mastery_effects` threading**: gained a `bus=None`
+  parameter so Cleave's sub-attack can pass a real bus to
+  `_invoke_subprimitive` (which needs it for `bus.emit("attack_roll")`).
+  Falls back to a `_NullEventBus` stub when bus is None (direct
+  test invocation). `primitives._attack_roll` updated to pass bus.
+- **Tests (25 new in `test_cleave_push_slow.py`):**
+  - Registry: cleave/push/slow in KNOWN; DEFERRED empty
+  - `push_creature` helper: east, west, diagonal, stacked
+    (no-op), partial distance
+  - Cleave: no-second-target, second-target-fires-sub-attack,
+    once-per-turn-gate, reset_turn-clears-gate, ally-doesn't-
+    qualify, actor-without-cleave-no-op
+  - Push: fires-on-hit, NOT-on-miss, diagonal
+  - Slow: reduces-speed, doesn't-stack, clamped-at-zero,
+    NOT-on-miss, expire-restores, expire-wrong-source-noop,
+    expire-multiple-targets
+- **One existing test updated**: `test_weapon_mastery.py`'s
+  `test_known_v1_set` (added cleave/push/slow to expected set);
+  `test_deferred_mastery_raises` skips when DEFERRED is empty
+  (vacuously-passes pattern preserved for future re-additions).
+- 939 tests pass (+25 new, 1 skip, no regressions).
+
+**Future-roadmap items (recorded, not in this PR):**
+- Heavy-weapon gate on Cleave + Graze (RAW restricts these to
+  Heavy melee weapons; v1 trusts the weapon spec)
+- Size gate on Push (RAW: Large or smaller targets). Needs an
+  `Actor.size` field that doesn't exist yet.
+- Forced-movement collision handling — Push currently moves the
+  target whether or not the destination is occupied
+- Reach passthrough for Cleave (currently assumes 5 ft melee
+  reach; weapons with reach > 5 ft should propagate that to
+  the candidate-finding step)
+- Per-action mastery tracking (Cleave currently identifies the
+  source weapon via DPR proxy; tracking which action fired this
+  attack would be more direct)
+
+---
+
 ## Session: 2026-05-26 — Nick weapon mastery + free-phase (PR #57)
 
 **Participants:** Phil, Claude

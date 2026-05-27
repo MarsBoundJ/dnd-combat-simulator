@@ -185,6 +185,11 @@ class Actor:
         # bookkeeping detail).
         if hasattr(self, "_free_actions_fired_this_turn"):
             self._free_actions_fired_this_turn.clear()
+        # PR #58: per-turn Cleave dedup. Cleared each turn so the
+        # actor can Cleave once per turn even across multi-attack /
+        # Action Surge re-runs.
+        if hasattr(self, "_cleave_fired_this_turn"):
+            self._cleave_fired_this_turn = False
 
 
 # ============================================================================

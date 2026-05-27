@@ -122,9 +122,11 @@ class ValidatorTest(unittest.TestCase):
 
     def test_known_v1_set(self) -> None:
         self.assertEqual(KNOWN_MASTERIES,
-                            # PR #57: nick promoted from DEFERRED to KNOWN
+                            # PR #57: nick promoted to KNOWN
+                            # PR #58: cleave/push/slow promoted to KNOWN
                             frozenset({"vex", "sap", "topple", "graze",
-                                         "nick"}))
+                                         "nick",
+                                         "cleave", "push", "slow"}))
 
     def test_validate_passes(self) -> None:
         for m in KNOWN_MASTERIES:
@@ -192,7 +194,20 @@ class PCSchemaWeaponMasteryTest(unittest.TestCase):
             build_pc_template(spec, _registry())
 
     def test_deferred_mastery_raises(self) -> None:
-        spec = _base_pc_spec(weapon_masteries=["cleave"])
+        # PR #58: cleave/push/slow are now KNOWN. DEFERRED_MASTERIES
+        # is empty after this PR, so the "deferred" code path has no
+        # input that triggers it. We skip the test rather than
+        # invent a fake deferred name — the deferred-raises behavior
+        # is still pinned by the unit test in validate_mastery for
+        # explicit DEFERRED set entries (currently empty).
+        if not DEFERRED_MASTERIES:
+            self.skipTest(
+                "DEFERRED_MASTERIES is empty after PR #58; no input "
+                "triggers the deferred-raises path. Skip until a new "
+                "deferred mastery is introduced.")
+        # If/when DEFERRED is non-empty again:
+        any_deferred = next(iter(DEFERRED_MASTERIES))
+        spec = _base_pc_spec(weapon_masteries=[any_deferred])
         with self.assertRaises(ValueError):
             build_pc_template(spec, _registry())
 

@@ -318,6 +318,37 @@ def _in_line(square: tuple[int, int], origin: tuple[int, int],
     return 1 <= ax <= length_squares
 
 
+def push_creature(pusher: Actor, target: Actor, distance_ft_amount: int) -> int:
+    """Push `target` straight away from `pusher` up to `distance_ft_amount`
+    feet (PR #58 — Push weapon mastery).
+
+    Direction: snapped to the 8-direction unit vector from pusher's
+    position to target's position (via `unit_direction`). If pusher
+    and target are stacked on the same square (rare), the helper
+    returns 0 (no defined direction).
+
+    Movement is step-wise (5 ft per square). Each step moves the
+    target one square in the push direction. v1 doesn't handle
+    collision with other actors or map edges — it always moves the
+    full requested distance. Tracked as a deferred refinement.
+
+    Returns the number of feet actually pushed.
+    """
+    direction = unit_direction(pusher.position, target.position)
+    if direction == (0, 0):
+        return 0
+    max_squares = distance_ft_amount // SQUARE_SIZE_FT
+    if max_squares <= 0:
+        return 0
+    x, y = target.position
+    dx, dy = direction
+    for _ in range(max_squares):
+        x += dx
+        y += dy
+    target.position = (x, y)
+    return max_squares * SQUARE_SIZE_FT
+
+
 def required_movement_ft(mover: Actor, target: Actor | tuple[int, int],
                           reach_ft: int) -> int:
     """How many ft `mover` would need to move to bring `target` within
