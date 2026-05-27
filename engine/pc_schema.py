@@ -245,10 +245,19 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
         # `template.levels.<class_short_name>`). Single-class PCs from
         # pc_schema get exactly one entry; multiclass support will
         # extend this dict. PR #71's Rage reader keys off
-        # `levels.barbarian`; future features (Sneak Attack scaling
-        # off rogue_level, Divine Smite slot cap off paladin_level)
-        # use the same convention.
+        # `levels.barbarian`; PR #72's SA reads `levels.rogue`;
+        # PR #73's Divine Smite reads `levels.paladin`. Same
+        # convention everywhere.
         "levels": {_short_class_name(class_id): level},
+        # Per-class spell slot derivation (PR #73). For classes
+        # whose level_table declares `spell_slots` in class_resources
+        # (Paladin's half-caster progression today; Wizard / Cleric /
+        # full casters in future PRs), stamp the level-appropriate
+        # slot dict onto the template. cli._build_actor reads this
+        # as a fallback when the actor_spec doesn't declare its own
+        # `spell_slots:`. Empty dict for non-casters or for classes
+        # whose table doesn't declare the field.
+        "spell_slots": _derive_class_spell_slots(class_def, level),
         # Tag for telemetry / debugging
         "derived_from_pc_schema": {
             "class": class_id,
@@ -845,6 +854,22 @@ def _build_extra_attack_action(count: int,
         "count": int(count),
         "sub_actions": [primary_id] * int(count),
     }
+
+
+def _derive_class_spell_slots(class_def: dict, level: int) -> dict:
+    """Return the per-level spell slot dict declared by the class table
+    at this level, or {} if no `spell_slots` field is present (PR #73).
+
+    Walks `_class_resources_at_level` and pulls the `spell_slots`
+    sub-dict (already a `{level: count}` shape per the c_paladin YAML
+    convention). Caller (cli._build_actor) reads this as a fallback
+    when actor_spec doesn't declare its own slots — fixtures may
+    still override for "wounded Paladin with no slots left" scenarios.
+    """
+    resources = _class_resources_at_level(class_def, level)
+    raw = resources.get("spell_slots") or {}
+    # Normalize keys to int (YAML loaders may surface them as strings)
+    return {int(k): int(v) for k, v in raw.items()}
 
 
 def _short_class_name(class_id: str) -> str:

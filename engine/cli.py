@@ -160,8 +160,14 @@ def _build_actor(actor_spec: dict, registry) -> Actor:
     position_raw = actor_spec.get("position") or [0, 0]
     position = (int(position_raw[0]), int(position_raw[1]))
     # Optional spell_slots {level: count} dict; default empty (no
-    # spellcaster). Accepts integer-keyed dict from YAML.
-    spell_slots_raw = actor_spec.get("spell_slots") or {}
+    # spellcaster). Accepts integer-keyed dict from YAML. PR #73:
+    # falls back to template's `spell_slots` (auto-derived from the
+    # class table by pc_schema for half-/full-casters). Explicit
+    # actor_spec.spell_slots wins on conflict so fixtures can still
+    # override for "wounded Paladin with no slots" scenarios.
+    spell_slots_raw = (actor_spec.get("spell_slots")
+                          or template.get("spell_slots")
+                          or {})
     spell_slots = {int(k): int(v) for k, v in spell_slots_raw.items()}
     # Maximum slots per level — for Arcane Recovery / future long-rest
     # restoration. Defaults to a copy of spell_slots (assumes the actor

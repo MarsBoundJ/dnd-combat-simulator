@@ -1,0 +1,85 @@
+# f_divine_smite — Divine Smite (Paladin)
+# Source: SRD CC v5.2.1 / PHB 2024 p.86 (Divine Smite spell)
+# Pattern: passive damage rider on melee weapon hit; consumes a
+# spell slot (1st-4th) + Bonus Action
+
+id: f_divine_smite
+name: Divine Smite
+source: srd_5.2.1
+granted_by:
+  class: c_paladin
+  level: 2
+type: passive       # PHB 2024 ships Divine Smite as a 1st-level
+                      # Paladin SPELL with BA casting time taken
+                      # "immediately after hitting a target." From
+                      # the engine's perspective this plays as a
+                      # passive damage rider — see
+                      # engine/core/divine_smite.py for the
+                      # heuristic.
+is_signature: false
+
+# Bonus action + spell slot. Both gates enforced inside the
+# `try_apply_divine_smite` helper (BA check via
+# actor.actions_used_this_turn['bonus_action']; slot via
+# actor.spell_slots[1..4]).
+resource_cost:
+  type: bonus_action_and_spell_slot
+  min_slot_level: 1
+  max_slot_level: 4   # RAW PHB 2024: Divine Smite damage scaling
+                        # caps at a 4th-level slot (5d8 base, 6d8
+                        # vs Fiend/Undead). 5th+ slots can hold
+                        # other Paladin spells but DON'T amplify
+                        # smite damage.
+
+usage:
+  uses_per: per_qualifying_hit
+  scaling_source: "fixed:2d8 + 1d8 per slot level above 1st (cap 5d8)"
+  rest_recovery:
+    long_rest: full     # Paladin spell slots refresh on long rest
+
+# No explicit pipeline: the qualification + dice roll live in
+# engine/core/divine_smite.py and are invoked from _damage when the
+# attack hits/crits on a melee weapon and the AI heuristic accepts
+# the slot-spend.
+effect_primitives: []
+
+contract:
+  reads: [actor.paladin_level, actor.spell_slots,
+           actor.actions_used_this_turn.bonus_action,
+           actor._divine_smite_used_this_turn,
+           target.template.creature_type,
+           combat.attack_state, attack_params.kind,
+           state.encounters_remaining_today]
+  writes: [actor.spell_slots, actor.actions_used_this_turn,
+            actor._divine_smite_used_this_turn,
+            combat.damage_total]
+  event: damage_roll
+  scope: per_qualifying_hit
+
+# RAW trigger conditions (engine/core/divine_smite.py implements):
+#   1. Paladin level >= 2
+#   2. Hit (or crit) with a Melee weapon attack
+#   3. Has at least one 1st-4th level spell slot remaining
+#   4. Bonus action not yet spent this turn
+#
+# Damage: 2d8 radiant at 1st-slot, +1d8 per slot above 1st (cap 5d8
+# at 4th-level), +1d8 if target is Fiend or Undead. Crit doubles
+# all smite dice (RAW: extra dice from class features double on
+# crit, same as weapon base dice + Sneak Attack PR #72).
+#
+# AI slot-pick heuristic (v1):
+#   - Always smite on crit
+#   - Always smite when the projected smite damage would drop the
+#     target (kill-steal)
+#   - Smite vs Fiend/Undead when encounters_remaining_today <= 4
+#     (slot abundance favorable)
+#   - Otherwise smite only when expected damage > slot opportunity
+#     cost (via slot_cost_ehp from PR #22)
+#   - Always picks LOWEST available smite slot (RAW best-practice)
+#
+# Deferred:
+#   - Higher-slot smite when player wants the burst (v1 always
+#     picks lowest)
+#   - Smite as a separate AI-scored candidate
+#   - 2014-style "see hit result, then decide" timing (v1 folds
+#     smite into the same damage instance as the underlying attack)

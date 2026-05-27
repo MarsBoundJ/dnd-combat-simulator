@@ -5,6 +5,66 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-27 — Paladin Divine Smite v1 (PR #73)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Third feature in the per-class four-feature arc (Rage → SA →
+  Divine Smite → Cunning Action).
+- PHB 2024 mechanic wired correctly: Divine Smite is now a
+  1st-level Paladin spell with BA casting time taken
+  "immediately after hitting a target with a Melee weapon
+  attack" — consumes both BA AND a Paladin spell slot.
+- New `engine/core/divine_smite.py` module:
+  * Dice math: 2d8/3d8/4d8/5d8 at slots 1-4; caps at 4th
+    (RAW 2024); +1d8 vs Fiend or Undead
+  * Qualification gate: paladin level >= 2, melee weapon,
+    slot available, BA not yet spent, dedup flag clear
+  * AI slot-pick heuristic: always smite on crit; kill-steal
+    detection; Fiend/Undead bias; pace-aware via
+    `slot_cost_ehp`; always picks lowest available slot
+  * Application: consumes slot, marks BA, sets dedup,
+    emits `divine_smite_applied` event with trigger reason
+- `_damage` integration: fires after SA rider on hit/crit
+  melee attacks; folded into same damage instance.
+- New `_derive_class_spell_slots` helper in pc_schema reads
+  `class_resources.spell_slots` from the level table and
+  stamps onto `template["spell_slots"]`. cli falls back to
+  template when actor_spec doesn't declare slots.
+- c_paladin YAML extended L5→L20 with full half-caster slot
+  progression + `f_divine_smite` at L2 + creature_type
+  awareness for the Fiend/Undead bonus check.
+- New `f_divine_smite.yaml` feature (passive, no
+  auto-generated action — smite fires inside _damage).
+- Per-turn dedup via `_divine_smite_used_this_turn`.
+- 31 new tests across 13 layers. Full suite: 1225 passed +
+  1 skipped (was 1194 + 31 new).
+
+**Scope decisions:**
+- Passive rider in `_damage` rather than a separately-scored
+  BA candidate — matches RAW timing (smite damage is part of
+  the attack's hit) and keeps the AI decision inside the
+  damage path.
+- Lowest-slot-first selection — RAW best-practice; higher
+  slot dice rarely beat saving the slot for non-smite spells.
+- Always-smite on crit captures the "always smite" pattern
+  most Paladin players play; pace-aware gating handles the
+  non-crit case.
+
+**Open items:**
+- Higher-slot smite when the player wants the burst (v1
+  always picks lowest)
+- Smite as a separately-scored AI candidate (would let the AI
+  hold off on a small attack and smite a bigger one)
+- Full Paladin spellcasting (preparing + casting Bless /
+  Shield of Faith / Heroism — slots are populated but no
+  candidates emit yet)
+- Lay on Hands, Divine Sense, Aura of Protection
+- 2014-style "see hit result, then decide" timing
+
+---
+
 ## Session: 2026-05-27 — Rogue Sneak Attack v1 (PR #72)
 
 **Participants:** Phil, Claude

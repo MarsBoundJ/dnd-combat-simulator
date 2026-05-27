@@ -309,6 +309,20 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
             actor, target, state, attack_params, rng,
             is_crit=(sa_state == "crit"))
         total += sa_damage
+        # PR #73: Divine Smite rider. Same gating as SA (hit/crit on
+        # melee weapon). The smite heuristic decides whether to
+        # actually spend a slot via pace-aware gating (crit always
+        # smites; kill-steal always smites; Fiend/Undead bias;
+        # otherwise compare expected damage to slot opportunity
+        # cost). Folded into the same damage instance so HP-tracking
+        # sees one consolidated hit (RAW 2024: smite damage is part
+        # of the attack's hit).
+        from engine.core import divine_smite as _ds
+        ds_damage = _ds.try_apply_divine_smite(
+            actor, target, state, attack_params, rng,
+            is_crit=(sa_state == "crit"),
+            base_attack_damage=total)
+        total += ds_damage
 
     # Resistance / vulnerability / immunity (template-level)
     template = target.template or {}
