@@ -288,6 +288,16 @@ def defensive_ehp_defensive_buff(actor: Actor, target_ally: Actor,
     if target_ally is None or not target_ally.is_alive():
         return 0.0
 
+    # PR #71: Rage scoring path. Rage isn't a +AC / disadvantage buff —
+    # it's an identity-state toggle that grants BPS resistance + a
+    # melee damage bonus. The standard buff-shape scorer would return
+    # 0 because `extract_buff_effect` doesn't find an
+    # attack/save_modifier in the pipeline. Detect Rage by its
+    # signature primitive and score it separately so the AI actually
+    # picks it.
+    if _pipeline_has_primitive(action, "rage_start"):
+        return _score_rage_entry(actor, state)
+
     buff = extract_buff_effect(action)
     if not buff:
         return 0.0
@@ -310,6 +320,67 @@ def defensive_ehp_defensive_buff(actor: Actor, target_ally: Actor,
     buff_rounds = float(action.get("defensive_buff_rounds",
                                        EXPECTED_BUFF_ROUNDS))
     return worst_dpr * delta_miss * buff_rounds
+
+
+# ============================================================================
+# Rage scoring helpers (PR #71)
+# ============================================================================
+
+def _pipeline_has_primitive(action: dict, primitive_name: str) -> bool:
+    """True iff the action's pipeline contains a step with this
+    primitive name. Used by the Rage scorer to detect rage_start
+    cheaply without importing rage state machinery."""
+    for step in (action.get("pipeline") or []):
+        if step.get("primitive") == primitive_name:
+            return True
+    return False
+
+
+def _score_rage_entry(actor: Actor, state: CombatState) -> float:
+    """Estimate eHP value of entering Rage now.
+
+    Two value components, both estimated against the framework's
+    EXPECTED_BUFF_ROUNDS (2.5 by default, conservative for Rage which
+    practically lasts the whole encounter, but matches how other
+    persistent buffs are valued):
+
+      1. **Offensive:** +rage_damage_bonus on each STR melee swing.
+         Estimate ~2 swings per round (multiattack-ready Barbarian)
+         × bonus × rounds. The Barbarian's actual swing count scales
+         with Extra Attack; v1 uses 2 as a midpoint between L1 (1
+         swing) and L5+ (2 swings).
+
+      2. **Defensive:** BPS resistance halves incoming damage from
+         BPS-typed attacks. Estimated as 0.5 × worst_enemy_dpr ×
+         rounds, on the assumption that most martial enemies deal BPS.
+
+    Returns 0 if the actor is already raging (no benefit from re-
+    entering) — preserves the "rage once per fight" expectation
+    without needing a separate filter.
+    """
+    from engine.core.rage import is_raging
+    if is_raging(actor):
+        return 0.0
+
+    bonus = int(getattr(actor, "rage_damage_bonus", 0))
+    # If not raging, rage_damage_bonus is 0 (it's only stamped at
+    # entry time). Read the level-table value instead so we score
+    # against the bonus we WILL have post-entry.
+    if bonus <= 0:
+        from engine.core.rage import rage_damage_at_level
+        levels = (actor.template or {}).get("levels") or {}
+        bonus = rage_damage_at_level(int(levels.get("barbarian", 1)))
+
+    # Offensive: +bonus on ~2 STR melee swings per round
+    offensive_value = 2.0 * float(bonus) * EXPECTED_BUFF_ROUNDS
+
+    # Defensive: halve worst enemy DPR (assumes BPS typing)
+    enemies = [a for a in state.encounter.actors
+                if a.side != actor.side and a.is_alive()]
+    worst_dpr = max((estimate_dpr(e) for e in enemies), default=0.0)
+    defensive_value = 0.5 * worst_dpr * EXPECTED_BUFF_ROUNDS
+
+    return offensive_value + defensive_value
 
 
 # ============================================================================

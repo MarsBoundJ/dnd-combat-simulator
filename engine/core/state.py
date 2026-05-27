@@ -168,6 +168,20 @@ class Actor:
     # KNOWN_SIZES ordering and PUSH_SIZES filter.
     size: str = "medium"
 
+    # Rage state (PR #71, Barbarian). Flipped on by the a_rage bonus
+    # action (which consumes a `rage_uses_remaining` charge); flipped
+    # off by the end-of-turn auto-end check (no attack + no damage)
+    # or by incapacitation. While True:
+    #   - +rage_damage_bonus on STR-mod melee weapon attacks
+    #     (handled in primitives._damage)
+    #   - BPS resistance (handled in primitives._damage)
+    #   - Advantage on STR checks + STR saves (handled via
+    #     query_save_modifiers / query_d20_test_modifiers reading
+    #     rage_active directly)
+    # See engine/core/rage.py for the level tables + transitions.
+    rage_active: bool = False
+    rage_damage_bonus: int = 0
+
     def is_alive(self) -> bool:
         return self.hp_current > 0 and not self.is_dead and not self.is_fled
 
@@ -199,6 +213,15 @@ class Actor:
         # Action Surge re-runs.
         if hasattr(self, "_cleave_fired_this_turn"):
             self._cleave_fired_this_turn = False
+        # PR #71: per-turn Rage end-check flags. The actor's Rage
+        # auto-ends at end-of-turn if BOTH flags are False (no
+        # hostile attack made + no damage taken). Cleared each turn
+        # so the next turn starts a fresh accounting window. See
+        # engine/core/rage.py::check_rage_end_of_turn.
+        if hasattr(self, "_rage_attacked_hostile_this_turn"):
+            self._rage_attacked_hostile_this_turn = False
+        if hasattr(self, "_rage_damaged_this_turn"):
+            self._rage_damaged_this_turn = False
 
 
 # ============================================================================

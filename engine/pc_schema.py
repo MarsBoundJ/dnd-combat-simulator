@@ -241,6 +241,14 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
             },
         },
         "actions": actions,
+        # Per-class level table (read by primitives via
+        # `template.levels.<class_short_name>`). Single-class PCs from
+        # pc_schema get exactly one entry; multiclass support will
+        # extend this dict. PR #71's Rage reader keys off
+        # `levels.barbarian`; future features (Sneak Attack scaling
+        # off rogue_level, Divine Smite slot cap off paladin_level)
+        # use the same convention.
+        "levels": {_short_class_name(class_id): level},
         # Tag for telemetry / debugging
         "derived_from_pc_schema": {
             "class": class_id,
@@ -353,6 +361,18 @@ def derive_pc_resources(pc_spec: dict, content_registry: Any) -> dict:
     # will invoke apply_short_rest between encounters.
     if "f_arcane_recovery" in features_known:
         resources["arcane_recovery_uses_remaining"] = 1
+
+    # ---- Rage (Barbarian L1+) — PR #71 ----
+    # rage_uses scales with Barbarian level via the class table; we
+    # also stamp `rage_uses_max` so apply_long_rest can restore the
+    # ceiling without rescanning the class def. The bonus-action
+    # `a_rage` (auto-generated in _build_feature_actions) consumes
+    # `rage_uses_remaining` via its feature_use gate.
+    if "f_rage" in features_known and class_id == "c_barbarian":
+        uses = int(class_resources_at_level.get("rage_uses", 0))
+        if uses > 0:
+            resources["rage_uses_remaining"] = uses
+            resources["rage_uses_max"] = uses
 
     return resources
 
@@ -774,6 +794,10 @@ def _build_feature_actions(features_known: set[str], level: int,
     actions: list[dict] = []
     if "f_second_wind" in features_known and class_id == "c_fighter":
         actions.append(_build_second_wind_action(level))
+    # PR #71: Barbarian Rage — bonus-action signature action that
+    # consumes `rage_uses_remaining` and flips Actor.rage_active.
+    if "f_rage" in features_known and class_id == "c_barbarian":
+        actions.append(_build_rage_action())
     # Extra Attack: count scales with feature presence (RAW Fighter
     # progression at L5 / L11 / L20). Only one of the three feature
     # ids is meaningful at a time — higher-level features supersede
@@ -820,6 +844,43 @@ def _build_extra_attack_action(count: int,
         "type": "multiattack",
         "count": int(count),
         "sub_actions": [primary_id] * int(count),
+    }
+
+
+def _short_class_name(class_id: str) -> str:
+    """Strip the `c_` prefix from a class id (e.g. `c_barbarian` →
+    `barbarian`). Used by the template.levels stamp so primitives that
+    look up class level via the `actor.<class>_level` convention can
+    find it."""
+    if class_id and class_id.startswith("c_"):
+        return class_id[len("c_"):]
+    return class_id
+
+
+def _build_rage_action() -> dict:
+    """RAW (PHB 2024): Bonus Action, expend one rage charge to enter
+    Rage. Pipeline calls the `rage_start` primitive, which flips the
+    actor's rage state + stamps the level-appropriate damage bonus.
+
+    Marked signature so the bonus-slot gate fires it eagerly when
+    charges are available — Barbarians want to rage as early as
+    possible in a fight (rage is the class's identity ability).
+    """
+    return {
+        "id": "a_rage",
+        "name": "Rage",
+        # Type=defensive_buff routes through the candidate generator's
+        # self-targeted-defensive-buff path (extended in PR #71's
+        # `is_self_targeted_defensive_buff` to detect rage_start), and
+        # through `defensive_ehp_defensive_buff` scoring (which has a
+        # rage-specific branch via `_score_rage_entry`).
+        "type": "defensive_buff",
+        "slot": "bonus_action",
+        "feature_use": "rage_uses_remaining",
+        "is_signature": True,
+        "pipeline": [
+            {"primitive": "rage_start", "params": {}},
+        ],
     }
 
 

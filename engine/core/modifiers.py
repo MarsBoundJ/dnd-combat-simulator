@@ -163,6 +163,14 @@ def query_save_modifiers(
         elif modifier == "flat":
             result.save_bonus_modifier += params.get("value", 0)
         result.sources.append(mod.get("source") or {})
+    # PR #71: Rage gives advantage on STR saves (RAW PHB 2024). Read
+    # directly off Actor.rage_active rather than registering a
+    # modifier at rage entry — keeps rage as an identity-state check
+    # rather than a registry-managed buff with lifetime concerns.
+    if getattr(target, "rage_active", False) \
+            and save_ability in ("strength", "str"):
+        result.has_advantage = True
+        result.sources.append({"type": "rage", "source_creature_id": target.id})
     return result
 
 
@@ -217,6 +225,15 @@ def query_d20_test_modifiers(
             if value is not None:
                 result.flat_modifier += value
         result.sources.append(mod.get("source") or {})
+    # PR #71: Rage gives advantage on Strength ability checks (PHB
+    # 2024). Specific to STR — DEX/CON/INT/WIS/CHA checks unaffected.
+    # Recognized applies_to keys for STR checks:
+    #   - 'strength_check' (explicit)
+    #   - 'ability_checks' (umbrella; STR check is a subset)
+    if getattr(actor, "rage_active", False) \
+            and applies_to_key in ("strength_check", "str_check"):
+        result.has_advantage = True
+        result.sources.append({"type": "rage", "source_creature_id": actor.id})
     return result
 
 

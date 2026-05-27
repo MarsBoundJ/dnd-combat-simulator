@@ -220,6 +220,13 @@ def _attack_roll(params: dict, state: CombatState, bus: EventBus) -> dict:
     _modifiers.expire_modifiers(actor, {"attack_complete", "owner_made_attack"})
     _modifiers.expire_modifiers(target, {"attack_complete"})
 
+    # PR #71: Rage bookkeeping. The "attacked a hostile creature" flag
+    # is set on any swing against an opposing-side target (RAW: "attack"
+    # — not "hit on attack"). This must run regardless of attack_state
+    # because misses against hostiles still satisfy the rule.
+    from engine.core import rage as _rage
+    _rage.mark_attacked_hostile(actor, target)
+
     # PR #54: Weapon Mastery dispatch. Fires AFTER lifetime expiry so
     # newly-registered Vex/Sap modifiers (with per_owner_attack
     # lifetime, which consumes on owner_made_attack) survive THIS
@@ -269,7 +276,24 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
     else:
         rolled = 0
 
-    total = rolled + modifier
+    # PR #71: Rage damage bonus on STR-mod melee weapon attacks.
+    # Added BEFORE resistance/vuln/immunity so BPS resistance against
+    # a raging attacker halves the full pre-resistance value (RAW: the
+    # rage bonus is part of the damage roll, then resistance applies).
+    # Attack params travel via the pipeline's attack_roll step — the
+    # `kind` and `ability` keys live on the action's attack_roll step,
+    # not directly on the damage step. We read them off the cached
+    # state.current_attack.action.pipeline (set by the pipeline at
+    # execution time). Safe to read-or-default to ranged/None gate.
+    from engine.core import rage as _rage
+    if _rage.is_raging(actor):
+        attack_params = _extract_attack_params(state)
+        if _rage.applies_rage_damage_bonus(actor, attack_params):
+            total = rolled + modifier + actor.rage_damage_bonus
+        else:
+            total = rolled + modifier
+    else:
+        total = rolled + modifier
 
     # Resistance / vulnerability / immunity (template-level)
     template = target.template or {}
@@ -280,6 +304,17 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
     elif dmg_type in (template.get("damage_vulnerabilities") or []):
         total = total * 2
 
+    # PR #71: Rage BPS resistance on the TARGET side. RAW: a raging
+    # creature has resistance to bludgeoning, piercing, and slashing
+    # damage. Layered AFTER template-level resistances — if the target
+    # already had template-side BPS resistance, this would double-halve
+    # per RAW "resistances don't stack," so we skip the rage halving
+    # when the template already halved.
+    if _rage.applies_rage_bps_resistance(target, dmg_type):
+        already_resisted = dmg_type in (template.get("damage_resistances") or [])
+        if not already_resisted:
+            total = total // 2
+
     # Apply multiplier (after resistance per 5e ordering: resistance halves
     # the post-multiplier? Or multiplier-then-resistance? Per RAW saves halve
     # the rolled total before resistance. For v1 we apply resistance first
@@ -289,6 +324,11 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
 
     total = max(0, total)
     target.hp_current = max(0, target.hp_current - total)
+
+    # PR #71: track damage taken while raging — feeds the end-of-turn
+    # "no attack + no damage" auto-end check. Damage > 0 satisfies the
+    # "took damage this turn" branch of the rule.
+    _rage.mark_damaged_while_raging(target, total)
 
     bus.emit("damage_dealt", {"actor": actor, "target": target,
                                 "amount": total, "type": dmg_type})
@@ -1070,6 +1110,47 @@ def _get_rng(state: CombatState, bus: EventBus) -> _random_module.Random:
     return _rng
 
 
+def _extract_attack_params(state: CombatState) -> dict:
+    """Pull the live attack_roll params for the in-flight attack (PR #71).
+    Used by the Rage damage-bonus check in `_damage`, which needs to
+    know whether the swing was melee/ranged and STR/DEX.
+
+    Reads `state.current_attack.action.pipeline` and finds the first
+    `attack_roll` step. Returns its params dict, or {} if no attack
+    pipeline is detected (e.g., damage from a no-attack source like
+    Cloud of Daggers — Rage never applies there anyway).
+
+    `state.current_attack.attack_roll_params` may also be set
+    explicitly by future test seams; that wins if present.
+    """
+    if not state.current_attack:
+        return {}
+    explicit = state.current_attack.get("attack_roll_params")
+    if explicit is not None:
+        return dict(explicit)
+    action = state.current_attack.get("action") or {}
+    for step in (action.get("pipeline") or []):
+        if step.get("primitive") == "attack_roll":
+            return dict(step.get("params") or {})
+    return {}
+
+
+def _rage_start(params: dict, state: CombatState, bus: EventBus) -> None:
+    """Primitive that flips the actor into Rage (PR #71).
+
+    Invoked by the a_rage bonus action's pipeline. The action's
+    feature_use:rage_uses_remaining gate consumes the charge at
+    execution time; this primitive just flips state and stamps the
+    damage bonus. See engine/core/rage.py for the level tables and
+    the state-transition rules.
+    """
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        raise ValueError("rage_start requires a current actor")
+    from engine.core.rage import enter_rage
+    enter_rage(actor, state)
+
+
 def _resolve_modifier(source: str, actor: Actor) -> int:
     """Resolve a modifier-source token against an actor (used by heal,
     by some on-hit damage riders, and class-level scaling)."""
@@ -1218,6 +1299,7 @@ def _populate_handler_table() -> None:
         "persistent_aura": _persistent_aura,
         "counterspell_resolve": _counterspell_resolve,
         "multiattack": _multiattack,
+        "rage_start": _rage_start,
     }
 
 
@@ -1250,6 +1332,8 @@ def _all_primitives() -> list[Primitive]:
                     implemented=True),
         # v1 — Monster mechanics
         Primitive("multiattack", _multiattack, implemented=True),
+        # PR #71 — Barbarian Rage entry
+        Primitive("rage_start", _rage_start, implemented=True),
     ]
     # Populate handler lookup table for subprimitive invocations
     global _PRIMITIVE_HANDLERS

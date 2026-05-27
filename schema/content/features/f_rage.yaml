@@ -1,0 +1,60 @@
+# f_rage — Rage (Barbarian)
+# Source: SRD CC v5.2.1 / PHB 2024 p.50
+# Pattern: bonus-action signature, scaling-by-level effect + uses
+
+id: f_rage
+name: Rage
+source: srd_5.2.1
+granted_by:
+  class: c_barbarian
+  level: 1
+type: active
+is_signature: true
+
+# Bonus action; consumes one rage_uses_remaining charge per use.
+resource_cost:
+  type: bonus_action
+
+usage:
+  uses_per: long_rest
+  scaling_source: "c_barbarian.level_table.class_resources.rage_uses"
+  rest_recovery:
+    short_rest: none          # full short-rest recovery deferred
+                                # (Relentless Rage / Tireless Soul are
+                                # subclass-specific)
+    long_rest: full
+
+# Pipeline runs the rage_start primitive, which flips
+# Actor.rage_active to True and stamps the level-appropriate
+# rage_damage_bonus (see engine/core/rage.py for the level tables).
+effect_primitives:
+  - primitive: rage_start
+    params: {}
+
+contract:
+  reads: [actor.rage_uses_remaining, actor.barbarian_level]
+  writes: [actor.rage_active, actor.rage_damage_bonus,
+            actor.rage_uses_remaining]
+  event: actor_turn_bonus_action
+  scope: per_use
+
+# RAW effects while raging (handled at the relevant primitive sites,
+# not via on-cast modifier registration — these are identity-state
+# checks read each time the relevant calculation fires):
+#   - +rage_damage_bonus on STR-mod melee weapon attack damage
+#     (engine.primitives._damage reads actor.rage_active +
+#     rage_damage_bonus)
+#   - Resistance to bludg/pierce/slash on incoming damage
+#     (engine.primitives._damage halves matching damage types)
+#   - Advantage on STR checks + STR saves (PR #71 v1 reads
+#     rage_active directly from query_save_modifiers /
+#     query_d20_test_modifiers)
+#
+# End conditions (RAW):
+#   1. Knocked unconscious / dies (deferred — incapacitation hook
+#      needs to know about rage_active to call end_rage)
+#   2. End of actor's turn with no hostile attack made and no damage
+#      taken (engine.core.rage.check_rage_end_of_turn fires at
+#      runner turn-end boundary)
+#   3. 10-minute duration cap (deferred — practical case covered
+#      by #2 across rounds)

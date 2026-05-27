@@ -120,6 +120,13 @@ class EncounterRunner:
         # Resolve any recurring saves registered against this actor's turn_end
         self._resolve_recurring_saves(actor, state)
 
+        # PR #71: Rage end-of-turn check. If the actor is raging AND
+        # neither attacked a hostile nor took damage this turn, rage
+        # ends per RAW. Skipped on the entry turn (the grace check
+        # lives inside check_rage_end_of_turn).
+        from engine.core.rage import check_rage_end_of_turn
+        check_rage_end_of_turn(actor, state)
+
         self.event_bus.emit("turn_end", {"actor": actor, "round": state.round})
         state.event_log.append({"event": "turn_end", "actor": actor.id,
                                 "hp_remaining": actor.hp_current})
