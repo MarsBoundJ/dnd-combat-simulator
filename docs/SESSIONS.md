@@ -5,6 +5,65 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-27 — Rogue Cunning Strike (PR #81)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- RAW PHB 2024 Cunning Strike wired: Rogue L5+ trades 1d6 of SA
+  damage for one of three effects (Poison/Trip/Withdraw). Picked
+  by AI heuristic when effect value > 3.5 eHP cost; else full SA.
+- New `engine/core/cunning_strike.py` module: registry, DC
+  (8 + DEX_mod + PB), qualification, AI heuristic, effect
+  application.
+- `try_apply_sneak_attack` integration: AI picks effect →
+  reduce SA dice by cost → roll reduced SA → apply effect.
+- Effects:
+  * Poison: CON save → co_poisoned on fail
+  * Trip: DEX save → co_prone on fail (Large or smaller size gate)
+  * Withdraw: actor.disengaging = True (v1: OA-suppression is
+    the load-bearing value)
+- 24 new tests across 14 layers. Full suite: 1387 passed + 1
+  skipped (was 1363 + 24 new).
+
+**Critical scoping correction (per Phil's note mid-PR):**
+Initial Trip value formula was wrong — modeled "1.5 rounds of
+target attacking at disadvantage + offensive value for adjacent
+allies × rounds." Phil pointed out: **a Prone target stands up
+at the start of their next turn by spending half their movement**,
+so:
+- Target's own attacks DON'T happen at disadvantage (they stand
+  first)
+- The Rogue who applied Trip DOESN'T benefit on their own next
+  swing (target stands before the Rogue's next turn)
+- **Only allies whose initiative slot falls between the
+  attacker's turn and the target's next turn benefit** (each
+  adjacent melee ally gets advantage on their attacks)
+- Trip is fundamentally a party-coordination move
+
+Corrected formula: `sum(ally_dpr × DELTA_HIT_FROM_ADVANTAGE)
+for allies in initiative window × p_fail`. Uses
+`estimate_dpr` (multi-attack-aware) per ally so Fighters with
+Extra Attack correctly amplify value over single-attack allies.
+Solo Rogues correctly compute 0 — won't pick Trip.
+
+New `_allies_acting_before_target` helper walks
+`state.turn_order` from attacker's index forward, collecting
+allies until hitting the target's slot.
+
+**Open items (Phil-flagged broader topic):**
+- **Party coordination + initiative manipulation** as a deeper
+  AI topic. Trip's value calc is the simplest case of it;
+  Ready Action / holding initiative / Help-action-timing /
+  buff-stacking-before-burst all share the same need: AI
+  reasoning about who acts WHEN. Worth a dedicated arc.
+- Devious Strikes (Rogue L11; higher-cost options)
+- Improved Cunning Strikes (Rogue L14; two effects per SA)
+- "Vial of basic poison" RAW prereq for Poison
+- Withdraw's half-speed move cap
+
+---
+
 ## Session: 2026-05-27 — Rogue Steady Aim (PR #80)
 
 **Participants:** Phil, Claude

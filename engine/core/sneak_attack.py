@@ -138,7 +138,21 @@ def try_apply_sneak_attack(attacker: Actor, target: Actor,
     dice_count = sneak_attack_dice_at_level(_rogue_level(attacker))
     if dice_count <= 0:
         return 0
-    # Roll N d6 (2N on crit)
+
+    # PR #81: Cunning Strike (Rogue L5+) — optionally trade SA dice
+    # for an effect. AI picks the best option (None = full damage).
+    # Cost is deducted from the dice count BEFORE rolling, then the
+    # effect fires AFTER the (reduced) damage rolls.
+    from engine.core import cunning_strike as _cs
+    cs_effect = _cs.pick_cunning_strike_effect(attacker, target, state)
+    cs_cost = 0
+    if cs_effect is not None:
+        cs_cost = int(_cs.CUNNING_STRIKE_OPTIONS[cs_effect]["cost_dice"])
+        # Defensive: never deduct more dice than we have
+        cs_cost = min(cs_cost, dice_count)
+        dice_count -= cs_cost
+
+    # Roll N d6 (2N on crit) on the post-CS-cost dice count
     rolls_to_make = dice_count * (2 if is_crit else 1)
     total = sum(rng.randint(1, 6) for _ in range(rolls_to_make))
     # Mark used this turn (the only correct moment — fires once per
@@ -147,7 +161,7 @@ def try_apply_sneak_attack(attacker: Actor, target: Actor,
     # Telemetry
     trigger = "advantage" if state.current_attack.get(
         "had_advantage") else "ally_adjacent"
-    state.event_log.append({
+    sa_event = {
         "event": "sneak_attack_applied",
         "attacker": attacker.id,
         "target": target.id,
@@ -155,7 +169,17 @@ def try_apply_sneak_attack(attacker: Actor, target: Actor,
         "damage": total,
         "is_crit": is_crit,
         "trigger": trigger,
-    })
+    }
+    if cs_effect is not None:
+        sa_event["cunning_strike"] = cs_effect
+        sa_event["cunning_strike_cost_dice"] = cs_cost
+    state.event_log.append(sa_event)
+
+    # Apply Cunning Strike effect AFTER the SA damage is computed
+    # (RAW: damage + effect happen together as part of the hit)
+    if cs_effect is not None:
+        _cs.apply_cunning_strike_effect(cs_effect, attacker, target,
+                                              state, rng)
     return total
 
 

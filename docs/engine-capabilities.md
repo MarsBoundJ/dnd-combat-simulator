@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-05-27
 **Engine state:** Phase 1, post-PR #26 (Dodge + Disengage merged).
-**Test surface:** 1364 tests across 60+ modules; 14 CLI fixtures.
+**Test surface:** 1388 tests across 60+ modules; 14 CLI fixtures.
 
 This document captures what the simulator can actually do today — in
 observable behavioral terms, not module inventories. The companion
@@ -680,6 +680,67 @@ priority order:
    Rebuke**~~ — **Shipped in PR #45.**
 18. ~~**Counterspell + cast-event infra**~~ — **Shipped in PR #46.**
 19. ~~**Vision system v1**~~ — **Shipped in PR #47.**
+53. ~~**Rogue Cunning Strike (L5+)**~~ — **Shipped in PR #81.**
+   Trade 1d6 of Sneak Attack damage for one of three effects.
+   Integrates into the SA path; AI heuristic picks the best
+   effect or skips (full damage) when no effect beats the cost.
+   - **New `engine/core/cunning_strike.py`** module: registry,
+     DC formula (8 + DEX_mod + PB), qualification (L5+),
+     AI heuristic, effect application.
+   - **Three v1 options** (all cost 1d6 of SA dice):
+     * **Poison**: CON save → Poisoned condition on fail
+       (disadvantage on attacks + ability checks, ~2.5 rounds
+       in scoring estimate)
+     * **Trip**: DEX save → Prone on fail (Large or smaller
+       size gate)
+     * **Withdraw**: free Disengage + extra half-speed move
+       (v1: sets actor.disengaging=True; OA suppression is
+       the load-bearing value)
+   - **Corrected Trip value model** (per Phil's note): Prone
+     target stands at start of their next turn by spending
+     half their movement, so they DON'T attack at
+     disadvantage on their own turn (they stand first), and
+     the Rogue who applied Trip DOESN'T benefit on their
+     own next swing (target stands before they swing). Trip
+     is fundamentally a **party-coordination move**: only
+     allies whose initiative slot falls AFTER the attacker but
+     BEFORE the target's next turn get the value. Uses
+     `estimate_dpr` (multi-attack-aware) per ally so Fighters
+     with Extra Attack correctly amplify the value beyond
+     single-attack allies. Solo Rogues won't pick Trip — math
+     correctly returns 0.
+   - **`_allies_acting_before_target`** helper: walks
+     `state.turn_order` from attacker's index forward,
+     collecting allies until hitting the target's slot.
+   - **SA integration**: `try_apply_sneak_attack` calls
+     `pick_cunning_strike_effect` before rolling; reduces dice
+     count by the cost; applies the effect after damage. SA
+     event log includes `cunning_strike` + `cunning_strike_cost_dice`
+     fields when fired.
+   - **Class table**: `f_cunning_strike` added to Rogue L5.
+   - **New `f_cunning_strike.yaml`** feature (passive, no
+     auto-generated action — fires inside the SA path).
+   - 24 new tests across 14 layers (DC formula, qualification,
+     registry, AI heuristic: skip / Trip with party / Withdraw
+     surrounded / solo skips Trip / L4 returns None; effect
+     application: Trip→Prone, Trip size gate, Withdraw→Disengage,
+     Poison→Poisoned; SA integration: dice reduced, full when
+     skipped, L4 skips entirely; YAML wiring).
+   - Deferred:
+     * **Party coordination + initiative manipulation** as a
+       broader AI topic (Ready Action, holding initiative,
+       Help-action timing) — Phil flagged this as worth a
+       dedicated arc; Trip's value calc is the simplest case
+       of it
+     * Devious Strikes (Rogue L11; adds Dazed / Knock Out /
+       Obscure options with higher dice costs)
+     * Improved Cunning Strikes (Rogue L14; allows two
+       Cunning Strike effects on one Sneak Attack)
+     * "Vial of basic poison" RAW prereq for Poison (assumed
+       available in v1)
+     * Withdraw's half-speed move cap (v1 uses Disengage's
+       OA-suppression as the load-bearing value)
+
 52. ~~**Rogue Steady Aim (L3 BA)**~~ — **Shipped in PR #80.**
    Pairs with PR #74's Cunning Action BA infrastructure. RAW
    PHB 2024: as a Bonus Action, gain advantage on next attack

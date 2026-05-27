@@ -1,0 +1,71 @@
+# f_cunning_strike — Cunning Strike (Rogue L5+, PHB 2024)
+# Source: SRD CC v5.2.1 / PHB 2024 p.114
+# Pattern: passive modifier on Sneak Attack (trade dice for effects)
+
+id: f_cunning_strike
+name: Cunning Strike
+source: srd_5.2.1
+granted_by:
+  class: c_rogue
+  level: 5
+type: passive
+is_signature: false
+
+# No resource — Cunning Strike rides on Sneak Attack's once-per-turn
+# trigger. The "cost" is paid from Sneak Attack dice (1d6 per effect
+# in v1; higher-tier effects from Devious Strikes / Improved
+# Cunning Strikes are deferred).
+resource_cost:
+  type: none
+
+usage:
+  uses_per: per_sneak_attack
+  rest_recovery:
+    short_rest: none
+
+# No explicit pipeline: the option-picker + effect application live
+# in engine/core/cunning_strike.py and are invoked from
+# sneak_attack.try_apply_sneak_attack when the SA fires.
+effect_primitives: []
+
+contract:
+  reads: [actor.rogue_level, target.size, target.applied_conditions,
+           state.current_attack]
+  writes: [target.applied_conditions, actor.disengaging,
+            combat.sa_dice_count]
+  event: damage_roll
+  scope: per_qualifying_sneak_attack
+
+# Available v1 options (all cost 1d6 of Sneak Attack damage at L5):
+#   - Poison: CON save vs Cunning Strike DC; on fail, target gets
+#     Poisoned (disadvantage on attacks + ability checks; ~2.5
+#     rounds in scoring estimate)
+#   - Trip: DEX save vs DC; target Large or smaller — on fail Prone
+#     (disadvantage on attacks; melee attackers get advantage
+#     attacking them)
+#   - Withdraw: free Disengage + extra half-speed move; v1 wires
+#     the Disengage half (OA suppression for rest of turn) — the
+#     extra-movement portion is approximated by allowing a
+#     post-BA second-move pass (matches PR #74's Cunning Action
+#     Dash infrastructure but capped at half speed). Most
+#     valuable when adjacent to multiple enemies.
+#
+# Cunning Strike DC = 8 + DEX_mod + proficiency_bonus (RAW
+# PHB 2024 Rogue class DC formula).
+#
+# AI heuristic (engine/core/cunning_strike.py::pick_cunning_strike_effect):
+#   - Estimate each option's eHP value
+#   - Pick highest if value > 3.5 eHP (D6_AVERAGE — the cost of
+#     spending one SA die)
+#   - Otherwise None (full SA damage)
+#
+# Deferred:
+#   - Devious Strikes (Rogue L11; adds Dazed / Knock Out / Obscure
+#     options with higher dice costs)
+#   - Improved Cunning Strikes (Rogue L14; allows two Cunning
+#     Strike effects on a single Sneak Attack)
+#   - "Vial of basic poison" RAW prereq for Poison (assumed
+#     available in v1)
+#   - Withdraw's half-speed move cap (v1 uses the post-BA dash
+#     path's full-speed retry — over-generous by the half-speed
+#     cap but the OA-suppression is the load-bearing value)
