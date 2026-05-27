@@ -5,6 +5,50 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-27 — Total cover auto-miss (PR #76)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Closes the PR #48 residue. Adds `'total'` as a fourth cover
+  state value and wires the RAW PHB 2024 behavior: "a target
+  with total cover can't be the target of an attack or a spell."
+- `Actor.cover` extended to four values
+  (`none`/`half`/`three_quarters`/`total`). Total is a target-
+  cancel (not an AC bump); `_cover_ac_bonus` returns 0 for it.
+- `_attack_roll` early-auto-misses (before any d20 roll) when
+  target has total cover. Emits `attack_roll` event with
+  `reason: "total_cover"` and `result: "miss"`. No RNG
+  consumed.
+- New `_is_total_cover(target)` helper.
+- `generate_candidates` computes `targetable_enemies` (filtering
+  total-cover enemies) once; `weapon_attack`, `multiattack`,
+  and `hard_control` branches use the filtered list.
+- AoE attacks (`aoe_attack`, `persistent_aura`) unchanged —
+  they enumerate ALL living enemies as anchor positions
+  regardless of cover (RAW: AoE covers area, not creatures).
+- 17 new tests across 10 layers. Full suite: 1295 passed + 1
+  skipped (was 1278 + 17 new).
+
+**Scope decisions:**
+- Total cover stays independent of visibility (vision is a
+  separate check — engine doesn't link them yet). Realistic
+  total cover usually blocks LOS, but per-actor cover field
+  is the simple v1 model; terrain-based LOS comes later.
+- AoE NOT filtered — the position-based AoE math already
+  ignores cover, which matches RAW. No new code there.
+- Multiattack filtered at the primary-target pool level; sub-
+  attack retargeting at execution time still hits the
+  `_attack_roll` total-cover guard for defense in depth.
+
+**Open items:**
+- Per-(attacker, target) cover based on terrain geometry
+  (current per-actor symmetric cover stays unchanged)
+- Total cover ↔ vision blocking link (currently independent)
+- Reaction-driven cover changes mid-attack
+
+---
+
 ## Session: 2026-05-27 — SRD races v1 + save-source context (PR #75)
 
 **Participants:** Phil, Claude
