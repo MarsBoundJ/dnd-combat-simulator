@@ -108,13 +108,19 @@ class Actor:
     # reset_turn().
     dashed_this_turn: bool = False
 
-    # Cover state (PR #48): one of 'none' | 'half' | 'three_quarters'.
+    # Cover state (PR #48 + PR #76): one of
+    # 'none' | 'half' | 'three_quarters' | 'total'.
     # Drives the AC + DEX-save bonus applied during attack resolution
-    # (+2 for half, +5 for three_quarters). v1 is per-actor and
-    # symmetric (everyone attacking sees the same cover bonus); future
-    # work models per-(attacker, target) cover based on terrain
-    # geometry. Total cover (auto-miss) is also deferred — needs an
-    # attack-cancellation path.
+    # (+2 for half, +5 for three_quarters; 0 for total). Total cover
+    # is the auto-miss case (PR #76) — single-target attacks against
+    # a total-cover target are short-circuited in _attack_roll with
+    # reason='total_cover' and the candidate generator filters such
+    # enemies out of single-target candidate lists entirely. AoE
+    # attacks still affect total-cover targets per RAW (area effects
+    # cover space, not specific creatures).
+    # v1 is per-actor and symmetric (everyone attacking sees the
+    # same cover bonus); future work models per-(attacker, target)
+    # cover based on terrain geometry.
     cover: str = "none"
 
     # Darkvision range in feet (PR #50). 0 = no darkvision (normal sight

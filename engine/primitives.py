@@ -102,16 +102,28 @@ def _roll_dice_expr_with_floor(expr: str, floor: int,
 # ============================================================================
 
 def _cover_ac_bonus(cover: str) -> int:
-    """Cover → AC bonus mapping (PR #48). RAW 2024:
+    """Cover → AC bonus mapping (PR #48 + PR #76). RAW 2024:
       - half cover: +2 AC + DEX save
       - three-quarters cover: +5 AC + DEX save
-      - total cover: can't be targeted (deferred — needs attack-cancel)
+      - total cover: can't be targeted directly (handled separately
+        in `_attack_roll` via an early auto-miss; returns 0 here
+        because total cover is NOT an AC bonus — it's a target-cancel)
     """
     if cover == "half":
         return 2
     if cover == "three_quarters":
         return 5
     return 0
+
+
+def _is_total_cover(target: Actor) -> bool:
+    """True iff target has 'total' cover. RAW PHB 2024: a target with
+    total cover can't be the target of a direct attack or a spell
+    (though AoE effects that include them can still apply). Used by
+    _attack_roll to early-auto-miss and by the candidate generator
+    to filter such targets from weapon_attack / multiattack /
+    hard_control candidate lists."""
+    return getattr(target, "cover", "none") == "total"
 
 
 def _attack_roll(params: dict, state: CombatState, bus: EventBus) -> dict:
@@ -140,6 +152,25 @@ def _attack_roll(params: dict, state: CombatState, bus: EventBus) -> dict:
             "reach_ft": reach,
         })
         return {"state": "miss", "reason": "out_of_range"}
+
+    # PR #76: Total cover auto-miss. RAW PHB 2024: a target with
+    # total cover "can't be the target of an attack or a spell."
+    # Single-target attacks against such a target auto-miss without
+    # rolling. AoE effects that happen to cover the target's square
+    # still apply (handled at the AoE level via position-based
+    # actors_in_radius / cone / line — not gated by cover).
+    # The candidate generator filters total-cover enemies from
+    # single-target candidate lists too, so AI doesn't pick them in
+    # the first place; this guard catches the multiattack-subattack
+    # path and any direct primitive callers.
+    if _is_total_cover(target):
+        state.current_attack["state"] = "miss"
+        state.event_log.append({
+            "event": "attack_roll", "actor": actor.id,
+            "target": target.id, "result": "miss",
+            "reason": "total_cover",
+        })
+        return {"state": "miss", "reason": "total_cover"}
 
     # PR #45: reactions fire here. Protection Fighting Style imposes
     # disadvantage on attacks against an adjacent ally. The reaction

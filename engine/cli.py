@@ -191,9 +191,12 @@ def _build_actor(actor_spec: dict, registry) -> Actor:
     resources = dict(derived_pc_resources)
     resources.update(dict(actor_spec.get("resources") or {}))
 
-    # PR #48: optional per-actor cover state ('none' | 'half' |
-    # 'three_quarters'). Defaults to 'none'. Fixture authors set this
-    # to model a creature behind a wall, parapet, etc.
+    # PR #48 + PR #76: optional per-actor cover state ('none' |
+    # 'half' | 'three_quarters' | 'total'). Defaults to 'none'.
+    # Fixture authors set this to model a creature behind a wall,
+    # parapet, etc. 'total' is the auto-miss case — single-target
+    # attacks against this actor are short-circuited and the
+    # candidate generator filters them from single-target lists.
     cover = str(actor_spec.get("cover", "none"))
 
     # PR #50: darkvision range in feet. Precedence:

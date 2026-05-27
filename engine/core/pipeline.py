@@ -111,6 +111,16 @@ def generate_candidates(actor: Actor, state: CombatState,
 
     enemies = [a for a in state.encounter.actors
                if a.side != actor.side and a.is_alive()]
+    # PR #76: enemies with total cover are filtered from SINGLE-
+    # TARGET candidate lists. RAW PHB 2024: a target with total
+    # cover can't be the subject of a direct attack or spell.
+    # Computed once here so each action-type branch below can pick
+    # the right list. AoE candidates (aoe_attack / persistent_aura)
+    # still use the unfiltered `enemies` list — AoE doesn't target
+    # individual creatures, it covers an area, so total cover on
+    # one creature in the area doesn't exclude them.
+    targetable_enemies = [e for e in enemies
+                            if getattr(e, "cover", "none") != "total"]
     allies = [a for a in state.encounter.actors
               if a.side == actor.side and a.is_alive()]
 
@@ -118,7 +128,9 @@ def generate_candidates(actor: Actor, state: CombatState,
         action_type = action.get("type")
         if action_type == "weapon_attack":
             reach = _action_reach_ft(action)
-            for enemy in enemies:
+            # PR #76: total-cover enemies filtered from single-target
+            # candidate emission.
+            for enemy in targetable_enemies:
                 if not is_within_ft(actor, enemy, reach):
                     continue
                 candidates.append({
@@ -136,7 +148,12 @@ def generate_candidates(actor: Actor, state: CombatState,
             # primary target (multiattack execution re-picks per sub-attack
             # for now; positioning-aware sub-targeting is a future PR).
             reach = _multiattack_max_reach(action, actor.template)
-            in_range = [e for e in enemies if is_within_ft(actor, e, reach)]
+            # PR #76: total-cover enemies filtered from the
+            # primary-target pool. Sub-attacks that retarget at
+            # execution time still go through _attack_roll's total-
+            # cover guard for defense in depth.
+            in_range = [e for e in targetable_enemies
+                          if is_within_ft(actor, e, reach)]
             if not in_range:
                 continue
             primary_target = in_range[0]
@@ -296,8 +313,11 @@ def generate_candidates(actor: Actor, state: CombatState,
         elif action_type == "hard_control":
             # Spells have a `range_ft` in the action; default to 60 ft for
             # v1 since most save-or-lose spells in 5e are 30-90 ft range.
+            # PR #76: hard_control spells are single-target by shape
+            # (Hold Person, etc.); total-cover enemies excluded. RAW:
+            # "can't be the target of an attack or a spell."
             reach = int(action.get("range_ft", 60))
-            for enemy in enemies:
+            for enemy in targetable_enemies:
                 if not is_within_ft(actor, enemy, reach):
                     continue
                 candidates.append({

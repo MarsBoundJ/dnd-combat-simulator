@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-05-27
 **Engine state:** Phase 1, post-PR #26 (Dodge + Disengage merged).
-**Test surface:** 1279 tests across 60+ modules; 14 CLI fixtures.
+**Test surface:** 1296 tests across 60+ modules; 14 CLI fixtures.
 
 This document captures what the simulator can actually do today — in
 observable behavioral terms, not module inventories. The companion
@@ -680,6 +680,52 @@ priority order:
    Rebuke**~~ — **Shipped in PR #45.**
 18. ~~**Counterspell + cast-event infra**~~ — **Shipped in PR #46.**
 19. ~~**Vision system v1**~~ — **Shipped in PR #47.**
+48. ~~**Total cover auto-miss**~~ — **Shipped in PR #76.**
+   Closes the PR #48 residue. Adds `'total'` as a fourth cover
+   state and wires the RAW PHB 2024 behavior: "a target with
+   total cover can't be the target of an attack or a spell"
+   (though AoE effects that cover the area still apply).
+   - **`Actor.cover`** state extended to four values: `none` /
+     `half` / `three_quarters` / `total`. Total is a target-
+     cancel, not an AC bump — `_cover_ac_bonus` returns 0 for
+     total (matching the half/three_quarters precedent that
+     it's an AC modifier function).
+   - **`_attack_roll` early auto-miss** when target has total
+     cover. Short-circuits before the d20 roll (no RNG
+     consumed); emits `attack_roll` event with
+     `result: "miss"` and `reason: "total_cover"`. Defends the
+     multiattack sub-attack path and any direct primitive
+     callers.
+   - **Candidate generator filters** total-cover enemies from
+     single-target candidate lists: `weapon_attack`,
+     `multiattack`, `hard_control`. Computed as
+     `targetable_enemies` once at the top of
+     `generate_candidates`; per-action-type branches consume
+     the filtered list.
+   - **AoE attacks (`aoe_attack`) unchanged** — they enumerate
+     all living enemies as anchor positions regardless of
+     cover, because area effects cover space (not specific
+     creatures). RAW: "AoE effects that include them" still
+     hit total-cover targets. Existing
+     `actors_in_radius` / `actors_in_cone` / `actors_in_line`
+     are position-based and ignore cover.
+   - **`_is_total_cover(target)`** helper exposed for any
+     future callers (other attack-shaped primitives that need
+     the same gate).
+   - 17 new tests across 10 layers (`_cover_ac_bonus` returns
+     0 for total, predicate, attack_roll auto-miss + event
+     telemetry, RNG-not-consumed defense, other cover values
+     still work, candidate generator filters for
+     weapon_attack / multiattack / hard_control, AoE still
+     hits total-cover targets, mixed scenario).
+   - Deferred:
+     * Per-(attacker, target) cover based on terrain geometry
+       (current per-actor symmetric cover stays unchanged)
+     * Reaction-driven cover changes mid-attack (none in v1)
+     * Total cover ↔ vision blocking link (currently
+       independent: total cover means "can't target"; visibility
+       is a separate vision check)
+
 47. ~~**SRD races v1 + save-source context**~~ — **Shipped in
    PR #75.** First per-race substrate. Ships the four SRD CC
    v5.2.1 species (Dwarf / Elf / Halfling / Human) with sizes,
