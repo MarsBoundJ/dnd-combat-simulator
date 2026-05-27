@@ -1088,11 +1088,22 @@ def _build_weapon_action(weapon: dict, ability_scores: dict,
     attack_params: dict = {
         "kind": "ranged" if is_ranged else "melee",
         "bonus": attack_bonus,
+        # PR #71: ability_used drives Rage's STR-melee damage-bonus
+        # gate; PR #72 also reads it for telemetry.
+        "ability": attack_ability,
     }
     if is_ranged:
         attack_params["range_ft"] = int(weapon["range_ft"])
     else:
         attack_params["reach_ft"] = int(weapon.get("reach_ft", 5))
+    # PR #72: stamp the Finesse property so the Sneak Attack
+    # qualification gate can recognize finesse-melee weapons. RAW:
+    # Sneak Attack triggers on Finesse OR Ranged weapons. Ranged is
+    # already encoded via `kind == "ranged"`; finesse needs an
+    # explicit bool because melee + STR-ability + finesse weapons
+    # (rapier wielded by a STR build) still qualify per RAW.
+    if weapon.get("finesse"):
+        attack_params["finesse"] = True
 
     # PR #54: Weapon Mastery — if the weapon spec declares `mastery:
     # <id>`, bake a self-contained mastery sub-dict into the

@@ -1,18 +1,30 @@
-# c_rogue — Rogue (minimal v1)
+# c_rogue — Rogue (Sneak Attack + Weapon Mastery v1)
 # Source: SRD CC v5.2.1 (PHB 2024)
 #
-# **Minimal class definition** (PR #64). Only Weapon Mastery
-# wiring shipped; other features (Expertise, Sneak Attack,
-# Thieves' Cant, Cunning Action, Cunning Strike, Reliable Talent,
-# etc.) wait for follow-on PRs.
+# Extended in PR #72 to wire **Sneak Attack** as the class-defining
+# feature alongside Weapon Mastery (PR #64). Level table now goes to
+# L20.
 #
-# Weapon Mastery RAW (Rogue): 1 at L1, 2 at L9. Rogues have the
-# smallest mastery pool of the five mastery-knowing classes.
+# Tracked class_resources:
+#   - weapon_mastery_count: 1 at L1, 2 at L9
+#   - sneak_attack_dice: 1d6 at L1 → 10d6 at L19 (one extra d6 at
+#     every odd level — see engine/core/sneak_attack.py for the
+#     full table)
 #
-# Note: Rogues also get Expertise at L1 (2 skills) and L6 (2
-# more). PR #62 wired Expertise on the PC schema side
-# (`skill_expertise:`); fixtures can declare it directly. A
-# future PR may auto-emit Expertise choices from the class table.
+# Features wired by pc_schema at PC-build time:
+#   - f_weapon_mastery (L1) → masteries baked onto weapon specs
+#   - f_sneak_attack (L1) → no auto-generated action (SA fires
+#     passively on qualifying hits via the _damage primitive rider)
+#
+# Still deferred (each becomes a follow-on PR):
+#   - Expertise auto-emission from class table (PR #62 wired the
+#     mechanic; fixtures can declare skill_expertise directly)
+#   - Cunning Action (Dash / Disengage / Hide as Bonus Action) —
+#     next per-class PR
+#   - Cunning Strike (2024 PHB; trade SA dice for effects)
+#   - Steady Aim (BA: advantage on next attack if didn't move)
+#   - Uncanny Dodge / Evasion / Reliable Talent
+#   - Subclasses (Thief / Assassin / Arcane Trickster / Soulknife)
 
 id: c_rogue
 name: Rogue
@@ -42,40 +54,81 @@ multiclass_entry:
 level_table:
   - level: 1
     proficiency_bonus: 2
-    features: [f_weapon_mastery]
-    class_resources: { weapon_mastery_count: 1 }
+    features: [f_weapon_mastery, f_sneak_attack]
+    class_resources:
+      weapon_mastery_count: 1
+      sneak_attack_dice: 1
   - level: 2
     proficiency_bonus: 2
     features: []
-    class_resources: { weapon_mastery_count: 1 }
+    class_resources:
+      weapon_mastery_count: 1
+      sneak_attack_dice: 1
   - level: 3
     proficiency_bonus: 2
     features: [grant_subclass]
-    class_resources: { weapon_mastery_count: 1 }
+    class_resources:
+      weapon_mastery_count: 1
+      sneak_attack_dice: 2
   - level: 4
     proficiency_bonus: 2
     features: [grant_asi_or_feat]
-    class_resources: { weapon_mastery_count: 1 }
+    class_resources:
+      weapon_mastery_count: 1
+      sneak_attack_dice: 2
   - level: 5
     proficiency_bonus: 3
     features: []
-    class_resources: { weapon_mastery_count: 1 }
+    class_resources:
+      weapon_mastery_count: 1
+      sneak_attack_dice: 3
+  - level: 7
+    proficiency_bonus: 3
+    features: []
+    class_resources:
+      weapon_mastery_count: 1
+      sneak_attack_dice: 4
   - level: 9
     proficiency_bonus: 4
     features: []
-    class_resources: { weapon_mastery_count: 2 }
+    class_resources:
+      weapon_mastery_count: 2
+      sneak_attack_dice: 5
+  - level: 11
+    proficiency_bonus: 4
+    features: []
+    class_resources:
+      weapon_mastery_count: 2
+      sneak_attack_dice: 6
+  - level: 13
+    proficiency_bonus: 5
+    features: []
+    class_resources:
+      weapon_mastery_count: 2
+      sneak_attack_dice: 7
+  - level: 15
+    proficiency_bonus: 5
+    features: []
+    class_resources:
+      weapon_mastery_count: 2
+      sneak_attack_dice: 8
+  - level: 17
+    proficiency_bonus: 6
+    features: []
+    class_resources:
+      weapon_mastery_count: 2
+      sneak_attack_dice: 9
+  - level: 19
+    proficiency_bonus: 6
+    features: []
+    class_resources:
+      weapon_mastery_count: 2
+      sneak_attack_dice: 10
+  - level: 20
+    proficiency_bonus: 6
+    features: []
+    class_resources:
+      weapon_mastery_count: 2
+      sneak_attack_dice: 10
 
 subclass_grant_level: 3
-
-# Deferred class features:
-#   - Expertise (auto-emission from class table; PR #62 handles
-#     the mechanic when fixture declares skill_expertise)
-#   - Sneak Attack (extra dice on qualifying attacks)
-#   - Thieves' Cant (lore-only; no mechanical effect)
-#   - Cunning Action (Dash / Disengage / Hide as Bonus Action)
-#   - Cunning Strike (2024 PHB; trade Sneak Attack dice for effects)
-#   - Steady Aim
-#   - Uncanny Dodge
-#   - Evasion
-#   - Reliable Talent
-#   - Subclasses (Thief / Assassin / Arcane Trickster / Soulknife)

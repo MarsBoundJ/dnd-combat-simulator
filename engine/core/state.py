@@ -222,6 +222,13 @@ class Actor:
             self._rage_attacked_hostile_this_turn = False
         if hasattr(self, "_rage_damaged_this_turn"):
             self._rage_damaged_this_turn = False
+        # PR #72: per-turn Sneak Attack dedup. RAW: "once per turn"
+        # (not "once per round" — SA can fire on a reaction OA mid-
+        # round). The flag resets at the start of each of the
+        # actor's own turns, which is when their turn-dependent
+        # restrictions reset.
+        if hasattr(self, "_sneak_attack_used_this_turn"):
+            self._sneak_attack_used_this_turn = False
 
 
 # ============================================================================

@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-05-27
 **Engine state:** Phase 1, post-PR #26 (Dodge + Disengage merged).
-**Test surface:** 1176 tests across 60+ modules; 14 CLI fixtures.
+**Test surface:** 1195 tests across 60+ modules; 14 CLI fixtures.
 
 This document captures what the simulator can actually do today — in
 observable behavioral terms, not module inventories. The companion
@@ -680,6 +680,49 @@ priority order:
    Rebuke**~~ — **Shipped in PR #45.**
 18. ~~**Counterspell + cast-event infra**~~ — **Shipped in PR #46.**
 19. ~~**Vision system v1**~~ — **Shipped in PR #47.**
+44. ~~**Rogue Sneak Attack v1**~~ — **Shipped in PR #72.** Second
+   feature in the per-class four-feature class-identity arc
+   (Rage → SA → Divine Smite → Cunning Action). Passive damage
+   rider with full RAW qualification.
+   - **New `engine/core/sneak_attack.py`**: level table
+     (1d6/L1-2 → 10d6/L19+; ceil(level/2) d6); qualification
+     (`qualifies_for_sneak_attack`) checks weapon (Finesse OR
+     Ranged), per-turn dedup (`_sneak_attack_used_this_turn`),
+     and roll-state (advantage OR ally-adjacent + no-disadvantage);
+     application (`try_apply_sneak_attack`) rolls dice, marks
+     the flag, and emits the `sneak_attack_applied` event.
+   - **Ally-adjacent check** walks the encounter for any creature
+     on the target's opposing side within 5 ft of the target, not
+     Incapacitated, that isn't the attacker themselves (RAW:
+     "Another enemy of the target").
+   - **`_damage` integration**: after the Rage damage rider and
+     before resistance, calls `try_apply_sneak_attack` on
+     hit/crit attacks. Crits double the dice count (RAW: extra
+     dice from class features double on crit).
+   - **Once per turn, not per round**: per-turn dedup flag
+     resets in `Actor.reset_turn`. Fires on reaction OAs too.
+   - **`finesse: true` plumbing**: weapon spec → action
+     `attack_params.finesse`. Read by the SA gate; ranged
+     weapons recognized via existing `kind == "ranged"` path.
+   - **Class table extended** to L20 with `sneak_attack_dice`
+     per level + `f_sneak_attack` granted at L1.
+   - **New `f_sneak_attack.yaml`** declares the feature shape
+     (passive, per-turn, scales from class table).
+   - **No auto-generated action**: SA fires passively on
+     qualifying hits — no candidate emission, no AI scoring
+     decision. (The Rogue's choice of WHICH attack to make is
+     still scored, but SA application is automatic.)
+   - 19 new tests across 10 layers (level table, weapon gate,
+     roll-state gate, ally-adjacent fallback,
+     incapacitated-ally suppression, per-turn dedup, dedup
+     reset, crit doubling, non-Rogue exclusion, damage
+     primitive integration, pc_schema plumb-through).
+   - Deferred: Cunning Strike (2024 PHB; trade SA dice for
+     effects); Steady Aim (BA: advantage if no movement);
+     AI scoring uplift for finesse weapons over off-hand
+     when SA is available (rogue will still attack, just may
+     pick suboptimally between competing attacks).
+
 43. ~~**Barbarian Rage v1**~~ — **Shipped in PR #71.** First per-
    class feature in the four-feature class-identity arc (Rage /
    Sneak Attack / Divine Smite / Cunning Action). Wires all four

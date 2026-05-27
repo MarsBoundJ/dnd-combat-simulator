@@ -1,0 +1,65 @@
+# f_sneak_attack — Sneak Attack (Rogue)
+# Source: SRD CC v5.2.1 / PHB 2024 p.114
+# Pattern: passive damage rider, once-per-turn
+
+id: f_sneak_attack
+name: Sneak Attack
+source: srd_5.2.1
+granted_by:
+  class: c_rogue
+  level: 1
+type: passive
+is_signature: false
+
+# No resource cost — Sneak Attack triggers automatically on
+# qualifying hits. Once-per-turn dedup is enforced via the
+# `_sneak_attack_used_this_turn` per-turn flag on Actor, cleared by
+# reset_turn (engine/core/state.py).
+resource_cost:
+  type: none
+
+# Scaling: 1d6 → 10d6 by level. Engine reads the level table at
+# damage-time rather than baking the dice count into the action,
+# because the SA rider fires from inside _damage's existing
+# pipeline — no separate "sneak attack action" exists.
+usage:
+  uses_per: per_turn       # once per turn (RAW: not per round —
+                              # can fire on reaction OAs too)
+  scaling_source: "c_rogue.level_table.class_resources.sneak_attack_dice"
+
+# No explicit pipeline: the qualification + dice roll live in
+# engine/core/sneak_attack.py and are invoked from _damage when the
+# attack hits/crits, the attacker is a Rogue, and the RAW trigger
+# conditions are met.
+effect_primitives: []
+
+contract:
+  reads: [actor.rogue_level, actor._sneak_attack_used_this_turn,
+           combat.attack_state, combat.had_advantage,
+           combat.had_disadvantage, target.applied_conditions,
+           attack_params.kind, attack_params.finesse]
+  writes: [actor._sneak_attack_used_this_turn, combat.damage_total]
+  event: damage_roll
+  scope: per_qualifying_hit
+
+# RAW trigger conditions (engine/core/sneak_attack.py implements):
+#   1. Hit with attack roll using Finesse OR Ranged weapon
+#   2. EITHER:
+#      a. You have Advantage on the attack roll, OR
+#      b. Another enemy of the target is within 5 ft of the target,
+#         that enemy isn't Incapacitated, AND you don't have
+#         Disadvantage on the attack
+#
+# RAW notes:
+#   - Critical hits double the SA dice (extra dice from class
+#     features double on crit, same as weapon base dice)
+#   - Once per turn — NOT once per round. SA can fire on a reaction
+#     opportunity attack between your turns.
+#   - Multiple SA-qualifying attacks on the same turn (multiattack
+#     with finesse weapons) only get SA once.
+#
+# Deferred:
+#   - Cunning Strike (2024 PHB): trade SA dice for effects (Poison,
+#     Trip, Withdraw) — separate PR
+#   - Steady Aim BA wiring (gives advantage if didn't move) — same
+#     PR as Cunning Action / will hook with this passive

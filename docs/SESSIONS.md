@@ -5,6 +5,57 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-27 — Rogue Sneak Attack v1 (PR #72)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Second feature in the per-class four-feature arc (Rage → SA →
+  Divine Smite → Cunning Action).
+- New `engine/core/sneak_attack.py` module: level table
+  (ceil(level/2) d6), qualification, application. RAW gate:
+  Finesse OR Ranged weapon + (advantage OR (ally-adjacent +
+  no disadvantage + ally not Incapacitated)).
+- Ally-adjacent check excludes the attacker themselves (RAW:
+  "Another enemy of the target") and Incapacitated allies.
+- Per-turn dedup via `_sneak_attack_used_this_turn` Actor attr;
+  cleared by `reset_turn`. Fires on reaction OAs (once per
+  TURN, not per round).
+- Crits double SA dice (RAW: extra dice from class features
+  double on crit).
+- `_damage` invokes the SA rider after the Rage rider but
+  before resistance; emits `sneak_attack_applied` with dice
+  count, total, crit flag, and trigger reason
+  (`advantage` / `ally_adjacent`) for telemetry.
+- `finesse: true` flag plumbed from weapon spec into
+  `attack_params.finesse` via pc_schema's
+  `_build_weapon_action`.
+- c_rogue YAML extended L5→L20 with per-level
+  `sneak_attack_dice` + `f_sneak_attack` at L1.
+- New `f_sneak_attack.yaml` feature (passive, no
+  auto-generated action — SA fires on hits, not on
+  separate candidates).
+- 19 new tests across 10 layers. Full suite: 1194 passed +
+  1 skipped (was 1175 + 19 new).
+
+**Scope decisions:**
+- Passive rider in `_damage` (no separate "sneak attack"
+  candidate / action) — matches RAW shape: SA is part of the
+  weapon's damage roll, not a separate decision.
+- AI scoring uplift for the SA-qualifying attack vs other
+  candidates DEFERRED. The Rogue will still attack and SA
+  will fire; the choice of WHICH attack is still scored
+  without the SA-bonus weighting.
+
+**Open items:**
+- Cunning Strike (2024 PHB; trade SA dice for Poison / Trip /
+  Withdraw effects) — separate PR
+- Steady Aim (BA: advantage on next attack if no movement) —
+  pairs naturally with Cunning Action (next PR)
+- Score uplift for SA-qualifying attacks
+
+---
+
 ## Session: 2026-05-27 — Barbarian Rage v1 (PR #71)
 
 **Participants:** Phil, Claude
