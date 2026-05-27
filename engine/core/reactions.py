@@ -353,6 +353,42 @@ def try_use_reaction(reactor: Actor, action: dict, event_data: dict,
     if feature_key is not None and not has_use(reactor, feature_key):
         return False
 
+    # PR #56: pace-aware reaction gate. After resource availability
+    # checks but BEFORE pipeline execution, weigh slot cost (in eHP)
+    # vs reaction value (in eHP). Skip if cost > value, preserving
+    # the slot for higher-value use later in the day.
+    #
+    # Bypassed when:
+    #   - slot_level == 0 (no slot to weigh; OA-shape reactions)
+    #   - action.signature_reaction == True (override flag for
+    #     reactions that should always fire when eligible)
+    # Unknown reactions (no value estimator) get value=inf, so the
+    # gate passes — forward-compat for reactions added before their
+    # estimators land.
+    if slot_level > 0 and not action.get("signature_reaction"):
+        from engine.core.feature_pacing import reaction_cost_ehp
+        from engine.ai.reaction_scoring import estimate_reaction_value_ehp
+        slots_remaining = int(reactor.spell_slots.get(slot_level, 0))
+        encounters_remaining = int(
+            getattr(state, "encounters_remaining_today", 3))
+        cost = reaction_cost_ehp(slot_level, slots_remaining,
+                                    encounters_remaining)
+        value = estimate_reaction_value_ehp(action, event_data,
+                                                reactor, state)
+        if cost > value:
+            state.event_log.append({
+                "event": "reaction_skipped_pace",
+                "actor": reactor.id,
+                "action": action.get("id"),
+                "slot_level": slot_level,
+                "slots_remaining": slots_remaining,
+                "encounters_remaining": encounters_remaining,
+                "cost_ehp": round(cost, 2),
+                "value_ehp": (round(value, 2)
+                                if value != float("inf") else "inf"),
+            })
+            return False
+
     # Set up state.current_attack for the reaction's pipeline. The
     # reaction's "current_attack" semantics depend on the event type:
     #   - attack_targeting_resolved / attack_roll_pending: reactor is

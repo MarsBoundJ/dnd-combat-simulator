@@ -89,3 +89,69 @@ def action_surge_cost_ehp(charges_remaining: int,
         encounters_remaining=encounters_remaining,
         base_cost=ACTION_SURGE_BASE_COST,
     )
+
+
+# ============================================================================
+# Pace-aware reactions (PR #56)
+# ============================================================================
+#
+# Reactions that consume spell slots (Shield, Counterspell, Hellish Rebuke
+# in v1) should weigh slot scarcity vs. value gained. PR #45 / PR #46
+# shipped v1 always-fire semantics — pinned by note "pace-aware reaction
+# scoring deferred." This block closes that residue with a slot-aware
+# cost formula matching the feature_use shape.
+#
+# The challenge: spell slot scoring already exists in
+# `engine/core/spell_slots.py` (`slot_cost_ehp`), but its formula is
+# `base_cost * (1 - urgency)` — designed for SPEND-EARLY semantics (slots
+# replenish on long rest, so spend before you waste them). For reactions
+# we want SAVE-FOR-LATER semantics (matching the feature_use shape):
+# scarce slots in a long day = expensive; abundant slots or last
+# encounter = cheap. Different intent, different formula.
+#
+# Base costs per slot level — tunable. Roughly calibrated to "what's
+# this slot worth in eHP terms if it were spent on a typical spell at
+# that level."
+REACTION_SLOT_BASE_COSTS: dict[int, float] = {
+    1: 4.0,    # Magic Missile / Shield / HR — ~3-4 dmg per missile
+    2: 6.0,    # Hold Person / Scorching Ray — meaningful single-target
+    3: 10.0,   # Fireball / Counterspell — big AoE / hard counter
+    4: 14.0,   # Polymorph / Ice Storm
+    5: 18.0,   # Cone of Cold / Scrying-level
+    6: 22.0,
+    7: 26.0,
+    8: 30.0,
+    9: 36.0,   # Wish — peak value
+}
+
+
+def reaction_cost_ehp(slot_level: int,
+                         slots_remaining_at_level: int,
+                         encounters_remaining: int,
+                         base_cost_per_level: dict[int, float] | None = None,
+                         encounters_baseline: float = ENCOUNTERS_BASELINE
+                         ) -> float:
+    """Opportunity cost (in eHP) of consuming one spell slot for a
+    reaction, given remaining slots at that level and encounters left
+    in the day.
+
+    Same scarcity × urgency shape as `feature_use_cost_ehp`:
+      - Scarce slots at this level => higher cost
+      - Many encounters left => save slots
+      - Last encounter => spend freely
+
+    Returns 0.0 for slot_level <= 0 (no-slot reactions like OAs always
+    fire on availability — no opportunity cost to weigh).
+    """
+    if slot_level <= 0:
+        return 0.0
+    if slots_remaining_at_level <= 0:
+        # Caller should have already gated on slot availability; if not,
+        # the cost is irrelevant (the reaction can't fire anyway).
+        return 0.0
+    costs = base_cost_per_level if base_cost_per_level is not None \
+        else REACTION_SLOT_BASE_COSTS
+    base_cost = costs.get(slot_level, costs.get(max(costs), 4.0))
+    scarcity = 1.0 / max(1, slots_remaining_at_level)
+    urgency_factor = max(0.0, encounters_remaining / encounters_baseline)
+    return base_cost * scarcity * urgency_factor
