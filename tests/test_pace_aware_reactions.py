@@ -119,9 +119,11 @@ class ReactionCostFormulaTest(unittest.TestCase):
 
     def test_last_encounter_cost_is_low(self) -> None:
         # encounters_remaining=1 → urgency_factor = 1/3 ≈ 0.33
-        # cost = 4 * 1 * 0.33 ≈ 1.33
+        # cost = REACTION_SLOT_BASE_COSTS[1] * 1 * 0.33 ≈ 3.33
+        # (PR #67 calibration bumped L1 base from 4.0 to 10.0)
         cost = reaction_cost_ehp(1, 1, 1)
-        self.assertAlmostEqual(cost, 4.0 / 3.0, places=2)
+        self.assertAlmostEqual(cost, REACTION_SLOT_BASE_COSTS[1] / 3.0,
+                                  places=2)
 
     def test_higher_slot_level_higher_base_cost(self) -> None:
         cost_1 = reaction_cost_ehp(1, 1, 3)

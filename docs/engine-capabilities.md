@@ -680,6 +680,54 @@ priority order:
    Rebuke**~~ — **Shipped in PR #45.**
 18. ~~**Counterspell + cast-event infra**~~ — **Shipped in PR #46.**
 19. ~~**Vision system v1**~~ — **Shipped in PR #47.**
+39. ~~**REACTION_SLOT_BASE_COSTS calibration**~~ — **Shipped in
+   PR #67.** Closes the PR #56 residue. Per-slot-level base eHP
+   costs recalibrated from eyeballed values (4/6/10/14/18/22/26/
+   30/36) to RAW-spell-anchored values (10/15/28/38/50/65/75/85/
+   100) cross-referenced with Treantmonk's 2024 tier-aggregated
+   DPR data.
+   - **Methodology:** for each slot level, identify the canonical
+     best-use spells (highest damage spell + commonly-cast
+     utility/control), compute expected eHP value with hit/save
+     odds factored, round up slightly so utility spells aren't
+     systematically underweighted.
+   - **Reference spells per level** documented in the dict
+     docstring (Magic Missile at L1, Fireball at L3, Disintegrate
+     at L6, Wish at L9, etc.).
+   - **Behavioral effects of the calibration:**
+     - Shield (L1) skips weak attackers in mid-day setups (cost
+       10 > attacker DPR < 10); fires on Ogre+ DPR
+     - Counterspell (L3) breaks even vs L3 spells; skips lower-
+       level spells; fires aggressively vs L4+ spells
+     - Hellish Rebuke (L1) skips in mid-day single-slot setups
+       (value 8.25 < cost 10); fires when slot abundant or last
+       encounter
+   - **Treantmonk context** in the docstring: the 2024 baseline
+     (C-tier Warlock Blade Pact Greatsword) does ~24 DPR at T2,
+     so a 3rd-level slot's 28 eHP value ≈ one good turn of T2
+     baseline DPR — the right comparison.
+   - Updated 3 existing tests:
+     - `test_last_encounter_cost_is_low` now uses
+       `REACTION_SLOT_BASE_COSTS[1]` rather than the hardcoded
+       4.0
+     - `test_shield_turns_hit_into_miss` and
+       `test_hellish_rebuke_damages_attacker` now set
+       `encounters_remaining_today=1` so pacing doesn't
+       suppress the mechanics under test (they're verifying the
+       reaction's effect, not its pacing — those live in
+       `test_pace_aware_reactions.py`)
+   - 20 new tests in `test_reaction_cost_calibration.py`: pins
+     each level's calibrated value, sanity-checks monotonicity
+     and ≤2× growth ratio, and verifies downstream firing-
+     threshold behaviors for Shield / Counterspell / Hellish
+     Rebuke across mid-day / abundant-slots / last-encounter
+     scenarios.
+   - Deferred refinements: per-class-spec slot-vs-attack
+     tradeoff calibration (waiting on Treantmonk video-by-video
+     per-class DPR curves); upcast scaling (L3 Fireball cast in
+     L5 slot = 10d6 vs 8d6; would justify higher slot-spent
+     value scoring); spell-level-vs-character-level scaling
+     (a L11 wizard's L3 slot is worth less than a L5 wizard's).
 38. ~~**Cleave reach passthrough**~~ — **Shipped in PR #66.**
    Closes the PR #58 residue. Cleave's attacker-reach constraint
    used to hardcode 5 ft; now it reads the weapon's actual reach.

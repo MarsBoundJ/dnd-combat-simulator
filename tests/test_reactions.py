@@ -327,11 +327,17 @@ class ShieldEndToEndTest(unittest.TestCase):
                               rng_seed=1):
         """Invoke a single _attack_roll cycle. attack_bonus must match
         the attacker's weapon's bonus param (the helper passes it
-        directly to _attack_roll rather than reading the action)."""
+        directly to _attack_roll rather than reading the action).
+
+        PR #67: sets encounters_remaining=1 so pace-aware reaction
+        scoring doesn't suppress the reaction firing (these tests
+        verify mechanics, not pacing — the dedicated pace tests
+        live in test_pace_aware_reactions.py)."""
         from engine.primitives import _attack_roll
         from engine.core.events import EventBus
         import engine.primitives as primitives_module
         state = _state_with([attacker, target])
+        state.encounters_remaining_today = 1
         primitives_module.set_rng(random.Random(rng_seed))
         state.current_attack = {
             "actor": attacker, "target": target,
@@ -484,6 +490,11 @@ class HellishRebukeEndToEndTest(unittest.TestCase):
                                   hp=30, dex_save=-2,
                                   actions=[_weapon_attack(bonus=10)])
         state = _state_with([warlock, attacker])
+        # PR #67: set encounters_remaining=1 so pace-aware reaction
+        # scoring doesn't suppress HR firing. HR's value (~8 eHP) is
+        # below the new L1 base cost of 10 in mid-day setups; the
+        # last-encounter case bypasses pacing for this mechanics test.
+        state.encounters_remaining_today = 1
         primitives_module.set_rng(random.Random(1))
         # Run a full attack — _attack_roll then _damage
         state.current_attack = {
