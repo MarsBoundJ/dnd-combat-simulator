@@ -64,7 +64,7 @@ level_table:
       weapon_mastery_count: 2
   - level: 2
     proficiency_bonus: 2
-    features: [f_divine_smite]
+    features: [f_divine_smite, f_bless, f_shield_of_faith]
     class_resources:
       weapon_mastery_count: 2
       spell_slots: { 1: 2 }

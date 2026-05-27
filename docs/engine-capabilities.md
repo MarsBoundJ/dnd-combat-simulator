@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-05-27
 **Engine state:** Phase 1, post-PR #26 (Dodge + Disengage merged).
-**Test surface:** 1388 tests across 60+ modules; 14 CLI fixtures.
+**Test surface:** 1403 tests across 60+ modules; 14 CLI fixtures.
 
 This document captures what the simulator can actually do today — in
 observable behavioral terms, not module inventories. The companion
@@ -680,6 +680,73 @@ priority order:
    Rebuke**~~ — **Shipped in PR #45.**
 18. ~~**Counterspell + cast-event infra**~~ — **Shipped in PR #46.**
 19. ~~**Vision system v1**~~ — **Shipped in PR #47.**
+54. ~~**Paladin spellcasting v1: Bless + Shield of Faith**~~ —
+   **Shipped in PR #82.** Paladins finally have spell candidates,
+   not just slots. Two iconic 1st-level Paladin spells ship via
+   the existing offensive_buff / defensive_buff scoring paths.
+   - **New `f_bless.yaml`** — 1st-level offensive_buff,
+     concentration, named_effect: bless. Pipeline registers an
+     `attack_modifier` (target=ally, when=attacker_is_self,
+     modifier=attack_bonus, value=2) AND a `save_modifier`
+     (target=ally, modifier=flat, value=2). v1 uses flat +2 as
+     a deterministic approximation of RAW's 1d4 (avg 2.5).
+   - **New `f_shield_of_faith.yaml`** — 1st-level
+     defensive_buff, Bonus Action, concentration, named_effect:
+     shield_of_faith. Pipeline registers `attack_modifier`
+     (target=ally, modifier=ac_modifier, value=2) — the existing
+     `query_attack_modifiers` reads target-side ac_modifier
+     entries to bump effective AC.
+   - **`c_paladin` L2 features** extended to list `f_bless` +
+     `f_shield_of_faith`. Both attach automatically when the
+     Paladin has 1st-level slots.
+   - **`pc_schema.build_pc_template`** extended with a generic
+     "feature → action_template auto-attach" pass — any feature
+     in `features_known` whose YAML declares an
+     `action_template` block gets the dict copied into
+     `template.actions`. Future spell-shape features just need
+     a YAML; no Python builder needed. Skips when an action
+     with the same id is already in the list (preserves
+     hardcoded builders' precedence).
+   - **AI scoring** uses the existing
+     `offensive_ehp_buff_ally` (Bless's attack-bonus scoring
+     from PR #36) and `defensive_ehp_defensive_buff` (Shield of
+     Faith's AC-bonus scoring from PR #43) — no new scorers
+     needed.
+   - **Cross-caster dedup** works out of the box via PR #36's
+     `named_effect` path — two Paladins can't double-Bless the
+     same ally.
+   - **Concentration** is wired via the existing
+     `pipeline.execute` concentration handling — both spells
+     correctly take up the caster's concentration slot.
+   - **`when: attacker_is_self`** discriminator on Bless's
+     attack_modifier prevents the +2 from spuriously buffing
+     enemies attacking the blessed ally (same pattern as Vex
+     mastery's directional gate from PR #54).
+   - 15 new tests across 11 layers (YAML loading, class
+     wiring at L2, action shape, L1-gate, candidate generation
+     per-ally enumeration, scoring positive value for both
+     spells, cross-caster dedup, end-to-end attack/save/AC
+     modifier application).
+   - Deferred:
+     * **Heroism** — needs temp-HP-per-turn mechanic that
+       the engine doesn't model yet
+     * **Multi-target Bless** (RAW: up to 3 creatures per cast)
+       — needs candidate-grouping extension; v1 emits per-ally
+       and the AI picks the best one
+     * **Per-roll 1d4** — v1 uses flat +2; future
+       `roll_modifier` primitive could roll the d4 at
+       resolution time
+     * **Upcast scaling** for Bless (+1 ally per slot above
+       1st) — non-dice scaling, same PR #77 schema-extension
+       residue as Fog Cloud's radius scaling
+     * **Spell preparation** — RAW Paladins prepare spells from
+       their list; v1 auto-attaches Bless + SoF unconditionally
+       to any Paladin L2+. A future Paladin spell-prep PR would
+       model the prepared-spells list.
+     * **Other Paladin spells** — Heroism / Searing Smite /
+       Compelled Duel / Wrathful Smite / Divine Favor /
+       Protection from Evil and Good etc.
+
 53. ~~**Rogue Cunning Strike (L5+)**~~ — **Shipped in PR #81.**
    Trade 1d6 of Sneak Attack damage for one of three effects.
    Integrates into the SA path; AI heuristic picks the best
