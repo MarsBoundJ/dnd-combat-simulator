@@ -5,6 +5,97 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-27 — REACTION_SLOT_BASE_COSTS calibration (PR #67)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Closes the PR #56 residue. Per-slot-level base eHP costs were
+  eyeballed at PR #56 ship (4/6/10/14/18/22/26/30/36); this PR
+  recalibrates them against RAW spell damage anchored at each
+  slot level + Treantmonk's tier-aggregated DPR context.
+- **Mid-session sanity check:** Phil asked if the calibration
+  needed the per-class Treantmonk per-level DPR curves to be
+  finished (currently 5 of ~20 builds complete). Verified that
+  the calibration only needs per-slot spell damage math (mostly
+  RAW arithmetic) + tier-aggregated DPR for context (which IS
+  complete). Per-class videos would help with future per-class
+  slot-vs-attack tradeoff tuning, not this slot-level
+  calibration. Proceeded with current data.
+- **Calibration methodology:**
+  - For each slot level, identify the canonical best-use spells
+    (highest damage + commonly-cast utility/control).
+  - Compute the EXPECTED VALUE in eHP (damage with hit/save
+    odds factored, HP-prevented for defensive, turns-of-control
+    × per-turn-DPR-denied for control).
+  - Round up slightly so utility spells (which are harder to
+    score) aren't systematically underweighted vs pure damage.
+- **New REACTION_SLOT_BASE_COSTS values:**
+  - L1: 10 (Magic Missile 10.5 / Shield blocks 10-15 / Healing
+    Word ~7)
+  - L2: 15 (Scorching Ray 12.6 / Hold Person 30+ over duration)
+  - L3: 28 (Fireball 28+ AoE / Counterspell / Hypnotic Pattern)
+  - L4: 38 (Polymorph / Ice Storm / Wall of Fire)
+  - L5: 50 (Wall of Force / Animate Objects / Cone of Cold 36)
+  - L6: 65 (Disintegrate 75 nuke / Chain Lightning / Heal 70)
+  - L7: 75 (Finger of Death 61 / Forcecage / Plane Shift)
+  - L8: 85 (Power Word Stun / Sunburst 42 AoE / Maze)
+  - L9: 100 (Wish / Meteor Swarm 140 / Time Stop / PW Kill)
+- **Treantmonk context** in the docstring: the 2024 baseline
+  (C-tier Warlock Blade Pact Greatsword) does ~24 DPR at T2,
+  so a 3rd-level slot's 28 eHP value ≈ one good turn of T2
+  baseline DPR. The slot-spent should buy roughly one turn of
+  best-weapon damage — that's the calibration anchor.
+- **Behavioral effects of the calibration:**
+  - **Shield (L1)** skips weak attackers in mid-day setups
+    (cost 10 > attacker DPR < 10); fires on Ogre+ DPR.
+    Previously fired against almost any attacker — now
+    discriminating, which matches RAW player behavior.
+  - **Counterspell (L3)** breaks even vs L3 spells (28 = 28);
+    skips lower-level spells (L1 spell value 10 < cost 28);
+    fires aggressively vs L4+ spells. Previously fired vs
+    anything — now correctly preserves slot for big targets.
+  - **Hellish Rebuke (L1)** skips in mid-day single-slot
+    setups (value 8.25 < cost 10); fires when slot abundant
+    (4 slots → cost 2.5) or last encounter (cost 3.3). The
+    correct "save for when it matters" pattern.
+- **3 existing tests updated:**
+  - `test_last_encounter_cost_is_low` now uses
+    `REACTION_SLOT_BASE_COSTS[1]` rather than hardcoded `4.0`
+    (so future tweaks don't drift this test)
+  - `test_shield_turns_hit_into_miss` sets
+    `encounters_remaining_today=1` — pacing was previously
+    invisible because all tests defaulted to 3 encounters
+    AND the old cost was low. The mechanics test now bypasses
+    pacing by using the last-encounter scenario; dedicated
+    pace tests live in `test_pace_aware_reactions.py`.
+  - `test_hellish_rebuke_damages_attacker` similarly sets
+    `encounters_remaining_today=1`.
+- **Tests (20 new in `test_reaction_cost_calibration.py`):**
+  - 9 pinned-value tests (one per slot level) with rationale
+    comments — future calibration changes MUST update these,
+    which is the desired coupling
+  - 2 sanity tests: monotonically non-decreasing + ≤2× growth
+    ratio (catches a typo like L4=100 vs L4=10)
+  - 9 downstream behavior tests: Shield mid-day high/low DPR
+    + last-encounter; Counterspell vs L1/L3/L7; Hellish
+    Rebuke mid-day / abundant slots / last encounter
+- 1122 tests pass (+20 new, 1 skip, no regressions).
+
+**Future-roadmap items (recorded, not in this PR):**
+- Per-class slot-vs-attack tradeoff calibration — waits on
+  Treantmonk per-class video processing (currently 5 of ~20
+  complete). When more land, per-class scoring can tune slot
+  costs relative to that class's weapon DPR.
+- Upcast scaling — L3 Fireball cast in L5 slot = 10d6 vs 8d6
+  (40% more damage). The slot-spent should score higher when
+  upcast; currently it doesn't.
+- Character-level scaling — a L11 wizard's L3 slot is worth
+  less than a L5 wizard's L3 slot (the L11 has more other
+  options). v1 ignores character level in the slot cost.
+
+---
+
 ## Session: 2026-05-27 — Cleave reach passthrough (PR #66)
 
 **Participants:** Phil, Claude
