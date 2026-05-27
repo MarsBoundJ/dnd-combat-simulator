@@ -629,8 +629,7 @@ EXPECTED_AURA_ROUNDS = 2.5     # matches EXPECTED_BUFF_ROUNDS for consistency
 # Duration multiplier: EXPECTED_AURA_ROUNDS (2.5, matching Spirit
 # Guardians-shape). Concentration spell, typical encounter shape.
 #
-# Deferred refinements:
-#   - Blindsight bypass (analogous to truesight; v1 ignores)
+# Deferred refinements (post-PR #69):
 #   - Per-target attack-frequency weighting (a multiattack monster's
 #     debuff is worth more than a one-attack-per-turn caster's)
 #   - "Caster forgot to put themselves in the sphere" detection
@@ -690,14 +689,23 @@ def offensive_ehp_darkness(actor: Actor, action: dict,
         else:
             (in_enemies if in_zone else out_enemies).append(a)
 
-    # Truesight bypass helper — observer can see target if truesight
-    # range covers the distance. Blindsight not yet considered; v1
-    # underestimates Darkness vs blindsight monsters slightly.
-    def _truesight_pierces(observer: Actor, target: Actor) -> bool:
+    # Special-sense bypass helper — observer can see target through
+    # magical darkness if EITHER Truesight OR Blindsight range covers
+    # the (observer, target) distance. Matches the can_actor_see
+    # precedence from PR #52: Blindsight is the dominant override
+    # (pierces fog / Invisible / darkness / magical darkness /
+    # self-Blinded); Truesight pierces magical darkness + Invisible
+    # but NOT fog. For magical-darkness scoring both apply, so we
+    # OR them.
+    def _sense_pierces(observer: Actor, target: Actor) -> bool:
+        d = distance_ft(observer, target)
         ts_range = int(getattr(observer, "truesight_range_ft", 0) or 0)
-        if ts_range <= 0:
-            return False
-        return distance_ft(observer, target) <= ts_range
+        if ts_range > 0 and d <= ts_range:
+            return True
+        bs_range = int(getattr(observer, "blindsight_range_ft", 0) or 0)
+        if bs_range > 0 and d <= bs_range:
+            return True
+        return False
 
     def _reach_threat(attacker: Actor, target: Actor) -> bool:
         """Can attacker reach target this round (speed + max reach)?"""
@@ -712,7 +720,7 @@ def offensive_ehp_darkness(actor: Actor, action: dict,
     for ally in in_allies:
         # Defensive: each enemy who'd attack this ally suffers disadvantage
         for enemy in out_enemies:
-            if _truesight_pierces(enemy, ally):
+            if _sense_pierces(enemy, ally):
                 continue
             if not _reach_threat(enemy, ally):
                 continue
@@ -728,7 +736,7 @@ def offensive_ehp_darkness(actor: Actor, action: dict,
     cost = 0.0
     for enemy in in_enemies:
         for ally in out_allies:
-            if _truesight_pierces(ally, enemy):
+            if _sense_pierces(ally, enemy):
                 continue
             if not _reach_threat(ally, enemy):
                 continue
