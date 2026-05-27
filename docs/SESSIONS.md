@@ -5,6 +5,58 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-27 — AI scoring for damage+zone hybrid auras (PR #78)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Closes the PR #68 residue. Auras that BOTH deal damage AND
+  create a vision-denial zone (HoH = cold + magical_dark;
+  Cloudkill = poison + heavy_obscurement) now score with BOTH
+  components summed; previously only one component fired.
+- Generalized PR #61's `offensive_ehp_darkness` to
+  `offensive_ehp_zone_vision_denial(...)` with explicit
+  `radius_ft` + `zone_type` params. Sense-bypass varies by
+  zone type:
+  * magical_dark: blindsight OR truesight pierces
+  * heavy_obscurement: blindsight ONLY (fog is physical, not
+    magical — truesight doesn't help)
+- Backward-compat wrapper `offensive_ehp_darkness` calls the
+  generalized helper with Darkness defaults.
+- Restructured `offensive_ehp_persistent_aura`:
+  * No more early-return-to-darkness-scorer for magical_dark
+  * Always computes damage component (returns 0 cleanly when
+    no payload)
+  * Always adds zone component when `creates_zone` is in
+    `_VISION_DENIAL_ZONE_TYPES` registry
+  * Returns damage_value + zone_value
+- New `_VISION_DENIAL_ZONE_TYPES` constant centralizes the
+  registry; future zone types extend it.
+- 10 new tests across 10 layers. Full suite: 1336 passed + 1
+  skipped (was 1326 + 10 new).
+
+**Scope decisions:**
+- Generalize-and-add rather than fork-per-spell. One helper
+  handles both zone types parameterized by `zone_type`. Future
+  zones (Stinking Cloud, Fog Cloud, Silence) extend the
+  registry constant + reuse the helper.
+- Damage + zone components SUMMED rather than max'd. Both are
+  real value the AI can extract; summing matches the
+  "framework's eHP composition" pattern used elsewhere.
+- Truesight asymmetry (magical_dark vs heavy_obscurement)
+  baked into the scorer directly. Matches `can_actor_see` RAW
+  behavior from PR #52 / PR #69.
+
+**Open items:**
+- Per-creature attack-frequency weighting (multiattack monster's
+  debuff is worth more than one-attack-per-turn caster's)
+- "Caster forgot to put themselves in the sphere" opportunity-
+  cost subtraction
+- Per-spell upper-bound calibration (HoH + magical_dark may
+  over-score if zone and damage value the same in-zone enemies)
+
+---
+
 ## Session: 2026-05-27 — Upcast scaling for damage spells (PR #77)
 
 **Participants:** Phil, Claude
