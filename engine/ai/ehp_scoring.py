@@ -413,6 +413,191 @@ def offensive_ehp_help(actor: Actor, target_ally: Actor, action: dict,
     return per_attack * DELTA_HIT_FROM_ADVANTAGE
 
 
+# ============================================================================
+# Hide / Search scoring (PR #59)
+# ============================================================================
+#
+# Hide and Search were emitted as candidates in PR #48 / PR #55 with no
+# real eHP scoring — Hide had no scorer at all (returned 0 by default),
+# and Search relied on gated emission ("don't emit if there's nothing
+# to find") rather than a value-cost weighing. This module closes both
+# residues.
+#
+# Hide value model:
+#   eHP = p_success_stealth × p_evade_perception ×
+#           (offensive_value + defensive_value)
+#   where:
+#     - p_success_stealth = probability the Stealth roll meets DC 15
+#     - p_evade_perception = fraction of enemies whose passive
+#       Perception falls below the expected stealth_total (those who
+#       can't auto-spot)
+#     - offensive_value = own per-attack damage × DELTA_HIT_FROM_ADVANTAGE
+#       (one boosted attack from Invisible advantage next turn)
+#     - defensive_value = sum over in-threat-range enemies of
+#       enemy_per_attack_damage × DELTA_HIT_FROM_ADVANTAGE (each enemy
+#       attacks at disadvantage while we're Invisible)
+#
+# Search value model:
+#   eHP = sum_over_hidden_enemies(p_perception_success × own_per_attack_damage)
+#   The own DPR is a proxy for "value unlocked by being able to target
+#   this enemy next turn." Conservative — doesn't multiply by sustained
+#   turns or factor in the lost current-turn DPR (Search consumes the
+#   action this turn). v1 approximation: the AI weighs Search against
+#   weapon_attack on the same scale.
+#
+# Both formulas use existing constants:
+#   - DELTA_HIT_FROM_ADVANTAGE for advantage/disadvantage value
+#   - estimate_per_attack_damage from defensive_ehp for DPR estimates
+#
+# Gate behavior — Hide returns 0 when neither gate (heavy obscurement
+# OR ≥ 3/4 cover) is satisfied, matching the runtime guard in
+# `pipeline._execute_hide`.
+
+HIDE_DC = 15    # RAW 2024 fixed DC
+
+
+def _stealth_success_probability(stealth_mod: int) -> float:
+    """P(d20 + stealth_mod >= 15). Returns value in [0.0, 1.0]."""
+    # Need d20 >= 15 - stealth_mod. p = (21 - (15 - mod)) / 20 = (6 + mod) / 20
+    # Clamp to [0, 1].
+    successes = 21 - (HIDE_DC - stealth_mod)
+    return max(0.0, min(20.0, successes)) / 20.0
+
+
+def _expected_stealth_total(stealth_mod: int) -> int:
+    """Expected `stealth_total` on a successful Hide roll.
+
+    Among rolls that meet DC 15, the average d20 is roughly (need_value
+    + 20) / 2. With stealth_mod added, the typical recorded
+    stealth_total is approximately:
+      avg_d20_on_success + stealth_mod
+    where avg_d20_on_success ≈ (max(1, 15 - mod) + 20) / 2.
+
+    We use this to compare against enemy passive Perception when
+    estimating p_evade_perception. v1 uses a simple proxy: 11 + mod
+    (≈ d20 average among success outcomes for mid-range mods).
+    """
+    return 11 + int(stealth_mod)
+
+
+def offensive_ehp_hide(actor: Actor, action: dict,
+                          state: CombatState) -> float:
+    """eHP scoring for the Hide action (PR #59).
+
+    Returns 0 when:
+      - Actor not heavily obscured AND has < 3/4 cover (gate fails)
+      - No living enemies (nothing to gain from Hiding)
+      - All enemies would auto-spot via passive Perception (no value)
+
+    Otherwise: `p_success_stealth × p_evade_perception ×
+    (offensive_value + defensive_value)`. The offensive value is the
+    one-attack-with-advantage we'd get next turn; the defensive value
+    is the sum of disadvantage-applied enemy attack damage over those
+    in threat range this round.
+    """
+    from engine.core.vision import is_in_obscured_zone
+    from engine.core.skills import skill_modifier
+    from engine.core.geometry import distance_ft
+    from engine.core.basic_actions import _max_attack_reach
+    from engine.ai.defensive_ehp import estimate_per_attack_damage
+
+    # Gate: heavy obscurement OR 3/4+ cover. Matches _execute_hide.
+    heavily_obscured = is_in_obscured_zone(actor.position, state)
+    has_cover = actor.cover in ("three_quarters", "total")
+    if not (heavily_obscured or has_cover):
+        return 0.0
+
+    stealth_mod = skill_modifier(actor, "stealth")
+    p_success = _stealth_success_probability(stealth_mod)
+    if p_success <= 0.0:
+        return 0.0
+
+    enemies = [a for a in state.encounter.actors
+                if a.side != actor.side and a.is_alive()]
+    if not enemies:
+        return 0.0
+
+    # Per-enemy auto-spot evasion: enemy's passive Perception must be
+    # BELOW our expected stealth_total to NOT auto-spot us.
+    expected_total = _expected_stealth_total(stealth_mod)
+    evading_enemies = [
+        e for e in enemies
+        if int(getattr(e, "passive_perception", 10) or 10) < expected_total
+    ]
+    if not evading_enemies:
+        return 0.0
+    p_evade = len(evading_enemies) / len(enemies)
+
+    # Offensive value: one boosted attack from Invisible advantage on
+    # our next turn. estimate_per_attack_damage already uses the AC-15
+    # hit_prob proxy; we scale by the advantage delta.
+    own_per_attack = estimate_per_attack_damage(actor)
+    offensive_value = own_per_attack * DELTA_HIT_FROM_ADVANTAGE
+
+    # Defensive value: each in-threat-range enemy attacks at
+    # disadvantage while we're Invisible. Sum their per-attack damage
+    # × the disadvantage delta. (Disadvantage hurts the attacker by
+    # the same magnitude advantage helps — symmetric.)
+    defensive_value = 0.0
+    for enemy in evading_enemies:
+        enemy_speed = int((enemy.speed or {}).get("walk", 30))
+        enemy_reach = _max_attack_reach(enemy)
+        if enemy_reach <= 0:
+            continue   # no attacks to debuff
+        if distance_ft(enemy, actor) > enemy_speed + enemy_reach:
+            continue   # enemy can't reach us this round anyway
+        enemy_dpr = estimate_per_attack_damage(enemy)
+        defensive_value += enemy_dpr * DELTA_HIT_FROM_ADVANTAGE
+
+    total = (offensive_value + defensive_value) * p_evade * p_success
+    return float(total)
+
+
+def offensive_ehp_search(actor: Actor, action: dict,
+                            state: CombatState) -> float:
+    """eHP scoring for the Search action (PR #59).
+
+    Sums the per-hidden-enemy reveal value: for each enemy with a
+    Hide-source `co_invisible` condition, compute the probability
+    our Perception check beats their recorded stealth_total, then
+    multiply by our own per-attack damage (proxy for "DPR unlocked
+    by being able to target them next turn").
+
+    Returns 0 when there are no Hide-source-hidden enemies OR the
+    actor has no scorable weapon attacks (nothing to do once
+    revealed).
+
+    Note: Search consumes the actor's main Action this turn. The
+    score doesn't subtract the lost current-turn DPR — that
+    opportunity cost is captured implicitly by being compared
+    against weapon_attack candidates on the same eHP scale.
+    """
+    from engine.core.skills import skill_modifier
+    from engine.ai.defensive_ehp import estimate_per_attack_damage
+
+    perception_mod = skill_modifier(actor, "perception")
+    own_per_attack = estimate_per_attack_damage(actor)
+    if own_per_attack <= 0:
+        return 0.0
+
+    total = 0.0
+    for enemy in state.encounter.actors:
+        if enemy.side == actor.side or not enemy.is_alive():
+            continue
+        for cond in (enemy.applied_conditions or []):
+            if cond.get("condition_id") != "co_invisible":
+                continue
+            if cond.get("source_action_id") != "a_hide":
+                continue
+            stealth_total = int(cond.get("stealth_total", 0))
+            # P(d20 + perception_mod >= stealth_total). Same shape as
+            # _stealth_success_probability but DC = stealth_total.
+            successes = 21 - (stealth_total - perception_mod)
+            p_reveal = max(0.0, min(20.0, successes)) / 20.0
+            total += own_per_attack * p_reveal
+    return float(total)
+
+
 EXPECTED_AURA_ROUNDS = 2.5     # matches EXPECTED_BUFF_ROUNDS for consistency
 
 
@@ -842,6 +1027,12 @@ def score_candidate(candidate: dict, state: CombatState) -> float:
         # picking should happen via RP-constraint forcing or movement-
         # aware AI (deferred to a future PR).
         return 0.5
+    # PR #59: Hide / Search real eHP scoring (closes PRs #48 + #55
+    # residues where these were fixture-only / gated-emission).
+    if kind == "hide" or action.get("type") == "hide":
+        return offensive_ehp_hide(actor, action, state)
+    if kind == "search" or action.get("type") == "search":
+        return offensive_ehp_search(actor, action, state)
 
     # Defensive — lazy-import to keep modules cleanly separable
     action_type = action.get("type")

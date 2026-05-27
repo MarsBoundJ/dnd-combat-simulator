@@ -273,11 +273,22 @@ def generate_candidates(actor: Actor, state: CombatState,
         elif action_type == "hide":
             # Hide is a self-targeted utility action (PR #48). Gated
             # at execute time on heavily-obscured / 3-quarters-cover.
-            # No eHP scoring for the candidate in v1 — fixtures that
-            # want Hide picked typically declare it as the actor's
-            # only action OR via an RP-constraint forced choice.
+            # PR #59: real eHP scoring via `offensive_ehp_hide`.
             candidates.append({
                 "kind": "hide",
+                "action": action,
+                "target": actor,
+                "actor": actor,
+            })
+        elif action_type == "search":
+            # Search is a self-emitted utility action (PR #55). Built-in
+            # version is injected by `built_in_actions_for` only when a
+            # Hide-source hidden enemy exists beyond auto-spot range; if
+            # the actor declares an explicit search action on their
+            # template, we also emit it here. PR #59: real eHP scoring
+            # via `offensive_ehp_search`.
+            candidates.append({
+                "kind": "search",
                 "action": action,
                 "target": actor,
                 "actor": actor,
