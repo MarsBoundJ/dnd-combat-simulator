@@ -1,0 +1,42 @@
+# f_fs_great_weapon_fighting — Great Weapon Fighting Style
+# Source: user_authored (NOT in SRD CC v5.2.1; codified in PHB 2024).
+#
+# RAW 2024: "When you roll damage for an attack you make with a melee
+# weapon that you're holding with two hands, you can treat any 1 or 2
+# on a damage die as a 3. The weapon must have the Two-Handed or
+# Versatile property to gain this benefit."
+#
+# Engine application: pc_schema._build_weapon_action injects a
+# `damage_die_floor: 3` param into the `damage` primitive step when
+# the weapon is melee AND `two_handed: true`. The `_damage` primitive
+# in engine/primitives.py routes through `_roll_dice_expr_with_floor`,
+# which clamps each individual die roll to `max(roll, floor)`.
+#
+# Notes / deferrals:
+#   - Versatile weapons wielded two-handed are NOT yet covered. We
+#     would need a runtime grip-state model (the same weapon can be
+#     1H or 2H mid-encounter). Tracked as a future weapon-mastery /
+#     grip-state PR.
+#   - Bonus damage dice from other sources (Sneak Attack, smite, etc.)
+#     are NOT clamped by GWF per RAW ("a damage die" = the weapon's
+#     damage die specifically). The primitive only floors dice rolled
+#     inside this primitive's `dice` expression, which matches that
+#     reading.
+#   - Crit doubles the dice and the floor applies to both rolls (each
+#     die is clamped individually before summing).
+
+id: f_fs_great_weapon_fighting
+name: Great Weapon Fighting
+source: user_authored
+granted_by:
+  class: c_fighter
+  level: 1
+  parent_feature: f_fighting_style
+type: passive
+
+description: "Treat any 1 or 2 on a two-handed melee weapon's damage die as a 3."
+
+mechanic:
+  kind: damage_die_floor
+  value: 3
+  requires: two_handed_melee

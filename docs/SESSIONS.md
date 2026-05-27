@@ -5,6 +5,86 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-26 — Great Weapon Fighting + damage_die_floor (PR #49)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Phil framed the next item as "damage re-roll + GWF." I pushed back
+  honestly: per RAW 2024, GWF is a *clamp* ("treat any 1 or 2 as a
+  3"), not a re-roll. The 2014 RAW was re-roll-and-keep-the-second;
+  2024 swapped that to a floor. The two primitives are mechanically
+  distinct — a re-roll mechanism doubles RNG draws and would need
+  policy about chain-rerolls (lucky halflings re-rolling a re-rolled
+  1? RAW says no, but the primitive has to encode it). A floor is a
+  single-call clamp with no policy questions.
+- Surveyed which other 5e mechanics would need a damage re-roll
+  primitive today. Found none currently in scope:
+  - **Lucky / Halfling Lucky** — d20 re-rolls, not damage dice
+  - **Empowered Spell** (Sorcerer Metamagic) — would need a re-roll
+    primitive, but Sorcerer isn't wired in
+  - **Savage Attacker** — re-roll then take higher; not yet relevant
+  Conclusion: ship `damage_die_floor` alone, defer the re-roll
+  primitive until it has at least one consumer. Recorded as a
+  future-roadmap item.
+- **`_roll_dice_expr_with_floor` helper:** clamps each individual
+  rolled die to `max(roll, floor)`. floor=0 / floor=1 is a no-op
+  (every roll is already ≥ 1) so the helper is safe to plumb
+  through unconditionally. floor=3 implements GWF 2024 exactly.
+- **`_damage` integration:** reads `damage_die_floor` from params,
+  routes both the base roll AND the crit-doubled roll through the
+  floored helper. The flat `modifier` is *not* clamped (RAW: floor
+  applies to "a damage die," and the modifier is not a die roll).
+  Resistance / vulnerability / immunity apply after as before.
+- **`pc_schema` gate:** added `great_weapon_fighting` to
+  `_KNOWN_FIGHTING_STYLES`. `_build_weapon_action` injects
+  `damage_die_floor: 3` into the damage step's params when
+  `fighting_style == "great_weapon_fighting"` AND weapon is melee
+  (`reach_ft`, not `range_ft`) AND `two_handed: true`.
+- **Versatile weapons:** RAW lets versatile weapons (longsword,
+  battleaxe, warhammer, etc.) get GWF when wielded two-handed. We
+  defer that explicitly — it needs a runtime grip-state model since
+  the same weapon swaps grip mid-encounter. The `two_handed: true`
+  flag is the v1 gate. A versatile-grip PR is tracked.
+- **Bonus dice from other sources:** Sneak Attack, smite, +1d6
+  divine sources, etc. all run through *separate* primitive
+  invocations with their own `dice` expressions. The floor lives
+  per-primitive-call, so other sources are correctly *not* clamped
+  by GWF — matches "the weapon's damage die" reading.
+- **YAML feature file:** new
+  `schema/content/features/f_fs_great_weapon_fighting.yaml`. Tagged
+  `source: user_authored` because the 2024 PHB version is not in
+  the SRD CC v5.2.1. Lists `granted_by: c_fighter L1 +
+  f_fighting_style` to slot into the Fighting Style architecture
+  from PR #38.
+- **Tests (17 new):**
+  - `_roll_dice_expr_with_floor` parity vs plain `_roll_dice_expr`
+    at floor 0/1; clamping at floor 3 (forced 1s/2s → 3s); no-op
+    on high rolls; mixed sequences
+  - `_damage` primitive: low rolls pass through without floor; low
+    rolls clamp with floor; crit doubles dice and floor applies to
+    both passes; modifier unaffected by floor
+  - `pc_schema._build_weapon_action`: GWF + 2H melee bakes in floor;
+    GWF + 1H melee, GWF + ranged-2H (heavy crossbow), no-style + 2H,
+    Dueling + 2H all omit the floor
+  - Validation: `great_weapon_fighting` is in `_KNOWN_FIGHTING_STYLES`,
+    `_validate_fighting_style` accepts it, template records the
+    chosen style. Updated two existing `test_fighting_style` tests
+    that asserted GWF was an unknown style.
+- **Fixture:** added a fourth fighter (`fighter_gwf`) + fourth dummy
+  to `fighting_styles_showcase_encounter.yaml` so the showcase
+  demonstrates all four styles side-by-side.
+- 689 tests pass (+17 new, 0 regressions).
+
+**Future-roadmap items (recorded, not in this PR):**
+- Damage re-roll primitive (Empowered Spell / Savage Attacker —
+  defer until a consumer lands)
+- Versatile-grip state model (longsword 1H vs 2H mid-encounter)
+- Two-Weapon Fighting style (needs off-hand weapon mechanics —
+  separate arc)
+
+---
+
 ## Session: 2026-05-26 — Cover + Heavy Obscurement + Hide action (PR #48)
 
 **Participants:** Phil, Claude

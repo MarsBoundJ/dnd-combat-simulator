@@ -1,5 +1,5 @@
-# Fighting Styles showcase — three identical L1 Fighters with three
-# different styles vs three identical training-dummy targets.
+# Fighting Styles showcase — four identical L1 Fighters with four
+# different styles vs four identical training-dummy targets.
 #
 # Each fighter is built via the `pc:` schema with the same ability
 # scores + armor + appropriate weapon. The chosen Fighting Style is
@@ -13,6 +13,10 @@
 #   - fighter_archery  : longbow, plate, Archery → AC 18, attack +6
 #                          (DEX +2 + PB +2 + Archery +2). Damage mod
 #                          = DEX +2 (Archery is attack-bonus only).
+#   - fighter_gwf      : greatsword, plate, Great Weapon Fighting →
+#                          AC 18, dmg = 2d6 (floored to 3) + STR +3.
+#                          The damage primitive clamps any 1 or 2
+#                          rolled on each d6 up to 3 (RAW 2024).
 #
 # Each dummy is high HP / low DPR / generic AC so the fighter has
 # many rounds to demonstrate their attack pattern. The runner is
@@ -105,7 +109,35 @@ actors:
           damage_type: piercing
           range_ft: 150
 
-  # ----- Three identical training dummies -----
+  # ----- Great Weapon Fighting fighter (2H melee damage floor) -----
+  - instance_id: fighter_gwf
+    name: GWF Fighter L1
+    side: pc
+    position: [0, 3]
+    pc:
+      class: c_fighter
+      level: 1
+      fighting_style: great_weapon_fighting
+      ability_scores:
+        str: 16
+        dex: 14
+        con: 14
+        int: 10
+        wis: 10
+        cha: 10
+      armor:
+        base_ac: 16
+        max_dex_bonus: 2
+      weapons:
+        - id: a_greatsword
+          name: Greatsword
+          attack_ability: str
+          damage_dice: 2d6
+          damage_type: slashing
+          reach_ft: 5
+          two_handed: true
+
+  # ----- Four identical training dummies -----
   - instance_id: dummy_a
     name: Training Dummy A
     side: enemy
@@ -188,6 +220,41 @@ actors:
     position: [10, 2]
     template:
       id: m_training_dummy_c
+      name: Training Dummy
+      source: user_authored
+      combat:
+        armor_class: 14
+        hit_points: { average: 60, dice: "8d8", con_contribution: 24 }
+        speed: { walk: 0 }
+        initiative: { modifier: -5, score: 1 }
+      abilities:
+        str: { score: 10, save: 0 }
+        dex: { score: 8, save: -1 }
+        con: { score: 16, save: 3 }
+        int: { score: 1, save: -5 }
+        wis: { score: 1, save: -5 }
+        cha: { score: 1, save: -5 }
+      cr: { value: 1.0, xp: 200, proficiency_bonus: 2 }
+      behavior_profile:
+        presets:
+          retreat: ftd
+      actions:
+        - id: a_swing
+          name: Wooden Arm
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: melee, bonus: 0, reach_ft: 5 }
+            - primitive: damage
+              params: { dice: "1d4", modifier: 0, type: bludgeoning }
+              when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  - instance_id: dummy_d
+    name: Training Dummy D
+    side: enemy
+    position: [10, 3]
+    template:
+      id: m_training_dummy_d
       name: Training Dummy
       source: user_authored
       combat:
