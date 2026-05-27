@@ -680,6 +680,40 @@ priority order:
    Rebuke**~~ — **Shipped in PR #45.**
 18. ~~**Counterspell + cast-event infra**~~ — **Shipped in PR #46.**
 19. ~~**Vision system v1**~~ — **Shipped in PR #47.**
+26. ~~**Weapon Mastery (2024 PHB) v1**~~ — **Shipped in PR #54.**
+   The biggest 2024 PHB feature; tight v1 scope. New
+   `engine/core/weapon_masteries.py` module with the known set,
+   validators, and per-property implementations. New
+   `Actor.weapon_masteries: list` field (the properties the actor
+   *knows*), loaded by `cli._build_actor` from template or
+   actor_spec override. PC schema accepts
+   `weapon_masteries: [vex, sap, topple, graze]` with validation;
+   baked onto template top-level + `derived_from_pc_schema`.
+   Weapon specs accept `mastery: <id>` (intrinsic to the weapon);
+   `_build_weapon_action` bakes a self-contained
+   `mastery: {id, ability_mod, damage_type, save_dc}` sub-dict
+   into attack_roll params. `_attack_roll` calls
+   `apply_mastery_effects` AFTER lifetime expiry so newly-
+   registered Vex/Sap modifiers (per_owner_attack lifetime)
+   survive THIS attack and consume on the NEXT — exactly RAW.
+   Four properties shipped:
+   - **Vex**: on hit, advantage on next attack (modifier on actor)
+   - **Sap**: on hit, target has disadvantage on next attack
+   - **Topple**: on hit, target CON save (DC 8+mod+PB) vs Prone
+   - **Graze**: on miss, deal ability_mod damage (respects
+     resistance / vulnerability / immunity)
+   New `f_weapon_mastery.yaml` feature file. Fighter class def
+   already declared `weapon_mastery_count` per level (3/4/5/6)
+   and `f_weapon_mastery` feature reference; this PR fills in
+   the feature file. v1 does NOT enforce the class-level
+   masteries-known cap — schema trusts the spec. Deferred:
+   Cleave (extra attack), Push (forced movement), Slow (speed
+   reduction with duration), Nick (off-hand-as-Attack-action).
+   36 new tests across validators, helpers, pc_schema
+   integration, weapon_action baking, per-property semantics
+   (hit/miss/save/resistance), and dispatch no-ops. New
+   `weapon_mastery_showcase_encounter.yaml` with four fighters
+   demonstrating each property.
 25. ~~**Two-Weapon Fighting + off-hand mechanics**~~ — **Shipped
    in PR #53.** Closes the Fighting Style arc with the fifth
    style. PC schemas accept `off_hand_weapon:` (a single light

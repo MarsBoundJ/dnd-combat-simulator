@@ -130,6 +130,20 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
     skill_proficiencies = _validate_skill_proficiencies(
         pc_spec.get("skill_proficiencies"))
 
+    # Weapon masteries (PR #54) — list of mastery property ids this
+    # PC "knows" via the Weapon Mastery class feature. Validated
+    # against the known set in engine.core.weapon_masteries. Baked
+    # onto the template top-level so cli._build_actor can read it
+    # onto Actor.weapon_masteries.
+    #
+    # v1 does NOT enforce the class-level "masteries known" cap from
+    # the level table — the PC schema trusts the spec. Future:
+    # validate `len(weapon_masteries) <= class.weapon_masteries_known
+    # at level`.
+    from engine.core.weapon_masteries import validate_mastery_list
+    weapon_masteries = validate_mastery_list(
+        pc_spec.get("weapon_masteries"))
+
     # Derive HP
     hit_die = class_def.get("core_traits", {}).get("hit_die", "d8")
     con_mod = ability_modifier(ability_scores["con"]["score"])
@@ -205,12 +219,18 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
             "level": level,
             "fighting_style": fighting_style,    # None if not chosen
             "skill_proficiencies": list(skill_proficiencies),
+            "weapon_masteries": list(weapon_masteries),
         },
         # Top-level skill_proficiencies for the runtime skill_modifier
         # helper to read (engine/core/skills.py). Mirrors the monster-
         # template `skills:` dict shape, except PCs store the list of
         # proficient skills (bonus computed on demand from ability + PB).
         "skill_proficiencies": list(skill_proficiencies),
+        # Top-level weapon_masteries (PR #54) — read by cli._build_actor
+        # onto Actor.weapon_masteries. Empty list = actor knows no
+        # masteries (i.e., doesn't have the class feature OR didn't
+        # declare any choices).
+        "weapon_masteries": list(weapon_masteries),
         # Passive Perception (PR #51): 10 + WIS_mod + PB if proficient.
         # Mirrors the monster-template `senses.passive_perception` shape.
         # Loaded by cli._build_actor onto Actor.passive_perception.
@@ -763,6 +783,28 @@ def _build_weapon_action(weapon: dict, ability_scores: dict,
         attack_params["range_ft"] = int(weapon["range_ft"])
     else:
         attack_params["reach_ft"] = int(weapon.get("reach_ft", 5))
+
+    # PR #54: Weapon Mastery — if the weapon spec declares `mastery:
+    # <id>`, bake a self-contained mastery sub-dict into the
+    # attack_roll params. The runtime _attack_roll calls
+    # weapon_masteries.apply_mastery_effects which dispatches based
+    # on the id. ability_mod / damage_type / save_dc are computed
+    # here so the runtime helper doesn't need to re-read the actor
+    # template.
+    raw_mastery = weapon.get("mastery")
+    if raw_mastery:
+        from engine.core.weapon_masteries import validate_mastery
+        mastery_id = validate_mastery(raw_mastery)
+        # Topple save DC = 8 + ability_mod + PB (RAW). For non-Topple
+        # masteries this value is unused, but we always bake it for
+        # uniformity.
+        save_dc = 8 + ability_mod + int(proficiency_bonus)
+        attack_params["mastery"] = {
+            "id": mastery_id,
+            "ability_mod": ability_mod,
+            "damage_type": weapon.get("damage_type", "untyped"),
+            "save_dc": save_dc,
+        }
 
     damage_params: dict = {
         "dice": weapon.get("damage_dice", "1d4"),

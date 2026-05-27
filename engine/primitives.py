@@ -220,6 +220,16 @@ def _attack_roll(params: dict, state: CombatState, bus: EventBus) -> dict:
     _modifiers.expire_modifiers(actor, {"attack_complete", "owner_made_attack"})
     _modifiers.expire_modifiers(target, {"attack_complete"})
 
+    # PR #54: Weapon Mastery dispatch. Fires AFTER lifetime expiry so
+    # newly-registered Vex/Sap modifiers (with per_owner_attack
+    # lifetime, which consumes on owner_made_attack) survive THIS
+    # attack and only consume on the NEXT swing — exactly RAW. The
+    # dispatch is a no-op when the weapon has no mastery or the
+    # actor doesn't know it.
+    from engine.core.weapon_masteries import apply_mastery_effects
+    apply_mastery_effects(params.get("mastery"), actor, target,
+                             attack_state, state)
+
     # PR #48: Hide ends when the actor attacks. RAW: attacking,
     # casting a verbal spell, or making noise breaks Hide. v1 handles
     # the attack case here; the cast-verbal case is deferred.

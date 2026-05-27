@@ -1,0 +1,38 @@
+# f_weapon_mastery — Weapon Mastery (class feature)
+# Source: SRD CC v5.2.1 (PHB 2024 — present in SRD CC v5.2.1)
+#
+# RAW 2024 (Fighter): "Your training with weapons allows you to use
+# the mastery properties of three kinds of Simple or Martial weapons
+# of your choice." At higher levels, you know more mastery properties:
+# Fighter L1: 3, L4: 4, L10: 5, L16: 6.
+#
+# Engine application (PR #54):
+# - The PC spec accepts `weapon_masteries: [vex, sap, topple, graze]`
+#   (validated against engine.core.weapon_masteries.KNOWN_MASTERIES).
+# - The list is baked onto the template top-level + derived_from
+#   block; cli._build_actor reads it onto Actor.weapon_masteries.
+# - When the actor wields a weapon whose intrinsic `mastery:` matches
+#   an entry in their weapon_masteries list, the property fires
+#   after attack resolution.
+# - v1 ships four masteries: Vex, Sap, Topple, Graze. Cleave / Push /
+#   Slow / Nick deferred — see engine.core.weapon_masteries module
+#   docstring for full rationale.
+# - v1 does NOT enforce the class-level "masteries known" cap. The
+#   schema trusts the spec. Tracked as a future tightening: validate
+#   `len(weapon_masteries) <= class_resources.weapon_mastery_count`
+#   at the PC's level.
+
+id: f_weapon_mastery
+name: Weapon Mastery
+source: srd_5.2.1
+granted_by:
+  class: c_fighter
+  level: 1
+type: passive
+
+description: "Apply mastery properties of weapons you wield. Number of properties known scales by class level."
+
+mechanic:
+  kind: weapon_mastery_choice
+  v1_known_masteries: [vex, sap, topple, graze]
+  v1_deferred_masteries: [cleave, push, slow, nick]
