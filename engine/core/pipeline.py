@@ -122,6 +122,13 @@ def generate_candidates(actor: Actor, state: CombatState,
     if _actor_in_silence_zone(actor, state):
         actions = [a for a in actions
                     if int(a.get("spell_slot_level", 0)) <= 0]
+    # PR #80: requires-no-movement gate. Actions that declare
+    # `requires_no_movement: true` (Steady Aim today; future Stand
+    # Still / Aim-shape actions reuse) are filtered out when the
+    # actor has already spent movement this turn.
+    if actor.moved_this_turn:
+        actions = [a for a in actions
+                    if not a.get("requires_no_movement")]
 
     enemies = [a for a in state.encounter.actors
                if a.side != actor.side and a.is_alive()]

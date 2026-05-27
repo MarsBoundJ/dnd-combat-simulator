@@ -387,6 +387,10 @@ def is_self_targeted_defensive_buff(action: dict) -> bool:
         # targeted — affects only the actor's own movement budget.
         if prim == "dash":
             return True
+        # PR #80: Steady Aim — self-targeted advantage on next
+        # attack + speed 0. Same self-targeted pattern.
+        if prim == "steady_aim":
+            return True
         if prim not in ("attack_modifier", "save_modifier"):
             continue
         params = step.get("params") or {}

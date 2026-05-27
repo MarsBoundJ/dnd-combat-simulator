@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-05-27
 **Engine state:** Phase 1, post-PR #26 (Dodge + Disengage merged).
-**Test surface:** 1350 tests across 60+ modules; 14 CLI fixtures.
+**Test surface:** 1364 tests across 60+ modules; 14 CLI fixtures.
 
 This document captures what the simulator can actually do today — in
 observable behavioral terms, not module inventories. The companion
@@ -680,6 +680,51 @@ priority order:
    Rebuke**~~ — **Shipped in PR #45.**
 18. ~~**Counterspell + cast-event infra**~~ — **Shipped in PR #46.**
 19. ~~**Vision system v1**~~ — **Shipped in PR #47.**
+52. ~~**Rogue Steady Aim (L3 BA)**~~ — **Shipped in PR #80.**
+   Pairs with PR #74's Cunning Action BA infrastructure. RAW
+   PHB 2024: as a Bonus Action, gain advantage on next attack
+   roll this turn; speed becomes 0 for the rest of the turn;
+   requires you haven't moved this turn.
+   - **New `steady_aim` primitive**: registers an
+     `attack_modifier` (target=self, modifier=advantage,
+     lifetime=per_owner_attack — consumes on next swing) AND
+     sets `actor.moved_this_turn = True` (RAW: speed becomes 0
+     for the rest of this turn). Logs `steady_aim_taken` event.
+   - **Eligibility gate** wired generically: actions declare
+     `requires_no_movement: true`; the pipeline candidate
+     generator filters them out when
+     `actor.moved_this_turn == True`. Future Stand-Still-shape
+     actions reuse the same flag.
+   - **Auto-generated `a_steady_aim` action** for Rogue L3+
+     PCs via `_build_steady_aim_action`. Type=`defensive_buff`
+     (routes through the self-targeted dedup),
+     `slot: bonus_action`, `is_signature: false` (highly
+     tactical — only valuable when SA conditions otherwise
+     unfavorable).
+   - **`is_self_targeted_defensive_buff`** extended to
+     recognize `steady_aim` (same pattern as PR #71's
+     rage_start, PR #74's dash).
+   - **AI scoring** via new `_score_steady_aim` in
+     `defensive_ehp`: returns
+     `actor.expected_per_attack_damage × DELTA_HIT_FROM_ADVANTAGE`
+     (~22.5% of base attack damage, the framework's standard
+     advantage value). Returns 0 when no enemies.
+   - **Class table**: `f_steady_aim` added to Rogue L3 row.
+   - **New `f_steady_aim.yaml`** declares the feature shape.
+   - 14 new tests across 12 layers (primitive registers
+     advantage + sets moved + logs; modifier consumes on next
+     attack; self-targeted recognition; AI scoring positive /
+     zero cases; pipeline filter blocks after movement /
+     emits without movement; pc_schema L1/L2/L3 gating + shape;
+     feature YAML loading).
+   - Deferred:
+     * Sneak Attack synergy uplift in AI scoring (advantage
+       guarantees SA fires; deferred uplift for Rogues without
+       adjacent ally)
+     * "Advantage expires on miss" pedantic RAW detail
+     * Pre-targeting a specific enemy (v1 grants advantage on
+       the NEXT attack regardless of which target)
+
 51. ~~**More zone-creating spells: Fog Cloud / Stinking Cloud /
    Web / Silence**~~ — **Shipped in PR #79.** Four PHB 2024
    zone spells added, each exercising different aspects of the
