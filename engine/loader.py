@@ -25,7 +25,10 @@ _ENTITY_DIRS = {
     "monster": "monsters",
     "spell": "spells",
     "condition": "conditions",
-    "race": "races",     # PR #75 — SRD species (Dwarf/Elf/Halfling/Human)
+    "race": "races",         # PR #75 — SRD species (Dwarf/Elf/Halfling/Human)
+    "feat": "feats",         # PR #84 — scaffolded; no content yet
+    "equipment": "equipment", # PR #84 — scaffolded; no content yet
+    "background": "backgrounds", # PR #84 — scaffolded; no content yet
 }
 
 # Entity type → JSON Schema filename
@@ -36,10 +39,15 @@ _ENTITY_SCHEMAS = {
     "monster": "monster.schema.json",
     "spell": "spell.schema.json",
     "condition": "condition.schema.json",
-    # `race` schema deferred — loader silently skips validation for
-    # entity types without a corresponding schema file. PR #75 ships
-    # the race YAMLs + loader registration; a follow-up PR can add
-    # the strict JSON Schema.
+    # PR #84: race / feat / equipment / background schemas added.
+    # race validates the 4 SRD species YAMLs shipped in PR #75
+    # (closes that PR's deferred-schema residue). The other three
+    # are scaffolded ahead of content; empty content dirs exist so
+    # the loader doesn't trip on missing directories.
+    "race": "race.schema.json",
+    "feat": "feat.schema.json",
+    "equipment": "equipment.schema.json",
+    "background": "background.schema.json",
 }
 
 
