@@ -1,0 +1,117 @@
+# Hide-in-fog demo — rogue hides in a heavy-obscurement zone, then
+# attacks with advantage (Invisible attacker gets advantage).
+#
+# Setup:
+#   - Rogue (PC): high DEX (20 → +5 mod), starts inside a fog zone
+#     centered at (3, 3) with extent 2 squares (zone covers x:1-5,
+#     y:1-5). Has Hide action + a shortsword. Forced first via
+#     initiative bonus.
+#   - Ogre (enemy): outside the fog zone at (10, 0). Tough target.
+#
+# Expected behavior:
+#   - Round 1: Rogue in fog → can_actor_see(ogre, rogue) = False.
+#     Rogue picks Hide (eligible via heavy obscurement); rolls
+#     d20 + DEX 5 vs DC 15. With seed 1, d20 = 5 → total = 10 →
+#     fails. With higher seeds the hide succeeds.
+#   - If hide succeeds: co_invisible applied with source=a_hide.
+#     On a subsequent attack, the Invisible condition's "your attacks
+#     advantage" + "attacks vs you disadvantage" modifiers fire.
+#     After attacking, Hide-source co_invisible is scrubbed (RAW:
+#     Hide ends on attack).
+#
+# Demonstrates: heavy obscurement zone, Hide gate, Stealth check,
+# co_invisible applied + scrubbed-on-attack.
+
+id: rogue_hides_in_fog_encounter
+
+environment:
+  template: open_battlefield
+  heavily_obscured_zones:
+    - { x_min: 1, x_max: 5, y_min: 1, y_max: 5 }
+
+actors:
+  - instance_id: rogue
+    name: Rogue
+    side: pc
+    position: [3, 3]            # in the fog zone
+    template:
+      id: pc_rogue_hide
+      name: Rogue
+      source: user_authored
+      combat:
+        armor_class: 14
+        hit_points:
+          average: 30
+          dice: "5d8"
+          con_contribution: 5
+        speed:
+          walk: 30
+        initiative:
+          modifier: 30
+          score: 40
+      abilities:
+        str: { score: 10, save: 0 }
+        dex: { score: 20, save: 8 }    # high DEX, proficient
+        con: { score: 12, save: 1 }
+        int: { score: 10, save: 0 }
+        wis: { score: 12, save: 1 }
+        cha: { score: 10, save: 0 }
+      cr: { value: 3.0, xp: 700, proficiency_bonus: 2 }
+      behavior_profile:
+        presets:
+          retreat: ftd
+      actions:
+        - id: a_hide
+          name: Hide
+          type: hide
+          pipeline: []
+        - id: a_shortsword
+          name: Shortsword
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: melee, bonus: 7, reach_ft: 5 }
+            - primitive: damage
+              params: { dice: "1d6", modifier: 5, type: piercing }
+              when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  - instance_id: ogre
+    name: Ogre
+    side: enemy
+    position: [10, 0]            # outside the fog
+    template:
+      id: m_ogre_hide
+      name: Ogre
+      source: user_authored
+      combat:
+        armor_class: 11
+        hit_points:
+          average: 60
+          dice: "8d10"
+          con_contribution: 16
+        speed:
+          walk: 40
+        initiative:
+          modifier: -1
+          score: 8
+      abilities:
+        str: { score: 19, save: 4 }
+        dex: { score: 8, save: -1 }
+        con: { score: 16, save: 3 }
+        int: { score: 5, save: -3 }
+        wis: { score: 7, save: -2 }
+        cha: { score: 7, save: -2 }
+      cr: { value: 2.0, xp: 450, proficiency_bonus: 2 }
+      behavior_profile:
+        presets:
+          retreat: ftd
+      actions:
+        - id: a_greatclub
+          name: Greatclub
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: melee, bonus: 6, reach_ft: 5 }
+            - primitive: damage
+              params: { dice: "1d8", modifier: 4, type: bludgeoning }
+              when: { event: damage_roll, condition: "combat.attack_state == hit" }

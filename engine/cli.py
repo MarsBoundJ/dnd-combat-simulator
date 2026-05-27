@@ -185,6 +185,11 @@ def _build_actor(actor_spec: dict, registry) -> Actor:
     resources = dict(derived_pc_resources)
     resources.update(dict(actor_spec.get("resources") or {}))
 
+    # PR #48: optional per-actor cover state ('none' | 'half' |
+    # 'three_quarters'). Defaults to 'none'. Fixture authors set this
+    # to model a creature behind a wall, parapet, etc.
+    cover = str(actor_spec.get("cover", "none"))
+
     return Actor(
         id=instance_id,
         name=actor_spec.get("name", template.get("name", instance_id)),
@@ -199,6 +204,7 @@ def _build_actor(actor_spec: dict, registry) -> Actor:
         spell_slots=spell_slots,
         spell_slots_max=spell_slots_max,
         resources=resources,
+        cover=cover,
     )
 
 

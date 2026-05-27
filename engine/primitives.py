@@ -82,6 +82,19 @@ def _roll_dice_expr(expr: str, rng: _random_module.Random) -> int:
 # IMPLEMENTED — Attack pipeline (v0 + v1 modifier consultation)
 # ============================================================================
 
+def _cover_ac_bonus(cover: str) -> int:
+    """Cover → AC bonus mapping (PR #48). RAW 2024:
+      - half cover: +2 AC + DEX save
+      - three-quarters cover: +5 AC + DEX save
+      - total cover: can't be targeted (deferred — needs attack-cancel)
+    """
+    if cover == "half":
+        return 2
+    if cover == "three_quarters":
+        return 5
+    return 0
+
+
 def _attack_roll(params: dict, state: CombatState, bus: EventBus) -> dict:
     """Roll d20 + bonus vs target AC. Now consults active_modifiers
     AND the action's reach / range — out-of-range attacks auto-miss.
@@ -122,7 +135,11 @@ def _attack_roll(params: dict, state: CombatState, bus: EventBus) -> dict:
     # Query unified modifier registry for attack adjustments + crit changes
     attack_mods = _modifiers.query_attack_modifiers(actor, target, state)
     crit_mods = _modifiers.query_crit_modifiers(actor, target, state)
-    effective_ac = target.ac + attack_mods.ac_modifier
+    # PR #48: cover AC bonus (+2 half, +5 three_quarters). v1 is per-
+    # actor and symmetric; future terrain-based per-(attacker, target)
+    # cover will replace this lookup.
+    cover_ac_bonus = _cover_ac_bonus(target.cover)
+    effective_ac = target.ac + attack_mods.ac_modifier + cover_ac_bonus
     effective_bonus = bonus + attack_mods.attack_bonus_modifier
     adv_state = attack_mods.net_advantage()
 
@@ -148,8 +165,10 @@ def _attack_roll(params: dict, state: CombatState, bus: EventBus) -> dict:
                                   "was_going_to_hit": pre_reaction_hit},
                                 state, bus)
     # Re-query attack_modifiers — Shield may have bumped the AC.
+    # Cover bonus stays the same (cover is a static actor property
+    # in v1, not modifiable mid-attack).
     post_attack_mods = _modifiers.query_attack_modifiers(actor, target, state)
-    effective_ac = target.ac + post_attack_mods.ac_modifier
+    effective_ac = target.ac + post_attack_mods.ac_modifier + cover_ac_bonus
     is_hit = is_crit or (total >= effective_ac)
     # Forced crit (e.g., Paralyzed target within 5ft): only fires if hit
     if is_hit and crit_mods.force_crit_if_hit:
@@ -181,6 +200,18 @@ def _attack_roll(params: dict, state: CombatState, bus: EventBus) -> dict:
     #     when the owner themselves makes an attack)
     _modifiers.expire_modifiers(actor, {"attack_complete", "owner_made_attack"})
     _modifiers.expire_modifiers(target, {"attack_complete"})
+
+    # PR #48: Hide ends when the actor attacks. RAW: attacking,
+    # casting a verbal spell, or making noise breaks Hide. v1 handles
+    # the attack case here; the cast-verbal case is deferred.
+    # Scrub co_invisible whose source_action_id is "a_hide" (the
+    # marker set by _execute_hide). Other sources of Invisible
+    # (the spell, etc.) survive.
+    actor.applied_conditions = [
+        c for c in actor.applied_conditions
+        if not (c.get("condition_id") == "co_invisible"
+                and c.get("source_action_id") == "a_hide")
+    ]
 
     return {"state": attack_state, "d20": d20, "total": total}
 
@@ -590,7 +621,14 @@ def _forced_save(params: dict, state: CombatState, bus: EventBus) -> dict:
                 d20 = min(rng.randint(1, 20), rng.randint(1, 20))
             else:
                 d20 = rng.randint(1, 20)
-            total = d20 + save_bonus + save_mods.save_bonus_modifier
+            # PR #48: cover gives a bonus to DEX saves too (+2 half,
+            # +5 three_quarters). Only applies to DEX saves per RAW.
+            cover_save_bonus = 0
+            if ability == "dexterity":
+                cover_save_bonus = _cover_ac_bonus(target.cover)
+            total = (d20 + save_bonus
+                      + save_mods.save_bonus_modifier
+                      + cover_save_bonus)
             outcome = "success" if total >= dc else "fail"
 
         rolls.append({"target_id": target.id, "outcome": outcome,

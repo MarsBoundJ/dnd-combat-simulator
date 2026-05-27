@@ -98,6 +98,15 @@ class Actor:
     # activation time, NOT here — that's per-short-rest, not per-turn.
     action_surge_used_this_turn: bool = False
 
+    # Cover state (PR #48): one of 'none' | 'half' | 'three_quarters'.
+    # Drives the AC + DEX-save bonus applied during attack resolution
+    # (+2 for half, +5 for three_quarters). v1 is per-actor and
+    # symmetric (everyone attacking sees the same cover bonus); future
+    # work models per-(attacker, target) cover based on terrain
+    # geometry. Total cover (auto-miss) is also deferred — needs an
+    # attack-cancellation path.
+    cover: str = "none"
+
     def is_alive(self) -> bool:
         return self.hp_current > 0 and not self.is_dead and not self.is_fled
 

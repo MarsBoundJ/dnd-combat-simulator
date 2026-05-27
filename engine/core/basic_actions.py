@@ -25,7 +25,11 @@ when a fixture explicitly opts into the action.
   - No bonus-slot built-ins (Dodge/Disengage/Help are full Actions per RAW)
 
 **Deferred:**
-  - Hide (blocked on terrain / cover / LOS modeling, see above)
+  - Hide as a built-in action (PR #48 shipped Hide as a declarable
+    action type — actors with `type: hide` in their template can
+    take it. Making it implicitly available to everyone is a small
+    follow-up; current behavior matches RAW since only actors
+    explicitly trained in stealth typically declare it.)
   - Ready / Use an Object / Search
   - Dodge ineligibility (Incapacitated / speed=0 prevents Dodge)
   - Built-in actions for bonus slot (e.g., off-hand attack for two-weapon)

@@ -5,6 +5,129 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-26 — Cover + Heavy Obscurement + Hide action (PR #48)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Closes the Hide arc that's been deferred since PR #29 (where I
+  flagged Hide as blocked on terrain / cover / LOS modeling). With
+  vision in place from PR #47, the remaining work was a cover model
+  + obscurement zones + the Hide action itself.
+- Tight v1 scope committed: per-actor cover field, environment
+  obscurement zones (axis-aligned rects), Hide action with gates +
+  Stealth check + auto-end on attack. Cover-from-creatures,
+  Stealth proficiency, active-perception checks, AI scoring for
+  Hide, total cover (auto-miss) all deferred.
+- **Cover (per-actor field, symmetric):**
+  - `Actor.cover: str` with values `none` / `half` / `three_quarters`
+  - Loaded from fixture spec via `cli._build_actor`
+  - `_cover_ac_bonus` helper maps to +0/+2/+5
+  - `_attack_roll` includes the bonus in `effective_ac` (and re-
+    queries cover bonus correctly after Shield reactions)
+  - `_forced_save` adds the bonus to **DEX saves only** (per RAW —
+    cover specifically helps DEX saves, not other ability saves)
+- **Heavy obscurement zones:**
+  - `encounter.environment.heavily_obscured_zones`: list of axis-
+    aligned rects `{x_min, x_max, y_min, y_max}` (inclusive
+    boundaries)
+  - `vision.is_in_obscured_zone(position, state)` helper
+  - `vision.can_actor_see` extended: returns False if EITHER observer
+    or target is in a zone (RAW: heavily obscured creatures are
+    effectively Blinded toward whatever's in / outside the
+    obscurement). Same-zone-with-vision-types refinement deferred.
+- **Hide action (new `type: hide`):**
+  - `pipeline.generate_candidates` emits one Hide candidate per turn
+  - `pipeline.execute` dispatches to `_execute_hide`:
+    1. **Gate**: actor must be heavily obscured OR have ≥ 3/4 cover.
+       If neither, logs `hide_attempted` with `outcome=failed`,
+       `reason=no_cover_or_obscurement` and returns.
+    2. **Stealth check**: d20 + DEX_mod vs DC 15. Stealth
+       proficiency not yet modeled.
+    3. **On success**: applies `co_invisible` with
+       `source_action_id=a_hide` so the existing Invisible
+       condition's modifiers fire (advantage on owner's attacks,
+       disadvantage on attacks vs owner).
+    4. Logs `hide_attempted` with full d20/mod/total/dc/outcome/gate
+       + `hidden` event on success.
+  - `_attack_roll` scrubs `co_invisible` whose `source_action_id ==
+    "a_hide"` after the actor's attack (RAW: Hide ends on attack).
+    Other-source Invisible (e.g., Greater Invisibility spell) is
+    preserved.
+- 22 new tests in `tests/test_cover_hide_obscurement.py`:
+  - Cover field default + spec loading + AC bonus mapping
+  - `_attack_roll` vs_ac includes cover bonus (half / three_quarters
+    / none baseline)
+  - `_forced_save` adds cover bonus to DEX saves
+  - Obscurement zone detection (no zones, in / out, multiple zones)
+  - `can_actor_see` respects zones (target in zone, observer in
+    zone, both outside baseline)
+  - Hide gates (no cover/obscurement → failed; three_quarters cover
+    → eligible; heavy obscurement → eligible)
+  - Stealth check math + outcome computation
+  - Hide ends on attack (a_hide-source scrubbed; other-source
+    preserved)
+- New fixture `rogue_hides_in_fog_encounter.yaml`: rogue in 5×5 fog
+  zone with Hide + shortsword vs ogre outside the fog. Seed 1 trace
+  shows the full chain: `hide_attempted` with `gate:
+  heavy_obscurement, d20: 5, dex_mod: 5, total: 10, dc: 15,
+  outcome: failed` — Hide DC math + gate detection visible end-to-
+  end.
+- `basic_actions.py` docstring updated to reflect Hide now
+  declarable (no longer fully deferred).
+- Test count: 650 → 672. All green, stable across full-suite
+  re-runs.
+
+**Key decisions:**
+- **Per-actor cover, not per-(attacker, target).** Real terrain-
+  geometry cover would need LOS computation across squares; v1's
+  symmetric per-actor field is the right starting shape. Fixture
+  authors mark "this creature is behind a parapet" and all attacks
+  get the bonus. When terrain geometry lands, this becomes a
+  computed property.
+- **Total cover deferred.** Would need a clean attack-cancellation
+  path through `_attack_roll`. Half + three_quarters cover the
+  common cases; total cover is rarer in actual combat (creatures
+  behind total cover usually break LOS first via the obscurement
+  side).
+- **Cover bonus on DEX saves only.** RAW: cover helps DEX saves
+  specifically (Fireball, Dragon Breath, etc.). Other ability
+  saves aren't enhanced by cover.
+- **Either-side-in-zone blocks vision** for `can_actor_see`. RAW:
+  heavily obscured creatures are blinded; this catches both
+  "looking in" and "looking out" cases. Same-zone-with-special-
+  vision (e.g., creatures with magical darkvision who can see in
+  the dark) deferred until vision types arrive.
+- **Hide as a declarable action, not built-in.** Built-in Dodge /
+  Disengage / Help are universal (everyone has them per RAW). Hide
+  is universal RAW too but only valuable for actors with stealth
+  positioning + decent DEX. v1 ships Hide for fixtures that
+  explicitly declare it; making it implicitly available is a small
+  follow-up.
+- **`a_hide` source tag for scrubbing.** Distinguishes Hide-source
+  Invisible from spell-source Invisible (Greater Invisibility,
+  Invisibility) so the attack-scrub only ends the Hide-source one.
+  Pinned with a specific test.
+- **No AI scoring for Hide.** Fixture-driven only in v1. Adding a
+  proper eHP score (own_DPR × 0.225 + enemy_DPR × 0.225 over some
+  duration) is a clean follow-up; for now Hide gets picked when
+  there's no better candidate (e.g., rogue out of melee reach with
+  no ranged option).
+
+**Open items carried forward:**
+- **Total cover** (attack auto-miss; needs cancellation path)
+- **Vision types** (truesight / blindsight / darkvision)
+- **Light levels per tile** (bright / dim / dark)
+- **Cover-from-creatures** (other actors on the line of sight)
+- **AI scoring for Hide** (proper eHP gain calculation)
+- **Stealth proficiency** (add PB to the check)
+- **Hide ends on cast verbal spell** (need a verbal-tag on spells)
+- **Hide ends on move-out-of-cover** (currently only attack-ends)
+- **Active Perception check** vs the hide DC (currently fixed DC 15
+  — DM-set; passive-Perception variant deferred)
+
+---
+
 ## Session: 2026-05-26 — Vision system v1 (PR #47)
 
 **Participants:** Phil, Claude
