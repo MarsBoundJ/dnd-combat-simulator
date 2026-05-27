@@ -247,6 +247,26 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
     features_known = _features_known_at_level(class_def, level)
     actions += _build_feature_actions(features_known, level, class_id,
                                          weapon_actions=weapon_actions)
+    # PR #82: auto-attach spell action_templates from features that
+    # declare one. This covers Paladin Bless / Shield of Faith and
+    # any future spell-shaped features whose YAML carries an
+    # `action_template` block. Skipped when the feature's
+    # action_template would clash with an action already generated
+    # by the hardcoded builders above (e.g., a feature with the
+    # same id).
+    existing_ids = {a.get("id") for a in actions}
+    for feature_id in features_known:
+        try:
+            feature = content_registry.get("feature", feature_id)
+        except (KeyError, AttributeError):
+            continue
+        action_template = feature.get("action_template")
+        if not action_template:
+            continue
+        if action_template.get("id") in existing_ids:
+            continue
+        actions.append(dict(action_template))
+        existing_ids.add(action_template.get("id"))
 
     # Composite template
     template = {

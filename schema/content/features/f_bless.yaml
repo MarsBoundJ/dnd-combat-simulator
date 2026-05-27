@@ -1,0 +1,77 @@
+# f_bless — Bless (1st-level Paladin/Cleric spell, SRD CC v5.2.1)
+#
+# RAW summary: Up to 3 willing creatures of your choice within 30 ft.
+# Each target rolls a d4 and adds it to attack rolls AND saving
+# throws until the spell ends. Concentration, up to 1 minute.
+# At Higher Levels: +1 additional creature per slot above 1st.
+#
+# Engine modeling (PR #82):
+#   - type: offensive_buff (single-ally per candidate; multi-target
+#     deferred — see "Deferred" below)
+#   - Concentration spell, BA cast time? — RAW is Action (1 action),
+#     not Bonus Action
+#   - +1d4 to attack rolls → modeled as flat +2 (avg of 1d4 = 2.5,
+#     floored conservatively). The current modifier system applies
+#     flat bonuses at attack resolution; per-roll dice via a
+#     `roll_modifier` primitive is deferred.
+#   - +1d4 to saves → same flat +2 approximation
+#   - named_effect: "bless" → cross-caster dedup (PR #36) prevents
+#     two Paladins double-Blessing the same ally
+#
+# Deferred RAW bits:
+#   - Multi-target up to 3 creatures (RAW: pick 3 targets per cast).
+#     v1 emits single-ally candidates only — the AI picks the
+#     highest-value ally; the actual cast applies to that one. A
+#     follow-up PR would emit a multi-target candidate shape and
+#     score the sum.
+#   - Upcast scaling: +1 ally per slot level above 1st (no
+#     upcast_scaling block — non-dice scaling requires a schema
+#     extension; tracked as PR #77 residue)
+#   - Per-roll 1d4 (v1 uses flat +2)
+
+id: f_bless
+name: Bless
+source: srd_5.2.1
+granted_by:
+  class: c_paladin           # also Cleric (deferred; no Cleric class
+                              # YAML yet)
+  level: 2                   # Paladins gain 1st-level slots at L2
+type: active
+spell:
+  class: c_paladin
+  level: 1
+
+description: |
+  Up to 3 allies (v1: one per candidate) get +1d4 (v1: flat +2)
+  to attack rolls and saving throws. Concentration, 1 minute.
+
+action_template:
+  id: a_bless
+  name: Bless
+  type: offensive_buff
+  spell_slot_level: 1
+  slot: action
+  concentration: true
+  named_effect: bless
+  range_ft: 30
+  pipeline:
+    # +1d4 to attack rolls (modeled as flat +2 average). Gated by
+    # `when: attacker_is_self` so the modifier only fires when the
+    # ally is doing the attacking, not when they're being targeted
+    # (Vex/Sap discriminator from PR #54).
+    - primitive: attack_modifier
+      params:
+        target: ally
+        when: attacker_is_self
+        modifier: attack_bonus
+        value: 2
+        lifetime: until_short_rest
+    # +1d4 to saves (flat +2 average). save_modifier doesn't need
+    # an attacker_is_self gate — saves are always made by the
+    # modifier owner.
+    - primitive: save_modifier
+      params:
+        target: ally
+        modifier: flat
+        value: 2
+        lifetime: until_short_rest

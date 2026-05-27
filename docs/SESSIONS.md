@@ -5,6 +5,62 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-27 — Paladin spellcasting v1: Bless + Shield of Faith (PR #82)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Paladin spell candidates ship for the first time. Slots were
+  populated in PR #73 but no spell candidates emitted; this PR
+  closes the gap with Bless + Shield of Faith.
+- New `f_bless.yaml` (1st-level offensive_buff, concentration):
+  registers attack_modifier (target=ally, when=attacker_is_self,
+  modifier=attack_bonus, value=2) + save_modifier (flat +2).
+  Uses flat +2 as deterministic approximation of RAW's 1d4
+  (avg 2.5).
+- New `f_shield_of_faith.yaml` (1st-level defensive_buff,
+  BA, concentration): registers attack_modifier
+  (target=ally, modifier=ac_modifier, value=2).
+- c_paladin L2 features extended to include both spells.
+- New generic "feature → action_template auto-attach" pass in
+  `build_pc_template`: any feature in features_known whose
+  YAML declares an action_template block gets the dict copied
+  into template.actions. Future spell-shape features just need
+  a YAML — no Python builder.
+- AI scoring uses existing infrastructure (PR #36's
+  offensive_ehp_buff_ally + PR #43's
+  defensive_ehp_defensive_buff) — no new scorers needed.
+- Cross-caster dedup works out of the box via named_effect.
+- 15 new tests across 11 layers. Full suite: 1402 passed + 1
+  skipped (was 1387 + 15 new).
+
+**Scope decisions:**
+- Bless flat +2 instead of per-roll 1d4. Engine doesn't have
+  a roll_modifier primitive; flat approximation captures the
+  RAW mechanical impact within ~0.5 eHP at scoring level.
+- Single-target Bless candidate emission (one per ally). RAW
+  allows multi-target up to 3 — same candidate-grouping
+  extension as Fog Cloud upcast (PR #77 residue).
+- Heroism deferred: temp-HP-per-turn mechanic not yet modeled.
+- Generic feature-action auto-attach pattern lets future spell
+  YAMLs ship with zero pc_schema changes — important for
+  the Lay on Hands / Searing Smite / Divine Favor wave when
+  that comes.
+
+**Open items:**
+- Heroism (needs temp-HP-per-turn)
+- Multi-target Bless (RAW: 3 creatures per cast)
+- Per-roll 1d4 via roll_modifier primitive
+- Bless upcast (+1 ally per slot above 1st — non-dice scaling)
+- Paladin spell preparation (auto-attaches unconditionally in v1)
+- Other Paladin spells: Searing Smite, Compelled Duel, Wrathful
+  Smite, Divine Favor, Protection from Evil and Good, etc.
+- Defensive-buff cross-caster dedup (PR #36 only covers offensive
+  buffs; Shield of Faith currently dedups via legacy per-caster
+  path)
+
+---
+
 ## Session: 2026-05-27 — Rogue Cunning Strike (PR #81)
 
 **Participants:** Phil, Claude

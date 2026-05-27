@@ -1,0 +1,50 @@
+# f_shield_of_faith — Shield of Faith (1st-level Paladin/Cleric, SRD CC v5.2.1)
+#
+# RAW summary: A shimmering field appears and surrounds a creature
+# of your choice within 60 ft. The target has a +2 bonus to AC for
+# the duration. Concentration, up to 10 minutes.
+# At Higher Levels: no scaling.
+#
+# Engine modeling (PR #82):
+#   - type: defensive_buff (single-ally target)
+#   - 1 Bonus Action cast time (RAW)
+#   - +2 AC modifier on target, until_concentration_ends lifetime
+#   - named_effect: "shield_of_faith" → cross-caster dedup (PR #36
+#     fallback path still catches the same-caster re-cast even
+#     without defensive-buff dedup wired)
+
+id: f_shield_of_faith
+name: Shield of Faith
+source: srd_5.2.1
+granted_by:
+  class: c_paladin
+  level: 2
+type: active
+spell:
+  class: c_paladin
+  level: 1
+
+description: |
+  One ally gets +2 AC. Concentration, 10 minutes. Bonus action cast.
+
+action_template:
+  id: a_shield_of_faith
+  name: Shield of Faith
+  type: defensive_buff
+  spell_slot_level: 1
+  slot: bonus_action
+  concentration: true
+  named_effect: shield_of_faith
+  range_ft: 60
+  pipeline:
+    # +2 AC for the duration. ac_modifier doesn't need an
+    # attacker_is_self gate — query_attack_modifiers reads the
+    # target's modifiers when computing effective_ac, and an
+    # ac_modifier on the ally directly bumps their AC regardless
+    # of which attacker is querying.
+    - primitive: attack_modifier
+      params:
+        target: ally
+        modifier: ac_modifier
+        value: 2
+        lifetime: until_short_rest
