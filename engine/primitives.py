@@ -228,7 +228,7 @@ def _attack_roll(params: dict, state: CombatState, bus: EventBus) -> dict:
     # actor doesn't know it.
     from engine.core.weapon_masteries import apply_mastery_effects
     apply_mastery_effects(params.get("mastery"), actor, target,
-                             attack_state, state)
+                             attack_state, state, bus)
 
     # PR #48: Hide ends when the actor attacks. RAW: attacking,
     # casting a verbal spell, or making noise breaks Hide. v1 handles

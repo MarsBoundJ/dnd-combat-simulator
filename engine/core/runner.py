@@ -97,6 +97,13 @@ class EncounterRunner:
         actor.reset_turn()
         modifiers.expire_modifiers(actor, {"turn_start"})
 
+        # PR #58: expire Slow weapon-mastery effects whose source is
+        # the actor whose turn is starting. Slow says "until start of
+        # actor's next turn" — when that turn begins, slowed creatures
+        # the actor previously slowed get their speed back.
+        from engine.core.weapon_masteries import expire_slow_from_source
+        expire_slow_from_source(actor.id, state)
+
         self.event_bus.emit("turn_start", {"actor": actor, "round": state.round})
         state.event_log.append({"event": "turn_start", "actor": actor.id, "round": state.round})
 

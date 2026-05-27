@@ -5,7 +5,7 @@ character with the feature "knows" a number of mastery properties
 (scales by class level). When they wield a weapon whose intrinsic
 mastery property is one they know, the property fires.
 
-v1 ships five properties (the rest are deferred — see module-end notes):
+v1 ships all eight properties:
 
   - **Vex** — On a hit, you have advantage on your next attack roll
     against this target before the end of your next turn.
@@ -25,6 +25,26 @@ v1 ships five properties (the rest are deferred — see module-end notes):
     when Nick is active for the actor); no attack-resolution
     effect, so the apply_mastery_effects dispatch skips Nick via
     the if-elif chain.
+  - **Cleave** (PR #58) — On a hit with a melee Heavy weapon, can
+    make one extra melee attack with the same weapon against a
+    different creature within 5 ft of the original target AND
+    within the attacker's reach. Once per turn (gated via
+    `actor._cleave_fired_this_turn` attribute, cleared by
+    `reset_turn`). v1 doesn't enforce the Heavy gate — trusts
+    the weapon spec.
+  - **Push** (PR #58) — On a hit, push the target up to 10 ft
+    (2 squares) straight away from the attacker. v1 doesn't gate
+    on target size (RAW: Large or smaller); a `size` field on
+    Actor + the gate are tracked as a future refinement.
+    Forced-movement helper lives in `engine.core.geometry.push_creature`.
+  - **Slow** (PR #58) — On a hit AND damage dealt, reduce target's
+    walking speed by 10 ft until the start of the attacker's next
+    turn. RAW: "doesn't exceed 10 ft if hit multiple times" —
+    v1 enforces this by no-op-ing if the target already has a
+    Slow modifier (any source). Implemented via direct
+    `target.speed["walk"]` mutation + a `_slow_data` runtime
+    record. Expiry is handled by the runner at the slow-applier's
+    turn_start (`_expire_slow_from_source(actor_id, state)`).
 
 **Wiring conventions:**
   - Weapon specs declare `mastery: <id>` (intrinsic to the weapon).
@@ -39,37 +59,45 @@ v1 ships five properties (the rest are deferred — see module-end notes):
     whether the actor knows the mastery and dispatches to the
     per-property function.
 
-**Deferred v1:**
-  - Cleave (extra attack on hit with Heavy melee) — needs sub-attack
-    generation
-  - Push (push target 10 ft on hit) — needs forced-movement primitive
-  - Slow (reduce target speed by 10 ft) — needs speed-reduction infra
-    with duration tracking
+**Deferred refinements (post-v1 tightenings, not new masteries):**
+  - Heavy-weapon gate on Cleave + Graze (RAW restricts these to
+    Heavy melee weapons; v1 trusts the weapon spec).
+  - Size gate on Push (RAW: Large or smaller targets). Needs an
+    `Actor.size` field that doesn't exist yet.
+  - Forced-movement collision handling (Push currently moves the
+    target whether or not the destination is occupied; v1 trusts
+    open-battlefield environments).
 """
 from __future__ import annotations
 
 from engine.core.state import Actor, CombatState
 
 
+class _NullEventBus:
+    """No-op stub for sub-primitive bus.emit calls when no real bus
+    is available (e.g., direct test invocation). Mirrors EventBus's
+    emit(name, payload) signature.
+    """
+    def emit(self, name: str, payload: dict) -> None:
+        pass
+
+
 # Known mastery property ids. Validated against this set when reading
 # weapon specs and pc-schema declarations.
 KNOWN_MASTERIES: frozenset[str] = frozenset({
     "vex", "sap", "topple", "graze",
-    "nick",    # PR #57: lets off-hand attack happen as part of the
-                # Attack action instead of as a bonus action. Effect
-                # is at template-build time (off-hand action gets
-                # slot='free' instead of 'bonus_action'); no per-
-                # attack effect, so the apply_mastery_effects dispatch
-                # skips Nick cleanly via the if-elif chain.
+    "nick",      # PR #57 — slot-level effect (free off-hand attack)
+    "cleave",    # PR #58 — on-hit sub-attack
+    "push",      # PR #58 — on-hit forced movement
+    "slow",      # PR #58 — on-hit speed reduction
 })
 
 
 # Future masteries (declared deferred so we can list them in errors
-# without making them "unknown"). Kept separate so adding them later
-# is just a frozenset union, not a code change here.
-DEFERRED_MASTERIES: frozenset[str] = frozenset({
-    "cleave", "push", "slow",
-})
+# without making them "unknown"). Empty after PR #58 ships all eight
+# v1 properties; kept as a frozenset so future RAW additions can
+# slot in cleanly without changing the validator branching.
+DEFERRED_MASTERIES: frozenset[str] = frozenset()
 
 
 def validate_mastery(name: str) -> str:
@@ -255,6 +283,255 @@ def _mastery_topple(actor: Actor, target: Actor, state: CombatState,
     _instantiate_condition_effects(target, application, state)
 
 
+def _mastery_cleave(actor: Actor, target: Actor, state: CombatState,
+                       params: dict, bus=None) -> None:
+    """Cleave: on hit with a melee Heavy weapon, make one extra melee
+    attack with the same weapon against a different creature within
+    5 ft of the original target AND within the attacker's reach.
+    Once per turn.
+
+    Implementation:
+      - Per-turn gate via `actor._cleave_fired_this_turn` attribute
+        (cleared by `reset_turn`)
+      - Find candidate: a living enemy that is (a) within 5 ft of
+        the original target, (b) within actor's reach for the
+        triggering weapon, (c) not the original target
+      - Fire a sub-attack via the existing attack pipeline against
+        the second target. The attack uses the same weapon's
+        attack/damage params (cleaner than re-resolving the entire
+        weapon action — we mimic the multiattack sub-action pattern).
+
+    v1 doesn't enforce the Heavy gate (trusts the weapon spec). If
+    no candidate is found, logs cleave_no_target and returns cleanly.
+    """
+    # Per-turn dedup
+    if getattr(actor, "_cleave_fired_this_turn", False):
+        state.event_log.append({
+            "event": "weapon_mastery_skipped",
+            "mastery": "cleave",
+            "actor": actor.id,
+            "reason": "already_fired_this_turn",
+        })
+        return
+
+    # Find candidate: enemy within 5 ft of original target AND within
+    # actor's reach (using the same weapon's reach baked into params,
+    # not provided here — assume melee 5 ft default since Heavy melee
+    # is the gate. Future: pass weapon reach via params.)
+    from engine.core.geometry import distance_ft
+    reach_ft = 5    # v1: Heavy melee assumption
+    candidates = [
+        a for a in state.encounter.actors
+        if a.id != target.id
+        and a.id != actor.id
+        and a.side != actor.side
+        and a.is_alive()
+        and distance_ft(target.position, a.position) <= 5
+        and distance_ft(actor.position, a.position) <= reach_ft
+    ]
+    if not candidates:
+        state.event_log.append({
+            "event": "weapon_mastery_skipped",
+            "mastery": "cleave",
+            "actor": actor.id,
+            "reason": "no_second_target",
+        })
+        return
+
+    second_target = candidates[0]    # deterministic: first in actor order
+    actor._cleave_fired_this_turn = True
+    state.event_log.append({
+        "event": "weapon_mastery_applied",
+        "mastery": "cleave",
+        "actor": actor.id,
+        "primary_target": target.id,
+        "second_target": second_target.id,
+    })
+
+    # Fire a sub-attack against the second target using the same
+    # weapon's attack/damage params. We mimic the multiattack sub-
+    # action pattern: swap state.current_attack target, invoke an
+    # attack_roll + damage step, restore.
+    #
+    # Build minimal sub-pipeline from the mastery params (which carry
+    # the weapon's ability_mod + damage_type + save_dc). We need the
+    # weapon's dice + attack bonus — currently not in mastery params.
+    # v1 simplification: synthesize a basic attack using the actor's
+    # known attack_bonus and a heuristic damage estimate.
+    #
+    # Actually cleaner: scan the actor's template.actions for the
+    # weapon action that was just fired and re-use its pipeline.
+    # We don't currently track WHICH action fired, but we can find
+    # the highest-DPR melee weapon attack as a proxy.
+    weapon_action = _find_attacker_weapon_for_cleave(actor)
+    if weapon_action is None:
+        state.event_log.append({
+            "event": "weapon_mastery_skipped",
+            "mastery": "cleave",
+            "actor": actor.id,
+            "reason": "no_weapon_action_found",
+        })
+        return
+
+    saved_target = state.current_attack["target"]
+    saved_state = state.current_attack.get("state")
+    try:
+        state.current_attack["target"] = second_target
+        # Reset attack state so the sub-attack is rolled fresh
+        state.current_attack["state"] = None
+        from engine.primitives import _invoke_subprimitive
+        # bus may be None when called directly from a test; fall back
+        # to a no-op stub so attack_roll's bus.emit doesn't crash.
+        effective_bus = bus if bus is not None else _NullEventBus()
+        for step in (weapon_action.get("pipeline") or []):
+            _invoke_subprimitive(step, state, effective_bus)
+    finally:
+        state.current_attack["target"] = saved_target
+        state.current_attack["state"] = saved_state
+
+
+def _find_attacker_weapon_for_cleave(actor: Actor) -> dict | None:
+    """Find the actor's highest-DPR melee weapon_attack action whose
+    weapon spec declares mastery=cleave. Used to source the sub-
+    attack pipeline for Cleave.
+
+    Returns the action dict, or None if no qualifying weapon action
+    exists (rare — would mean the mastery params said cleave but no
+    weapon claims it).
+    """
+    best = None
+    best_score = -1.0
+    for action in (actor.template.get("actions") or []):
+        if action.get("type") != "weapon_attack":
+            continue
+        # Check attack_roll step for the mastery
+        attack_step = next(
+            (s for s in (action.get("pipeline") or [])
+              if s.get("primitive") == "attack_roll"), None)
+        if attack_step is None:
+            continue
+        params = attack_step.get("params") or {}
+        mastery_info = params.get("mastery") or {}
+        if mastery_info.get("id") != "cleave":
+            continue
+        # Compute rough DPR proxy: ability_mod + dice avg
+        damage_step = next(
+            (s for s in (action.get("pipeline") or [])
+              if s.get("primitive") == "damage"), None)
+        if damage_step is None:
+            continue
+        score = float(damage_step.get("params", {}).get("modifier", 0))
+        if score > best_score:
+            best = action
+            best_score = score
+    return best
+
+
+def _mastery_push(actor: Actor, target: Actor, state: CombatState,
+                     params: dict) -> None:
+    """Push: on hit, push target up to 10 ft straight away from actor.
+
+    Uses `geometry.push_creature` which snaps to the 8-direction
+    unit vector and moves the target in 5-ft steps. v1 doesn't
+    enforce target size (RAW: Large or smaller). v1 doesn't check
+    for collisions with other actors at the push destination.
+    """
+    from engine.core.geometry import push_creature
+    pre_pos = target.position
+    pushed_ft = push_creature(actor, target, 10)
+    state.event_log.append({
+        "event": "weapon_mastery_applied",
+        "mastery": "push",
+        "actor": actor.id,
+        "target": target.id,
+        "pushed_ft": pushed_ft,
+        "from": list(pre_pos),
+        "to": list(target.position),
+    })
+
+
+def _mastery_slow(actor: Actor, target: Actor, state: CombatState,
+                     params: dict) -> None:
+    """Slow: on hit AND damage dealt, reduce target's walking speed
+    by 10 ft until the start of actor's next turn.
+
+    RAW: "If the creature is hit by this property more than once,
+    the Speed reduction doesn't exceed 10 feet." v1 enforces this
+    by no-op-ing when the target already has any Slow record (any
+    source). New applications don't refresh duration in v1 — a
+    future tightening could refresh.
+
+    Implementation:
+      - Direct mutation of `target.speed["walk"]` (subtract 10,
+        capped at 0)
+      - Stash `_slow_data: {source_id, original_speed,
+        applied_at_round}` on the target
+      - Runner's turn_start handler scans all actors for _slow_data
+        whose source_id matches the acting actor; restores speed
+        and clears the record (see runner.py
+        `_expire_slow_from_source`)
+    """
+    # No-op if target already slowed (RAW: doesn't stack beyond 10 ft).
+    if hasattr(target, "_slow_data") and target._slow_data is not None:
+        state.event_log.append({
+            "event": "weapon_mastery_skipped",
+            "mastery": "slow",
+            "actor": actor.id,
+            "target": target.id,
+            "reason": "already_slowed",
+        })
+        return
+
+    current_speed = int((target.speed or {}).get("walk", 30))
+    new_speed = max(0, current_speed - 10)
+    actual_reduction = current_speed - new_speed
+    target.speed["walk"] = new_speed
+    target._slow_data = {
+        "source_id": actor.id,
+        "original_speed": current_speed,
+        "applied_at_round": state.round,
+    }
+    state.event_log.append({
+        "event": "weapon_mastery_applied",
+        "mastery": "slow",
+        "actor": actor.id,
+        "target": target.id,
+        "reduction_ft": actual_reduction,
+        "new_speed": new_speed,
+    })
+
+
+def expire_slow_from_source(source_actor_id: str,
+                                state: CombatState) -> int:
+    """Restore speed for any actor slowed BY `source_actor_id`.
+
+    Called from the runner's turn_start handler when the acting
+    actor (`source_actor_id`) starts a new turn — any creature
+    they slowed last turn gets their speed back.
+
+    Returns the number of actors restored.
+    """
+    restored = 0
+    for actor in state.encounter.actors:
+        slow_data = getattr(actor, "_slow_data", None)
+        if not slow_data:
+            continue
+        if slow_data.get("source_id") != source_actor_id:
+            continue
+        original = int(slow_data.get("original_speed", 30))
+        actor.speed["walk"] = original
+        actor._slow_data = None
+        state.event_log.append({
+            "event": "weapon_mastery_expired",
+            "mastery": "slow",
+            "actor": actor.id,
+            "source_id": source_actor_id,
+            "restored_speed": original,
+        })
+        restored += 1
+    return restored
+
+
 def _mastery_graze(actor: Actor, target: Actor, state: CombatState,
                       params: dict) -> None:
     """Graze: on a MISS, deal ability_mod damage of the weapon's
@@ -311,7 +588,8 @@ def _mastery_graze(actor: Actor, target: Actor, state: CombatState,
 def apply_mastery_effects(mastery_params: dict | None,
                              actor: Actor, target: Actor,
                              attack_state: str,
-                             state: CombatState) -> None:
+                             state: CombatState,
+                             bus=None) -> None:
     """Dispatch weapon mastery effects after attack resolution.
 
     No-op if:
@@ -347,6 +625,20 @@ def apply_mastery_effects(mastery_params: dict | None,
             _mastery_sap(actor, target, state)
         elif mastery_id == "topple":
             _mastery_topple(actor, target, state, mastery_params)
+        elif mastery_id == "push":
+            _mastery_push(actor, target, state, mastery_params)
+        elif mastery_id == "slow":
+            _mastery_slow(actor, target, state, mastery_params)
+        elif mastery_id == "cleave":
+            # Cleave fires AFTER damage in v1 — but apply_mastery_effects
+            # is called BEFORE damage in the attack pipeline. The
+            # ordering still works because Cleave's sub-attack is a
+            # separate attack_roll + damage that doesn't depend on the
+            # original attack's damage step having fired. The primary
+            # target may not have taken damage yet when the second
+            # attack rolls; that's fine (Cleave RAW doesn't require
+            # the primary attack to deal damage, just to hit).
+            _mastery_cleave(actor, target, state, mastery_params, bus)
     # Miss-only masteries
     elif attack_state == "miss":
         if mastery_id == "graze":

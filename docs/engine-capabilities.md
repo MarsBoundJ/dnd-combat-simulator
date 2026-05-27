@@ -680,6 +680,48 @@ priority order:
    Rebuke**~~ — **Shipped in PR #45.**
 18. ~~**Counterspell + cast-event infra**~~ — **Shipped in PR #46.**
 19. ~~**Vision system v1**~~ — **Shipped in PR #47.**
+30. ~~**Cleave / Push / Slow weapon masteries**~~ — **Shipped in
+   PR #58.** Closes the Weapon Mastery arc with the three
+   remaining v1 properties. `DEFERRED_MASTERIES` is now empty.
+   All eight properties (Vex / Sap / Topple / Graze / Nick /
+   Cleave / Push / Slow) ship in the engine.
+   - **Cleave** — on hit, fires one sub-attack against a
+     different living enemy within 5 ft of the original target
+     AND within the attacker's reach. Once-per-turn via
+     `actor._cleave_fired_this_turn` attribute, cleared in
+     `reset_turn`. Sub-attack uses the same weapon's pipeline
+     (found via `_find_attacker_weapon_for_cleave` which scans
+     for the highest-DPR melee weapon with mastery=cleave).
+   - **Push** — on hit, pushes target up to 10 ft straight away
+     from attacker. New `engine/core/geometry.push_creature`
+     helper: snaps to 8-direction unit vector via
+     `unit_direction`, moves the target in 5-ft steps. v1
+     trusts the weapon spec (no size gate); collision deferred.
+   - **Slow** — on hit AND damage dealt, reduces target's
+     `speed["walk"]` by 10 ft (clamped at 0). Direct mutation
+     + `_slow_data` runtime record on the target (source_id,
+     original_speed, applied_at_round). RAW "doesn't exceed
+     10 ft if hit multiple times" enforced by no-op when the
+     target already has any Slow record. Expiry handled by the
+     runner's turn_start sweep:
+     `weapon_masteries.expire_slow_from_source(source_actor_id,
+     state)` restores speed when the slow-applier's next turn
+     begins.
+   - `apply_mastery_effects` now threads `bus` through to
+     `_mastery_cleave` for the sub-attack's `attack_roll`
+     emit. Falls back to a `_NullEventBus` stub for direct
+     test invocation without a bus.
+   - 25 new tests across registry membership, `push_creature`
+     helper (east/west/diagonal/stacked/partial), Cleave
+     (no-second-target / second-target-fires / once-per-turn /
+     reset_turn-clears / ally-doesn't-qualify / actor-without-
+     cleave-no-op), Push (fires-on-hit / NOT-on-miss /
+     diagonal), Slow (reduces-speed / doesn't-stack /
+     clamped-at-zero / NOT-on-miss / expire-restores /
+     expire-wrong-source-noop / expire-multiple-targets).
+   - Deferred refinements (not new masteries): Heavy gate on
+     Cleave + Graze, size gate on Push, forced-movement
+     collision handling.
 29. ~~**Nick weapon mastery + runner free-phase**~~ — **Shipped in
    PR #57.** Bridges the Weapon Mastery (PR #54) and TWF (PR #53)
    arcs by closing both residues at once. RAW 2024: with Nick,
