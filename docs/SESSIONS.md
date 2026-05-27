@@ -5,6 +5,59 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-27 — Blindsight bypass for Darkness scoring (PR #69)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Closes the PR #61 residue. The Darkness scorer's sense-bypass
+  helper previously checked Truesight only; PR #69 extends it to
+  also check Blindsight, matching the `can_actor_see` precedence
+  from PR #52 where Blindsight is the dominant override for
+  magical darkness.
+- **Helper rename + extension:**
+  `_truesight_pierces(observer, target)` →
+  `_sense_pierces(observer, target)` in `offensive_ehp_darkness`.
+  Now checks both `truesight_range_ft` AND `blindsight_range_ft`
+  against distance; returns True if EITHER reaches.
+- **Both call sites updated** (benefit-side: enemy piercing ally;
+  cost-side: ally piercing enemy). Single helper, two consumers.
+- **Behavioral effects:**
+  - Out-sphere enemies with Blindsight in range contribute 0
+    defensive value (instead of full DPR × disadvantage_delta).
+    The AI scores Darkness LESS against blindsight monsters.
+  - Out-sphere allies with Blindsight in range contribute 0
+    cost. The AI is more willing to drop Darkness on enemies
+    when blindsight allies are positioned.
+  - Either sense alone suffices; both together don't
+    double-count (boolean OR).
+- **Module-level deferred-list note updated** to remove the
+  now-shipped "Blindsight bypass" entry.
+- **Tests (4 new in `test_darkness_scoring.py`):**
+  - blindsight enemy reduces defensive benefit (less score
+    than no-bs enemy in same spot)
+  - blindsight out-of-range doesn't bypass (matches no-bs)
+  - blindsight ally reduces cost (score ≥ no-bs ally case)
+  - truesight + blindsight + both produce equivalent scores
+    (boolean OR, no double-count)
+- `_make_actor` helper extended with `blindsight_range_ft` kwarg
+  for the new tests.
+- 1143 tests pass (+4 new, 1 skip, no regressions).
+
+**Future-roadmap items (recorded, not in this PR):**
+- Per-target attack-frequency weighting (multiattack >
+  one-attack-per-turn) — still deferred from PR #61
+- Opportunity-cost subtraction for concentration (PR #56 pace-
+  aware shape) — still deferred
+- Generalize the sense-bypass logic for other zone types — when
+  AI scoring lands for Cloudkill / HoH (PR #68 zones), the same
+  `_sense_pierces` shape would apply (with Truesight removed
+  for fog: Truesight pierces magical darkness but NOT physical
+  obscuring matter per RAW). Refactor opportunity when those
+  scorers land.
+
+---
+
 ## Session: 2026-05-27 — Hunger of Hadar + Cloudkill (PR #68)
 
 **Participants:** Phil, Claude

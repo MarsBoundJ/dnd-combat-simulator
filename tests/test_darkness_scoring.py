@@ -34,7 +34,9 @@ from engine.core.state import Actor, CombatState, Encounter
 # ============================================================================
 
 def _make_actor(actor_id, *, side="pc", position=(0, 0),
-                  truesight_range_ft=0, actions=None) -> Actor:
+                  truesight_range_ft=0,
+                  blindsight_range_ft=0,
+                  actions=None) -> Actor:
     abilities = {k: {"score": 14 if k == "str" else 10, "save": 0}
                   for k in ("str", "dex", "con", "int", "wis", "cha")}
     template = {"id": f"tpl_{actor_id}", "name": actor_id,
@@ -45,7 +47,8 @@ def _make_actor(actor_id, *, side="pc", position=(0, 0),
                   hp_current=30, hp_max=30, ac=14,
                   speed={"walk": 30}, position=position,
                   abilities=abilities,
-                  truesight_range_ft=truesight_range_ft)
+                  truesight_range_ft=truesight_range_ft,
+                  blindsight_range_ft=blindsight_range_ft)
 
 
 def _basic_attack():
@@ -317,6 +320,130 @@ class DispatchTest(unittest.TestCase):
         # for this in-aura enemy SG should be > 0 and unrelated to
         # the darkness computation.)
         self.assertNotEqual(score, darkness_score)
+
+
+# ============================================================================
+# PR #69: Blindsight bypass for Darkness scoring
+# ============================================================================
+
+class BlindsightBypassTest(unittest.TestCase):
+    """Blindsight is the dominant override in can_actor_see (per PR
+    #52): pierces fog / Invisible / darkness / magical darkness /
+    self-Blinded within range. PR #61's Darkness scorer originally
+    only considered Truesight; PR #69 added Blindsight to the
+    sense-bypass helper so the scorer correctly values Darkness
+    LESS against blindsight monsters and LESS to drop on top of
+    blindsight allies."""
+
+    def test_blindsight_enemy_reduces_defensive_benefit(self) -> None:
+        """An out-sphere enemy with blindsight in range pierces the
+        magical darkness, contributing 0 defensive value (instead of
+        their normal DPR × disadvantage_delta)."""
+        # Caster + ally inside the sphere
+        caster = _make_actor("caster", position=(0, 0),
+                                actions=[_basic_attack()])
+        # Enemy with blindsight 60 ft outside the sphere but in range
+        bs_enemy = _make_actor("bat", side="enemy", position=(4, 0),
+                                  blindsight_range_ft=60,
+                                  actions=[_basic_attack()])
+        state_bs = _state_with([caster, bs_enemy])
+        score_bs = offensive_ehp_darkness(caster, _darkness_action(),
+                                              state_bs, origin=(0, 0))
+
+        # Compare to a no-blindsight enemy in the same spot
+        no_bs_enemy = _make_actor("ogre", side="enemy", position=(4, 0),
+                                      actions=[_basic_attack()])
+        state_no_bs = _state_with([caster, no_bs_enemy])
+        score_no_bs = offensive_ehp_darkness(caster, _darkness_action(),
+                                                  state_no_bs,
+                                                  origin=(0, 0))
+
+        # The blindsight enemy contributes no defensive value; the
+        # no-bs enemy contributes a full DPR × delta term. The bs
+        # score should be strictly less.
+        self.assertLess(score_bs, score_no_bs)
+
+    def test_blindsight_out_of_range_does_not_bypass(self) -> None:
+        """Blindsight 30 ft enemy at 50 ft can't pierce — same as no
+        bs at all."""
+        caster = _make_actor("caster", position=(0, 0),
+                                actions=[_basic_attack()])
+        # Far blindsight enemy (out of bs range)
+        far_bs = _make_actor("bat", side="enemy", position=(10, 0),
+                                blindsight_range_ft=30,
+                                actions=[_basic_attack()])
+        state_far = _state_with([caster, far_bs])
+        score_far = offensive_ehp_darkness(caster, _darkness_action(),
+                                                state_far, origin=(0, 0))
+        # No-bs equivalent at same distance
+        far_no_bs = _make_actor("ogre", side="enemy", position=(10, 0),
+                                     actions=[_basic_attack()])
+        state_no_bs = _state_with([caster, far_no_bs])
+        score_no_bs = offensive_ehp_darkness(caster, _darkness_action(),
+                                                  state_no_bs,
+                                                  origin=(0, 0))
+        # Should be the same — out-of-range bs is irrelevant
+        self.assertEqual(score_far, score_no_bs)
+
+    def test_blindsight_ally_reduces_cost(self) -> None:
+        """An out-sphere ally with blindsight pierces an in-sphere
+        enemy's darkness benefit — reduces our COST."""
+        caster = _make_actor("caster", position=(20, 20),
+                                actions=[_basic_attack()])
+        # Enemy in the sphere
+        enemy = _make_actor("rogue", side="enemy", position=(0, 0),
+                               actions=[_basic_attack()])
+        # Ally outside with blindsight in range
+        bs_ally = _make_actor("scout", side="pc", position=(4, 0),
+                                 blindsight_range_ft=60,
+                                 actions=[_basic_attack()])
+        state_bs = _state_with([caster, enemy, bs_ally])
+        score_bs = offensive_ehp_darkness(caster, _darkness_action(),
+                                              state_bs, origin=(0, 0))
+
+        # Same setup but ally without blindsight
+        no_bs_ally = _make_actor("scout", side="pc", position=(4, 0),
+                                     actions=[_basic_attack()])
+        state_no_bs = _state_with([caster, enemy, no_bs_ally])
+        score_no_bs = offensive_ehp_darkness(caster, _darkness_action(),
+                                                  state_no_bs,
+                                                  origin=(0, 0))
+
+        # bs ally → lower cost → higher (or equal) net score
+        self.assertGreaterEqual(score_bs, score_no_bs)
+
+    def test_blindsight_and_truesight_both_pierce(self) -> None:
+        """Either sense should suffice; an enemy with both should
+        score the same as an enemy with just one (both produce
+        'pierces' True for this pair)."""
+        caster = _make_actor("caster", position=(0, 0),
+                                actions=[_basic_attack()])
+        both_enemy = _make_actor("paladin", side="enemy", position=(4, 0),
+                                     truesight_range_ft=60,
+                                     blindsight_range_ft=60,
+                                     actions=[_basic_attack()])
+        state_both = _state_with([caster, both_enemy])
+        score_both = offensive_ehp_darkness(caster, _darkness_action(),
+                                                 state_both,
+                                                 origin=(0, 0))
+
+        ts_only = _make_actor("paladin", side="enemy", position=(4, 0),
+                                 truesight_range_ft=60,
+                                 actions=[_basic_attack()])
+        state_ts = _state_with([caster, ts_only])
+        score_ts = offensive_ehp_darkness(caster, _darkness_action(),
+                                               state_ts, origin=(0, 0))
+
+        bs_only = _make_actor("bat", side="enemy", position=(4, 0),
+                                 blindsight_range_ft=60,
+                                 actions=[_basic_attack()])
+        state_bs = _state_with([caster, bs_only])
+        score_bs = offensive_ehp_darkness(caster, _darkness_action(),
+                                              state_bs, origin=(0, 0))
+
+        # All three scores should match: pierces is a boolean OR.
+        self.assertEqual(score_both, score_ts)
+        self.assertEqual(score_ts, score_bs)
 
 
 if __name__ == "__main__":

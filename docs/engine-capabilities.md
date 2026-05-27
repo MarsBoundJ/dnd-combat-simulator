@@ -680,6 +680,32 @@ priority order:
    Rebuke**~~ — **Shipped in PR #45.**
 18. ~~**Counterspell + cast-event infra**~~ — **Shipped in PR #46.**
 19. ~~**Vision system v1**~~ — **Shipped in PR #47.**
+41. ~~**Blindsight bypass for Darkness scoring**~~ — **Shipped in
+   PR #69.** Closes the PR #61 residue. The Darkness scorer's
+   sense-bypass helper now checks both Truesight AND Blindsight
+   (was: Truesight only). Matches the `can_actor_see` precedence
+   from PR #52 where Blindsight is the dominant override for
+   magical darkness.
+   - Renamed `_truesight_pierces(observer, target)` →
+     `_sense_pierces(observer, target)` in
+     `offensive_ehp_darkness`. Checks
+     `observer.truesight_range_ft` OR
+     `observer.blindsight_range_ft` against the distance.
+   - Behavioral effects:
+     - Out-sphere enemies with Blindsight in range → contribute
+       0 defensive value (the AI scores Darkness LESS against
+       blindsight monsters)
+     - Out-sphere allies with Blindsight in range → contribute
+       0 cost (the AI is more willing to drop Darkness on an
+       enemy if a blindsight ally is positioned to still
+       perceive them)
+     - Either sense alone suffices; both together don't
+       double-count (boolean OR)
+   - 4 new tests across the bypass paths (blindsight enemy
+     reduces benefit, out-of-range bs is irrelevant, blindsight
+     ally reduces cost, ts+bs both pierce equivalently).
+   - Module-level deferred-list note updated to remove the
+     "Blindsight bypass" entry.
 40. ~~**Hunger of Hadar + Cloudkill (zone-spell extensions)**~~ —
    **Shipped in PR #68.** Closes the "other zone-creating
    spells" residue from PR #60. Two SRD spells ship that
