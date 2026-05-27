@@ -1,0 +1,75 @@
+# f_web — Web (2nd-level, SRD CC v5.2.1)
+#
+# RAW summary: You conjure a mass of thick, sticky webbing at a point
+# you can see within 60 feet. The webs fill a 20-foot Cube and are
+# Difficult Terrain. Each creature in the area when the spell is cast
+# AND each creature that enters or starts its turn there must succeed
+# on a Dexterity saving throw or have the Restrained condition while
+# in the webs. A creature Restrained by the webs can use an action
+# to make a Strength (Athletics) check vs the spell save DC to free
+# itself. Concentration, up to 1 hour.
+#
+# Engine modeling (PR #79):
+#   - type: persistent_aura, 20-ft cube, point-anchored
+#   - DEX save on turn-start. On fail: apply co_restrained for
+#     until_actor_next_turn_start (re-saved each turn via the
+#     aura trigger).
+#   - The "Athletics check to escape" is deferred — v1 models the
+#     re-check via the per-turn DEX save (functionally similar:
+#     Restrained creatures get a fresh save each turn-start while
+#     in the area)
+#
+# Deferred RAW bits:
+#   - Difficult Terrain (half-speed in webs) — engine doesn't model
+#     per-square movement costs yet
+#   - Athletics-check escape (v1 uses the turn-start re-save as the
+#     escape opportunity)
+#   - Lightly Obscured area
+#   - Fire damage destroys webs (no environmental interaction in v1)
+#   - "Creature in the area when cast" gets the save at cast time
+#     too (v1 only fires on turn-start; close enough for typical
+#     usage)
+
+id: f_web
+name: Web
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 3             # Wizards get 2nd-level slots at L3
+type: active
+spell:
+  class: c_wizard
+  level: 2
+
+description: |
+  20-ft cube of restraining webs. DEX save at each creature's
+  turn-start in area; on fail, Restrained until next turn (re-
+  saved). Concentration, 1 hour.
+
+action_template:
+  id: a_web
+  name: Web
+  type: persistent_aura
+  spell_slot_level: 2
+  concentration: true
+  named_effect: web
+  area:
+    shape: cube
+    size_ft: 20
+    range_ft: 60
+  pipeline:
+    - primitive: persistent_aura
+      params:
+        shape: cube
+        size_ft: 20
+        anchor: point
+        trigger_event: target_turn_start_in_area
+        affected: all_creatures
+        ability: dexterity
+        dc: 14                  # caster's spell DC; fixture-overridable
+        on_fail:
+          - primitive: apply_condition
+            params:
+              condition_id: co_restrained
+              duration: until_actor_next_turn_start
+        on_success: []

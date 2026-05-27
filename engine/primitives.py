@@ -938,6 +938,11 @@ def _recurring_save(params: dict, state: CombatState, bus: EventBus) -> None:
 _CREATES_ZONE_TO_ENV_KEY: dict[str, str] = {
     "magical_dark": "magical_dark_zones",
     "heavy_obscurement": "heavily_obscured_zones",
+    # PR #79: Silence creates a silence_zone that suppresses
+    # Verbal-component spellcasting for actors fully inside the
+    # sphere. The pipeline filter reads `silence_zones` to gate
+    # spell candidates; no vision impact.
+    "silence": "silence_zones",
 }
 
 

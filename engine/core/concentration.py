@@ -143,6 +143,7 @@ def end_concentration(caster: Actor, state: CombatState,
         _SCRUBBABLE_ZONE_KEYS = (
             "magical_dark_zones",
             "heavily_obscured_zones",
+            "silence_zones",        # PR #79: Silence spell zone
         )
         env_dirty = False
         for env_key in _SCRUBBABLE_ZONE_KEYS:

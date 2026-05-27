@@ -1,0 +1,77 @@
+# f_stinking_cloud — Stinking Cloud (3rd-level, SRD CC v5.2.1)
+#
+# RAW summary: You create a 20-foot-radius Sphere of yellow, nauseating
+# gas centered on a point within 90 feet. The cloud spreads around
+# corners. Its area is Lightly Obscured. Each creature wholly within
+# the cloud at the start of its turn must succeed on a Constitution
+# saving throw or use its Action that turn doing nothing (RAW 2024:
+# "spends its action retching and reeling"). Concentration, up to
+# 1 minute.
+#
+# Engine modeling (PR #79):
+#   - type: persistent_aura, 20-ft sphere, point-anchored
+#   - CON save on turn-start. On fail: apply co_incapacitated for
+#     until_actor_next_turn_start (the actor loses their action
+#     this turn — engine's `incapacitated` already gates action
+#     usage; same practical effect as RAW "do nothing").
+#   - NO obscurement zone — RAW says "lightly obscured" but light
+#     obscurement is mostly a perception-disadvantage thing v1
+#     doesn't model. The action-denial is the load-bearing effect.
+#
+# Deferred RAW bits:
+#   - "Lightly obscured" zone — v1 doesn't model light obscurement
+#     beyond "fully obscured" vs "in dim light" so the perception-
+#     disadvantage flavor is dropped
+#   - "Spreads around corners" (no corner-wrap geometry in v1)
+#   - Upcast — no scaling per RAW (Stinking Cloud doesn't upcast)
+#   - "Wholly within" check — v1 uses position-in-sphere; partial
+#     overlap of larger creatures unmodeled
+
+id: f_stinking_cloud
+name: Stinking Cloud
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 5             # Wizards get 3rd-level slots at L5
+type: active
+spell:
+  class: c_wizard
+  level: 3
+
+description: |
+  20-ft radius sphere of nauseating gas. CON save at each
+  creature's turn-start in area; on fail, target uses action
+  doing nothing this turn. Concentration, 1 minute.
+
+action_template:
+  id: a_stinking_cloud
+  name: Stinking Cloud
+  type: persistent_aura
+  spell_slot_level: 3
+  concentration: true
+  named_effect: stinking_cloud
+  area:
+    shape: sphere
+    radius_ft: 20
+    range_ft: 90
+  pipeline:
+    - primitive: persistent_aura
+      params:
+        shape: sphere
+        radius_ft: 20
+        anchor: point
+        trigger_event: target_turn_start_in_area
+        affected: all_creatures
+        ability: constitution
+        dc: 15                  # caster's spell DC; fixture-overridable
+        on_fail:
+          # Action denial via Incapacitated for one turn. RAW: "uses
+          # its Action that turn doing nothing" — engine's existing
+          # incapacitation gate (PR #34 broke concentration on
+          # Incapacitated) covers the no-action behavior at the
+          # candidate-filter layer.
+          - primitive: apply_condition
+            params:
+              condition_id: co_incapacitated
+              duration: until_actor_next_turn_start
+        on_success: []

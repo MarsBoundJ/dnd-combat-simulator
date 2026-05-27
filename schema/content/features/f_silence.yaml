@@ -1,0 +1,72 @@
+# f_silence — Silence (2nd-level Ritual, SRD CC v5.2.1)
+#
+# RAW summary: For the duration, no sound can be created within or
+# pass through a 20-foot-radius Sphere centered on a point you choose
+# within range. Any creature or object entirely inside the sphere has
+# Immunity to Thunder damage. Creatures in the sphere are Deafened,
+# and you can't cast Verbal-component spells from within it.
+# Concentration, up to 10 minutes. Ritual.
+#
+# Engine modeling (PR #79):
+#   - type: persistent_aura, 20-ft sphere, point-anchored
+#   - NO save / NO damage — pure zone effect
+#   - creates_zone=silence: pc_schema's _CREATES_ZONE_TO_ENV_KEY
+#     stamps state.encounter.environment.silence_zones at cast time.
+#   - The pipeline's candidate-generation filter
+#     (_actor_in_silence_zone in pipeline.py) reads silence_zones
+#     to suppress spell candidates for actors fully inside. v1
+#     simplification: ALL spells (slot_level >= 1) filtered. RAW:
+#     "Verbal-component" spells filtered. Most damage spells have
+#     V components, so v1 errs slightly on the over-filter side
+#     for the rare somatic/material-only spells.
+#   - Counterspell blocked too — both ends. RAW: counterspell needs
+#     V components.
+#
+# Deferred RAW bits:
+#   - Per-spell V-component declaration (no action declares
+#     components today — v1 treats all spells as having V)
+#   - Thunder damage immunity in-sphere (v1 doesn't model
+#     conditional damage-type immunity by position)
+#   - Deafened condition on creatures in sphere (low gameplay
+#     impact — no spells / actions consult Deafened in v1)
+#   - Ritual casting (10-minute cast time outside encounter)
+
+id: f_silence
+name: Silence
+source: srd_5.2.1
+granted_by:
+  class: c_cleric
+  level: 3             # Clerics get 2nd-level slots at L3
+type: active
+spell:
+  class: c_cleric
+  level: 2
+
+description: |
+  20-ft sphere blocking sound. Suppresses Verbal-component
+  spellcasting for actors inside. Concentration, 10 minutes.
+
+action_template:
+  id: a_silence
+  name: Silence
+  type: persistent_aura
+  spell_slot_level: 2
+  concentration: true
+  named_effect: silence
+  area:
+    shape: sphere
+    radius_ft: 20
+    range_ft: 120
+  pipeline:
+    - primitive: persistent_aura
+      params:
+        shape: sphere
+        radius_ft: 20
+        anchor: point
+        trigger_event: target_turn_start_in_area
+        affected: all_creatures
+        # No save / no damage — zone-only.
+        ability: none
+        on_fail: []
+        on_success: []
+        creates_zone: silence
