@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MarsBoundJ/dnd-combat-simulator/schema/definitions/background.schema.json",
+  "title": "Background",
+  "description": "PHB 2024 backgrounds bundle Ability Score Increases (+2 / +1 across three abilities), 2 skill proficiencies, 1 tool proficiency, languages, starting equipment / gold choice, and an Origin Feat. Origin Feats are granted by the background and can be selected from a small list per background (RAW: each background has a recommended feat but players can choose any Origin feat). Schema scaffolded in PR #84 ahead of background content shipping.",
+
+  "type": "object",
+  "required": ["id", "name", "source", "ability_score_increases", "skill_proficiencies"],
+  "additionalProperties": false,
+
+  "properties": {
+    "id": { "$ref": "common.schema.json#/$defs/stable_id" },
+    "name": { "type": "string" },
+    "source": { "$ref": "common.schema.json#/$defs/source" },
+
+    "ability_score_increases": {
+      "description": "PHB 2024: each background grants increases to three specific abilities. Three patterns: (a) +2 to one + +1 to another from a fixed pair; (b) +1 to each of three; (c) flexible (player splits the +3). v1 ships shape (a) as the default since it matches RAW's most common pattern.",
+      "type": "object",
+      "properties": {
+        "pattern": {
+          "type": "string",
+          "enum": ["two_plus_one", "one_plus_one_plus_one", "flexible_three"],
+          "default": "two_plus_one"
+        },
+        "abilities": {
+          "type": "array",
+          "items": { "$ref": "common.schema.json#/$defs/ability_score_label" },
+          "description": "For 'two_plus_one' / 'one_plus_one_plus_one': the three abilities (order = priority: first ability is the +2 in the two_plus_one pattern). For 'flexible_three': the allowed pool the player chooses from."
+        },
+        "max_score": {
+          "type": "integer",
+          "default": 20,
+          "description": "Score cap after background increases. Default 20."
+        }
+      }
+    },
+
+    "skill_proficiencies": {
+      "description": "RAW PHB 2024: each background grants exactly 2 skill proficiencies (fixed by the background — no player choice for v1). Schema allows N for forward compatibility.",
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1
+    },
+
+    "tool_proficiency": {
+      "description": "Single tool proficiency (PHB 2024 standard). For backgrounds that grant 'choose one' style tool, store the choice in pc_spec rather than the background YAML.",
+      "type": "string"
+    },
+
+    "language_proficiencies": {
+      "description": "Bonus languages from the background. Most PHB 2024 backgrounds don't grant a fixed language; some specify (Acolyte, Sage) and others let the player choose. v1 doesn't model language gameplay, so this is informational.",
+      "type": "array",
+      "items": { "type": "string" }
+    },
+
+    "origin_feat": {
+      "description": "RAW PHB 2024: each background grants a specific Origin feat (Acolyte → Magic Initiate (Cleric); Sage → Magic Initiate (Wizard); Soldier → Savage Attacker; etc.). References the feat by stable id (ft_*). Required.",
+      "$ref": "common.schema.json#/$defs/stable_id"
+    },
+
+    "starting_equipment": {
+      "description": "RAW PHB 2024: each background lists a starting equipment package + a gold-piece alternative. Players pick ONE of the options.",
+      "type": "object",
+      "properties": {
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id"],
+            "properties": {
+              "id": { "type": "string", "description": "Option label (e.g., 'A' / 'B' or 'pack' / 'gold')." },
+              "items": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Equipment ids (eq_*) granted by this option."
+              },
+              "gold": { "type": "number", "minimum": 0 }
+            }
+          }
+        }
+      }
+    },
+
+    "characteristics": {
+      "description": "RAW flavor tables (Personality Traits, Ideals, Bonds, Flaws). v1 doesn't model these mechanically; included for content completeness.",
+      "type": "object",
+      "properties": {
+        "personality_traits": { "type": "array", "items": { "type": "string" } },
+        "ideals": { "type": "array", "items": { "type": "string" } },
+        "bonds": { "type": "array", "items": { "type": "string" } },
+        "flaws": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+
+    "description": {
+      "type": "string",
+      "description": "RAW flavor description / suggested background story arc."
+    }
+  }
+}

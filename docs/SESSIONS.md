@@ -5,6 +5,62 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-27 — Missing JSON schemas: race / feat / equipment / background (PR #84)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Phil asked for "YAML schema for classes, subclasses, feats,
+  species, feats, spells, monsters, equipment, backgrounds" —
+  then corrected to JSON (since that's the schema-file format
+  we use). Existing schemas: class, subclass, feature, monster,
+  spell, condition, common. Missing: race, feat, equipment,
+  background. This PR adds the four missing schemas.
+- New `race.schema.json` validates the 4 SRD species YAMLs
+  shipped in PR #75 (closes that PR's deferred residue).
+  Required fields: id, name, source, creature_type, size,
+  speed, racial_traits.
+- New `feat.schema.json` scaffolds PHB 2024 feat categories
+  (origin / general / fighting_style / epic_boon) with
+  prerequisites, ASI granting, proficiency grants,
+  effect_primitives.
+- New `equipment.schema.json` covers weapons / armor / shields
+  / tools / consumables / magic items with category-specific
+  blocks. Aligned with the inline shape used by pc_spec.weapons.
+- New `background.schema.json` models PHB 2024 backgrounds:
+  ability_score_increases (three patterns), skill_proficiencies,
+  tool_proficiency, origin_feat reference, starting_equipment
+  options, characteristics tables.
+- `common.schema.json::stable_id` pattern extended for new
+  prefixes: r_ (race), t_ (racial trait), ft_ (feat), eq_
+  (equipment), bg_ (background), plus a_ (auto-generated
+  action — was missing from the pattern entirely).
+- Loader updated: registers race / feat / equipment /
+  background in _ENTITY_DIRS + _ENTITY_SCHEMAS. Empty content
+  dirs created for feats / equipment / backgrounds with
+  README.md placeholders.
+- All schemas strict UTF-8 (dedicated test verifies).
+- 16 new tests across 5 layers. Full suite: 1437 passed + 1
+  skipped (was 1421 + 16 new).
+
+**Scope decisions:**
+- Schemas ship with the same lite-validation pattern as
+  existing schemas (top-level required-fields check). Strict
+  cross-file $ref resolution + additionalProperties: false
+  tightening deferred — would require a separate refactor of
+  the loader's validation layer.
+- Empty content dirs (no actual feats/equipment/backgrounds
+  YAMLs yet) — schemas are scaffolding. Future PRs ship
+  content following these schemas without needing further
+  loader changes.
+
+**Open items:**
+- Strict JSON Schema validation (cross-file $refs)
+- additionalProperties: false on all schemas
+- Actual feat / equipment / background content YAMLs
+
+---
+
 ## Session: 2026-05-27 — Paladin Lay on Hands (PR #83)
 
 **Participants:** Phil, Claude

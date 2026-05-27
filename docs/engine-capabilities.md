@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-05-27
 **Engine state:** Phase 1, post-PR #26 (Dodge + Disengage merged).
-**Test surface:** 1422 tests across 60+ modules; 14 CLI fixtures.
+**Test surface:** 1438 tests across 60+ modules; 14 CLI fixtures.
 
 This document captures what the simulator can actually do today — in
 observable behavioral terms, not module inventories. The companion
@@ -680,6 +680,68 @@ priority order:
    Rebuke**~~ — **Shipped in PR #45.**
 18. ~~**Counterspell + cast-event infra**~~ — **Shipped in PR #46.**
 19. ~~**Vision system v1**~~ — **Shipped in PR #47.**
+56. ~~**Missing JSON schemas: race / feat / equipment /
+   background**~~ — **Shipped in PR #84.** Closes PR #75's
+   deferred race-schema residue + scaffolds three entity types
+   for future content. Phil-requested round of content-schema
+   formalization.
+   - **`race.schema.json`** (new) validates the 4 SRD species
+     YAMLs shipped in PR #75 (Dwarf / Elf / Halfling / Human).
+     Required fields: id, name, source, creature_type, size,
+     speed, racial_traits. Optional: darkvision/truesight/
+     blindsight_range_ft, damage_resistances /immunities,
+     extra_skill_proficiency_slots, starting_languages,
+     lineage_options.
+   - **`feat.schema.json`** (new, scaffolded; no content yet)
+     models PHB 2024 feat categories (origin / general /
+     fighting_style / epic_boon) with prerequisites,
+     repeatable flag, ASI granting, proficiency grants, and
+     effect_primitives.
+   - **`equipment.schema.json`** (new, scaffolded; no content
+     yet) covers weapons / armor / shields / tools /
+     consumables / magic items / ammunition /
+     spellcasting_focus / mount_or_vehicle / trade_good / misc
+     with category-specific blocks (weapon dice + properties +
+     mastery; armor base_ac + dex_cap; magic_item attunement +
+     charges). Aligned with the inline shape already used by
+     `pc_spec.weapons`.
+   - **`background.schema.json`** (new, scaffolded; no content
+     yet) models PHB 2024 backgrounds: ability_score_increases
+     (three patterns), skill_proficiencies, tool_proficiency,
+     language_proficiencies, origin_feat (references ft_* id),
+     starting_equipment options, characteristics tables.
+   - **`common.schema.json::stable_id`** pattern extended to
+     accept new prefixes: `r_` (race), `t_` (racial trait),
+     `ft_` (feat), `eq_` (equipment), `bg_` (background), plus
+     `a_` (runtime auto-generated action) for completeness.
+   - **Loader (`engine/loader.py`) updated**: registers `race`
+     / `feat` / `equipment` / `background` in `_ENTITY_DIRS`
+     + `_ENTITY_SCHEMAS`. Empty content directories
+     (`schema/content/feats/`, `equipment/`, `backgrounds/`)
+     created with README.md placeholders so the directories
+     exist for future content without breaking the loader's
+     glob.
+   - **All files strict UTF-8** — verified by a dedicated
+     test that round-trips raw bytes through
+     `decode("utf-8", errors="strict")`.
+   - 16 new tests across 5 layers (schema files valid JSON +
+     have correct required fields; stable_id pattern accepts
+     all 5 new prefixes + rejects malformed ids; race
+     loader integration; new entity types in loader maps;
+     empty content dirs load cleanly; full-registry smoke;
+     UTF-8 encoding check).
+   - Deferred:
+     * Per-property `additionalProperties: false` on the new
+       schemas (current schemas allow extra fields per the
+       lite-validation pattern — strict tightening would
+       require deeper schema design)
+     * Cross-file `$ref` resolution for the JSON Schema
+       validator (the loader still uses lite-validation per
+       PR #84 retains the existing pattern; full
+       cross-schema validation deferred to a separate PR)
+     * Actual content for feats / equipment / backgrounds —
+       this PR ships only the schemas, not the YAMLs
+
 55. ~~**Paladin Lay on Hands**~~ — **Shipped in PR #83.**
    First HP-pool resource type. Paladin L1+ gets a healing pool
    of 5 × level HP that drains per-use; refreshes on long rest.

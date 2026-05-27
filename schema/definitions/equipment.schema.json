@@ -1,0 +1,180 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MarsBoundJ/dnd-combat-simulator/schema/definitions/equipment.schema.json",
+  "title": "Equipment",
+  "description": "Weapons, armor, shields, tools, consumables, magic items, ammunition, and miscellaneous gear. Each entry is a self-contained spec usable by fixtures (`weapons:` block on pc_spec inlines the same shape today; PR #84 formalizes the schema for content-loader-managed equipment files). Category-specific fields apply based on `category`. Magic-item entries can carry `attunement`, `charges`, and `effect_primitives` for ongoing magical effects.",
+
+  "type": "object",
+  "required": ["id", "name", "source", "category"],
+  "additionalProperties": false,
+
+  "properties": {
+    "id": { "$ref": "common.schema.json#/$defs/stable_id" },
+    "name": { "type": "string" },
+    "source": { "$ref": "common.schema.json#/$defs/source" },
+
+    "category": {
+      "type": "string",
+      "enum": ["weapon", "armor", "shield", "tool", "consumable", "magic_item", "ammunition", "spellcasting_focus", "mount_or_vehicle", "trade_good", "misc"]
+    },
+
+    "rarity": {
+      "description": "RAW PHB 2024 magic-item rarity tier. Non-magic items can omit (treated as 'mundane').",
+      "type": "string",
+      "enum": ["mundane", "common", "uncommon", "rare", "very_rare", "legendary", "artifact"],
+      "default": "mundane"
+    },
+
+    "cost_gp": {
+      "description": "Cost in gold pieces. Use 0 for items with no listed cost (priceless magic items, quest rewards).",
+      "type": "number",
+      "minimum": 0
+    },
+
+    "weight_lb": {
+      "type": "number",
+      "minimum": 0
+    },
+
+    "attunement": {
+      "description": "Magic items: does the item require attunement to use? RAW: a creature can attune to at most 3 items.",
+      "type": "object",
+      "properties": {
+        "required": { "type": "boolean", "default": false },
+        "restrictions": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Free-text RAW restrictions (e.g., 'by a creature of good alignment', 'by a spellcaster')."
+        }
+      }
+    },
+
+    "charges": {
+      "description": "For magic items with daily/recharge charges. Wand-shape items use this; consumables use single-use convention via `consumable: true` on the misc shape instead.",
+      "type": "object",
+      "properties": {
+        "max": { "type": "integer", "minimum": 1 },
+        "recharge": {
+          "type": "string",
+          "description": "RAW recharge text. Common patterns: 'dawn:1dN+M' (Wand of Magic Missiles-shape), 'long_rest_full' (full restore), 'short_rest:N' (recover N charges per short rest)."
+        }
+      }
+    },
+
+    "weapon": {
+      "description": "Present when category = weapon. Mirrors the inline weapon spec used by pc_spec.weapons today (PR #54+ pipeline: damage_dice, attack_ability, properties).",
+      "type": "object",
+      "properties": {
+        "subcategory": {
+          "type": "string",
+          "enum": ["simple_melee", "simple_ranged", "martial_melee", "martial_ranged"]
+        },
+        "damage_dice": { "type": "string", "description": "e.g., '1d8', '2d6'" },
+        "damage_type": { "$ref": "common.schema.json#/$defs/damage_type" },
+        "attack_ability": {
+          "$ref": "common.schema.json#/$defs/ability_score_label",
+          "description": "Default ability for attack rolls (str / dex). Finesse weapons can elect dex regardless; ranged weapons typically dex."
+        },
+        "reach_ft": { "type": "integer", "minimum": 5, "default": 5 },
+        "range_ft": {
+          "description": "Ranged weapons only. Number = normal range; if a separate `long_range_ft` exists the weapon has disadvantage past normal.",
+          "type": "integer"
+        },
+        "long_range_ft": { "type": "integer" },
+        "thrown": {
+          "type": "object",
+          "properties": {
+            "normal_ft": { "type": "integer" },
+            "long_ft": { "type": "integer" }
+          }
+        },
+        "properties": {
+          "type": "object",
+          "description": "RAW weapon properties (Light, Heavy, Finesse, Two-Handed, Versatile, Loading, Reach, Thrown, Ammunition, Special). Each is a flag the engine reads at runtime.",
+          "properties": {
+            "light": { "type": "boolean" },
+            "heavy": { "type": "boolean" },
+            "finesse": { "type": "boolean" },
+            "two_handed": { "type": "boolean" },
+            "versatile": { "type": "string", "description": "Versatile dice when wielded two-handed, e.g., '1d10'" },
+            "loading": { "type": "boolean" },
+            "ammunition": { "type": "boolean" },
+            "thrown_property": { "type": "boolean" },
+            "reach_property": { "type": "boolean" },
+            "special": { "type": "string", "description": "RAW special-text properties (lance, lance, net, etc.)" }
+          }
+        },
+        "mastery": {
+          "description": "PHB 2024 Weapon Mastery property. Engine reads at runtime via engine.core.weapon_masteries.",
+          "type": "string",
+          "enum": ["cleave", "graze", "nick", "push", "sap", "slow", "topple", "vex"]
+        }
+      }
+    },
+
+    "armor": {
+      "description": "Present when category = armor. RAW: base AC formula varies by armor type (light/medium/heavy + shield). PR #84 formalizes; pc_schema's _compute_ac already uses this shape inline.",
+      "type": "object",
+      "properties": {
+        "subcategory": {
+          "type": "string",
+          "enum": ["light", "medium", "heavy"]
+        },
+        "base_ac": { "type": "integer", "minimum": 10, "maximum": 19 },
+        "max_dex_bonus": {
+          "type": "integer",
+          "description": "Light: no cap (null); Medium: +2; Heavy: +0. null = no cap."
+        },
+        "strength_requirement": {
+          "type": "integer",
+          "description": "RAW: wearing heavy armor below the STR requirement halves your speed."
+        },
+        "stealth_disadvantage": { "type": "boolean", "default": false },
+        "don_time": { "type": "string", "description": "RAW don/doff time (1 minute, 5 minutes, etc.)" }
+      }
+    },
+
+    "shield": {
+      "description": "Present when category = shield. RAW: +2 AC, requires a free hand.",
+      "type": "object",
+      "properties": {
+        "ac_bonus": { "type": "integer", "default": 2 }
+      }
+    },
+
+    "tool": {
+      "description": "Present when category = tool. Tool proficiencies grant PB on related ability checks.",
+      "type": "object",
+      "properties": {
+        "subcategory": {
+          "type": "string",
+          "enum": ["artisan", "musical_instrument", "gaming_set", "thieves_tools", "navigators_tools", "herbalism_kit", "other"]
+        },
+        "associated_ability": { "$ref": "common.schema.json#/$defs/ability_score_label" }
+      }
+    },
+
+    "consumable": {
+      "description": "Present when category = consumable (or for any single-use item). Potions, scrolls, ammunition stacks, basic poisons, etc.",
+      "type": "object",
+      "properties": {
+        "uses": { "type": "integer", "minimum": 1, "default": 1 },
+        "single_use": { "type": "boolean", "default": true }
+      }
+    },
+
+    "effect_primitives": {
+      "description": "For magic items + tool benefits. Engine effects this item grants when worn / wielded / attuned. Bonus to attack rolls, AC, saves, skill checks, etc. — uses the same primitive vocabulary as features/spells/conditions.",
+      "type": "array",
+      "items": { "$ref": "common.schema.json#/$defs/effect_primitive" }
+    },
+
+    "granted_actions": {
+      "description": "For magic items that add an action to the wielder's action list (Wand of Magic Missiles, Cloak of Displacement, etc.). pc_schema's generic feature-action auto-attach pass (PR #82) does NOT process equipment today — fixtures explicitly attach equipment actions. A future PR could extend the auto-attach to equipment.",
+      "type": "array",
+      "items": { "type": "object" }
+    },
+
+    "contract": { "$ref": "common.schema.json#/$defs/contract" }
+  }
+}

@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MarsBoundJ/dnd-combat-simulator/schema/definitions/feat.schema.json",
+  "title": "Feat",
+  "description": "PHB 2024 reorganized feats into four categories: Origin (granted by background), General (chosen at L4/8/12/16/19 ASI levels), Fighting Style (Fighting Style class feature picks), and Epic Boon (L19+ general feats). Each feat is an instance of the unified ability pattern — its effect_primitives plug into the same primitive library as features, spells, and conditions. Schema scaffolded in PR #84 ahead of feat content shipping.",
+
+  "type": "object",
+  "required": ["id", "name", "source", "category"],
+  "additionalProperties": false,
+
+  "properties": {
+    "id": { "$ref": "common.schema.json#/$defs/stable_id" },
+    "name": { "type": "string" },
+    "source": { "$ref": "common.schema.json#/$defs/source" },
+
+    "category": {
+      "type": "string",
+      "enum": ["origin", "general", "fighting_style", "epic_boon"],
+      "description": "RAW PHB 2024 feat categories. Origin feats come from backgrounds at L1; General feats from L4/8/12/16/19 ASIs; Fighting Style feats from the Fighting Style class feature (Fighter/Paladin/Ranger); Epic Boons from L19 ASI."
+    },
+
+    "prerequisites": {
+      "description": "Conditions for taking this feat. RAW examples: level ≥ 4 (most General feats), specific ability score ≥ 13 (multiclass-shape feats), proficiency in a skill, prior feat (Epic Boons typically need L19).",
+      "type": "object",
+      "properties": {
+        "min_level": { "type": "integer", "minimum": 1, "maximum": 20 },
+        "min_ability_scores": {
+          "type": "object",
+          "description": "e.g., {'strength': 13} for Strength-prereq feats.",
+          "additionalProperties": { "type": "integer", "minimum": 1, "maximum": 30 }
+        },
+        "required_class": { "$ref": "common.schema.json#/$defs/stable_id" },
+        "required_subclass": { "$ref": "common.schema.json#/$defs/stable_id" },
+        "required_species": { "$ref": "common.schema.json#/$defs/stable_id" },
+        "required_proficiencies": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "required_feats": {
+          "type": "array",
+          "items": { "$ref": "common.schema.json#/$defs/stable_id" },
+          "description": "Feat IDs that must already be taken (e.g., Epic Boons require a non-Epic feat tree)."
+        }
+      }
+    },
+
+    "repeatable": {
+      "type": "boolean",
+      "default": false,
+      "description": "True for feats that can be taken multiple times (Resilient — different ability each time; Skilled — different skills; Tough — repeating HP boost). PHB 2024 RAW: explicitly tagged 'You can take this Feat more than once' on the printed feat."
+    },
+
+    "ability_score_increase": {
+      "description": "Most PHB 2024 General feats grant +1 to one of N ability scores (sometimes the choice is fixed by the feat). Origin feats typically don't grant ASI; Epic Boons grant +1 to any of three abilities.",
+      "type": "object",
+      "properties": {
+        "amount": { "type": "integer", "minimum": 1, "maximum": 2, "default": 1 },
+        "choose": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "How many distinct ability scores get +amount. Usually 1."
+        },
+        "from": {
+          "type": "array",
+          "items": { "$ref": "common.schema.json#/$defs/ability_score_label" },
+          "description": "Allowed abilities for the increase. Empty/missing = any."
+        },
+        "max_score": {
+          "type": "integer",
+          "default": 20,
+          "description": "Cap on the resulting score (Epic Boons can push to 30)."
+        }
+      }
+    },
+
+    "skill_proficiencies": {
+      "description": "Skills the feat grants proficiency in. Skilled feat = 3 skills. Tagged for build-time application (mirrors race.extra_skill_proficiency_slots).",
+      "type": "array",
+      "items": { "type": "string" }
+    },
+
+    "tool_proficiencies": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+
+    "language_proficiencies": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+
+    "weapon_proficiencies": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+
+    "armor_proficiencies": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+
+    "effect_primitives": {
+      "description": "Engine-side effects the feat grants. Same primitive vocabulary as features / spells / conditions. Passive feats register modifiers at PC-build time; active feats add actions to the actor's template; triggered feats register reaction-shape hooks.",
+      "type": "array",
+      "items": { "$ref": "common.schema.json#/$defs/effect_primitive" }
+    },
+
+    "action_template": {
+      "description": "For feats that grant a new action (Great Weapon Master's BA attack after a kill; Charger's bonus damage on Dash; Magic Initiate's free cantrip). pc_schema's generic feature-action auto-attach pass (PR #82) picks this up if the feat is in the PC's feats_known set.",
+      "type": "object"
+    },
+
+    "usage": { "$ref": "common.schema.json#/$defs/usage" },
+    "resource_cost": { "$ref": "common.schema.json#/$defs/resource_cost" },
+    "contract": { "$ref": "common.schema.json#/$defs/contract" }
+  }
+}

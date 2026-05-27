@@ -14,9 +14,9 @@
     },
 
     "stable_id": {
-      "description": "Stable identifier; lowercase snake_case with type prefix (c_, sc_, f_, m_, sp_, co_).",
+      "description": "Stable identifier; lowercase snake_case with type prefix. Recognized prefixes: c_ (class), sc_ (subclass), f_ (feature), m_ (monster), sp_ (spell), co_ (condition), sl_ (spell list), a_ (action — runtime auto-generated), r_ (race / species — PR #75), t_ (racial trait — PR #75), ft_ (feat — PR #84), eq_ (equipment — PR #84), bg_ (background — PR #84).",
       "type": "string",
-      "pattern": "^(c_|sc_|f_|m_|sp_|co_|sl_)[a-z0-9_]+$"
+      "pattern": "^(c_|sc_|f_|m_|sp_|co_|sl_|a_|r_|t_|ft_|eq_|bg_)[a-z0-9_]+$"
     },
 
     "ability_score_label": {

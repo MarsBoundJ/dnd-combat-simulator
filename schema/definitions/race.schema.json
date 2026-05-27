@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MarsBoundJ/dnd-combat-simulator/schema/definitions/race.schema.json",
+  "title": "Race (Species)",
+  "description": "PC species definition. PHB 2024 uses the term 'species'; the engine uses 'race' for the entity-type key (matches stable_id prefix r_ and the schema/content/races/ directory). Each race contributes size, speed, special senses, baked-on damage resistances, racial trait flags (consumed at runtime by engine.core.racial_traits), and optional bonuses applied at PC-build time (extra skill proficiencies). Shipped in PR #75 (the 4 SRD species) + schema formalized in PR #84.",
+
+  "type": "object",
+  "required": ["id", "name", "source", "creature_type", "size", "speed", "racial_traits"],
+  "additionalProperties": false,
+
+  "properties": {
+    "id": { "$ref": "common.schema.json#/$defs/stable_id" },
+    "name": { "type": "string" },
+    "source": { "$ref": "common.schema.json#/$defs/source" },
+
+    "creature_type": {
+      "description": "Creature type for damage/condition interactions (Fiend / Undead → Divine Smite bonus dice, etc.). Most PC species are humanoid; future Aasimar/Tiefling-shape species could be celestial/fiend.",
+      "type": "string",
+      "enum": ["aberration", "beast", "celestial", "construct", "dragon", "elemental", "fey", "fiend", "giant", "humanoid", "monstrosity", "ooze", "plant", "undead"],
+      "default": "humanoid"
+    },
+
+    "size": {
+      "type": "string",
+      "enum": ["tiny", "small", "medium", "large", "huge", "gargantuan"]
+    },
+
+    "speed": {
+      "description": "Movement speeds in feet per round. walk is required; other speeds are optional.",
+      "type": "object",
+      "required": ["walk"],
+      "properties": {
+        "walk": { "type": "integer", "minimum": 0 },
+        "fly": { "type": "integer", "minimum": 0 },
+        "swim": { "type": "integer", "minimum": 0 },
+        "burrow": { "type": "integer", "minimum": 0 },
+        "climb": { "type": "integer", "minimum": 0 },
+        "hover": { "type": "boolean" }
+      }
+    },
+
+    "darkvision_range_ft": {
+      "description": "Darkvision range in feet (0 = no darkvision). Common values: 60 for Dwarf/Elf, 120 for some lineages.",
+      "type": "integer",
+      "minimum": 0,
+      "default": 0
+    },
+
+    "truesight_range_ft": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 0
+    },
+
+    "blindsight_range_ft": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 0
+    },
+
+    "racial_traits": {
+      "description": "Trait ids stamped onto Actor.racial_traits at PC build. Runtime sites (query_save_modifiers, _attack_roll Lucky reroll, etc.) read this list to gate effects. See engine/core/racial_traits.py for the registry of recognized t_ ids and what each does.",
+      "type": "array",
+      "items": { "$ref": "common.schema.json#/$defs/stable_id" }
+    },
+
+    "damage_resistances": {
+      "description": "Damage types this race resists by default (halved damage). Baked onto template.damage_resistances; _damage applies via existing template-side resistance path. Dwarf's Poison resistance is the canonical SRD example.",
+      "type": "array",
+      "items": { "$ref": "common.schema.json#/$defs/damage_type" }
+    },
+
+    "damage_immunities": {
+      "description": "Damage types this race is immune to (zero damage). Same template path as damage_resistances.",
+      "type": "array",
+      "items": { "$ref": "common.schema.json#/$defs/damage_type" }
+    },
+
+    "extra_skill_proficiency_slots": {
+      "description": "How many extra skill proficiencies the PC picks from any list at build time. Human Skillful = 1; future species (Half-Elf-shape) could grant 2. pc_schema reads pc_spec.extra_skill (single skill) when this slot is > 0.",
+      "type": "integer",
+      "minimum": 0,
+      "default": 0
+    },
+
+    "starting_languages": {
+      "description": "Languages all members of this race know. Common is universal; species-specific (Dwarvish, Elvish) listed here. v1 doesn't model languages mechanically.",
+      "type": "array",
+      "items": { "type": "string" }
+    },
+
+    "lineage_options": {
+      "description": "PHB 2014-style lineage variants within a species (Drow / High Elf / Wood Elf for Elf, Hill / Mountain for Dwarf). PHB 2024 mostly removed mechanical lineages, so v1 leaves this empty. Future fixtures could revive lineage-shape variants via this field.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "additional_traits": {
+            "type": "array",
+            "items": { "$ref": "common.schema.json#/$defs/stable_id" }
+          }
+        }
+      }
+    }
+  }
+}
