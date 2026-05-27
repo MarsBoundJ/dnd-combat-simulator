@@ -129,6 +129,25 @@ def end_concentration(caster: Actor, state: CombatState,
     ]
     removed += before_auras - len(state.persistent_auras)
 
+    # PR #60: scrub environment magical_dark_zones whose caster_id +
+    # action_id match the dropped aura (Darkness spell zones live on
+    # the encounter env). Zones declared statically by fixtures lack
+    # these stamps and are preserved untouched.
+    if state.encounter is not None:
+        env = state.encounter.environment or {}
+        zones = env.get("magical_dark_zones") or []
+        if zones:
+            before_zones = len(zones)
+            kept = [
+                z for z in zones
+                if not (z.get("caster_id") == caster_id
+                        and z.get("action_id") == action_id)
+            ]
+            if len(kept) != before_zones:
+                env["magical_dark_zones"] = kept
+                state.encounter.environment = env
+                removed += before_zones - len(kept)
+
     caster.concentration_on = None
     state.event_log.append({
         "event": "concentration_ended",

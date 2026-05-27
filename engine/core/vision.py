@@ -122,16 +122,36 @@ def is_blinded(actor: Actor) -> bool:
 
 def _position_in_any_zone(position: tuple[int, int] | None,
                              zones: list[dict] | None) -> bool:
-    """True if `position` is inside any declared axis-aligned rect zone.
+    """True if `position` is inside any declared environment zone.
 
-    Shared helper for the three environment zone-types (heavy
-    obscurement, dim light, dark). Each zone is `{x_min, x_max, y_min,
-    y_max}` with inclusive boundaries. None inputs => False.
+    Shared helper for the environment zone-types (heavy obscurement,
+    dim light, dark, magical dark). Two zone shapes supported:
+
+      - **Axis-aligned rect** (default; legacy shape from PR #48 / #50 /
+        #52). Schema: `{x_min, x_max, y_min, y_max}` with inclusive
+        boundaries. Used when fixture authors declare zones explicitly.
+      - **Sphere** (PR #60). Schema: `{shape: "sphere", center: [x, y],
+        radius_ft: int}`. Used when persistent_aura-creating spells
+        (Darkness, future Hunger of Hadar) auto-declare a zone at
+        cast time. Chebyshev distance vs `radius_ft // 5` matches
+        the engine's grid distance convention (diagonals count as
+        5 ft per 5e 2024).
+
+    None inputs (position or zones) => False.
     """
     if position is None or not zones:
         return False
     x, y = position
     for z in zones:
+        # PR #60: sphere shape for spell-created zones
+        if z.get("shape") == "sphere":
+            center = z.get("center") or (0, 0)
+            cx, cy = int(center[0]), int(center[1])
+            radius_squares = int(z.get("radius_ft", 0)) // 5
+            if max(abs(x - cx), abs(y - cy)) <= radius_squares:
+                return True
+            continue
+        # Legacy axis-aligned rect
         if (z.get("x_min", 0) <= x <= z.get("x_max", 0)
                 and z.get("y_min", 0) <= y <= z.get("y_max", 0)):
             return True

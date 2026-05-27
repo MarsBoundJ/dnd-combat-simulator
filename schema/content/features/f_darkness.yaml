@@ -1,0 +1,91 @@
+# f_darkness — Darkness (2nd-level Evocation, SRD CC v5.2.1)
+#
+# RAW summary: "Magical darkness spreads from a point you choose
+# within range to fill a 15-foot-radius Sphere for the duration. The
+# darkness spreads around corners. A creature with Darkvision can't
+# see through this darkness. Nonmagical light can't illuminate it."
+# Concentration, up to 10 minutes. Range: 60 ft. Components: V, M
+# (a drop of pitch or piece of coal).
+#
+# Engine application (PR #60):
+#   - type: persistent_aura (registers with the standard aura infra
+#     for concentration tracking + termination cleanup)
+#   - shape: sphere, radius_ft: 15, anchor: point (placed at cast
+#     time, doesn't move). The "centered on a creature you choose"
+#     RAW variant is deferred — v1 only point-anchors at the cast
+#     coordinates.
+#   - creates_zone: magical_dark — PR #60's new param tells
+#     `_persistent_aura` to ALSO append a sphere entry to
+#     state.encounter.environment.magical_dark_zones. The
+#     `vision._position_in_any_zone` helper recognizes sphere zones
+#     (Chebyshev distance vs radius_squares).
+#   - No save / no damage — Darkness is purely a vision-denial
+#     effect. The pipeline still uses the persistent_aura primitive
+#     so concentration end (caster drops, gets incapacitated,
+#     dies, or starts a new concentration spell) auto-strips the
+#     zone alongside the aura.
+#
+# Vision interaction (per PR #52 + this PR):
+#   - Inside the Darkness sphere: ordinary darkvision is BLOCKED.
+#     Only Truesight (or Devil's Sight when wired) pierces.
+#   - Blindsight inside the sphere still works (bypasses everything
+#     visual within its range).
+#
+# Deferred:
+#   - "Centered on a creature you choose" variant — v1 only
+#     point-anchors at coordinates
+#   - Devil's Sight (Warlock invocation that bypasses magical
+#     darkness without truesight) — same as PR #52 residue
+#   - AI scoring for Darkness — `offensive_ehp_persistent_aura`
+#     currently scores damage-based auras; Darkness's defensive
+#     vision-denial value needs its own estimator
+
+id: f_darkness
+name: Darkness
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 3                 # Wizards gain access to 2nd-level spells at L3
+type: active
+spell:
+  class: c_wizard
+  level: 2
+
+description: |
+  15-ft radius sphere of magical darkness centered on a chosen point
+  within 60 ft. Concentration, 10 minutes. Ordinary darkvision can't
+  pierce it; only Truesight does.
+
+action_template:
+  id: a_darkness
+  name: Darkness
+  type: persistent_aura
+  spell_slot_level: 2
+  concentration: true
+  named_effect: darkness
+  area:
+    shape: sphere
+    radius_ft: 15
+    range_ft: 60
+  pipeline:
+    - primitive: persistent_aura
+      params:
+        shape: sphere
+        radius_ft: 15
+        anchor: point
+        # No per-tick trigger needed — Darkness has no damage.
+        # We still set trigger_event for shape consistency, but
+        # the empty on_fail / on_success arrays ensure the runner's
+        # aura-resolver does nothing useful here.
+        trigger_event: target_turn_start_in_area
+        affected: all_creatures
+        ability: none
+        on_fail: []
+        on_success: []
+        # PR #60: this is what makes Darkness actually deny vision.
+        creates_zone: magical_dark
+
+deferred:
+  - centered_on_creature_variant: "RAW lets the spell anchor on an object/creature; v1 point-anchors only."
+  - devils_sight_bypass: "Warlock invocation that pierces magical darkness; needs Warlock infra."
+  - ai_scoring: "Defensive vision-denial value not yet scored — fixture-driven for now."
