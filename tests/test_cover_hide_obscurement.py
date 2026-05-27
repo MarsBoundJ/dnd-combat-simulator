@@ -410,8 +410,10 @@ class HideStealthCheckTest(unittest.TestCase):
         events = [e for e in state.event_log
                    if e.get("event") == "hide_attempted"]
         # Even with d20=20, total = 20 + (-3) = 17. Still succeeds.
-        # So fail case is rare; just verify the outcome math matches
-        self.assertEqual(events[0]["dex_mod"], -3)
+        # So fail case is rare; just verify the outcome math matches.
+        # PR #51: log key renamed dex_mod → stealth_mod (stealth_mod
+        # equals dex_mod for non-proficient actors).
+        self.assertEqual(events[0]["stealth_mod"], -3)
 
 
 class HideEndsOnAttackTest(unittest.TestCase):

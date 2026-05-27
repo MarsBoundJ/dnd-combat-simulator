@@ -121,6 +121,15 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
     # accepted set + _compute_ac / _build_weapon_action for application.
     fighting_style = _validate_fighting_style(pc_spec.get("fighting_style"))
 
+    # Skill proficiencies (PR #51) — list of skill names the PC is
+    # proficient in. Validated against the known 5e 2024 skill list.
+    # Baked onto the template as `skill_proficiencies` so the runtime
+    # skill_modifier helper can read it (mirrors the SRD-monster
+    # `skills:` dict shape, just stored as a list of proficiencies
+    # since PCs compute the bonus on demand from ability + PB).
+    skill_proficiencies = _validate_skill_proficiencies(
+        pc_spec.get("skill_proficiencies"))
+
     # Derive HP
     hit_die = class_def.get("core_traits", {}).get("hit_die", "d8")
     con_mod = ability_modifier(ability_scores["con"]["score"])
@@ -182,6 +191,19 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
             "class": class_id,
             "level": level,
             "fighting_style": fighting_style,    # None if not chosen
+            "skill_proficiencies": list(skill_proficiencies),
+        },
+        # Top-level skill_proficiencies for the runtime skill_modifier
+        # helper to read (engine/core/skills.py). Mirrors the monster-
+        # template `skills:` dict shape, except PCs store the list of
+        # proficient skills (bonus computed on demand from ability + PB).
+        "skill_proficiencies": list(skill_proficiencies),
+        # Passive Perception (PR #51): 10 + WIS_mod + PB if proficient.
+        # Mirrors the monster-template `senses.passive_perception` shape.
+        # Loaded by cli._build_actor onto Actor.passive_perception.
+        "senses": {
+            "passive_perception": _compute_passive_perception(
+                ability_scores, skill_proficiencies, proficiency_bonus),
         },
     }
 
@@ -312,6 +334,53 @@ def _validate_fighting_style(value):
             "f_fighting_style.yaml for status.)"
         )
     return s
+
+
+def _validate_skill_proficiencies(value) -> list[str]:
+    """Return a normalized list of validated skill names, or [] when
+    None / empty. Raises ValueError on unknown skill names — keeps
+    typos from silently dropping into an empty proficiency list.
+
+    PR #51: PC schemas declare `skill_proficiencies: [stealth, ...]`.
+    The list is baked onto the template (top-level + derived_from
+    block) so engine/core/skills.py can read it at runtime.
+    """
+    if value is None or value == "":
+        return []
+    from engine.core.skills import validate_skill_name
+    if not isinstance(value, (list, tuple)):
+        raise ValueError(
+            f"skill_proficiencies must be a list, got {type(value).__name__}"
+        )
+    out: list[str] = []
+    seen: set[str] = set()
+    for raw in value:
+        n = validate_skill_name(str(raw))
+        if n not in seen:
+            out.append(n)
+            seen.add(n)
+    return out
+
+
+def _compute_passive_perception(ability_scores: dict,
+                                    skill_proficiencies: list[str],
+                                    proficiency_bonus: int) -> int:
+    """10 + WIS_mod + (PB if proficient in Perception).
+
+    PR #51: PCs derive passive Perception so vision checks against
+    hidden creatures (PR #48's Hide) have a number to compare
+    against. Monster templates declare this directly under
+    `senses.passive_perception`; we mirror that shape for PCs.
+
+    Expertise (double PB) is deferred until skill expertise lands.
+    Magic-item bonuses (e.g., Cloak of Elvenkind) deferred.
+    """
+    wis_score = int((ability_scores.get("wis") or {}).get("score", 10))
+    mod = ability_modifier(wis_score)
+    base = 10 + mod
+    if "perception" in {s.lower() for s in skill_proficiencies}:
+        base += int(proficiency_bonus)
+    return base
 
 
 def _features_known_at_level(class_def: dict, level: int) -> set[str]:

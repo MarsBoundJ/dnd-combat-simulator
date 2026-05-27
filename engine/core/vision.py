@@ -27,20 +27,24 @@ Used by:
   - Heavy-obscurement zones (PR #48)
   - Cover (PR #48)
   - Hide action (PR #48)
-  - Stealth check vs static DC 15 (PR #48 — passive Perception
-    comparison still deferred)
+  - Stealth check (PR #48; PR #51 added proficiency PB + recorded
+    stealth_total on the resulting Invisible condition)
   - Dark zones + Darkvision range (PR #50)
   - Dim light zones (PR #50 — declarable but doesn't block sight;
     Perception-disadvantage modeling deferred)
+  - Passive Perception auto-spot for Hide-source Invisible (PR #51):
+    `observer.passive_perception` >= hider's stealth_total ⇒ visible
+    (spell-source Invisible still bypasses Perception per RAW)
 
 **v1 deferred (still):**
   - Truesight — bypasses Invisible + magical darkness
   - Blindsight — sees within a range regardless of vision conditions
   - Per-tile light levels (vs zone-based)
-  - Active Perception check vs Hide DC (replaces static DC 15)
-  - Stealth proficiency (PB addition to Hide check)
+  - Active Perception search-as-action (vs passive PP, which is now
+    automatic)
   - Magical darkness (a higher tier than ordinary dark zones —
     Devil's Sight / Truesight bypass; ordinary darkvision does NOT)
+  - Skill expertise (double PB on Stealth / Perception)
 
 When those land, `can_actor_see` is the right place to extend.
 """
@@ -53,6 +57,13 @@ from engine.core.state import Actor, CombatState
 # to ordinary sight. v1 = just Invisible; future = also include any
 # condition that grants concealment (e.g., a "Heavily Obscured" status).
 _INVISIBILITY_CONDITIONS = frozenset({"co_invisible"})
+
+# Source-action ids whose Invisible condition CAN be bypassed by a
+# sufficiently-perceptive observer (PR #51). Spell-source Invisible
+# (Invisibility / Greater Invisibility) is NOT in this set — those
+# bypass passive Perception per RAW. Only physical Hide can be seen
+# through by a sharp-eyed observer.
+_PERCEPTION_BYPASSABLE_INVISIBLE_SOURCES = frozenset({"a_hide"})
 
 # Conditions that, when present on the observer, prevent them from
 # seeing anything. Blinded is the obvious one; future = also Unconscious
@@ -74,6 +85,22 @@ def is_invisible(actor: Actor) -> bool:
         if has_condition(actor, cid):
             return True
     return False
+
+
+def _hide_source_invisibilities(actor: Actor) -> list[dict]:
+    """Return co_invisible conditions on `actor` whose source action id
+    is in the perception-bypassable set (PR #51 — currently just
+    a_hide). Each dict carries the recorded `stealth_total` for the
+    auto-spot comparison. Empty list when actor has no Hide-source
+    Invisible (either not invisible at all, or invisible from a spell).
+    """
+    out: list[dict] = []
+    for c in (actor.applied_conditions or []):
+        if c.get("condition_id") != "co_invisible":
+            continue
+        if c.get("source_action_id") in _PERCEPTION_BYPASSABLE_INVISIBLE_SOURCES:
+            out.append(c)
+    return out
 
 
 def is_blinded(actor: Actor) -> bool:
@@ -168,7 +195,15 @@ def can_actor_see(observer: Actor, target: Actor,
 
     v1 model (precedence order — first match wins):
       - False if `observer` is Blinded
-      - False if `target` is Invisible
+      - If `target` has Invisible:
+          - PR #51: Hide-source Invisible (source_action_id=a_hide)
+            can be bypassed by `observer.passive_perception` >=
+            target's recorded `stealth_total`. Spell-source Invisible
+            (Invisibility / Greater Invisibility) is NOT bypassable —
+            those return False unconditionally.
+          - If bypassed, fall through to the remaining gates (fog /
+            darkness still block sight even after a successful
+            passive-Perception spot).
       - False if either is in a heavy-obscurement zone (PR #48)
         — same-zone approximated as still-blocked per RAW.
       - PR #50: dark zones (no light + no darkvision = blind):
@@ -183,8 +218,9 @@ def can_actor_see(observer: Actor, target: Actor,
         Perception disadvantage, modeled in a future perception PR.
       - True otherwise
 
-    Truesight / Blindsight / per-tile light levels (vs zones) all
-    deferred. When they land, this is the place to extend.
+    Truesight / Blindsight / per-tile light levels (vs zones) /
+    active-Perception-search-as-action all deferred. When they
+    land, this is the place to extend.
     """
     if observer is None or target is None:
         return False
@@ -197,7 +233,26 @@ def can_actor_see(observer: Actor, target: Actor,
     if is_blinded(observer):
         return False
     if is_invisible(target):
-        return False
+        # PR #51: Hide-source Invisible can be auto-spotted by an
+        # observer whose passive Perception meets or beats the
+        # hider's recorded Stealth total. Spell-source Invisible
+        # (Invisibility / Greater Invisibility) bypasses Perception
+        # per RAW — those go straight to False below.
+        hide_conditions = _hide_source_invisibilities(target)
+        if not hide_conditions:
+            return False
+        observer_pp = int(getattr(observer, "passive_perception", 10) or 10)
+        # If ANY Hide-source instance still beats the observer, target
+        # remains hidden. (v1 actors only ever carry one Hide-source
+        # Invisible at a time; loop kept for robustness.)
+        all_spotted = all(
+            observer_pp >= int(c.get("stealth_total", 9999))
+            for c in hide_conditions
+        )
+        if not all_spotted:
+            return False
+        # Else: fall through — observer beat the Stealth roll, so the
+        # remaining vision checks (obscurement / darkness) still apply.
     # PR #48: heavy obscurement zones block sight. Either-side-in-zone
     # blocks per RAW (heavily obscured creatures are effectively
     # Blinded toward whatever's in the obscurement).

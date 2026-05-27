@@ -119,6 +119,15 @@ class Actor:
     # Blindsight + Truesight are separate fields, deferred to a future PR.
     darkvision_range_ft: int = 0
 
+    # Passive Perception (PR #51). Used by vision.can_actor_see to
+    # auto-spot a Hide-source-Invisible target whose recorded
+    # stealth_total falls at or below the observer's passive Perception.
+    # Loaded from monster template `senses.passive_perception` (already
+    # declared on SRD monsters) or from a PC template's computed value
+    # (10 + WIS_mod + PB if Perception-proficient). Defaults to 10 as a
+    # last-resort fallback (raw average human with neutral WIS).
+    passive_perception: int = 10
+
     def is_alive(self) -> bool:
         return self.hp_current > 0 and not self.is_dead and not self.is_fled
 

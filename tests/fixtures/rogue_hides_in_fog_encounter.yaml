@@ -2,25 +2,29 @@
 # attacks with advantage (Invisible attacker gets advantage).
 #
 # Setup:
-#   - Rogue (PC): high DEX (20 → +5 mod), starts inside a fog zone
-#     centered at (3, 3) with extent 2 squares (zone covers x:1-5,
-#     y:1-5). Has Hide action + a shortsword. Forced first via
-#     initiative bonus.
-#   - Ogre (enemy): outside the fog zone at (10, 0). Tough target.
+#   - Rogue (PC): high DEX (20 → +5 mod), Stealth-proficient (PR #51:
+#     adds PB +2 to the Hide roll). Starts inside a fog zone centered
+#     at (3, 3) with extent 2 squares (zone covers x:1-5, y:1-5). Has
+#     Hide action + a shortsword. Forced first via initiative bonus.
+#   - Ogre (enemy): outside the fog zone at (10, 0). Tough target,
+#     passive Perception 8 (per SRD).
 #
 # Expected behavior:
-#   - Round 1: Rogue in fog → can_actor_see(ogre, rogue) = False.
+#   - Round 1: Rogue in fog → can_actor_see(ogre, rogue) = False
+#     (heavy obscurement blocks regardless of Perception).
 #     Rogue picks Hide (eligible via heavy obscurement); rolls
-#     d20 + DEX 5 vs DC 15. With seed 1, d20 = 5 → total = 10 →
-#     fails. With higher seeds the hide succeeds.
-#   - If hide succeeds: co_invisible applied with source=a_hide.
-#     On a subsequent attack, the Invisible condition's "your attacks
-#     advantage" + "attacks vs you disadvantage" modifiers fire.
-#     After attacking, Hide-source co_invisible is scrubbed (RAW:
+#     d20 + DEX 5 + Stealth PB 2 = d20 + 7 vs DC 15.
+#   - If hide succeeds: co_invisible applied with source=a_hide AND
+#     stealth_total recorded. The rogue leaves the fog to attack;
+#     ogre's passive Perception (8) compares against stealth_total —
+#     since rogue's roll easily clears 8, the ogre still can't see
+#     them when emerging. Invisible attacker → advantage.
+#   - After attacking, Hide-source co_invisible is scrubbed (RAW:
 #     Hide ends on attack).
 #
-# Demonstrates: heavy obscurement zone, Hide gate, Stealth check,
-# co_invisible applied + scrubbed-on-attack.
+# Demonstrates: heavy obscurement zone, Hide gate, Stealth check WITH
+# proficiency bonus (PR #51), stealth_total recorded on the condition,
+# passive Perception comparison (ogre's PP 8 vs rogue's stealth total).
 
 id: rogue_hides_in_fog_encounter
 
@@ -57,6 +61,9 @@ actors:
         wis: { score: 12, save: 1 }
         cha: { score: 10, save: 0 }
       cr: { value: 3.0, xp: 700, proficiency_bonus: 2 }
+      skill_proficiencies: [stealth]
+      senses:
+        passive_perception: 11        # 10 + WIS 12 (+1)
       behavior_profile:
         presets:
           retreat: ftd
@@ -102,6 +109,8 @@ actors:
         wis: { score: 7, save: -2 }
         cha: { score: 7, save: -2 }
       cr: { value: 2.0, xp: 450, proficiency_bonus: 2 }
+      senses:
+        passive_perception: 8        # 10 + WIS -2 (per SRD ogre)
       behavior_profile:
         presets:
           retreat: ftd
