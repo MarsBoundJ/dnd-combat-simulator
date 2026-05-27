@@ -1,0 +1,40 @@
+# r_dwarf — Dwarf (SRD CC v5.2.1)
+# Source: SRD CC v5.2.1 (PHB 2024 species)
+#
+# Wired racial traits (engine reads at runtime):
+#   - Darkvision 60 ft → stamped on Actor.darkvision_range_ft
+#   - Dwarven Resilience (poison damage resistance) → baked into
+#     template.damage_resistances; _damage applies via existing
+#     resistance path
+#   - Dwarven Resilience (advantage on saves vs Poisoned) → trait
+#     flag `t_dwarven_resilience`; engine/core/racial_traits.py
+#     resolves via save-source context (state.current_save_context
+#     populated by _forced_save before query_save_modifiers fires)
+#
+# Deferred traits (registered as lore-only):
+#   - Stonecunning (1/SR/LR Stonecunning shape — utility, deferred)
+#   - Toolkit Proficiency (build-time skill prof, easy follow-up)
+
+id: r_dwarf
+name: Dwarf
+source: srd_5.2.1
+
+creature_type: humanoid
+size: medium
+speed:
+  walk: 30
+darkvision_range_ft: 60
+
+# Damage resistance baked onto every Dwarf — runtime _damage path
+# checks template.damage_resistances list. Poison is the only one
+# the Dwarf gets innately.
+damage_resistances:
+  - poison
+
+# Trait ids that pc_schema stamps onto template.racial_traits and
+# cli loads onto Actor.racial_traits. Runtime sites
+# (query_save_modifiers, _attack_roll Lucky reroll, etc.) read this
+# list to gate trait effects.
+racial_traits:
+  - t_dwarven_resilience    # advantage on saves vs Poisoned
+                              # (damage resistance is the field above)

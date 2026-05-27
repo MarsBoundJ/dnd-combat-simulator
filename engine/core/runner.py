@@ -398,6 +398,19 @@ class EncounterRunner:
             ability = entry.get("ability", "wisdom")
             short_ab = {"strength": "str", "dexterity": "dex", "constitution": "con",
                          "intelligence": "int", "wisdom": "wis", "charisma": "cha"}.get(ability, ability)
+            # PR #75: stash save-source context so racial trait save
+            # advantages (Brave / Fey Ancestry / Dwarven Resilience)
+            # fire correctly on recurring saves too. Recurring saves
+            # are "would END condition X on success" — treat as if
+            # X is in the on_fail set for racial-trait purposes
+            # (same polarity from the trait's perspective).
+            from engine.core.racial_traits import (
+                build_save_context_for_condition, lucky_d20)
+            saved_save_context = state.current_save_context
+            cond_id = entry.get("condition_id")
+            if cond_id:
+                state.current_save_context = \
+                    build_save_context_for_condition(cond_id)
             save_mods = modifiers.query_save_modifiers(actor, ability, state)
             override = save_mods.net_outcome_override()
             if override == "auto_fail":
@@ -415,8 +428,12 @@ class EncounterRunner:
                     d20 = min(self.rng.randint(1, 20), self.rng.randint(1, 20))
                 else:
                     d20 = self.rng.randint(1, 20)
+                # PR #75: Lucky reroll on nat 1
+                d20, _rerolled = lucky_d20(self.rng, d20, actor)
                 total = d20 + save_bonus + save_mods.save_bonus_modifier
                 outcome = "success" if total >= entry["dc"] else "fail"
+            # PR #75: restore prior save context
+            state.current_save_context = saved_save_context
             state.event_log.append({
                 "event": "recurring_save", "target": actor.id,
                 "ability": ability, "dc": entry["dc"],

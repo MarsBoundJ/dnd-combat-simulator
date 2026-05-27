@@ -1,0 +1,37 @@
+# r_human — Human (SRD CC v5.2.1)
+# Source: SRD CC v5.2.1 (PHB 2024 species)
+#
+# PHB 2024 Humans are the "many small bonuses" species. Wired:
+#   - Size: Medium
+#   - Speed: 30 ft
+#   - Skillful: one extra skill proficiency. PC spec picks the
+#     specific skill via `extra_skill:` (e.g., `extra_skill:
+#     persuasion`). pc_schema appends to skill_proficiencies at
+#     build time — pure build-time concern, no runtime trait flag
+#     needed (no `t_skillful` in racial_traits).
+#
+# Deferred traits:
+#   - Resourceful (gain Heroic Inspiration after a long rest) —
+#     no Inspiration mechanic wired
+#   - Versatile (Origin feat at level 1) — feat system not wired
+#
+# Humans don't have darkvision (RAW PHB 2024 — same as 2014).
+
+id: r_human
+name: Human
+source: srd_5.2.1
+
+creature_type: humanoid
+size: medium
+speed:
+  walk: 30
+darkvision_range_ft: 0
+
+# `extra_skill_proficiency` is the build-time hook for the Human
+# Skillful trait. When set on the pc_spec (e.g., `extra_skill:
+# persuasion`), pc_schema appends it to skill_proficiencies. The
+# race YAML itself doesn't pick the skill — that's a per-PC choice.
+extra_skill_proficiency_slots: 1
+
+# No runtime trait flags — Humans get only build-time effects in v1.
+racial_traits: []

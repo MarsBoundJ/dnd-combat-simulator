@@ -169,6 +169,13 @@ def _attack_roll(params: dict, state: CombatState, bus: EventBus) -> dict:
     else:
         d20 = rng.randint(1, 20)
 
+    # PR #75: Halfling Lucky reroll on natural 1 of the d20 that
+    # "counts" (the chosen die after advantage/disadvantage
+    # resolution). RAW PHB 2024: "you can reroll the die and must
+    # use the new roll." No-op if attacker doesn't have Lucky.
+    from engine.core.racial_traits import lucky_d20
+    d20, _rerolled = lucky_d20(rng, d20, actor)
+
     total = d20 + effective_bonus
     is_crit = (d20 >= crit_mods.crit_threshold)
     pre_reaction_hit = is_crit or (total >= effective_ac)
@@ -699,6 +706,15 @@ def _forced_save(params: dict, state: CombatState, bus: EventBus) -> dict:
     dc = _resolve_dc(params, state)
     rng = _get_rng(state, bus)
 
+    # PR #75: stash save-source context BEFORE per-target loop so
+    # query_save_modifiers can apply racial trait advantages (Brave /
+    # Fey Ancestry / Dwarven Resilience). The context is the same for
+    # every target this call hits (the on_fail block is shared), so a
+    # single set + cleared-at-end pattern is correct.
+    from engine.core.racial_traits import build_save_context
+    saved_save_context = state.current_save_context
+    state.current_save_context = build_save_context(params)
+
     targets = _resolve_save_targets(params, state)
     rolls = []
     for target in targets:
@@ -723,6 +739,10 @@ def _forced_save(params: dict, state: CombatState, bus: EventBus) -> dict:
                 d20 = min(rng.randint(1, 20), rng.randint(1, 20))
             else:
                 d20 = rng.randint(1, 20)
+            # PR #75: Halfling Lucky reroll on natural 1 of the d20
+            # that counts (post-adv/disadv resolution).
+            from engine.core.racial_traits import lucky_d20
+            d20, _rerolled = lucky_d20(rng, d20, target)
             # PR #48: cover gives a bonus to DEX saves too (+2 half,
             # +5 three_quarters). Only applies to DEX saves per RAW.
             cover_save_bonus = 0
@@ -758,6 +778,11 @@ def _forced_save(params: dict, state: CombatState, bus: EventBus) -> dict:
                     _invoke_subprimitive(sub, state, bus)
         finally:
             state.current_attack["target"] = saved_attack_target
+    # PR #75: restore prior save context now that this forced_save
+    # call is done. Restored rather than cleared so nested save calls
+    # (rare; not currently used by any spell but defensive) leave the
+    # outer context intact.
+    state.current_save_context = saved_save_context
     return {"rolls": rolls}
 
 

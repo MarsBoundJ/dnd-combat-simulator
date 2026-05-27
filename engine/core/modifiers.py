@@ -171,6 +171,21 @@ def query_save_modifiers(
             and save_ability in ("strength", "str"):
         result.has_advantage = True
         result.sources.append({"type": "rage", "source_creature_id": target.id})
+    # PR #75: racial trait save advantages (Halfling Brave, Elf Fey
+    # Ancestry, Dwarf Dwarven Resilience). Reads
+    # state.current_save_context (set by _forced_save and recurring
+    # save resolution before this query fires) to detect "this save
+    # would apply condition X on failure"; if X matches the trait's
+    # triggering condition AND target has the trait, grant advantage.
+    from engine.core.racial_traits import racial_save_advantage_for
+    racial_trait = racial_save_advantage_for(target, state)
+    if racial_trait is not None:
+        result.has_advantage = True
+        result.sources.append({
+            "type": "racial_trait",
+            "trait": racial_trait,
+            "source_creature_id": target.id,
+        })
     return result
 
 

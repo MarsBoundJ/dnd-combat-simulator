@@ -178,6 +178,15 @@ class Actor:
     # KNOWN_SIZES ordering and PUSH_SIZES filter.
     size: str = "medium"
 
+    # Racial trait ids (PR #75). Loaded from PC race spec via
+    # pc_schema → cli — e.g. `["t_lucky", "t_brave"]` for a Halfling.
+    # Read at runtime by query_save_modifiers (Brave / Fey Ancestry /
+    # Dwarven Resilience save advantage) and by attack/save d20 sites
+    # (Lucky nat-1 reroll). Empty list for monsters and PCs that
+    # didn't declare a race. See engine/core/racial_traits.py for the
+    # registry + integration helpers.
+    racial_traits: list = field(default_factory=list)
+
     # Rage state (PR #71, Barbarian). Flipped on by the a_rage bonus
     # action (which consumes a `rage_uses_remaining` charge); flipped
     # off by the end-of-turn auto-end check (no attack + no damage)
@@ -289,6 +298,15 @@ class CombatState:
 
     # Per-current-save scratch space (used by forced_save / save_modifier)
     current_save: dict = field(default_factory=dict)
+
+    # Save-source context (PR #75): set by _forced_save and recurring
+    # save resolution BEFORE calling query_save_modifiers so the query
+    # can apply racial trait advantages (Halfling Brave, Elf Fey
+    # Ancestry, Dwarven Resilience). Cleared after the save resolves.
+    # Shape:
+    #   {"applied_conditions_on_fail": ["co_frightened", ...]}
+    # See engine/core/racial_traits.py::build_save_context.
+    current_save_context: dict | None = None
 
     # Content registry — lookup for condition definitions, spells, etc.
     # Set by the runner via EncounterRunner.attach_content_registry().

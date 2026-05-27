@@ -1,0 +1,39 @@
+# r_halfling — Halfling (SRD CC v5.2.1)
+# Source: SRD CC v5.2.1 (PHB 2024 species)
+#
+# Wired racial traits (engine reads at runtime):
+#   - Size: Small → stamped on Actor.size; gates Push mastery
+#     immunity (Large or smaller is pushable per PR #65) and other
+#     size-based mechanics
+#   - Speed: 30 ft (PHB 2024 standardized halfling speed; 2014
+#     was 25 ft, no longer the case)
+#   - Lucky (reroll natural 1 on d20 attack rolls, ability checks,
+#     saves) → trait flag `t_lucky`; engine/primitives._attack_roll
+#     and _forced_save apply the reroll via
+#     engine/core/racial_traits.py::lucky_d20
+#   - Brave (advantage on saves vs Frightened) → trait flag
+#     `t_brave`; resolved via save-source context (same path as
+#     Elf Fey Ancestry / Dwarven Resilience save adv)
+#
+# Deferred traits:
+#   - Halfling Nimbleness (move through larger creatures' spaces)
+#     — needs movement-aware engine support to know about
+#     friendly/enemy occupancy mid-move
+#   - Naturally Stealthy (hide behind larger creatures) — needs
+#     line-of-sight + obstruction tracking
+
+id: r_halfling
+name: Halfling
+source: srd_5.2.1
+
+creature_type: humanoid
+size: small
+speed:
+  walk: 30
+darkvision_range_ft: 0      # halflings don't have darkvision in
+                              # PHB 2024 SRD (no change from 2014)
+
+racial_traits:
+  - t_lucky                 # reroll natural 1 on d20 (attack /
+                              # check / save)
+  - t_brave                 # advantage on saves vs Frightened
