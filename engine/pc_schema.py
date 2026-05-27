@@ -147,11 +147,24 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
 
     # Build action list from weapons (Dueling / Archery may add to
     # damage / attack bonus on the qualifying weapon actions).
+    weapons_list = pc_spec.get("weapons") or []
     weapon_actions = [_build_weapon_action(w, ability_scores,
                                               proficiency_bonus,
                                               fighting_style=fighting_style)
-                       for w in (pc_spec.get("weapons") or [])]
+                       for w in weapons_list]
     actions = list(weapon_actions)
+
+    # PR #53: off-hand weapon → auto-generate a bonus-action attack.
+    # RAW 2024: the primary weapon AND the off-hand must both be Light
+    # melee. `_validate_off_hand_weapon` enforces this and surfaces a
+    # clear error if either side fails the gate.
+    off_hand_spec = pc_spec.get("off_hand_weapon")
+    if off_hand_spec:
+        _validate_off_hand_weapon(off_hand_spec, weapons_list)
+        off_hand_action = _build_weapon_action(
+            off_hand_spec, ability_scores, proficiency_bonus,
+            fighting_style=fighting_style, off_hand=True)
+        actions.append(off_hand_action)
     # Auto-append class-feature actions (Second Wind etc.) for features
     # the PC has at this level. Resource counters were derived
     # separately by `derive_pc_resources`; this generates the actual
@@ -317,6 +330,12 @@ _KNOWN_FIGHTING_STYLES = frozenset({
                                 # Versatile weapons wielded two-handed
                                 # deferred until weapon-grip state is
                                 # modeled.
+    "two_weapon_fighting",     # PR #53: lets off-hand attack add the
+                                # ability modifier to its damage (RAW
+                                # default is no ability mod on off-
+                                # hand). Off-hand action is generated
+                                # by pc_schema when off_hand_weapon: is
+                                # specified.
 })
 
 
@@ -334,6 +353,60 @@ def _validate_fighting_style(value):
             "f_fighting_style.yaml for status.)"
         )
     return s
+
+
+def _validate_off_hand_weapon(off_hand: dict, weapons: list) -> None:
+    """Enforce RAW 2024 Two-Weapon Fighting gates on the off-hand
+    weapon spec (PR #53).
+
+    Requirements:
+      1. off_hand must be a melee weapon (no `range_ft`) — RAW restricts
+         the off-hand attack to melee.
+      2. off_hand must have `light: true` — RAW: "Light melee weapon"
+         is the explicit gate on the off-hand attack.
+      3. At least one of `weapons` must also be Light melee. RAW: the
+         primary attack must use a Light weapon for the off-hand bonus
+         to trigger (technically RAW says "a Light melee weapon," meaning
+         the primary-Attack-action weapon).
+      4. off_hand must NOT have `two_handed: true` (two-handed weapons
+         are mutually exclusive with off-hand wielding).
+
+    Raises ValueError on any failure. Stays silent on success.
+    """
+    if not isinstance(off_hand, dict):
+        raise ValueError(
+            f"off_hand_weapon must be a weapon-spec dict, got "
+            f"{type(off_hand).__name__}"
+        )
+    if "range_ft" in off_hand:
+        raise ValueError(
+            f"off_hand_weapon must be melee (has reach_ft, not range_ft). "
+            f"Got range_ft={off_hand.get('range_ft')}."
+        )
+    if off_hand.get("two_handed"):
+        raise ValueError(
+            "off_hand_weapon cannot be two_handed: true — two-handed "
+            "weapons can't be wielded in the off hand."
+        )
+    if not off_hand.get("light"):
+        raise ValueError(
+            f"off_hand_weapon must have `light: true` (RAW 2024: only "
+            f"Light melee weapons qualify for the off-hand attack). "
+            f"Got weapon id={off_hand.get('id')!r}."
+        )
+    # Primary-hand check: at least one declared `weapons:` entry must
+    # be a Light melee weapon. (The runtime AI picks whichever primary
+    # attack to use; we just enforce that *some* primary qualifies.)
+    has_light_primary = any(
+        (w.get("light") and "range_ft" not in w)
+        for w in (weapons or [])
+    )
+    if not has_light_primary:
+        raise ValueError(
+            "off_hand_weapon requires at least one primary `weapons:` "
+            "entry that is also Light melee (RAW: primary attack must "
+            "be a Light weapon for the off-hand bonus to trigger)."
+        )
 
 
 def _validate_skill_proficiencies(value) -> list[str]:
@@ -606,7 +679,8 @@ def _build_abilities_with_saves(ability_scores: dict, save_profs: set,
 
 def _build_weapon_action(weapon: dict, ability_scores: dict,
                           proficiency_bonus: int,
-                          fighting_style: str | None = None) -> dict:
+                          fighting_style: str | None = None,
+                          off_hand: bool = False) -> dict:
     """Convert a compact weapon spec into a weapon_attack action dict.
 
     Weapon spec fields:
@@ -619,6 +693,8 @@ def _build_weapon_action(weapon: dict, ability_scores: dict,
       range_ft: ranged weapon range (optional)
       two_handed: bool — if True, weapon is two-handed (PR #38, used by
         Dueling to exclude two-handed weapons)
+      light: bool — if True, weapon qualifies for off-hand attacks
+        (PR #53, RAW 2024 Light weapon property)
 
     Fighting Style application:
       - Dueling: +2 damage on one-handed melee weapons
@@ -629,22 +705,48 @@ def _build_weapon_action(weapon: dict, ability_scores: dict,
         param on the damage primitive (clamps each individual die roll).
         Versatile weapons wielded two-handed are deferred until weapon-
         grip state is modeled — for now `two_handed: true` is the gate.
+      - Two-Weapon Fighting (PR #53): when off_hand=True, the off-hand
+        attack adds the ability modifier to damage (RAW default is no
+        ability mod on off-hand). Without TWF, off-hand damage_mod = 0
+        unless ability mod is negative (RAW: negative mods still apply).
+
+    off_hand=True changes the returned action:
+      - slot: bonus_action (vs. default action)
+      - damage modifier: 0 (or negative ability mod), unless TWF style
+      - Dueling's +2 damage does NOT apply (Dueling requires "no other
+        weapons" per RAW, which dual-wielding violates)
+      - id is suffixed `_offhand` to differentiate from a main-hand
+        action that might use the same weapon spec
     """
     attack_ability = weapon.get("attack_ability", "str")
     ability_mod = ability_modifier(
         ability_scores[attack_ability]["score"]
     )
     attack_bonus = ability_mod + proficiency_bonus
-    damage_mod = ability_mod + int(weapon.get("damage_modifier", 0))
 
     is_ranged = "range_ft" in weapon
     is_two_handed = bool(weapon.get("two_handed", False))
+    is_light = bool(weapon.get("light", False))
+
+    # PR #53: off-hand damage modifier (RAW default = 0 unless negative).
+    if off_hand:
+        # Apply ability mod only if Two-Weapon Fighting style is taken,
+        # OR if the mod is negative (RAW: negative mods always apply).
+        if fighting_style == "two_weapon_fighting" or ability_mod < 0:
+            damage_mod = ability_mod + int(weapon.get("damage_modifier", 0))
+        else:
+            damage_mod = int(weapon.get("damage_modifier", 0))
+    else:
+        damage_mod = ability_mod + int(weapon.get("damage_modifier", 0))
 
     # PR #38: Fighting Style passive bonuses baked in at build time
     if fighting_style == "archery" and is_ranged:
         attack_bonus += 2
     if (fighting_style == "dueling"
-            and not is_ranged and not is_two_handed):
+            and not is_ranged and not is_two_handed
+            and not off_hand):
+        # RAW Dueling: "no other weapons" — dual-wielders don't qualify
+        # for the +2. Pinned in tests/test_two_weapon_fighting.py.
         damage_mod += 2
 
     # PR #49: Great Weapon Fighting — damage die floor on 2H melee.
@@ -670,9 +772,16 @@ def _build_weapon_action(weapon: dict, ability_scores: dict,
     if damage_die_floor > 0:
         damage_params["damage_die_floor"] = damage_die_floor
 
-    return {
-        "id": weapon.get("id") or f"a_{weapon.get('name', 'weapon').lower().replace(' ', '_')}",
-        "name": weapon.get("name", "Weapon"),
+    base_id = (weapon.get("id")
+                  or f"a_{weapon.get('name', 'weapon').lower().replace(' ', '_')}")
+    action_id = f"{base_id}_offhand" if off_hand else base_id
+    action_name = weapon.get("name", "Weapon")
+    if off_hand:
+        action_name = f"{action_name} (Off-Hand)"
+
+    action: dict = {
+        "id": action_id,
+        "name": action_name,
         "type": "weapon_attack",
         "pipeline": [
             {"primitive": "attack_roll", "params": attack_params},
@@ -682,3 +791,7 @@ def _build_weapon_action(weapon: dict, ability_scores: dict,
                         "condition": "combat.attack_state == hit"}},
         ],
     }
+    if off_hand:
+        # RAW: off-hand attack is a Bonus Action.
+        action["slot"] = "bonus_action"
+    return action

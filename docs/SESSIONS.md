@@ -5,6 +5,93 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-26 — Two-Weapon Fighting + off-hand mechanics (PR #53)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Closes the Fighting Style arc with the fifth style. Pre-scoped to
+  "off-hand weapon + TWF style + light gate" — Nick weapon mastery
+  (which lets the off-hand attack happen as part of Attack action,
+  freeing the bonus action) deferred to the Weapon Mastery PR.
+- **New `two_weapon_fighting` Fighting Style** added to
+  `_KNOWN_FIGHTING_STYLES`. Updated two existing
+  `test_fighting_style` tests that used `two_weapon_fighting` as
+  the "unknown" id (it's now known) → swapped to `blind_fighting`.
+- **PC schema accepts `off_hand_weapon:`** — a single weapon spec
+  (not a list). Validated by `_validate_off_hand_weapon`:
+  - off-hand must be melee (no `range_ft`)
+  - off-hand must have `light: true`
+  - off-hand must NOT be `two_handed: true`
+  - at least one primary `weapons:` entry must also be Light melee
+- **`_build_weapon_action(off_hand=True)`** returns an action with:
+  - `slot: bonus_action` (so the runner routes it to the bonus pool)
+  - id suffixed `_offhand` (e.g., `a_shortsword_offhand`)
+  - name suffixed " (Off-Hand)"
+  - damage modifier = 0 by default (RAW: no ability mod on off-hand)
+  - With `fighting_style: two_weapon_fighting`: damage modifier =
+    ability mod (RAW: TWF lets you add the modifier)
+  - With negative ability mod: still applies (RAW: negatives always
+    apply, even to off-hand)
+  - Attack bonus = ability mod + PB (unchanged — only damage is
+    reduced for off-hand)
+- **Dueling exclusion on off-hand**: even when both Dueling and TWF
+  styles are taken, Dueling's +2 does NOT apply to the off-hand
+  attack. Logically Dueling and TWF are incompatible Fighting
+  Style choices (you can only pick one), but the
+  `_build_weapon_action(off_hand=True)` path defensively skips
+  the Dueling branch via the `not off_hand` guard. Pinned with a
+  specific test.
+- **Documented v1 limitation: Dueling vs. dual-wield main-hand
+  exclusion** is NOT enforced. Per RAW, a dual-wielder with
+  Dueling shouldn't get the +2 on their main-hand light weapon
+  ("no other weapons"). v1 still lets them stack — tracked as a
+  future RAW-tightness PR. The bigger question is whether someone
+  would ever pick Dueling+TWF together, since the styles are
+  mutually exclusive in practice.
+- **YAML feature file:** new
+  `schema/content/features/f_fs_two_weapon_fighting.yaml`. Tagged
+  `source: user_authored` because the 2024 PHB version is not in
+  SRD CC v5.2.1. Slots into the Fighting Style architecture from
+  PR #38.
+- **Tests (27 new in `test_two_weapon_fighting.py`):**
+  - Style validation (known, validate passes)
+  - Off-hand validation: valid passes, must be melee, must be
+    light, must not be two_handed, primary must include Light
+    melee, mixed-primary passes if one qualifies, non-dict raises
+  - `_build_weapon_action(off_hand=True)` semantics: slot,
+    id suffix, name suffix, damage mod 0 without TWF, damage mod
+    +ability with TWF, negative ability mod applies regardless,
+    attack bonus includes ability+PB, Dueling doesn't apply
+  - End-to-end via `build_pc_template`: no off-hand → no extra
+    action; off-hand → bonus-action attack generated; without TWF
+    → damage mod 0; with TWF → damage mod +3; main-hand still has
+    ability mod with TWF; non-light primary rejected; 2H primary
+    rejected; 2H off-hand rejected
+  - Dueling vs dual-wield main-hand exclusion (documents the v1
+    limitation)
+- **Fixture update:** `fighting_styles_showcase_encounter.yaml`
+  now has FIVE fighters (Defense / Dueling / Archery / GWF / TWF)
+  vs five identical dummies. TWF fighter dual-wields shortswords
+  and demonstrates the off-hand bonus-action attack flow.
+- 801 tests pass (+27, no regressions).
+
+**Future-roadmap items (recorded, not in this PR):**
+- **Nick weapon mastery** — bridges to the Weapon Mastery PR.
+  Lets the off-hand attack happen as part of the Attack action,
+  freeing the bonus action. Pairs with TWF (stack additively).
+- **Dueling vs. dual-wield main-hand exclusion** — v1 doesn't
+  enforce the RAW "no other weapons" gate at the main-hand level
+  when an off_hand_weapon is also declared
+- **Blind Fighting** — last user-authored Fighting Style not yet
+  implemented (would add blindsight 10 ft to the actor — very
+  small follow-on)
+- **Off-hand for ranged weapons** — RAW lets you off-hand a Light
+  ranged weapon (hand crossbow) with another Light ranged weapon.
+  v1 gates off-hand to melee only.
+
+---
+
 ## Session: 2026-05-26 — Truesight + Blindsight + Magical darkness (PR #52)
 
 **Participants:** Phil, Claude

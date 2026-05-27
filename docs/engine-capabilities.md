@@ -680,6 +680,33 @@ priority order:
    Rebuke**~~ — **Shipped in PR #45.**
 18. ~~**Counterspell + cast-event infra**~~ — **Shipped in PR #46.**
 19. ~~**Vision system v1**~~ — **Shipped in PR #47.**
+25. ~~**Two-Weapon Fighting + off-hand mechanics**~~ — **Shipped
+   in PR #53.** Closes the Fighting Style arc with the fifth
+   style. PC schemas accept `off_hand_weapon:` (a single light
+   melee weapon spec). New `_validate_off_hand_weapon` enforces
+   RAW gates: off-hand must be melee + light + not two-handed,
+   AND the primary `weapons:` list must contain at least one
+   Light melee. `_build_weapon_action(off_hand=True)` returns an
+   action with `slot: bonus_action`, id suffixed `_offhand`,
+   name " (Off-Hand)". RAW default: damage modifier = 0 on the
+   off-hand (or the ability mod if negative — negatives always
+   apply). With `fighting_style: two_weapon_fighting`, the off-
+   hand damage adds the ability modifier normally. Attack bonus
+   on off-hand always includes ability mod + PB (only damage is
+   reduced). Dueling explicitly does NOT apply to the off-hand
+   even when TWF is taken (RAW Dueling "no other weapons"
+   clause). `two_weapon_fighting` added to
+   `_KNOWN_FIGHTING_STYLES`. New
+   `f_fs_two_weapon_fighting.yaml` feature file (user_authored —
+   non-SRD). Deferred: Nick weapon mastery (lets off-hand happen
+   as part of Attack action), Dueling-vs-dual-wield main-hand
+   exclusion tightening (v1 still lets a dual-wielder fighter
+   get the +2 on their main-hand light weapon — RAW would deny
+   it). 27 new tests across style validation, off-hand
+   validation, build_weapon_action off_hand semantics,
+   end-to-end build_pc_template. Showcase fixture now has all
+   five fighters side-by-side (Defense / Dueling / Archery /
+   GWF / TWF).
 24. ~~**Truesight + Blindsight + Magical darkness**~~ — **Shipped in
    PR #52.** Closes the vision-type arc. Two new per-actor sense
    fields: `Actor.truesight_range_ft` and
