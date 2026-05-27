@@ -267,12 +267,11 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
         # Passive Perception (PR #51): 10 + WIS_mod + PB if proficient.
         # Mirrors the monster-template `senses.passive_perception` shape.
         # Loaded by cli._build_actor onto Actor.passive_perception.
-        "senses": {
-            "passive_perception": _compute_passive_perception(
-                ability_scores, skill_proficiencies, proficiency_bonus,
-                skill_expertise=skill_expertise,
-                skill_bonuses=skill_bonuses),
-        },
+        "senses": _build_pc_senses_block(
+            ability_scores, skill_proficiencies, proficiency_bonus,
+            skill_expertise=skill_expertise,
+            skill_bonuses=skill_bonuses,
+            fighting_style=fighting_style),
     }
 
     # Pass behavior_profile through verbatim if specified
@@ -391,6 +390,12 @@ _KNOWN_FIGHTING_STYLES = frozenset({
                                 # hand). Off-hand action is generated
                                 # by pc_schema when off_hand_weapon: is
                                 # specified.
+    "blind_fighting",          # PR #63: grants blindsight 10 ft. Baked
+                                # onto template.senses.special.blindsight
+                                # at build time; cli._build_actor loads
+                                # it onto Actor.blindsight_range_ft via
+                                # the same pathway as monster-template
+                                # blindsight (PR #52).
 })
 
 
@@ -634,6 +639,37 @@ def _compute_passive_perception(ability_scores: dict,
             base += int(value)
             break
     return base
+
+
+def _build_pc_senses_block(ability_scores: dict,
+                                skill_proficiencies: list[str],
+                                proficiency_bonus: int,
+                                skill_expertise: list[str] | None = None,
+                                skill_bonuses: dict | None = None,
+                                fighting_style: str | None = None
+                                ) -> dict:
+    """Assemble the PC template's `senses:` block (PR #63).
+
+    Always includes `passive_perception`. Optionally includes
+    `special.<sense>: <range_ft>` for senses granted by class
+    features:
+      - Blind Fighting (PR #63): blindsight 10 ft
+
+    Mirrors the monster-template `senses:` schema so
+    `cli._build_actor` can read both via the same code path.
+    """
+    block: dict = {
+        "passive_perception": _compute_passive_perception(
+            ability_scores, skill_proficiencies, proficiency_bonus,
+            skill_expertise=skill_expertise,
+            skill_bonuses=skill_bonuses),
+    }
+    special: dict = {}
+    if fighting_style == "blind_fighting":
+        special["blindsight"] = 10
+    if special:
+        block["special"] = special
+    return block
 
 
 def _features_known_at_level(class_def: dict, level: int) -> set[str]:

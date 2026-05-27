@@ -1,0 +1,42 @@
+# f_fs_blind_fighting — Blind Fighting Style
+# Source: user_authored (NOT in SRD CC v5.2.1; codified in PHB 2024).
+#
+# RAW 2024: "You have Blindsight with a range of 10 feet. Within
+# that range, you can effectively see anything that isn't behind
+# Total Cover, even if you have the Blinded condition or are in
+# Darkness. Moreover, in that range, you can see something that's
+# Invisible unless it successfully hides from you."
+#
+# Engine application (PR #63): pc_schema bakes
+# `senses.special.blindsight: 10` onto the template when the chosen
+# fighting_style is `blind_fighting`. cli._build_actor reads
+# `template.senses.special.blindsight` onto `Actor.blindsight_range_ft`
+# via the same loader path PR #52 set up for monster-template
+# blindsight. The vision system (PR #52) already honors blindsight
+# as the dominant override — pierces Invisible, fog, darkness,
+# magical darkness, and self-Blinded.
+#
+# Notes / deferrals:
+#   - "unless it successfully hides from you" — PR #51's
+#     Hide-source Invisible with stealth_total stamp interacts via
+#     vision.can_actor_see. v1 blindsight DOES bypass Hide-source
+#     Invisible (blindsight is dominant); the RAW exception isn't
+#     enforced. Tightening would require a per-sense bypass list
+#     similar to truesight's _PERCEPTION_BYPASSABLE_INVISIBLE_SOURCES.
+#   - The "Total Cover" exception is also unmodeled — Total Cover
+#     is a deferred concept (PR #48 only handles half / 3/4 cover).
+
+id: f_fs_blind_fighting
+name: Blind Fighting
+source: user_authored
+granted_by:
+  class: c_fighter
+  level: 1
+  parent_feature: f_fighting_style
+type: passive
+
+description: "Grants Blindsight with a 10-ft range."
+
+mechanic:
+  kind: grant_blindsight
+  value: 10

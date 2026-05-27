@@ -680,6 +680,32 @@ priority order:
    Rebuke**~~ — **Shipped in PR #45.**
 18. ~~**Counterspell + cast-event infra**~~ — **Shipped in PR #46.**
 19. ~~**Vision system v1**~~ — **Shipped in PR #47.**
+35. ~~**Blind Fighting style**~~ — **Shipped in PR #63.** Closes
+   the Fighting Style arc — all 6 styles (Defense / Dueling /
+   Archery / GWF / TWF / Blind Fighting) now ship in the engine.
+   RAW grants Blindsight 10 ft. Builds on PR #52's blindsight
+   infrastructure — `pc_schema` bakes
+   `senses.special.blindsight: 10` onto the template when the
+   style is chosen, and `cli._build_actor` loads it onto
+   `Actor.blindsight_range_ft` via the same monster-template
+   loader. New `_build_pc_senses_block` helper centralizes
+   senses-block assembly (passive_perception + any
+   special-sense entries). New
+   `f_fs_blind_fighting.yaml` (user_authored — not in SRD CC
+   v5.2.1). Vision integration is automatic: PR #52's
+   `can_actor_see` already honors blindsight as the dominant
+   override (pierces Invisible / fog / darkness / magical
+   darkness / self-Blinded within range). Deferred: the
+   "unless it successfully hides from you" RAW exception
+   (Hide-source Invisible would tighten by adding a per-sense
+   bypass list); the "Total Cover" RAW exception (Total Cover
+   isn't yet modeled). 13 new tests across validation,
+   `_build_pc_senses_block` (no style → no special; bf → +10;
+   other → no special), `build_pc_template` (template has
+   blindsight; derived_from records; other style no special;
+   no style no special), `cli._build_actor` (bf → 10; other →
+   0), and end-to-end vision (bf pierces magical darkness
+   within 10 ft).
 34. ~~**Skill expertise + magic-item bonuses**~~ — **Shipped in
    PR #62.** Closes the PR #51 residue. PC schemas now accept
    `skill_expertise:` (list of skills with 2×PB) and
