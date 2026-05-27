@@ -74,6 +74,27 @@ BUILT_IN_DISENGAGE = {
 }
 
 
+# Built-in Search (PR #55): RAW 2024 Search action. Roll a Wisdom
+# (Perception) check vs a hider's Stealth total. On success, the hider
+# is revealed — `_execute_search` in pipeline.py scrubs their Hide-
+# source co_invisible. v1 reveal model is "spotted means spotted"
+# (one mutation; the Invisible scrub applies for all observers); per-
+# observer `spotted_by:` tracking deferred.
+#
+# This is the first non-damage information action. AI scoring would
+# need a real eHP value (probability_of_reveal * DPR_unlocked); v1
+# uses gated emission instead — Search is only emitted when there's
+# at least one Hide-source-hidden enemy nearby whose stealth_total
+# beats the observer's passive Perception (otherwise the auto-spot
+# from PR #51 would have already revealed them).
+BUILT_IN_SEARCH = {
+    "id": "_builtin_search",
+    "name": "Search (built-in)",
+    "type": "search",
+    "pipeline": [],    # _execute_search in pipeline.py handles dispatch
+}
+
+
 # Built-in Help: matches an explicit Help declaration. Grants the helped
 # ally advantage on their next attack roll (lifetime `per_single_attack`,
 # expires after one attack). The candidate generator gates on helper
@@ -128,29 +149,36 @@ def built_in_actions_for(actor: Actor, slot: str,
     """
     if slot != "action":
         return []
-    if state is not None:
-        if not actor_in_any_enemy_threat_range(actor, state):
-            return []
-        # Skip built-ins if the actor has no in-reach attack option but
-        # CAN move — otherwise they'd Dodge in place instead of closing
-        # distance. This preserves the "no candidates → move to engage"
-        # runner path for actors that need to engage.
-        if _actor_should_move_instead(actor, state):
-            return []
     template_actions = (actor.template.get("actions") or [])
     out: list[dict] = []
-    if not _has_explicit_dodge(template_actions):
-        out.append(BUILT_IN_DODGE)
-    if not _has_explicit_disengage(template_actions):
-        out.append(BUILT_IN_DISENGAGE)
-    # Help: only inject if at least one ally is adjacent. The candidate
-    # generator does the precise per-ally filter; this is a coarse gate
-    # so we don't bloat the candidate list for solo actors. Adjacent-
-    # enemy gating happens in the candidate generator (no candidates
-    # are emitted if Help can't pay off).
-    if state is not None and not _has_explicit_help(template_actions):
-        if _has_adjacent_ally(actor, state):
-            out.append(BUILT_IN_HELP)
+
+    # Dodge / Disengage / Help: gated by threat range + move-to-engage.
+    # These are reactive defensive / cooperative actions; pointless if
+    # no enemy can hit you, and they shouldn't preempt the runner's
+    # move-to-engage path when the actor needs to close distance.
+    if state is None or (
+        actor_in_any_enemy_threat_range(actor, state)
+        and not _actor_should_move_instead(actor, state)
+    ):
+        if not _has_explicit_dodge(template_actions):
+            out.append(BUILT_IN_DODGE)
+        if not _has_explicit_disengage(template_actions):
+            out.append(BUILT_IN_DISENGAGE)
+        # Help: only inject if at least one ally is adjacent.
+        if state is not None and not _has_explicit_help(template_actions):
+            if _has_adjacent_ally(actor, state):
+                out.append(BUILT_IN_HELP)
+
+    # PR #55: Search — INFORMATION action, not gated by threat range.
+    # The actor may be far from the hidden enemy but want to peer
+    # around / search the area. Skipping it on the threat / move gates
+    # would prevent the AI from Searching during the close-distance
+    # turns where it's most useful. The internal
+    # `_has_unspotted_hidden_enemy` gate is what filters to "Search has
+    # something to find" — that's the only filter Search needs.
+    if state is not None and not _has_explicit_search(template_actions):
+        if _has_unspotted_hidden_enemy(actor, state):
+            out.append(BUILT_IN_SEARCH)
     return out
 
 
@@ -259,6 +287,43 @@ def _has_explicit_disengage(actions: list[dict]) -> bool:
 def _has_explicit_help(actions: list[dict]) -> bool:
     """Any action with type=help counts as an explicit Help."""
     return any(a.get("type") == "help" for a in actions)
+
+
+def _has_explicit_search(actions: list[dict]) -> bool:
+    """Any action with type=search counts as an explicit Search."""
+    return any(a.get("type") == "search" for a in actions)
+
+
+def _has_unspotted_hidden_enemy(actor: Actor, state: CombatState) -> bool:
+    """True if at least one living enemy currently has a Hide-source
+    co_invisible condition whose recorded stealth_total exceeds the
+    actor's passive Perception (PR #55).
+
+    Coarse gate for the built-in Search emission. If no such enemy
+    exists, Search has nothing to do — PR #51's auto-spot already
+    reveals any hider whose stealth_total <= observer.passive_perception.
+    Skipping emission keeps the candidate pool clean.
+
+    Sight range is not currently enforced; any hider in the encounter
+    is considered. Future tightening: gate on observer's reasonable
+    sight range (no senses model that yet; the existing vision
+    pipeline assumes any-to-any unless blocked by a vision gate).
+    """
+    pp = int(getattr(actor, "passive_perception", 10) or 10)
+    for enemy in state.encounter.actors:
+        if enemy.id == actor.id or enemy.side == actor.side:
+            continue
+        if not enemy.is_alive():
+            continue
+        for cond in (enemy.applied_conditions or []):
+            if cond.get("condition_id") != "co_invisible":
+                continue
+            if cond.get("source_action_id") != "a_hide":
+                continue
+            stealth_total = int(cond.get("stealth_total", 0))
+            if stealth_total > pp:
+                return True
+    return False
 
 
 def _has_adjacent_ally(actor: Actor, state: CombatState) -> bool:

@@ -5,6 +5,70 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-26 — Active Search action + AI gated emission (PR #55)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Closes the last vision-arc residue (Active Perception search-as-
+  action). First non-damage information action in the engine.
+  Pre-scoped twice up front: scrub-on-reveal (global, not per-
+  observer) + gated emission (vs always-emit-with-zero-scoring).
+- **New `BUILT_IN_SEARCH`** (type=search, slot=action) in
+  basic_actions.py. Empty pipeline; dispatch handled in
+  pipeline.execute via the new `_execute_search` branch.
+- **Restructured `built_in_actions_for`:** Dodge / Disengage / Help
+  remain gated by threat range + move-to-engage. Search is
+  NOT — it's an information action, valuable even when the actor
+  would otherwise close distance (you might Search to find what
+  to close on). The internal `_has_unspotted_hidden_enemy` gate
+  is the only filter Search needs: "is there a Hide-source hider
+  whose stealth_total beats my passive Perception?" Otherwise
+  emit nothing.
+- **`_execute_search` implementation:** for each living enemy with
+  a Hide-source `co_invisible`, roll d20 + Perception modifier
+  (via PR #51's `skill_modifier(actor, "perception")`) vs the
+  enemy's recorded `stealth_total`. On success, scrub the Hide-
+  source condition from the target — uses identity (`c is
+  hide_cond`) to surgically remove just that condition entry,
+  leaving any spell-source Invisible intact.
+- **Spell-source Invisible NOT affected by Search.** RAW: only
+  Hide is bypassable by Perception. Pinned with two tests:
+  spell-only enemy isn't even rolled against; mixed-source enemy
+  only loses the Hide entry.
+- **Reveal is global (v1 simplification).** "Spotted means
+  spotted" — one mutation, all observers see. Per-observer
+  `spotted_by:` tracking deferred.
+- **Tests (21 new in `test_active_search.py`):**
+  - `_has_unspotted_hidden_enemy` helper: no hidden / above pp /
+    at-or-below pp / spell-Invisible / dead enemy / ally / multi-
+    enemy
+  - Built-in emission: no enemy / above-passive emits / auto-spot
+    case doesn't / bonus slot empty / explicit-action suppresses
+  - `_execute_search`: no targets / failed check / successful
+    reveal / proficiency adds PB / no proficiency just ability /
+    spell-Invisible untouched / mixed-source surgical scrub /
+    multi-enemy independence
+  - End-to-end via `can_actor_see`: hidden → invisible; after
+    successful Search → visible
+- **Fixture:** `active_search_encounter.yaml` — proficient elf
+  ranger (Perception PB +2, total +4) + non-proficient human
+  fighter (mod +0) hunting a hidden goblin with stealth_total 18.
+  Demonstrates the proficiency-helps-Search payoff.
+- 858 tests pass (+21, no regressions).
+
+**Future-roadmap items (recorded, not in this PR):**
+- Per-observer `spotted_by:` reveal tracking (vs global scrub)
+- Real eHP scoring for Search (probability_of_reveal × DPR_unlocked)
+  vs gated emission
+- Explicit sight-range gate on Search (currently any-encounter)
+- Search non-creature targets (find object, decipher map, etc. —
+  RAW Search can hunt for anything "not obvious")
+- Hide-source Invisible reveal-on-noise (spellcasting verbal
+  components break Hide; only attack break is currently modeled)
+
+---
+
 ## Session: 2026-05-26 — Weapon Mastery v1 (PR #54)
 
 **Participants:** Phil, Claude

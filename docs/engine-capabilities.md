@@ -680,6 +680,36 @@ priority order:
    Rebuke**~~ — **Shipped in PR #45.**
 18. ~~**Counterspell + cast-event infra**~~ — **Shipped in PR #46.**
 19. ~~**Vision system v1**~~ — **Shipped in PR #47.**
+27. ~~**Active Search action + AI gated emission**~~ — **Shipped in
+   PR #55.** First non-damage information action. New built-in
+   `BUILT_IN_SEARCH` (type=search, slot=action) injected by
+   `built_in_actions_for` only when at least one Hide-source-
+   hidden enemy is in the encounter AND that enemy's recorded
+   stealth_total exceeds the actor's passive Perception
+   (otherwise PR #51's auto-spot already revealed them). Search
+   bypasses the threat-range and move-to-engage gates that filter
+   Dodge/Disengage/Help — it's an information action, not a
+   defensive one, so the AI can Search even when it'd otherwise
+   close distance. New `_execute_search` in pipeline.py: for each
+   Hide-source-hidden enemy, rolls d20 + Perception modifier (via
+   `skill_modifier`) vs the enemy's stealth_total. On success,
+   scrubs the Hide-source `co_invisible` from the target;
+   `creature_revealed` event fires. v1 reveal is global ("spotted
+   means spotted" for all observers); per-observer `spotted_by:`
+   tracking deferred. Spell-source Invisible is NOT affected by
+   Search — only Hide-source is (RAW: spell Invisibility doesn't
+   expose a Perception target). Closes the last vision-arc
+   residue. Deferred: per-observer reveal tracking, real eHP
+   scoring for Search (vs gated emission), explicit sight-range
+   gate (currently any-encounter). 21 new tests across the gate
+   helper, built-in emission (no enemies / auto-spot case / above-
+   passive case / bonus slot / explicit-action override),
+   `_execute_search` (no candidates, failed check, successful
+   reveal, perception proficiency adds PB, spell-Invisible
+   untouched, mixed-source surgical scrub, multi-enemy
+   independence), and end-to-end vision verification. New
+   `active_search_encounter.yaml` fixture (proficient + non-
+   proficient PC hunting a hidden goblin).
 26. ~~**Weapon Mastery (2024 PHB) v1**~~ — **Shipped in PR #54.**
    The biggest 2024 PHB feature; tight v1 scope. New
    `engine/core/weapon_masteries.py` module with the known set,
