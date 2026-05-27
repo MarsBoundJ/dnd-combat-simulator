@@ -450,6 +450,15 @@ class EncounterRunner:
         # ---- Main slot ----
         self._run_slot(actor, state, slot="action")
 
+        # ---- Free phase (PR #57) ----
+        # Auto-fire any slot='free' actions that are eligible. Used by
+        # Nick weapon mastery (off-hand attack happens as part of the
+        # Attack action). No AI scoring / selection — all eligible
+        # free actions fire automatically. Skipped if the main slot
+        # killed the actor or the encounter terminated.
+        if actor.is_alive() and not state.terminated:
+            self._run_free_phase(actor, state)
+
         # ---- Bonus slot ----
         # Skip if the main slot killed the actor or terminated the encounter.
         if actor.is_alive() and not state.terminated:
@@ -465,6 +474,88 @@ class EncounterRunner:
                 and actor.is_alive() and not state.terminated):
             actor.actions_used_this_turn["action"] = False
             self._run_slot(actor, state, slot="action")
+
+    def _run_free_phase(self, actor: Actor, state: CombatState) -> None:
+        """Auto-fire any slot='free' actions on the actor (PR #57).
+
+        Free-slot actions don't go through candidate scoring — they
+        fire automatically if eligible. Currently only used by Nick
+        weapon mastery (off-hand attack as part of Attack action),
+        but the phase is generic so future "auto-trigger" mechanics
+        (Cleave, Sneak Attack auto-application, etc.) can reuse it
+        when they land.
+
+        Eligibility check per action:
+          - action.slot == 'free'
+          - action.type == 'weapon_attack' (v1 only — other free
+            action types deferred until a non-attack free action
+            exists)
+          - At least one in-reach living enemy
+
+        Fires each eligible free action ONCE per turn. The action's
+        `slot` ('free') is not tracked in actions_used_this_turn,
+        so this method maintains its own per-turn dedup set to
+        avoid re-firing in a multi-pass turn (e.g., if Action Surge
+        triggers another action phase).
+        """
+        from engine.core.geometry import distance_ft
+        from engine.core.pipeline import _action_reach_ft
+        from engine.ai.behavior_profile import resolve_targeting_preset
+        from engine.ai.targeting import pick_target
+
+        if not hasattr(actor, "_free_actions_fired_this_turn"):
+            actor._free_actions_fired_this_turn = set()
+        already_fired = actor._free_actions_fired_this_turn
+
+        free_actions = [
+            a for a in (actor.template.get("actions") or [])
+            if a.get("slot") == "free"
+            and a.get("type") == "weapon_attack"
+            and a.get("id") not in already_fired
+        ]
+        if not free_actions:
+            return
+
+        enemies = [a for a in state.encounter.actors
+                    if a.side != actor.side and a.is_alive()]
+        if not enemies:
+            return
+
+        preset = resolve_targeting_preset(actor)
+        for action in free_actions:
+            reach = _action_reach_ft(action)
+            in_reach = [e for e in enemies
+                          if distance_ft(actor, e) <= reach
+                          and e.is_alive()]
+            if not in_reach:
+                state.event_log.append({
+                    "event": "free_action_skipped",
+                    "actor": actor.id,
+                    "action": action.get("id"),
+                    "reason": "no_in_reach_enemy",
+                })
+                continue
+            target = pick_target(actor, in_reach, state, preset)
+            if target is None:
+                continue
+            chosen = {
+                "kind": "weapon_attack",
+                "actor": actor,
+                "target": target,
+                "action": action,
+            }
+            state.event_log.append({
+                "event": "free_action_fired",
+                "actor": actor.id,
+                "action": action.get("id"),
+                "target": target.id,
+            })
+            pipeline.execute(chosen, state, self.event_bus, self.primitives)
+            already_fired.add(action.get("id"))
+            # Stop iterating if this action killed the actor / ended
+            # the encounter.
+            if not actor.is_alive() or state.terminated:
+                return
 
     def _run_slot(self, actor: Actor, state: CombatState, slot: str) -> None:
         """Execute one turn slot (action or bonus_action) via the

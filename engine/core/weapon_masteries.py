@@ -5,7 +5,7 @@ character with the feature "knows" a number of mastery properties
 (scales by class level). When they wield a weapon whose intrinsic
 mastery property is one they know, the property fires.
 
-v1 ships four properties (the rest are deferred — see module-end notes):
+v1 ships five properties (the rest are deferred — see module-end notes):
 
   - **Vex** — On a hit, you have advantage on your next attack roll
     against this target before the end of your next turn.
@@ -17,6 +17,14 @@ v1 ships four properties (the rest are deferred — see module-end notes):
   - **Graze** — On a MISS with this weapon, deal ability-modifier
     damage of the weapon's damage type. (Heavy-melee-only per RAW;
     v1 does not enforce the Heavy gate — we trust the weapon spec.)
+  - **Nick** (PR #57) — When you make the extra attack of the Light
+    property as part of the Attack action, you can make that extra
+    attack as part of the same action (instead of as a Bonus
+    Action). Effect lives at template-build time
+    (pc_schema._build_weapon_action sets slot='free' on the off-hand
+    when Nick is active for the actor); no attack-resolution
+    effect, so the apply_mastery_effects dispatch skips Nick via
+    the if-elif chain.
 
 **Wiring conventions:**
   - Weapon specs declare `mastery: <id>` (intrinsic to the weapon).
@@ -37,8 +45,6 @@ v1 ships four properties (the rest are deferred — see module-end notes):
   - Push (push target 10 ft on hit) — needs forced-movement primitive
   - Slow (reduce target speed by 10 ft) — needs speed-reduction infra
     with duration tracking
-  - Nick (off-hand attack as part of Attack action) — needs slot-
-    semantics override; bridges to PR #53's TWF residue
 """
 from __future__ import annotations
 
@@ -49,6 +55,12 @@ from engine.core.state import Actor, CombatState
 # weapon specs and pc-schema declarations.
 KNOWN_MASTERIES: frozenset[str] = frozenset({
     "vex", "sap", "topple", "graze",
+    "nick",    # PR #57: lets off-hand attack happen as part of the
+                # Attack action instead of as a bonus action. Effect
+                # is at template-build time (off-hand action gets
+                # slot='free' instead of 'bonus_action'); no per-
+                # attack effect, so the apply_mastery_effects dispatch
+                # skips Nick cleanly via the if-elif chain.
 })
 
 
@@ -56,7 +68,7 @@ KNOWN_MASTERIES: frozenset[str] = frozenset({
 # without making them "unknown"). Kept separate so adding them later
 # is just a frozenset union, not a code change here.
 DEFERRED_MASTERIES: frozenset[str] = frozenset({
-    "cleave", "push", "slow", "nick",
+    "cleave", "push", "slow",
 })
 
 

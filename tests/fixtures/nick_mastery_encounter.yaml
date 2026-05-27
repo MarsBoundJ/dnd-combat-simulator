@@ -1,0 +1,99 @@
+# Nick mastery demo — TWF + Nick frees up the bonus action.
+#
+# Setup: L1 Fighter dual-wielding scimitars (both with mastery=nick).
+# Fighter knows Nick + Vex + Topple + Graze (over the L1 cap of 3,
+# but v1 doesn't enforce). The off-hand attack auto-fires as part of
+# the Attack action — bonus action stays free for Second Wind etc.
+#
+# Compare with TWF-without-Nick (see fighting_styles_showcase): the
+# TWF fighter consumes their bonus action for the off-hand attack.
+# With Nick, both attacks happen as part of the main action.
+#
+# Expected behavior per turn:
+#   1. Action phase: main scimitar attack on dummy
+#   2. Free phase: off-hand scimitar attack auto-fires (Nick)
+#   3. Bonus phase: actor can still pick Second Wind (or any other
+#      bonus action)
+#
+# The dummy is a tough target (HP 60) so the fight runs several
+# rounds — visible in the event log as multiple weapon_attack +
+# free_action_fired pairs per turn.
+
+id: nick_mastery_encounter
+
+environment:
+  template: open_battlefield
+
+actors:
+  # ----- Dual-wielding Nick fighter -----
+  - instance_id: nick_fighter
+    name: Nick Fighter L1
+    side: pc
+    position: [0, 0]
+    pc:
+      class: c_fighter
+      level: 1
+      fighting_style: two_weapon_fighting
+      ability_scores:
+        str: 16
+        dex: 14
+        con: 14
+        int: 10
+        wis: 10
+        cha: 10
+      armor:
+        base_ac: 16
+        max_dex_bonus: 2
+      weapon_masteries: [nick, vex, topple, graze]
+      weapons:
+        - id: a_scimitar_main
+          name: Scimitar (Main)
+          attack_ability: str
+          damage_dice: 1d6
+          damage_type: slashing
+          reach_ft: 5
+          light: true
+          mastery: nick
+      off_hand_weapon:
+        id: a_scimitar_off
+        name: Scimitar
+        attack_ability: str
+        damage_dice: 1d6
+        damage_type: slashing
+        reach_ft: 5
+        light: true
+        mastery: nick
+
+  # ----- Training dummy -----
+  - instance_id: dummy
+    name: Training Dummy
+    side: enemy
+    position: [1, 0]
+    template:
+      id: m_nick_dummy
+      name: Training Dummy
+      source: user_authored
+      combat:
+        armor_class: 14
+        hit_points: { average: 60, dice: "8d8", con_contribution: 24 }
+        speed: { walk: 0 }
+        initiative: { modifier: -5, score: 1 }
+      abilities:
+        str: { score: 10, save: 0 }
+        dex: { score: 8, save: -1 }
+        con: { score: 16, save: 3 }
+        int: { score: 1, save: -5 }
+        wis: { score: 1, save: -5 }
+        cha: { score: 1, save: -5 }
+      cr: { value: 1.0, xp: 200, proficiency_bonus: 2 }
+      behavior_profile: { presets: { retreat: ftd } }
+      actions:
+        - id: a_swing
+          name: Wooden Arm
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: melee, bonus: 0, reach_ft: 5 }
+            - primitive: damage
+              params: { dice: "1d4", modifier: 0, type: bludgeoning }
+              when: { event: damage_roll, condition: "combat.attack_state == hit" }

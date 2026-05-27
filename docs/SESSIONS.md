@@ -5,6 +5,89 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-26 — Nick weapon mastery + free-phase (PR #57)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Closes two residues at once: the Nick mastery from PR #54
+  (deferred because it needed slot-semantics integration) and
+  the Nick-as-TWF-closer from PR #53 (deferred to the Weapon
+  Mastery arc). Pre-scoped to the "new free slot + runner phase"
+  model — invasive-pipeline-chaining and slot-skip-without-runner-
+  changes both rejected as either too restructuring or too
+  partial.
+- **`nick` promoted from DEFERRED to KNOWN.** Module docstring
+  updated to list 5 properties; DEFERRED set shrinks to
+  Cleave/Push/Slow.
+- **New `_nick_active(off_hand_spec, weapons, weapon_masteries)`
+  helper** in pc_schema.py. Returns True iff the actor knows
+  Nick AND at least one wielded Light melee weapon has
+  `mastery: nick`. Fail-closed on missing data (None weapon
+  list, None masteries, etc.).
+- **`build_pc_template` integration:** when `_nick_active` is
+  True, the off-hand action gets `slot: "free"` and a
+  `nick_active: true` tag (for telemetry / debugging). When
+  inactive, off-hand stays `slot: "bonus_action"` (PR #53
+  default).
+- **New runner `_run_free_phase` method** between action and
+  bonus_action phases:
+  - Scans `actor.template.actions` for entries with
+    `slot == "free"` AND `type == "weapon_attack"` (v1 only —
+    other free action types deferred until a non-attack free
+    action exists)
+  - For each, picks the dial-preferred enemy via the same
+    `pick_target` path as movement
+  - Fires the action via `pipeline.execute`
+  - Per-turn dedup set `_free_actions_fired_this_turn`
+    prevents double-firing in multi-pass turns (Action Surge
+    re-runs the action phase, which could otherwise re-fire
+    Nick)
+  - Logs `free_action_fired` or `free_action_skipped` events
+- **`reset_turn` extension** in state.py: clears the per-turn
+  dedup set on each new turn. Attribute-style (vs dataclass
+  field) so we don't force a schema change for runner-only
+  bookkeeping.
+- **`apply_mastery_effects` dispatch unchanged:** Nick has no
+  per-attack effect, so the existing if-elif chain skips it
+  cleanly (passes through to no-op). Pinned with a test.
+- **Bug discovered during integration:** the runner uses
+  `EncounterRunner` class, not `Runner`. Test imports fixed;
+  no production code change needed.
+- **Tests (20 new in `test_nick_mastery.py`):**
+  - `nick` in KNOWN_MASTERIES, not in DEFERRED_MASTERIES
+  - `_nick_active` helper: off-hand-with-nick TRUE,
+    primary-with-nick TRUE, neither TRUE, actor-doesn't-know
+    FALSE, empty masteries FALSE, None masteries FALSE,
+    non-light primary FALSE, ranged primary FALSE
+  - `build_pc_template`: Nick active → slot=free + nick_active,
+    Nick inactive (no mastery known) → slot=bonus_action,
+    Nick inactive (no weapon has nick) → slot=bonus_action,
+    no off-hand → no off-hand action
+  - `apply_mastery_effects` with id=nick: no modifiers added,
+    no events logged (clean no-op)
+  - Runner free-phase end-to-end: fires auto with event,
+    skips when no in-reach enemy, doesn't consume action or
+    bonus_action slot, silent skip when no free actions,
+    no double-fire on second invocation
+- **Fixture:** `nick_mastery_encounter.yaml` — L1 Fighter
+  dual-wielding scimitars (both with `mastery: nick`),
+  declaring `weapon_masteries: [nick, vex, topple, graze]`.
+  Demonstrates the action → free → bonus_action flow per turn.
+- 914 tests pass (+20, no regressions).
+
+**Future-roadmap items (recorded, not in this PR):**
+- AI scoring for free actions (vs always-fire). Free actions
+  always fire when eligible in v1 because Nick is the only
+  consumer and "always fire" is RAW for Nick. When other free
+  actions land (e.g., subclass features that auto-trigger),
+  scoring may need to distinguish.
+- Cleave / Push / Slow — remaining deferred masteries
+- Class-level "masteries known" cap enforcement
+- Free-phase support for non-attack action types
+
+---
+
 ## Session: 2026-05-26 — Pace-aware reactions (PR #56)
 
 **Participants:** Phil, Claude
