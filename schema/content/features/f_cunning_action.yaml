@@ -1,0 +1,66 @@
+# f_cunning_action — Cunning Action (Rogue)
+# Source: SRD CC v5.2.1 / PHB 2024 p.114
+# Pattern: bonus-action menu (Dash / Disengage / Hide)
+
+id: f_cunning_action
+name: Cunning Action
+source: srd_5.2.1
+granted_by:
+  class: c_rogue
+  level: 2
+type: active_menu
+is_signature: false
+
+# No resource cost beyond the bonus action itself. Each invocation
+# consumes the BA via the standard pipeline path.
+resource_cost:
+  type: bonus_action
+
+usage:
+  uses_per: per_bonus_action
+  rest_recovery:
+    short_rest: none      # nothing to refresh; BA refreshes each turn
+
+# pc_schema (engine/pc_schema.py::_build_feature_actions) auto-
+# generates three Bonus Action variants for Rogue L2+ PCs:
+#   - a_cunning_action_dash    — pipeline: [{primitive: dash}]
+#   - a_cunning_action_disengage — type: disengage, BA slot
+#   - a_cunning_action_hide      — type: hide, BA slot
+#
+# All three are slot=bonus_action (vs. the standard main-action
+# equivalents which exist as built-ins). The Rogue gets BOTH the
+# main-action versions (Dodge / Disengage / Hide as Action) AND
+# these BA variants — RAW: Cunning Action ADDS the BA usage; it
+# doesn't replace the regular Action.
+
+effect_primitives: []
+
+contract:
+  reads: [actor.rogue_level]
+  writes: [actor.actions_used_this_turn,
+            actor.dashed_this_turn,      # for Dash variant
+            actor.disengaging,            # for Disengage variant
+            actor.applied_conditions]     # for Hide variant
+  event: actor_turn_bonus_action
+  scope: per_use
+
+# Mode-specific RAW notes (engine integration):
+#   - Dash (PR #74): new generic _dash primitive sets
+#     actor.dashed_this_turn=True; runner's _move_to_engage doubles
+#     walk_speed when flagged. The runner schedules ONE additional
+#     _move_to_engage call after the BA phase so the Rogue can
+#     actually close distance with the BA-Dash (instead of just
+#     carrying the flag uselessly into next turn).
+#   - Disengage (PR #26 + PR #74): reuses the existing 'disengage'
+#     action type — pipeline.execute sets actor.disengaging=True
+#     for the remainder of the turn, suppressing OAs during
+#     movement.
+#   - Hide (PR #48 + PR #74): reuses the existing 'hide' action
+#     type — _execute_hide gates on heavy obscurement / cover and
+#     rolls DEX (Stealth) vs DC 15.
+#
+# Deferred:
+#   - Steady Aim (PHB 2024 Rogue L3): BA gives advantage on next
+#     attack roll if no movement this turn (separate feature)
+#   - Cunning Strike (PHB 2024 Rogue L5): spend SA dice for Poison
+#     / Trip / Withdraw effects (interacts with SA from PR #72)

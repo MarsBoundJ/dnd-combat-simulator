@@ -1164,6 +1164,38 @@ def _extract_attack_params(state: CombatState) -> dict:
     return {}
 
 
+def _dash(params: dict, state: CombatState, bus: EventBus) -> None:
+    """Generic Dash primitive (PR #74).
+
+    Sets `actor.dashed_this_turn = True`, which both:
+      - Doubles the actor's walk speed for any subsequent
+        `_move_to_engage` call this turn (RAW: Dash grants extra
+        movement equal to your Speed)
+      - Clears `actor.moved_this_turn` so a second move attempt can
+        fire (the runner re-attempts movement after BA if the actor
+        Dashed and there's still an out-of-reach enemy)
+
+    Invoked by:
+      - The Cunning Action Dash variant (Rogue L2+ bonus action,
+        PR #74)
+      - Future generic Dash action available to all actors as a
+        main-slot option (deferred — out of scope for PR #74)
+    """
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        raise ValueError("dash requires a current actor")
+    actor.dashed_this_turn = True
+    # Clear moved_this_turn so the runner's post-BA second-move pass
+    # can fire (without this, the existing moved_this_turn=True guard
+    # in _move_to_engage would short-circuit the retry).
+    actor.moved_this_turn = False
+    state.event_log.append({
+        "event": "dash_taken",
+        "actor": actor.id,
+        "doubled_speed_ft": int((actor.speed or {}).get("walk", 30)) * 2,
+    })
+
+
 def _rage_start(params: dict, state: CombatState, bus: EventBus) -> None:
     """Primitive that flips the actor into Rage (PR #71).
 
@@ -1329,6 +1361,7 @@ def _populate_handler_table() -> None:
         "counterspell_resolve": _counterspell_resolve,
         "multiattack": _multiattack,
         "rage_start": _rage_start,
+        "dash": _dash,
     }
 
 
@@ -1363,6 +1396,9 @@ def _all_primitives() -> list[Primitive]:
         Primitive("multiattack", _multiattack, implemented=True),
         # PR #71 — Barbarian Rage entry
         Primitive("rage_start", _rage_start, implemented=True),
+        # PR #74 — generic Dash (used by Cunning Action; future:
+        # generic main-slot Dash for all actors)
+        Primitive("dash", _dash, implemented=True),
     ]
     # Populate handler lookup table for subprimitive invocations
     global _PRIMITIVE_HANDLERS

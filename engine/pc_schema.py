@@ -807,6 +807,13 @@ def _build_feature_actions(features_known: set[str], level: int,
     # consumes `rage_uses_remaining` and flips Actor.rage_active.
     if "f_rage" in features_known and class_id == "c_barbarian":
         actions.append(_build_rage_action())
+    # PR #74: Rogue Cunning Action — three bonus-action variants
+    # (Dash / Disengage / Hide). Adds to the action list alongside
+    # the standard main-action versions (those come from the
+    # built-in action set; they aren't generated here). RAW: CA
+    # ADDS the BA usage; it doesn't replace the main-Action versions.
+    if "f_cunning_action" in features_known and class_id == "c_rogue":
+        actions.extend(_build_cunning_action_actions())
     # Extra Attack: count scales with feature presence (RAW Fighter
     # progression at L5 / L11 / L20). Only one of the three feature
     # ids is meaningful at a time — higher-level features supersede
@@ -907,6 +914,67 @@ def _build_rage_action() -> dict:
             {"primitive": "rage_start", "params": {}},
         ],
     }
+
+
+def _build_cunning_action_actions() -> list[dict]:
+    """Generate the three Cunning Action BA variants (PR #74).
+
+    All three are slot=bonus_action. The mode-specific runtime
+    behavior is dispatched in pipeline.execute via the action type:
+      - dash: pipeline-only, the `dash` primitive sets
+        `actor.dashed_this_turn` + clears `moved_this_turn`. The
+        runner schedules a post-BA second-move pass when this
+        flag is set.
+      - disengage: type=disengage, pipeline.execute sets
+        `actor.disengaging=True` (PR #26).
+      - hide: type=hide, _execute_hide runs the DEX (Stealth) check
+        and applies co_invisible on success (PR #48).
+
+    `is_signature: false` — the bonus-slot gate's lower
+    `tactical_bonus` threshold applies (vs. the higher
+    `signature_bonus` for must-fire actions). CA modes are
+    situational: Hide only when obscurement allows, Disengage only
+    when adjacent enemies threaten OAs, Dash only when distance
+    matters. The AI's existing scoring for hide/disengage/dash
+    candidate kinds handles "when is this worth doing."
+    """
+    return [
+        {
+            "id": "a_cunning_action_dash",
+            "name": "Cunning Action: Dash",
+            # type=defensive_buff is intentional — Dash is a self-
+            # targeted utility action. The pipeline routes
+            # defensive_buff candidates through is_self_targeted_*
+            # dedup (PR #71 added rage_start; we add dash here in
+            # `is_self_targeted_defensive_buff`).
+            "type": "defensive_buff",
+            "slot": "bonus_action",
+            "is_signature": False,
+            "pipeline": [
+                {"primitive": "dash", "params": {}},
+            ],
+        },
+        {
+            "id": "a_cunning_action_disengage",
+            "name": "Cunning Action: Disengage",
+            "type": "disengage",
+            "slot": "bonus_action",
+            "is_signature": False,
+            # Disengage has no pipeline — pipeline.execute handles
+            # the type=disengage branch by setting actor.disengaging.
+            "pipeline": [],
+        },
+        {
+            "id": "a_cunning_action_hide",
+            "name": "Cunning Action: Hide",
+            "type": "hide",
+            "slot": "bonus_action",
+            "is_signature": False,
+            # Hide has no pipeline either — _execute_hide is the
+            # entry point invoked by pipeline.execute on type=hide.
+            "pipeline": [],
+        },
+    ]
 
 
 def _build_second_wind_action(fighter_level: int) -> dict:

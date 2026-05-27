@@ -298,6 +298,13 @@ def defensive_ehp_defensive_buff(actor: Actor, target_ally: Actor,
     if _pipeline_has_primitive(action, "rage_start"):
         return _score_rage_entry(actor, state)
 
+    # PR #74: Dash (Cunning Action) is a movement-buff; the standard
+    # buff-shape scorer would return 0. Score it based on whether
+    # closing distance has value (i.e., there's a target out of reach
+    # the actor could attack next turn if they move closer this turn).
+    if _pipeline_has_primitive(action, "dash"):
+        return _score_dash(actor, state)
+
     buff = extract_buff_effect(action)
     if not buff:
         return 0.0
@@ -381,6 +388,60 @@ def _score_rage_entry(actor: Actor, state: CombatState) -> float:
     defensive_value = 0.5 * worst_dpr * EXPECTED_BUFF_ROUNDS
 
     return offensive_value + defensive_value
+
+
+def _score_dash(actor: Actor, state: CombatState) -> float:
+    """Estimate eHP value of taking the Dash action (PR #74).
+
+    Dash has value when the actor needs to close distance to reach
+    an enemy. Value scales with:
+      - How far the nearest enemy is beyond the actor's reach (more
+        gap = more Dash value)
+      - Actor's typical DPR (closing one round earlier means one
+        more swing landed)
+
+    Returns a small positive value (~2-5 eHP) when there's an
+    out-of-reach enemy; near-zero when all enemies are already in
+    reach (Dash is wasted in that case). The bonus-action
+    `tactical_bonus` gate will still roll for whether to fire — at
+    low score it usually won't, which is correct (don't burn the BA
+    on a wasted Dash).
+    """
+    from engine.core.geometry import distance_ft
+    enemies = [a for a in state.encounter.actors
+                if a.side != actor.side and a.is_alive()]
+    if not enemies:
+        return 0.0
+    # Use the actor's walk speed as the rough "reach into the future"
+    # value — Dash doubles that, so closing speed_ft worth of gap
+    # is the value.
+    speed = int((actor.speed or {}).get("walk", 30))
+    # Find nearest enemy distance
+    nearest_ft = min(distance_ft(actor.position, e.position)
+                       for e in enemies)
+    # Reach of the actor's most-reachy attack (default 5 melee).
+    # Crude: assume 5 ft melee reach if no actions; future PR could
+    # consult action reach properly.
+    reach_ft = 5
+    for a in (actor.template.get("actions") or []):
+        if a.get("type") in ("weapon_attack", "multiattack"):
+            for step in (a.get("pipeline") or []):
+                if step.get("primitive") == "attack_roll":
+                    p = step.get("params") or {}
+                    candidate_reach = int(p.get("range_ft",
+                                                    p.get("reach_ft", 5)))
+                    reach_ft = max(reach_ft, candidate_reach)
+    gap_ft = max(0, nearest_ft - reach_ft)
+    if gap_ft <= 0:
+        # All enemies in reach — Dash is wasted
+        return 0.0
+    # Value: if the gap is bigger than one move (speed_ft), Dash
+    # may close it in one turn (vs. two). Value scales with how
+    # much closer we get. Cap at ~5 eHP.
+    closed_ft = min(gap_ft, speed)  # Dash gives extra `speed` ft of movement
+    if speed <= 0:
+        return 0.0
+    return min(5.0, 5.0 * (closed_ft / speed))
 
 
 # ============================================================================

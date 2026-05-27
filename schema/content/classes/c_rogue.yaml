@@ -60,7 +60,7 @@ level_table:
       sneak_attack_dice: 1
   - level: 2
     proficiency_bonus: 2
-    features: []
+    features: [f_cunning_action]
     class_resources:
       weapon_mastery_count: 1
       sneak_attack_dice: 1

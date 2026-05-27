@@ -5,6 +5,72 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-27 — Rogue Cunning Action v1 + generic Dash (PR #74)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Final feature in the per-class four-feature arc (Rage → SA →
+  Divine Smite → Cunning Action). Closes the four-feature
+  identity arc.
+- Phil chose "Include Dash" scope (vs. defer-Dash or
+  Dash-as-extra-movement-grant) via AskUserQuestion.
+- New generic `dash` primitive sets `Actor.dashed_this_turn` and
+  clears `moved_this_turn` (enabling the runner's post-BA
+  second-move pass).
+- New `Actor.dashed_this_turn` field; per-turn dedup attr
+  `_dash_post_move_done` prevents the second-move pass from
+  looping.
+- `_move_to_engage` doubles walk speed when `dashed_this_turn`
+  is set.
+- Runner `_run_actor_turn` extended: after the Action Surge
+  second slot, if Dashed AND not already-second-moved, call
+  `_move_to_engage` once more. This is the BA-Dash "actually
+  close the distance" payoff — without it, BA Dash mid-turn
+  carries the flag uselessly into next turn.
+- Three Cunning Action BA variants auto-generated for Rogue
+  L2+ via `_build_cunning_action_actions` in pc_schema:
+  Dash / Disengage / Hide, all `slot: bonus_action`. Disengage
+  reuses PR #26's dispatch; Hide reuses PR #48's
+  `_execute_hide`; Dash uses the new generic primitive.
+- `is_self_targeted_defensive_buff` extended to recognize
+  `dash` (same pattern as PR #71 added `rage_start`).
+- New `_score_dash` in defensive_ehp: ~0-5 eHP based on
+  whether the actor needs to close distance to an out-of-reach
+  enemy; 0 when wasted.
+- c_rogue YAML adds `f_cunning_action` at L2.
+- New `f_cunning_action.yaml` feature (active_menu, BA cost).
+- 14 new tests across 11 layers. Full suite: 1239 passed + 1
+  skipped (was 1225 + 14 new).
+
+**Scope decisions:**
+- Phil picked "Include Dash" — wired the generic primitive
+  rather than deferring or hand-rolling a movement-bonus
+  shortcut. This means future actors / actions that need
+  Dash semantics get it for free.
+- Post-BA second-move pass solves the "BA Dash mid-turn is
+  useless" problem cleanly without restructuring the turn
+  loop. Mirrors the Action Surge post-BA pattern.
+- All three CA modes use existing dispatch paths (dash via new
+  primitive, disengage via PR #26 type-branch, hide via PR #48
+  type-branch). No new pipeline machinery beyond the dash
+  primitive itself.
+
+**Open items:**
+- Generic main-slot Dash available to all actors (currently
+  only Rogue gets it via Cunning Action BA)
+- Steady Aim (Rogue L3 BA: advantage on next attack if no
+  movement)
+- Cunning Strike (Rogue L5: spend SA dice for Poison / Trip /
+  Withdraw effects)
+- The per-class four-feature class-identity arc is now
+  complete (PR #71-74). Per Phil's earlier list, remaining
+  candidates: per-race PC sizes + racial features; total
+  cover; upcast scaling; AI scoring for hybrid auras; more
+  zone-creating spells.
+
+---
+
 ## Session: 2026-05-27 — Paladin Divine Smite v1 (PR #73)
 
 **Participants:** Phil, Claude

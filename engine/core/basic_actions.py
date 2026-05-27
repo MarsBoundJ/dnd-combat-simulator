@@ -383,6 +383,10 @@ def is_self_targeted_defensive_buff(action: dict) -> bool:
         # branch needed; rage_start has no target param.
         if prim == "rage_start":
             return True
+        # PR #74: Dash (used by Cunning Action) is also self-
+        # targeted — affects only the actor's own movement budget.
+        if prim == "dash":
+            return True
         if prim not in ("attack_modifier", "save_modifier"):
             continue
         params = step.get("params") or {}

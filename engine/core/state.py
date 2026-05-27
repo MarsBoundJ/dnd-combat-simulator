@@ -98,6 +98,16 @@ class Actor:
     # activation time, NOT here — that's per-short-rest, not per-turn.
     action_surge_used_this_turn: bool = False
 
+    # Set to True when this actor used the Dash action (PR #74). RAW:
+    # Dash grants extra movement equal to your Speed for this turn.
+    # `_move_to_engage` reads this flag and doubles walk speed. The
+    # runner also schedules ONE additional move attempt after the BA
+    # phase if the actor Dashed via Cunning Action (this lets the
+    # Rogue actually close distance with the BA-Dash rather than just
+    # carrying the flag uselessly into next turn). Cleared by
+    # reset_turn().
+    dashed_this_turn: bool = False
+
     # Cover state (PR #48): one of 'none' | 'half' | 'three_quarters'.
     # Drives the AC + DEX-save bonus applied during attack resolution
     # (+2 for half, +5 for three_quarters). v1 is per-actor and
@@ -201,6 +211,13 @@ class Actor:
         # one turn and only reset on short / long rest.
         self.moved_this_turn = False
         self.action_surge_used_this_turn = False
+        # PR #74: Dash flag + post-BA second-move dedup flag both
+        # reset each turn. The dash flag is consumed by the
+        # _move_to_engage speed-doubling check; the dedup attr
+        # prevents the post-BA move from re-firing across re-runs.
+        self.dashed_this_turn = False
+        if hasattr(self, "_dash_post_move_done"):
+            self._dash_post_move_done = False
         # Per-turn dedup set for slot=free actions (PR #57). Nick-
         # generated off-hand attacks fire here, once per turn.
         # Reset attribute-style since the field isn't a dataclass

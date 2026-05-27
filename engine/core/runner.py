@@ -239,6 +239,11 @@ class EncounterRunner:
             return
 
         speed_ft = int((actor.speed or {}).get("walk", 30))
+        # PR #74: Dash doubles walk speed for this turn's move (RAW:
+        # Dash grants extra movement equal to your Speed). Read off
+        # `actor.dashed_this_turn`, set by the dash primitive.
+        if getattr(actor, "dashed_this_turn", False):
+            speed_ft *= 2
         if speed_ft <= 0:
             return
 
@@ -488,6 +493,19 @@ class EncounterRunner:
                 and actor.is_alive() and not state.terminated):
             actor.actions_used_this_turn["action"] = False
             self._run_slot(actor, state, slot="action")
+
+        # ---- PR #74: Dash post-BA second-move pass ----
+        # If the actor Dashed (via Cunning Action BA or future
+        # main-slot Dash) AND still has out-of-reach enemies AND
+        # hasn't already used this pass, run _move_to_engage one more
+        # time. The _dash primitive cleared `moved_this_turn` so this
+        # pass can fire even if the actor had moved earlier; the
+        # `_dash_post_move_done` flag prevents recursion.
+        if (actor.dashed_this_turn
+                and not getattr(actor, "_dash_post_move_done", False)
+                and actor.is_alive() and not state.terminated):
+            actor._dash_post_move_done = True
+            self._move_to_engage(actor, state)
 
     def _run_free_phase(self, actor: Actor, state: CombatState) -> None:
         """Auto-fire any slot='free' actions on the actor (PR #57 +
