@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-05-27
 **Engine state:** Phase 1, post-PR #26 (Dodge + Disengage merged).
-**Test surface:** 1403 tests across 60+ modules; 14 CLI fixtures.
+**Test surface:** 1422 tests across 60+ modules; 14 CLI fixtures.
 
 This document captures what the simulator can actually do today — in
 observable behavioral terms, not module inventories. The companion
@@ -680,6 +680,55 @@ priority order:
    Rebuke**~~ — **Shipped in PR #45.**
 18. ~~**Counterspell + cast-event infra**~~ — **Shipped in PR #46.**
 19. ~~**Vision system v1**~~ — **Shipped in PR #47.**
+55. ~~**Paladin Lay on Hands**~~ — **Shipped in PR #83.**
+   First HP-pool resource type. Paladin L1+ gets a healing pool
+   of 5 × level HP that drains per-use; refreshes on long rest.
+   - **New `_lay_on_hands` primitive** computes heal amount at
+     invoke time as `min(target_missing_hp, pool_remaining)`.
+     Never overheals, never wastes pool below what target needs.
+     Pool drains by exactly the amount healed. Logs
+     `lay_on_hands` event with amount + pool_remaining for
+     telemetry. No-ops cleanly when pool empty or target at
+     full HP.
+   - **New `f_lay_on_hands.yaml`** declares action_template
+     (type=heal, slot=bonus_action, pipeline=[lay_on_hands
+     primitive]). Picked up by PR #82's generic feature →
+     action auto-attach pass — zero pc_schema changes needed.
+   - **`c_paladin` L1 features** extended to list
+     `f_lay_on_hands`. Pool resources derived in pc_schema
+     via simple 5 × paladin_level formula (no per-row
+     class_resources entry needed since the formula is
+     uniform).
+   - **`derive_pc_resources`** stamps
+     `lay_on_hands_pool_remaining` + `lay_on_hands_pool_max`
+     for Paladin L1+ PCs.
+   - **AI scoring** via extended `defensive_ehp_healing`:
+     detects the `lay_on_hands` primitive in the action
+     pipeline, computes `amount = min(missing, pool)` ×
+     `desperation_multiplier(hp_fraction)`. Naturally returns
+     0 when pool empty or target at full HP.
+   - **Long rest refresh** via new
+     `_refresh_lay_on_hands_pool_to_max` in `apply_long_rest`
+     for `c_paladin` actors. Restores pool to max stamped on
+     resources.
+   - 19 new tests across 12 layers (YAML loading, class
+     wiring, pc_schema pool derivation at L1/L5/L11, action
+     auto-attach, primitive: heal-min-of-damage-and-pool,
+     pool-cap, no-op-when-pool-empty, no-op-at-full-HP,
+     never-overheal, event logging, long-rest refresh,
+     non-Paladin skip, scoring: pool-capped, missing-capped,
+     desperation boost, zero-cases).
+   - Deferred:
+     * **"Spend 5 pool to neutralize Poisoned"** — no
+       condition-removal hook on Lay on Hands yet; future PR
+       could extend the primitive with a `cure_poisoned`
+       mode
+     * **Touch range gating** — v1 emits per-ally candidates
+       without 5-ft distance check (matches existing heal
+       candidate generator behavior)
+     * **Action-vs-BA timing** — RAW 2024 made it BA; v1
+       ships as BA which matches
+
 54. ~~**Paladin spellcasting v1: Bless + Shield of Faith**~~ —
    **Shipped in PR #82.** Paladins finally have spell candidates,
    not just slots. Two iconic 1st-level Paladin spells ship via

@@ -59,9 +59,13 @@ multiclass_entry:
 level_table:
   - level: 1
     proficiency_bonus: 2
-    features: [f_weapon_mastery]
+    features: [f_weapon_mastery, f_lay_on_hands]
     class_resources:
       weapon_mastery_count: 2
+    # Lay on Hands pool: 5 × paladin_level. pc_schema derives this
+    # directly from template.levels.paladin rather than via per-row
+    # class_resources (formula is uniform across all levels, so
+    # repeating it 13 times would be noise).
   - level: 2
     proficiency_bonus: 2
     features: [f_divine_smite, f_bless, f_shield_of_faith]

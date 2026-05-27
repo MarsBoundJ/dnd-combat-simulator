@@ -5,6 +5,50 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-27 — Paladin Lay on Hands (PR #83)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- First HP-pool resource type. Paladin L1+ gets healing pool of
+  5 × level HP, drains per-use, refreshes on long rest.
+- New `_lay_on_hands` primitive computes heal amount at invoke
+  time: `min(target_missing_hp, pool_remaining)`. Never
+  overheals, never wastes pool. Self-rights the amount; pool
+  drains by exactly the amount healed.
+- New `f_lay_on_hands.yaml` with action_template (type=heal,
+  slot=bonus_action, pipeline=[lay_on_hands primitive]).
+  Picked up by PR #82's generic feature → action auto-attach
+  pass — zero pc_schema changes.
+- c_paladin L1 features extended; pool derivation via simple
+  5 × paladin_level formula (no per-row class_resources entry).
+- defensive_ehp_healing extended to recognize lay_on_hands
+  primitive: amount = min(missing, pool) × desperation
+  multiplier. Returns 0 when pool empty or target at full HP.
+- New `_refresh_lay_on_hands_pool_to_max` in apply_long_rest
+  for c_paladin.
+- 19 new tests across 12 layers. Full suite: 1421 passed + 1
+  skipped (was 1402 + 19 new).
+
+**Scope decisions:**
+- Pool formula derived directly in pc_schema (5 × level)
+  rather than in per-row class_resources. Uniform formula
+  means per-row repetition would be noise.
+- Self-righting heal amount (min of missing + pool) eliminates
+  per-candidate amount-stashing complexity — primitive
+  computes at invoke time.
+- Generic PR #82 auto-attach pass works for Lay on Hands
+  without any new pc_schema code — validates the
+  "feature YAML with action_template" pattern.
+
+**Open items:**
+- Spend 5 pool to neutralize Poisoned (RAW alternative use)
+- Touch range gating (5-ft distance check)
+- More Paladin healing / utility (Cure Wounds, Bless of the
+  Wounded for Oath of Devotion, etc.)
+
+---
+
 ## Session: 2026-05-27 — Paladin spellcasting v1: Bless + Shield of Faith (PR #82)
 
 **Participants:** Phil, Claude

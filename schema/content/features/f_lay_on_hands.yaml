@@ -1,0 +1,79 @@
+# f_lay_on_hands — Lay on Hands (Paladin L1+, PHB 2024)
+# Source: SRD CC v5.2.1 / PHB 2024 p.86
+# Pattern: bonus-action heal from a per-day HP pool
+
+id: f_lay_on_hands
+name: Lay on Hands
+source: srd_5.2.1
+granted_by:
+  class: c_paladin
+  level: 1
+type: active
+is_signature: false
+
+# Resource: per-day HP pool = 5 × Paladin level. Replenishes on
+# long rest (no short rest recovery per RAW). The pool counter
+# lives on actor.resources["lay_on_hands_pool_remaining"]; max
+# capacity at actor.resources["lay_on_hands_pool_max"]. Both are
+# derived by pc_schema from the Paladin level table at PC build.
+resource_cost:
+  type: bonus_action_and_pool
+  pool_resource: lay_on_hands_pool_remaining
+  pool_max_resource: lay_on_hands_pool_max
+  formula: "5 * paladin_level"
+
+usage:
+  uses_per: per_pool_drain
+  rest_recovery:
+    short_rest: none
+    long_rest: full
+
+# pc_schema auto-attaches the action_template below for Paladin
+# L1+ via the generic feature-action auto-attach pass added in
+# PR #82. The lay_on_hands primitive (engine/primitives.py) reads
+# actor.resources to compute the heal amount at invoke time:
+#   amount = min(target_missing_hp, pool_remaining)
+# Pool drains by exactly the amount healed — never overheals,
+# never wastes pool below target's missing HP.
+
+action_template:
+  id: a_lay_on_hands
+  name: Lay on Hands
+  type: heal
+  slot: bonus_action
+  range_ft: 5                # RAW: Touch
+  pipeline:
+    - primitive: lay_on_hands
+      params:
+        target: ally          # consumed by the heal candidate
+                                # generator; the primitive itself
+                                # reads state.current_attack.target
+
+contract:
+  reads: [actor.resources.lay_on_hands_pool_remaining,
+           target.hp_current, target.hp_max]
+  writes: [target.hp_current,
+            actor.resources.lay_on_hands_pool_remaining]
+  event: actor_turn_bonus_action
+  scope: per_use
+
+# AI scoring (engine/ai/defensive_ehp.py::defensive_ehp_healing):
+#   - Recognizes the lay_on_hands primitive in the action pipeline
+#   - amount = min(target_missing_hp, pool_remaining)
+#   - score = amount × desperation_multiplier(target_hp_fraction)
+#   - Returns 0 when target at full HP or pool empty
+#
+# Long rest: engine/core/rest.py::apply_long_rest restores
+# lay_on_hands_pool_remaining to lay_on_hands_pool_max for
+# c_paladin actors.
+#
+# Deferred RAW bits:
+#   - "Spend 5 pool points to neutralize Poisoned condition" —
+#     no condition-removal hook on Lay on Hands yet. Future PR
+#     could extend the primitive with a `cure_poisoned` mode.
+#   - "Touch" range gating — v1 emits per-ally candidates without
+#     5-ft distance check. The candidate generator gates other
+#     heal types (Cure Wounds) the same way, so this matches
+#     existing engine behavior.
+#   - Action-vs-Bonus-Action timing (RAW 2024 made it BA; v1
+#     ships as BA which matches)
