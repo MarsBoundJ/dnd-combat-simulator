@@ -167,6 +167,14 @@ def apply_long_rest(actor: Actor, state: CombatState) -> dict:
         ar_result = _refresh_arcane_recovery(actor)
         if ar_result is not None:
             summary["arcane_recovery_refresh"] = ar_result
+    if cls == "c_barbarian":
+        # PR #71: Rage uses fully refresh on long rest. The level-
+        # table max is stamped onto resources as `rage_uses_max` by
+        # derive_pc_resources, so we don't need to re-walk the class
+        # def here.
+        rage_result = _refresh_rage_uses_to_max(actor)
+        if rage_result is not None:
+            summary["rage_uses_refresh"] = rage_result
 
     state.event_log.append({
         "event": "long_rest_applied",
@@ -199,6 +207,22 @@ def _refresh_second_wind_to_max(actor: Actor,
     if cur >= max_uses:
         return None
     actor.resources["second_wind_uses_remaining"] = max_uses
+    return {"new_total": max_uses}
+
+
+def _refresh_rage_uses_to_max(actor: Actor) -> dict | None:
+    """Long rest fully refreshes Barbarian Rage uses to the level-
+    table max stamped on `actor.resources["rage_uses_max"]` by
+    pc_schema.derive_pc_resources. Skipped (returns None) when the
+    actor has no rage_uses_max declared — non-Barbarians or fixture
+    actors without the resource pair."""
+    max_uses = int(actor.resources.get("rage_uses_max", 0))
+    if max_uses <= 0:
+        return None
+    cur = int(actor.resources.get("rage_uses_remaining", 0))
+    if cur >= max_uses:
+        return None
+    actor.resources["rage_uses_remaining"] = max_uses
     return {"new_total": max_uses}
 
 

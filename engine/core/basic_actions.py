@@ -378,6 +378,11 @@ def is_self_targeted_defensive_buff(action: dict) -> bool:
         return False
     for step in (action.get("pipeline") or []):
         prim = step.get("primitive")
+        # PR #71: Rage's rage_start primitive is inherently self-
+        # targeted — the actor enters Rage on themselves. No params
+        # branch needed; rage_start has no target param.
+        if prim == "rage_start":
+            return True
         if prim not in ("attack_modifier", "save_modifier"):
             continue
         params = step.get("params") or {}
