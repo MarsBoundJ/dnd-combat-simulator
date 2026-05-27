@@ -112,6 +112,16 @@ def generate_candidates(actor: Actor, state: CombatState,
     )
     actions = [a for a in actions
                 if _has_feat(actor, _req_feat(a))]
+    # PR #79: Silence zone gate. RAW: actors within a silence_zone
+    # can't cast spells with Verbal components. v1 simplification:
+    # treat ALL spells as having a Verbal component (RAW: most do)
+    # — filter every action with spell_slot_level >= 1. Cantrips
+    # with spell_slot_level: 0 currently pass through unfiltered
+    # (a precise V-component check is deferred — no action declares
+    # its components today).
+    if _actor_in_silence_zone(actor, state):
+        actions = [a for a in actions
+                    if int(a.get("spell_slot_level", 0)) <= 0]
 
     enemies = [a for a in state.encounter.actors
                if a.side != actor.side and a.is_alive()]
@@ -397,6 +407,40 @@ def _persistent_aura_radius(action: dict) -> int:
     # Also check the action's `area:` block as a fallback shape
     area = action.get("area") or {}
     return int(area.get("radius_ft", 0))
+
+
+def _actor_in_silence_zone(actor: Actor, state: CombatState) -> bool:
+    """True iff `actor` is positioned within any silence_zone
+    declared on state.encounter.environment (PR #79). Used by the
+    candidate-generator's spell filter — actors inside a silence
+    zone can't cast (Verbal-component) spells.
+
+    Zone-list shape (mirrors heavily_obscured_zones /
+    magical_dark_zones from PR #60 / PR #68):
+      env.silence_zones: [{shape: 'sphere', center: [x, y],
+                             radius_ft: 20, caster_id, action_id}, ...]
+    Currently only sphere is supported (matches the Silence spell
+    RAW shape); cube/cone variants would extend the same helper.
+    """
+    if state.encounter is None:
+        return False
+    env = state.encounter.environment or {}
+    zones = env.get("silence_zones") or []
+    if not zones:
+        return False
+    from engine.core.geometry import distance_ft
+    for zone in zones:
+        center = zone.get("center")
+        if center is None:
+            continue
+        radius_ft = int(zone.get("radius_ft", 0))
+        if radius_ft <= 0:
+            continue
+        # Position-in-sphere via Chebyshev (matches the rest of the
+        # engine's grid convention)
+        if distance_ft(actor.position, tuple(center)) <= radius_ft:
+            return True
+    return False
 
 
 def _persistent_aura_anchor(action: dict) -> str:

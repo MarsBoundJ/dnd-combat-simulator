@@ -5,6 +5,66 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-27 — More zone-creating spells (PR #79)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Four PHB 2024 zone spells shipped (Phil picked all four
+  via AskUserQuestion):
+  * **Fog Cloud** — 20-ft sphere of heavy_obscurement, no
+    damage. Zero new infrastructure; reuses PR #68's
+    `creates_zone: heavy_obscurement` path.
+  * **Stinking Cloud** — 20-ft sphere, CON save on
+    turn-start; on fail apply `co_incapacitated` for
+    until_actor_next_turn_start (RAW "use action doing
+    nothing" → action gate via existing Incapacitated).
+  * **Web** — 20-ft CUBE, DEX save on turn-start; on fail
+    apply `co_restrained`. Exercises the cube-shape aura
+    path. Re-saved each turn-start (RAW "Athletics check to
+    escape" deferred — turn-start re-save is the v1 escape
+    opportunity).
+  * **Silence** — 20-ft sphere with NEW `silence_zone` type.
+    Suppresses spell candidates for actors inside via new
+    pipeline filter. Cantrips + weapon attacks pass through.
+- New infrastructure:
+  * `_CREATES_ZONE_TO_ENV_KEY["silence"] = "silence_zones"`
+  * `concentration._SCRUBBABLE_ZONE_KEYS` adds silence_zones
+  * `pipeline._actor_in_silence_zone(actor, state)` predicate
+  * Pipeline candidate filter: spell candidates removed when
+    actor is inside a silence_zone
+- 13 new tests across 10 layers. Full suite: 1349 passed +
+  1 skipped (was 1336 + 13 new).
+
+**Scope decisions:**
+- v1 simplification for Silence: filter ALL spells (any
+  spell_slot_level >= 1) rather than only Verbal-component
+  spells. No action declares its components today; future PR
+  can add per-spell V/S/M tags and tighten the filter.
+- Stinking Cloud's lightly-obscured aspect dropped for v1.
+  The action-denial is the load-bearing effect; light
+  obscurement is mostly perception-disadvantage flavor we
+  don't model.
+- Web's difficult-terrain aspect dropped for v1 (no per-
+  square movement cost). The Restrained-on-save-fail is the
+  load-bearing effect.
+- Silence isn't routed through the vision-denial scorer
+  (PR #78) — it's caster-denial, not vision-denial. AI
+  scoring for the suppression value is a deferred follow-up.
+
+**Open items:**
+- AI scoring uplift for Silence (currently treated as a
+  zero-value zone)
+- Stinking Cloud / Web's secondary effects (light obscurement
+  / difficult terrain / Athletics escape)
+- Silence's Deafened in-sphere + Thunder immunity
+- Per-spell V-component declaration to tighten the Silence
+  filter
+- Fog Cloud upcast (RAW +20 ft radius per slot above 1st —
+  non-dice scaling, needs schema extension)
+
+---
+
 ## Session: 2026-05-27 — AI scoring for damage+zone hybrid auras (PR #78)
 
 **Participants:** Phil, Claude

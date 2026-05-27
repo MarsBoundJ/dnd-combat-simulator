@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-05-27
 **Engine state:** Phase 1, post-PR #26 (Dodge + Disengage merged).
-**Test surface:** 1337 tests across 60+ modules; 14 CLI fixtures.
+**Test surface:** 1350 tests across 60+ modules; 14 CLI fixtures.
 
 This document captures what the simulator can actually do today — in
 observable behavioral terms, not module inventories. The companion
@@ -680,6 +680,63 @@ priority order:
    Rebuke**~~ — **Shipped in PR #45.**
 18. ~~**Counterspell + cast-event infra**~~ — **Shipped in PR #46.**
 19. ~~**Vision system v1**~~ — **Shipped in PR #47.**
+51. ~~**More zone-creating spells: Fog Cloud / Stinking Cloud /
+   Web / Silence**~~ — **Shipped in PR #79.** Four PHB 2024
+   zone spells added, each exercising different aspects of the
+   existing zone substrate.
+   - **Fog Cloud** (1st-level Wizard): 20-ft sphere of
+     heavy_obscurement, no damage. Zero-infrastructure — just a
+     new YAML using the existing `creates_zone: heavy_obscurement`
+     path from PR #68. Scored via PR #78's hybrid path
+     (damage_value=0 + zone_value).
+   - **Stinking Cloud** (3rd-level Wizard): 20-ft sphere, CON
+     save on turn-start; on fail apply `co_incapacitated` for
+     until_actor_next_turn_start. RAW "uses Action doing
+     nothing" → Incapacitated already gates actions per PR #34.
+     Lightly-obscured aspect deferred (engine doesn't model
+     light obscurement beyond binary visibility).
+   - **Web** (2nd-level Wizard): 20-ft CUBE shape with DEX save;
+     on fail apply `co_restrained` for until_actor_next_turn_start
+     (re-saved each turn-start). Exercises the cube-shape path
+     (`actors_in_cube`). Difficult-terrain aspect deferred (no
+     per-square movement cost yet); Athletics-check escape
+     deferred (v1 uses the turn-start re-save as the escape
+     opportunity).
+   - **Silence** (2nd-level Cleric): 20-ft sphere with new
+     **`silence_zone` zone type** that suppresses spellcasting
+     for actors inside. New entries:
+     - `_CREATES_ZONE_TO_ENV_KEY["silence"] = "silence_zones"`
+     - `concentration.py::_SCRUBBABLE_ZONE_KEYS` adds
+       `"silence_zones"` so concentration drop scrubs the zone
+     - New `pipeline._actor_in_silence_zone(actor, state)`
+       predicate (sphere geometry via Chebyshev distance)
+     - New pipeline filter step after the feature-use filter:
+       actors inside a silence_zone have all spell candidates
+       (`spell_slot_level >= 1`) removed. Cantrips
+       (spell_slot_level=0) and weapon attacks unaffected.
+   - 13 new tests across 10 layers (YAML loading for all four;
+     silence predicate + filter for inside/outside actors +
+     cantrip-passthrough + weapon-attack-passthrough;
+     concentration-drop scrubs silence_zone; Fog Cloud zone
+     registration; Stinking Cloud incapacitation; Web
+     Restrained).
+   - **AI scoring** for silence is a known gap — silence isn't
+     vision-denial (which is what PR #78 scores) but
+     caster-denial. The pipeline filter prevents enemies inside
+     from casting; the AI's value estimate doesn't yet credit
+     silence with the suppression value. Deferred follow-up.
+   - Deferred:
+     * Stinking Cloud's lightly-obscured area
+     * Web's difficult terrain + Athletics-check escape
+     * Silence's Deafened-in-sphere + Thunder-damage immunity
+       in-sphere
+     * Per-spell V-component declaration (v1 treats all spells
+       as Verbal for the Silence filter)
+     * AI scoring uplift for Silence's caster-denial value
+     * Wind dispersal for Fog Cloud
+     * Upcast for Fog Cloud (RAW: +20 ft radius per slot above
+       1st — non-dice scaling)
+
 50. ~~**AI scoring for damage+zone hybrid auras**~~ — **Shipped
    in PR #78.** Closes the PR #68 residue. Auras that BOTH
    deal damage AND create a vision-denial zone (HoH = cold +

@@ -1,0 +1,65 @@
+# f_fog_cloud — Fog Cloud (1st-level, SRD CC v5.2.1)
+#
+# RAW summary: You create a 20-foot-radius Sphere of fog centered on
+# a point within 120 feet. The area is Heavily Obscured. The sphere
+# remains for the duration or until a wind disperses it.
+# Concentration, up to 1 hour.
+#
+# Engine modeling (PR #79):
+#   - type: persistent_aura with creates_zone=heavy_obscurement
+#   - shape: sphere, radius_ft: 20, anchor: point
+#   - NO damage payload (zone-only). Scored via PR #78's hybrid
+#     path: damage_value=0 + zone_value via
+#     offensive_ehp_zone_vision_denial with heavy_obscurement
+#     semantics (blindsight pierces; truesight does NOT).
+#   - Concentration up to 1 hour — engine treats as "until
+#     concentration drops" (no in-encounter timing for 1-hour
+#     spells; trivially covers any encounter length).
+#
+# Deferred RAW bits:
+#   - Wind dispersal (no wind mechanic in v1)
+#   - Upcast scaling: +20 ft radius per slot above 1st (the
+#     upcast_scaling infrastructure from PR #77 supports
+#     damage-dice scaling; non-dice scaling like "radius bigger"
+#     would need an extension to upcast_scaling shape — deferred)
+
+id: f_fog_cloud
+name: Fog Cloud
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 1
+type: active
+spell:
+  class: c_wizard
+  level: 1
+
+description: |
+  20-ft radius sphere of heavily-obscuring fog. Concentration,
+  1 hour. No damage; pure vision-denial.
+
+action_template:
+  id: a_fog_cloud
+  name: Fog Cloud
+  type: persistent_aura
+  spell_slot_level: 1
+  concentration: true
+  named_effect: fog_cloud
+  area:
+    shape: sphere
+    radius_ft: 20
+    range_ft: 120
+  pipeline:
+    - primitive: persistent_aura
+      params:
+        shape: sphere
+        radius_ft: 20
+        anchor: point
+        trigger_event: target_turn_start_in_area
+        affected: all_creatures
+        # No save / no damage — zone-only effect. ability: none
+        # tells the persistent_aura primitive to skip the save loop.
+        ability: none
+        on_fail: []
+        on_success: []
+        creates_zone: heavy_obscurement
