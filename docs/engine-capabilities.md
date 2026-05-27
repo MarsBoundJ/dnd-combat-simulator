@@ -680,6 +680,28 @@ priority order:
    Rebuke**~~ — **Shipped in PR #45.**
 18. ~~**Counterspell + cast-event infra**~~ — **Shipped in PR #46.**
 19. ~~**Vision system v1**~~ — **Shipped in PR #47.**
+38. ~~**Cleave reach passthrough**~~ — **Shipped in PR #66.**
+   Closes the PR #58 residue. Cleave's attacker-reach constraint
+   used to hardcode 5 ft; now it reads the weapon's actual reach.
+   - `_build_weapon_action` bakes `reach_ft` into the mastery
+     sub-dict (in addition to ability_mod / damage_type /
+     save_dc). Defaults to 5 when the weapon spec omits it.
+   - `_mastery_cleave` reads `params.get("reach_ft", 5)` for the
+     attacker-reach check. The "within 5 ft of primary target"
+     RAW distance stays invariant (does not scale with attacker
+     reach).
+   - Glaive / Halberd / Pike (reach 10) Cleave to a second target
+     up to 10 ft from the attacker now works correctly.
+   - 7 new tests across build-time baking (default 5 / explicit
+     10 / omitted defaults to 5) and runtime semantics (reach 5
+     misses far target; reach 10 hits same target; 5 ft
+     primary-to-secondary stays invariant; missing-param falls
+     back to 5).
+   - Deferred refinements: line-of-sight check on second target
+     (RAW doesn't require it, but a wall between primary and
+     secondary should arguably block — v1 trusts open-
+     battlefield); secondary-target preference ordering (v1
+     picks first-in-actor-list deterministic order).
 37. ~~**Actor.size + Push size gate + Cleave/Graze Heavy gate**~~
    — **Shipped in PR #65.** Closes two PR #58 residues:
    Push lacked a target-size gate, and Cleave/Graze trusted the

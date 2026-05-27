@@ -5,6 +5,54 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-27 — Cleave reach passthrough (PR #66)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Closes the PR #58 residue. Cleave's attacker-reach constraint
+  used to hardcode 5 ft (a TODO comment said "Future: pass weapon
+  reach via params"); reach weapons (Glaive / Halberd / Pike at
+  10 ft) couldn't Cleave to a second target between 5 and 10 ft
+  away from the attacker even when the second target was within
+  5 ft of the primary.
+- **`_build_weapon_action` extension:** bakes `reach_ft` into
+  the mastery sub-dict alongside the existing `id`,
+  `ability_mod`, `damage_type`, `save_dc`. Reads from
+  `weapon.get("reach_ft", 5)` — defaults to 5 when the spec
+  omits the field. Matches the default already used by
+  attack_roll's `reach_ft` param.
+- **`_mastery_cleave` extension:** reads `reach_ft = int(
+  params.get("reach_ft", 5))` instead of the hardcoded 5. The
+  "within 5 ft of primary target" distance stays at 5 — that's
+  a fixed RAW constraint between the two targets, not the
+  attacker. Comments updated to explain the two distinct
+  distances.
+- **Tests (7 new in `test_cleave_reach.py`):**
+  - Build-time: default reach 5 baked; explicit reach 10
+    baked; reach omitted defaults to 5
+  - Runtime: reach 5 attacker can't reach a secondary at 10 ft
+    (skip with no_second_target); reach 10 attacker hits same
+    secondary; reach 10 still can't Cleave to a secondary > 5
+    ft from primary (the 5-ft invariant); missing reach_ft
+    param falls back to 5
+- 1102 tests pass (+7 new, 1 skip, no regressions).
+
+**Future-roadmap items (recorded, not in this PR):**
+- Line-of-sight check on second target — RAW doesn't require
+  it, but a wall between primary and secondary should arguably
+  block. v1 trusts open-battlefield (no LOS layer for melee
+  attacks yet).
+- Secondary-target preference ordering — v1 picks first-in-
+  actor-list (deterministic but arbitrary). AI could prefer
+  low-HP / high-DPR / specific-tactical-priority targets.
+- Cleave Reach with monster weapons — monster templates trust
+  their own attack_roll.reach_ft; the Cleave sub-attack would
+  need the same passthrough if monsters ever get Weapon
+  Mastery wired in.
+
+---
+
 ## Session: 2026-05-27 — Actor.size + Push size gate + Heavy gate (PR #65)
 
 **Participants:** Phil, Claude

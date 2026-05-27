@@ -1068,11 +1068,17 @@ def _build_weapon_action(weapon: dict, ability_scores: dict,
         # masteries this value is unused, but we always bake it for
         # uniformity.
         save_dc = 8 + ability_mod + int(proficiency_bonus)
+        # PR #66: bake the weapon's reach for masteries that need it
+        # (Cleave's "within your reach" check on the second target).
+        # Melee weapons use reach_ft (default 5); ranged weapons don't
+        # use this — Cleave + Graze are gated to melee at build time.
+        reach_for_mastery = int(weapon.get("reach_ft", 5))
         attack_params["mastery"] = {
             "id": mastery_id,
             "ability_mod": ability_mod,
             "damage_type": weapon.get("damage_type", "untyped"),
             "save_dc": save_dc,
+            "reach_ft": reach_for_mastery,
         }
 
     damage_params: dict = {
