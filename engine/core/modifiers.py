@@ -453,5 +453,15 @@ def _eval_expr(expr: str, owner: Actor, attacker: Actor, target: Actor,
         # Used by Grappled: target other than the grappler
         # Skeleton: True if there's any target at all
         return True
+    # PR #47: vision predicates. attacker_can_see(self) and
+    # target_can_see(self) — "self" refers to the modifier owner.
+    # Used by co_invisible's when-clauses and (future) other
+    # visibility-gated modifiers.
+    if expr == "attacker_can_see(self)":
+        from engine.core.vision import can_actor_see
+        return can_actor_see(attacker, owner, state)
+    if expr == "target_can_see(self)":
+        from engine.core.vision import can_actor_see
+        return can_actor_see(target, owner, state)
     # Unknown atom — log + default to False (conservative)
     return False
