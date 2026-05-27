@@ -1,0 +1,134 @@
+# Active Search demo — two PCs (one Perception-proficient, one not)
+# hunt a hidden goblin. The goblin starts with a pre-applied
+# Hide-source Invisible whose stealth_total is above both PCs'
+# passive Perception, so neither can see it via PR #51's auto-spot.
+# Both PCs have Search emitted as a built-in candidate; the
+# proficient one's roll has a much better chance of revealing.
+#
+# Setup:
+#   - elf_ranger (PC, position 10, 0): WIS 14 (+2),
+#     skill_proficiencies: [perception], PB 2.
+#     Perception modifier = 2 + 2 = 4. Passive Perception = 14.
+#     Active Search roll: d20 + 4 vs stealth_total 18 → needs d20 >= 14.
+#   - human_fighter (PC, position 10, 2): WIS 10 (+0), no proficiency.
+#     Perception modifier = 0. Passive Perception = 10.
+#     Active Search roll: d20 + 0 vs stealth_total 18 → needs d20 >= 18.
+#   - hidden_goblin (enemy, position 2, 1): pre-loaded with
+#     co_invisible (source_action_id=a_hide, stealth_total=18). Sits
+#     out of melee range of both PCs (10 ft away minimum).
+#
+# Expected behavior:
+#   - Round 1: both PCs are inside the threat range of the goblin
+#     (goblin walks 30 + reach 5 = 35 ft, both PCs within 10 ft).
+#     `can_actor_see(pc, goblin)` returns False for both PCs because
+#     stealth_total (18) > both PCs' passive Perception (14 and 10).
+#     The built-in Search action is emitted as a candidate for both
+#     PCs because `_has_unspotted_hidden_enemy` returns True.
+#   - When the AI picks Search, `_execute_search` rolls the
+#     Perception check. On success, scrubs the goblin's Hide-source
+#     co_invisible → goblin becomes visible to all observers.
+#
+# This is a vision + action fixture: the encounter exercises Search
+# end-to-end without requiring combat resolution to verify the
+# mechanism. The runner can either let combat play out (goblin
+# attacks if revealed) or be aborted after the Search round.
+
+id: active_search_encounter
+
+environment:
+  template: open_battlefield
+
+actors:
+  - instance_id: elf_ranger
+    name: Elf Ranger (Perception-proficient)
+    side: pc
+    position: [10, 0]
+    pc:
+      class: c_fighter
+      level: 1
+      ability_scores:
+        str: 12
+        dex: 16
+        con: 12
+        int: 10
+        wis: 14
+        cha: 10
+      armor:
+        base_ac: 14
+        max_dex_bonus: 999
+      skill_proficiencies: [perception]
+      weapons:
+        - id: a_longbow
+          name: Longbow
+          attack_ability: dex
+          damage_dice: 1d8
+          damage_type: piercing
+          range_ft: 150
+
+  - instance_id: human_fighter
+    name: Human Fighter (no Perception)
+    side: pc
+    position: [10, 2]
+    pc:
+      class: c_fighter
+      level: 1
+      ability_scores:
+        str: 16
+        dex: 12
+        con: 14
+        int: 10
+        wis: 10
+        cha: 10
+      armor:
+        base_ac: 18    # plate
+        max_dex_bonus: 0
+      weapons:
+        - id: a_longsword
+          name: Longsword
+          attack_ability: str
+          damage_dice: 1d8
+          damage_type: slashing
+          reach_ft: 5
+
+  - instance_id: hidden_goblin
+    name: Hidden Goblin
+    side: enemy
+    position: [2, 1]
+    template:
+      id: m_hidden_goblin
+      name: Goblin
+      source: user_authored
+      combat:
+        armor_class: 13
+        hit_points: { average: 14, dice: "4d6", con_contribution: 0 }
+        speed: { walk: 30 }
+        initiative: { modifier: 2, score: 12 }
+      senses:
+        passive_perception: 9
+      abilities:
+        str: { score: 8, save: -1 }
+        dex: { score: 14, save: 2 }
+        con: { score: 10, save: 0 }
+        int: { score: 10, save: 0 }
+        wis: { score: 8, save: -1 }
+        cha: { score: 8, save: -1 }
+      cr: { value: 0.25, xp: 50, proficiency_bonus: 2 }
+      skills:
+        stealth: 6
+      # Pre-applied Hide-source Invisible with high stealth_total.
+      # cli._build_actor doesn't currently load `starting_conditions`,
+      # but fixture authors using the `template:` inline shape can
+      # mutate the loaded actor directly in test code. For now the
+      # fixture documents the intent; the test driver applies the
+      # condition before invoking the runner.
+      behavior_profile: { presets: { retreat: ftd } }
+      actions:
+        - id: a_scimitar
+          name: Scimitar
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: melee, bonus: 4, reach_ft: 5 }
+            - primitive: damage
+              params: { dice: "1d6", modifier: 2, type: slashing }
+              when: { event: damage_roll, condition: "combat.attack_state == hit" }

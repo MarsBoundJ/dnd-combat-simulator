@@ -561,6 +561,13 @@ def execute(chosen: dict, state: CombatState, event_bus, primitives) -> None:
         # actor attacks). RAW 2024 simplification: fixed DC 15;
         # passive Perception variant deferred.
         _execute_hide(actor, action, state, event_bus, primitives)
+    elif action.get("type") == "search":
+        # Search action (PR #55): roll d20 + Perception modifier
+        # vs each Hide-source-hidden enemy's recorded stealth_total.
+        # On success, scrub the Hide-source co_invisible. v1 reveal
+        # is global (one mutation, all observers see); per-observer
+        # `spotted_by:` tracking deferred.
+        _execute_search(actor, action, state, event_bus, primitives)
     else:
         _execute_single(chosen, state, event_bus, primitives)
 
@@ -723,6 +730,99 @@ def _execute_hide(actor, action: dict, state: CombatState,
         "source": "a_hide",
         "stealth_total": total,
     })
+
+
+def _execute_search(actor, action: dict, state: CombatState,
+                       event_bus, primitives) -> None:
+    """Execute a Search action (PR #55).
+
+    For each living enemy with a Hide-source `co_invisible` condition
+    in the encounter, roll d20 + actor's Perception modifier vs the
+    enemy's recorded `stealth_total`. On success, scrub the Hide-
+    source `co_invisible` from the enemy (v1: spotted means spotted
+    for everyone).
+
+    Spell-source Invisible (`source_action_id != "a_hide"`) is NOT
+    affected — only Hide is RAW-bypassable by Perception. Spell
+    Invisibility requires Truesight or specific anti-invisibility
+    spells.
+
+    No enemies-in-sight check beyond "is hidden via Hide" — v1 trusts
+    the gated emission in `built_in_actions_for` to only fire Search
+    when there's something to find. If a fixture forces Search via
+    an explicit action declaration, it still runs through the loop
+    and logs the no-op cleanly.
+
+    Logs:
+      - search_attempted: actor.id, no-targets case
+      - search_check: per-target d20 / perception_mod / total / dc /
+        outcome
+      - creature_revealed: when scrub fires
+    """
+    import engine.primitives as primitives_module
+    from engine.core.skills import skill_modifier
+    rng = primitives_module._rng
+
+    perception_mod = skill_modifier(actor, "perception")
+
+    # Find candidate hidden enemies. Match the gate from
+    # `_has_unspotted_hidden_enemy` in basic_actions.py.
+    candidates: list[tuple] = []
+    for enemy in state.encounter.actors:
+        if enemy.id == actor.id or enemy.side == actor.side:
+            continue
+        if not enemy.is_alive():
+            continue
+        for cond in (enemy.applied_conditions or []):
+            if cond.get("condition_id") != "co_invisible":
+                continue
+            if cond.get("source_action_id") != "a_hide":
+                continue
+            candidates.append((enemy, cond))
+
+    if not candidates:
+        state.event_log.append({
+            "event": "search_attempted",
+            "actor": actor.id,
+            "outcome": "no_targets",
+        })
+        return
+
+    for target, hide_cond in candidates:
+        d20 = rng.randint(1, 20)
+        check_total = d20 + perception_mod
+        stealth_total = int(hide_cond.get("stealth_total", 0))
+        success = check_total >= stealth_total
+
+        state.event_log.append({
+            "event": "search_check",
+            "actor": actor.id,
+            "target": target.id,
+            "d20": d20,
+            "perception_mod": perception_mod,
+            "total": check_total,
+            "dc": stealth_total,
+            "outcome": "success" if success else "failed",
+        })
+
+        if not success:
+            continue
+
+        # Scrub the Hide-source co_invisible. Filter the target's
+        # applied_conditions list to drop the matching entry. Match
+        # on identity of the dict (same as cond) — safer than re-
+        # checking source_action_id when multiple hides might exist
+        # (rare; same actor doesn't double-Hide in v1, but defensive).
+        target.applied_conditions = [
+            c for c in target.applied_conditions
+            if c is not hide_cond
+        ]
+        state.event_log.append({
+            "event": "creature_revealed",
+            "actor": actor.id,
+            "target": target.id,
+            "via": "search",
+        })
 
 
 def _execute_multiattack(actor, action: dict, state: CombatState,
