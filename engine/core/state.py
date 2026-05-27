@@ -229,6 +229,14 @@ class Actor:
         # restrictions reset.
         if hasattr(self, "_sneak_attack_used_this_turn"):
             self._sneak_attack_used_this_turn = False
+        # PR #73: per-turn Divine Smite dedup. Belt-and-suspenders
+        # alongside actions_used_this_turn['bonus_action'] (the
+        # primary gate). Kept separate so reaction-driven smites
+        # would still be blocked even if BA were somehow reset
+        # mid-turn (e.g., Action Surge logic — not currently a path
+        # but defensive).
+        if hasattr(self, "_divine_smite_used_this_turn"):
+            self._divine_smite_used_this_turn = False
 
 
 # ============================================================================

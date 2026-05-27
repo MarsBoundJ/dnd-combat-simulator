@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-05-27
 **Engine state:** Phase 1, post-PR #26 (Dodge + Disengage merged).
-**Test surface:** 1195 tests across 60+ modules; 14 CLI fixtures.
+**Test surface:** 1226 tests across 60+ modules; 14 CLI fixtures.
 
 This document captures what the simulator can actually do today — in
 observable behavioral terms, not module inventories. The companion
@@ -680,6 +680,66 @@ priority order:
    Rebuke**~~ — **Shipped in PR #45.**
 18. ~~**Counterspell + cast-event infra**~~ — **Shipped in PR #46.**
 19. ~~**Vision system v1**~~ — **Shipped in PR #47.**
+45. ~~**Paladin Divine Smite v1**~~ — **Shipped in PR #73.**
+   Third feature in the per-class arc (Rage → SA → Divine Smite
+   → Cunning Action). Passive damage rider with pace-aware AI
+   slot-spend heuristic. **PHB 2024 change wired correctly:**
+   Divine Smite is now a 1st-level Paladin spell with BA casting
+   time (not a class feature), consuming a Paladin spell slot
+   AND the bonus action.
+   - **New `engine/core/divine_smite.py`**: dice math
+     (2d8/3d8/4d8/5d8 at slots 1-4; caps at 4th per RAW 2024 —
+     5th+ slots can hold other Paladin spells but don't amplify
+     smite); Fiend/Undead detection (+1d8); qualification gate;
+     AI slot-pick heuristic; application.
+   - **AI heuristic (v1):**
+     - Always smite on crit (extra dice double, well worth the
+       slot)
+     - Kill-steal: smite when projected damage drops target
+     - Fiend/Undead bias when slot abundance reasonable
+       (encounters_remaining_today <= 4)
+     - Otherwise pace-aware via `slot_cost_ehp` from PR #22
+     - Always picks LOWEST available slot (RAW best-practice;
+       higher slot dice rarely beat saving the slot)
+   - **`_damage` integration** — fires after SA rider on
+     hit/crit melee weapon attacks. Folded into the same damage
+     instance as the underlying hit (RAW 2024: smite damage is
+     part of the attack's hit). Crits double smite dice same as
+     SA + weapon base dice.
+   - **Auto-derived Paladin spell slots** from class table —
+     new `_derive_class_spell_slots` in pc_schema reads
+     `class_resources.spell_slots` per level and stamps onto
+     `template["spell_slots"]`. cli falls back to template
+     when actor_spec doesn't declare slots (fixtures can
+     still override for "wounded Paladin" scenarios).
+   - **Class YAML c_paladin extended L5→L20** with the full
+     half-caster slot progression (L2: 2×1st → L20: 4/3/3/3/2);
+     `f_divine_smite` granted at L2 (RAW 2024 entry level).
+   - **New `f_divine_smite.yaml`** — declared as `type: passive`
+     with `bonus_action_and_spell_slot` resource cost (1st-4th
+     slot range). No auto-generated action; fires inside the
+     `_damage` pipeline.
+   - **Per-turn dedup**: `_divine_smite_used_this_turn` Actor
+     attr (belt-and-suspenders alongside the
+     `actions_used_this_turn["bonus_action"]` gate); reset by
+     `Actor.reset_turn`.
+   - **Telemetry**: `divine_smite_applied` event with slot
+     level, dice count, total damage, crit flag, Fiend/Undead
+     flag, and trigger reason (crit / lethal / fiend_undead /
+     pace_gate).
+   - 31 new tests across 13 layers (dice math, creature type
+     detection, qualification gates, AI heuristic — including
+     crit / kill-steal / fiend bias / encounter pace,
+     application + slot consumption + BA marking + dedup, crit
+     doubling, damage primitive integration, pc_schema slot
+     derivation).
+   - Deferred: higher-slot smite when player wants the burst
+     (v1 always picks lowest); smite as a separate AI-scored
+     candidate; 2014-style "see hit result then decide"
+     timing (v1 folds smite into the same damage instance —
+     mechanically equivalent for HP tracking but loses the
+     narrative beat).
+
 44. ~~**Rogue Sneak Attack v1**~~ — **Shipped in PR #72.** Second
    feature in the per-class four-feature class-identity arc
    (Rage → SA → Divine Smite → Cunning Action). Passive damage
