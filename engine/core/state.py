@@ -107,6 +107,18 @@ class Actor:
     # attack-cancellation path.
     cover: str = "none"
 
+    # Darkvision range in feet (PR #50). 0 = no darkvision (normal sight
+    # only — can't see anything in a dark zone). Typical RAW values:
+    # most races/monsters with darkvision have 60 ft; some (deep-dwellers,
+    # drow, true-monsters) have 120 ft. Per RAW: in darkness, darkvision
+    # treats darkness within range as dim light. v1 models that as
+    # "still visible" — the dim-light Perception disadvantage is
+    # deferred to a perception-check PR.
+    # Loaded from monster template's `senses.special.darkvision` (numeric
+    # feet) or from a fixture-level `darkvision_range_ft` override.
+    # Blindsight + Truesight are separate fields, deferred to a future PR.
+    darkvision_range_ft: int = 0
+
     def is_alive(self) -> bool:
         return self.hp_current > 0 and not self.is_dead and not self.is_fled
 

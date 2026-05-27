@@ -5,6 +5,86 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-26 — Dark zones + Dim light + Darkvision (PR #50)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Closes most of the vision arc started in PR #47. Pre-scoped the
+  PR up-front: zone-based (matching PR #48's heavy-obscurement
+  shape) + Darkvision only. Truesight + Blindsight + per-tile
+  light grid all deferred to keep scope tight.
+- **New `Actor.darkvision_range_ft: int` field** (default 0). RAW
+  framing: most darkvision-having races/monsters are 60 ft, some
+  (drow, deep-dwellers) are 120 ft. 0 = no darkvision = effectively
+  Blinded in a dark zone.
+- **Loading precedence** in `cli._build_actor`:
+  1. Explicit `darkvision_range_ft:` on actor_spec (fixture override —
+     where racial PC darkvision lives, since race modeling hasn't
+     landed)
+  2. Template's `senses.special.darkvision` (numeric feet — matches
+     the existing `m_goblin_warrior.yaml` shape; works for all SRD
+     monsters with darkvision)
+  3. Defaults to 0
+- **Two new environment fields:**
+  - `dim_light_zones`: list of axis-aligned rects (same shape as
+    heavy-obscurement zones)
+  - `dark_zones`: list of axis-aligned rects, same shape
+- **`vision.py` extensions:**
+  - Refactored `is_in_obscured_zone` to use a shared
+    `_position_in_any_zone(position, zones)` helper, since dim /
+    dark / heavy-obscurement all have identical detection logic
+  - New `_env_zones(state, key)` helper for pulling zone lists
+    from the encounter environment
+  - `is_in_dim_light_zone` + `is_in_dark_zone` public helpers
+  - `can_actor_see` extended with the dark-zone + darkvision gate
+    AFTER the heavy-obscurement gate (heavy obscurement still
+    blocks darkvision — fog blocks sight regardless of light
+    levels). New precedence order: blinded > invisible > heavy
+    obscurement > dark zone (with darkvision check) > visible.
+- **Dim light is declarable but does NOT block sight in v1.** RAW
+  says dim light is *lightly obscured* — disadvantage on Perception
+  checks that rely on sight, but vision itself works. We honor
+  that exactly: the helper exists for completeness + future
+  perception modeling, but `can_actor_see` does NOT return False
+  on dim light alone. Avoids overstating obscurement.
+- **Same-side and either-side-in-dark resolve through one code
+  path.** Whether observer-in-dark or target-in-dark or both,
+  the question is the same: does the observer's darkvision reach
+  the target? If yes (and within range), True. If no darkvision
+  at all, False. Cleaner than splitting the three cases.
+- **Tests (24 new in `test_light_darkvision.py`):**
+  - Dim/dark zone detection (in-zone, out-of-zone, inclusive
+    boundaries, none-position, multiple zones)
+  - Dim light doesn't block (target in dim, observer in dim)
+  - Dark zone + no darkvision → blocked (target in dark;
+    observer in dark)
+  - Dark zone + darkvision: within range, exact-boundary, beyond
+    range, both-in-dark within range, 120 ft reach
+  - Precedence: blinded trumps darkvision, invisible-in-dark
+    still blocked by Invisible (not darkness), heavy-obscurement
+    trumps darkvision, self-sees-self even without darkvision
+  - `cli._build_actor` wiring: template default loaded; actor_spec
+    override wins; missing → 0
+- **Fixture:** `dark_dungeon_encounter.yaml` — elf rogue with 60 ft
+  darkvision override + human guard with no darkvision + goblin
+  (with template-derived 60 ft darkvision) inside a 5×5 dark zone.
+  Vision queries resolve as expected in all four directions.
+- 713 tests pass (+24, no regressions).
+
+**Future-roadmap items (recorded, not in this PR):**
+- Truesight (bypasses Invisible + magical darkness)
+- Blindsight (sees within range regardless of vision conditions)
+- Magical darkness (Darkness spell — ordinary darkvision can't
+  bypass; only Devil's Sight / Truesight)
+- Per-tile light grid (vs the zone model — would need a tile system)
+- Active Perception check vs Hide DC (replaces static DC 15)
+- Stealth proficiency (PB addition to Hide check)
+- Perception disadvantage in dim light (the *other* RAW dim-light
+  effect, deferred along with active Perception)
+
+---
+
 ## Session: 2026-05-26 — Great Weapon Fighting + damage_die_floor (PR #49)
 
 **Participants:** Phil, Claude

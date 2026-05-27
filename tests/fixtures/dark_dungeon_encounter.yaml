@@ -1,0 +1,161 @@
+# Dark-dungeon demo — two PCs (one with darkvision, one without) vs
+# a goblin in a dark zone.
+#
+# Setup:
+#   - Elf rogue at (12, 0): darkvision 60 ft via fixture override
+#     (race isn't modeled in the PC schema yet, so racial darkvision
+#     is set directly). Shortbow attack.
+#   - Human guard at (12, 5): NO darkvision (the default). Crossbow
+#     attack. Demonstrates that the same setup looks different to a
+#     creature without darkvision.
+#   - Goblin (template m_goblin_warrior) at (2, 2), inside a dark zone
+#     covering x:0-5, y:0-5. Template gives the goblin its own 60 ft
+#     darkvision (from senses.special.darkvision), so the goblin sees
+#     OUT of the dark zone fine.
+#
+# Expected behavior (per PR #50):
+#   - vision.can_actor_see(elf, goblin) = True  — goblin in dark zone,
+#     elf has 60 ft darkvision, distance is 10 squares = 50 ft ≤ 60.
+#   - vision.can_actor_see(human, goblin) = False — human has no
+#     darkvision; can't see the goblin in the dark.
+#   - vision.can_actor_see(goblin, elf) = True — goblin's own 60 ft
+#     darkvision treats its dark surroundings as dim light; elf at
+#     50 ft is within range.
+#   - vision.can_actor_see(goblin, human) = True — goblin's 60 ft
+#     darkvision reaches 55 ft to the human at (12, 5).
+#
+# The encounter itself just demonstrates that the engine can resolve
+# combat under these vision constraints without crashing — the
+# AI's vision-aware targeting / reaction-gating is exercised
+# elsewhere; this fixture is the integration-smoke test.
+
+id: dark_dungeon_encounter
+
+environment:
+  template: open_battlefield
+  dark_zones:
+    - { x_min: 0, x_max: 5, y_min: 0, y_max: 5 }
+
+actors:
+  # ----- Elf rogue: darkvision 60 ft -----
+  - instance_id: elf_rogue
+    name: Elf Rogue
+    side: pc
+    position: [12, 0]
+    darkvision_range_ft: 60        # race-granted (race not modeled yet)
+    template:
+      id: pc_elf_rogue_dv
+      name: Elf Rogue
+      source: user_authored
+      combat:
+        armor_class: 14
+        hit_points:
+          average: 25
+          dice: "4d8"
+          con_contribution: 4
+        speed: { walk: 30 }
+        initiative: { modifier: 30, score: 40 }    # forced first
+      abilities:
+        str: { score: 10, save: 0 }
+        dex: { score: 18, save: 6 }
+        con: { score: 12, save: 1 }
+        int: { score: 12, save: 1 }
+        wis: { score: 12, save: 1 }
+        cha: { score: 10, save: 0 }
+      cr: { value: 2.0, xp: 450, proficiency_bonus: 2 }
+      behavior_profile:
+        presets:
+          retreat: ftd
+      actions:
+        - id: a_shortbow
+          name: Shortbow
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: ranged, bonus: 6, range_ft: 80 }
+            - primitive: damage
+              params: { dice: "1d6", modifier: 4, type: piercing }
+              when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  # ----- Human guard: no darkvision -----
+  - instance_id: human_guard
+    name: Human Guard
+    side: pc
+    position: [12, 5]
+    # darkvision_range_ft omitted → defaults to 0
+    template:
+      id: pc_human_guard
+      name: Human Guard
+      source: user_authored
+      combat:
+        armor_class: 16
+        hit_points:
+          average: 30
+          dice: "5d8"
+          con_contribution: 5
+        speed: { walk: 30 }
+        initiative: { modifier: 1, score: 11 }
+      abilities:
+        str: { score: 14, save: 2 }
+        dex: { score: 12, save: 1 }
+        con: { score: 12, save: 1 }
+        int: { score: 10, save: 0 }
+        wis: { score: 10, save: 0 }
+        cha: { score: 10, save: 0 }
+      cr: { value: 1.0, xp: 200, proficiency_bonus: 2 }
+      behavior_profile:
+        presets:
+          retreat: ftd
+      actions:
+        - id: a_light_crossbow
+          name: Light Crossbow
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: ranged, bonus: 3, range_ft: 80 }
+            - primitive: damage
+              params: { dice: "1d8", modifier: 1, type: piercing }
+              when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  # ----- Goblin in the dark zone -----
+  - instance_id: goblin
+    name: Goblin
+    side: enemy
+    position: [2, 2]
+    template:
+      id: m_goblin_dark
+      name: Goblin
+      source: user_authored
+      combat:
+        armor_class: 13
+        hit_points:
+          average: 14
+          dice: "4d6"
+          con_contribution: 0
+        speed: { walk: 30 }
+        initiative: { modifier: 2, score: 12 }
+      senses:
+        passive_perception: 9
+        special:
+          darkvision: 60      # template-sourced; loaded by cli._build_actor
+      abilities:
+        str: { score: 8, save: -1 }
+        dex: { score: 14, save: 2 }
+        con: { score: 10, save: 0 }
+        int: { score: 10, save: 0 }
+        wis: { score: 8, save: -1 }
+        cha: { score: 8, save: -1 }
+      cr: { value: 0.25, xp: 50, proficiency_bonus: 2 }
+      behavior_profile:
+        presets:
+          retreat: ftd
+      actions:
+        - id: a_scimitar
+          name: Scimitar
+          type: weapon_attack
+          pipeline:
+            - primitive: attack_roll
+              params: { kind: melee, bonus: 4, reach_ft: 5 }
+            - primitive: damage
+              params: { dice: "1d6", modifier: 2, type: slashing }
+              when: { event: damage_roll, condition: "combat.attack_state == hit" }

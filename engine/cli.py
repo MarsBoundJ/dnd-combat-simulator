@@ -190,6 +190,19 @@ def _build_actor(actor_spec: dict, registry) -> Actor:
     # to model a creature behind a wall, parapet, etc.
     cover = str(actor_spec.get("cover", "none"))
 
+    # PR #50: darkvision range in feet. Precedence:
+    #   1. Explicit `darkvision_range_ft:` on the actor_spec (fixture
+    #      override — for PCs the racial darkvision lives here until
+    #      race modeling lands)
+    #   2. Template's `senses.special.darkvision` (numeric feet)
+    #   3. 0 (no darkvision)
+    darkvision_range_ft = actor_spec.get("darkvision_range_ft")
+    if darkvision_range_ft is None:
+        tpl_senses = (template.get("senses") or {})
+        tpl_special = (tpl_senses.get("special") or {})
+        darkvision_range_ft = tpl_special.get("darkvision", 0)
+    darkvision_range_ft = int(darkvision_range_ft or 0)
+
     return Actor(
         id=instance_id,
         name=actor_spec.get("name", template.get("name", instance_id)),
@@ -205,6 +218,7 @@ def _build_actor(actor_spec: dict, registry) -> Actor:
         spell_slots_max=spell_slots_max,
         resources=resources,
         cover=cover,
+        darkvision_range_ft=darkvision_range_ft,
     )
 
 
