@@ -872,6 +872,42 @@ def _persistent_aura(params: dict, state: CombatState, bus: EventBus) -> None:
         "affected": params.get("affected", "enemies"),
         "applied_at_round": state.round,
     }
+    # PR #60: `creates_zone` param — persistent_auras that ALSO
+    # declare an environment zone (Darkness spell creates a
+    # magical_dark_zone). The zone is stamped with caster_id +
+    # action_id so concentration end can scrub it alongside the
+    # aura. Currently only `magical_dark` is supported.
+    creates_zone = params.get("creates_zone")
+    if creates_zone == "magical_dark":
+        # Sphere shape: needs a fixed center. For caster-anchored
+        # auras we'd need to move the zone with the caster — not
+        # currently modeled (the Darkness spell is point-anchored
+        # per RAW: "centered on a point you choose"). For v1, only
+        # point-anchored magical_dark zones are supported.
+        if anchor != "point" or origin is None:
+            raise ValueError(
+                "creates_zone=magical_dark requires anchor=point "
+                "and a resolved origin. Caster-anchored magical "
+                "darkness deferred.")
+        # Ensure environment dict + zone list exist
+        if state.encounter is not None:
+            env = state.encounter.environment or {}
+            zones = list(env.get("magical_dark_zones") or [])
+            zones.append({
+                "shape": "sphere",
+                "center": list(origin),
+                "radius_ft": int(params.get("radius_ft", 15)),
+                "caster_id": actor.id,
+                "action_id": action.get("id"),
+            })
+            env["magical_dark_zones"] = zones
+            state.encounter.environment = env
+            entry["creates_zone"] = "magical_dark"
+    elif creates_zone is not None:
+        raise ValueError(
+            f"creates_zone={creates_zone!r} not recognized. v1 "
+            f"supports only 'magical_dark'.")
+
     state.persistent_auras.append(entry)
     state.event_log.append({
         "event": "persistent_aura_registered",
@@ -883,6 +919,7 @@ def _persistent_aura(params: dict, state: CombatState, bus: EventBus) -> None:
         "anchor": entry["anchor"],
         "origin": list(origin) if origin is not None else None,
         "trigger_event": entry["trigger_event"],
+        "creates_zone": entry.get("creates_zone"),
     })
 
 

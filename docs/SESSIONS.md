@@ -5,6 +5,81 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-27 — Darkness spell as persistent_aura (PR #60)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Closes the PR #52 residue. Magical_dark_zones previously needed
+  fixture-authoring; the Darkness spell now creates the zone at
+  cast time and the concentration system cleans it up at
+  termination. Three pieces of new infra needed integration.
+- **`vision._position_in_any_zone` extension:**
+  - Added sphere-shape support: `{shape: "sphere", center: [x, y],
+    radius_ft: int}`. Chebyshev distance vs `radius_ft // 5`
+    matches the engine's grid convention (matches `actors_in_radius`
+    from geometry.py).
+  - Backward-compatible with the legacy axis-aligned rect shape —
+    iterating zones checks `z.get("shape") == "sphere"` first,
+    falls back to the rect branch otherwise.
+  - Same change benefits all zone types (heavy obscurement / dim
+    light / dark / magical dark) since they share this helper.
+- **`_persistent_aura` primitive — new `creates_zone` param:**
+  - When `creates_zone="magical_dark"` AND `anchor="point"` AND
+    origin is resolved: appends a sphere entry to
+    `state.encounter.environment.magical_dark_zones`. The zone
+    carries `caster_id + action_id` for matching during cleanup.
+  - Caster-anchored Darkness raises (RAW: Darkness is point-
+    anchored anyway; the moving-with-caster variant would need
+    runtime zone-position updates and isn't needed).
+  - No origin raises (caller bug — point-anchored without origin
+    is undefined).
+  - Unknown `creates_zone` values raise with a clear "v1 supports
+    only 'magical_dark'" message. Forward-compat for future
+    zone-creating spells.
+- **`concentration.end_concentration` extension:**
+  - After scrubbing matching active_modifiers, applied_conditions,
+    and persistent_auras, ALSO scrubs environment
+    `magical_dark_zones` whose `caster_id + action_id` match.
+  - Statically-declared zones (fixture-authored, no caster_id
+    stamp) are preserved untouched — the cleanup filter is
+    explicit about matching both fields.
+  - Increments the same `removed` counter for consistency with
+    other cleanup paths.
+- **`f_darkness.yaml`:** SRD CC v5.2.1 spell.
+  `granted_by: c_wizard L3` (2nd-level spell access).
+  `action_template`: persistent_aura with sphere/15-ft
+  radius/point anchor, `ability: none` (no save), empty
+  on_fail/on_success (no damage), `creates_zone: magical_dark`.
+- **Tests (18 new in `test_darkness_spell.py`):**
+  - Sphere zone detection: center, in-radius, just-outside,
+    rect backward compat, mixed rect+sphere, via
+    `is_in_magical_dark_zone`
+  - `_persistent_aura` creates_zone: succeeds with magical_dark
+    + sphere center/radius/stamping; raises on caster anchor;
+    raises on unknown zone type; no-zone-when-omitted
+  - `end_concentration`: drops caster's Darkness zone; preserves
+    statically-declared zones; two casters independent
+  - End-to-end vision: no-darkvision blocked, ordinary darkvision
+    blocked, truesight out-of-range blocked, truesight in-range
+    pierces, blindsight pierces
+- 980 tests pass (+18 new, 1 skip, no regressions).
+
+**Future-roadmap items (recorded, not in this PR):**
+- "Centered on a creature you choose" variant — Darkness RAW lets
+  the spell anchor on an object/creature; v1 point-anchors at
+  coordinates only
+- Devil's Sight (Warlock invocation that bypasses magical
+  darkness without truesight) — same PR #52 deferred
+- AI scoring for Darkness — `offensive_ehp_persistent_aura`
+  currently scores damage auras; Darkness's defensive vision-
+  denial value needs its own estimator (analogous to how Hide
+  scores defensively in PR #59)
+- Other zone-creating spells (Hunger of Hadar, Cloudkill) — the
+  `creates_zone` hook is generic enough to extend; tracked
+
+---
+
 ## Session: 2026-05-27 — AI eHP scoring for Hide + Search (PR #59)
 
 **Participants:** Phil, Claude

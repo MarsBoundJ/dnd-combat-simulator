@@ -680,6 +680,48 @@ priority order:
    Rebuke**~~ — **Shipped in PR #45.**
 18. ~~**Counterspell + cast-event infra**~~ — **Shipped in PR #46.**
 19. ~~**Vision system v1**~~ — **Shipped in PR #47.**
+32. ~~**Darkness spell as persistent_aura**~~ — **Shipped in PR #60.**
+   Closes the PR #52 residue (magical_dark_zones previously needed
+   fixture-authoring; the Darkness spell now declares its zone at
+   cast time, with concentration tracking for cleanup). Three
+   pieces of new infra:
+   - `vision._position_in_any_zone` extended to recognize sphere
+     zones (`{shape: "sphere", center: [x, y], radius_ft: int}`)
+     alongside the legacy axis-aligned rect shape. Chebyshev
+     distance vs `radius_ft // 5` matches the grid convention.
+     Backward-compatible — existing rect zones still work.
+   - `_persistent_aura` primitive gains a `creates_zone` param.
+     When `creates_zone="magical_dark"` AND anchor='point' AND
+     origin is resolved, appends a sphere entry to
+     `state.encounter.environment.magical_dark_zones` stamped
+     with `caster_id` + `action_id`. Caster-anchored Darkness
+     (moves with caster) deferred — RAW says point-anchored
+     anyway. Unknown `creates_zone` values raise; v1 supports
+     only `magical_dark`.
+   - `concentration.end_concentration` extended to scrub
+     environment magical_dark_zones whose caster_id + action_id
+     match the dropped aura. Statically-declared zones (no
+     caster_id stamp from fixtures) are preserved untouched.
+   - New `f_darkness.yaml` feature file. SRD CC v5.2.1.
+     `granted_by: c_wizard L3` (2nd-level spell access).
+     Action template uses persistent_aura with sphere/15-ft
+     radius/point anchor + the new creates_zone param.
+   - Deferred: "centered on a creature you choose" variant
+     (Darkness can RAW be cast on an object/creature; v1
+     point-anchors only); Devil's Sight (Warlock invocation
+     that pierces magical darkness without truesight — same
+     PR #52 residue); AI scoring for Darkness (defensive
+     vision-denial value needs its own estimator).
+   - 18 new tests across sphere zone detection (center / in-
+     radius / just-outside / backward-compat / mixed / via
+     is_in_magical_dark_zone), _persistent_aura zone creation
+     (succeeds with magical_dark / raises with caster anchor /
+     raises with unknown zone type / no zone when omitted),
+     concentration end (drops zone / preserves static zones /
+     two casters independent), and end-to-end vision
+     (no darkvision blocked / ordinary darkvision blocked /
+     truesight in-range pierces / truesight out-of-range
+     blocked / blindsight pierces).
 31. ~~**AI eHP scoring for Hide + Search**~~ — **Shipped in PR #59.**
    Closes the residues from PR #48 (Hide had no scorer; returned 0
    by default) and PR #55 (Search relied on gated emission, no
