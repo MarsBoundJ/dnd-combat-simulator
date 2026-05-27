@@ -222,6 +222,16 @@ def _build_actor(actor_spec: dict, registry) -> Actor:
         passive_perception = tpl_senses.get("passive_perception", 10)
     passive_perception = int(passive_perception)
 
+    # PR #54: weapon mastery properties this actor knows. Precedence:
+    #   1. Explicit `weapon_masteries:` on actor_spec (fixture override)
+    #   2. Template `weapon_masteries` (PC schema bakes it; monster
+    #      templates may declare directly)
+    #   3. [] (no masteries)
+    weapon_masteries = actor_spec.get("weapon_masteries")
+    if weapon_masteries is None:
+        weapon_masteries = template.get("weapon_masteries") or []
+    weapon_masteries = list(weapon_masteries)
+
     return Actor(
         id=instance_id,
         name=actor_spec.get("name", template.get("name", instance_id)),
@@ -241,6 +251,7 @@ def _build_actor(actor_spec: dict, registry) -> Actor:
         truesight_range_ft=truesight_range_ft,
         blindsight_range_ft=blindsight_range_ft,
         passive_perception=passive_perception,
+        weapon_masteries=weapon_masteries,
     )
 
 

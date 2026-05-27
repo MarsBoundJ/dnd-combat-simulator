@@ -150,6 +150,15 @@ class Actor:
     # last-resort fallback (raw average human with neutral WIS).
     passive_perception: int = 10
 
+    # Weapon mastery properties this actor "knows" (PR #54). When the
+    # actor wields a weapon whose intrinsic `mastery` matches an entry
+    # here, the property fires after attack resolution. Loaded from
+    # the template's `weapon_masteries` list (PC schema bakes it from
+    # the pc_spec `weapon_masteries:` field) or an actor_spec override.
+    # v1 ships four properties: vex / sap / topple / graze. See
+    # engine.core.weapon_masteries.KNOWN_MASTERIES.
+    weapon_masteries: list = field(default_factory=list)
+
     def is_alive(self) -> bool:
         return self.hp_current > 0 and not self.is_dead and not self.is_fled
 

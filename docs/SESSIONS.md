@@ -5,6 +5,110 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-26 — Weapon Mastery v1 (PR #54)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- The biggest 2024 PHB feature. Pre-scoped twice:
+  - **4 properties** (Vex / Sap / Topple / Graze), not all 9. Skips
+    Cleave (extra attack — needs sub-attack gen), Push (movement),
+    Slow (speed reduction with duration), Nick (TWF residue).
+  - **Fighter only**. Barbarian / Paladin / Ranger / Rogue wirings
+    deferred to per-class PRs.
+- **New `engine/core/weapon_masteries.py` module** centralizes:
+  - `KNOWN_MASTERIES` frozenset (v1 set)
+  - `DEFERRED_MASTERIES` frozenset (Cleave/Push/Slow/Nick — listed
+    so validators can surface a clearer "deferred, not unknown"
+    error when authors try them)
+  - `validate_mastery` + `validate_mastery_list` + `actor_knows_mastery`
+  - Per-property functions: `_mastery_vex`, `_mastery_sap`,
+    `_mastery_topple`, `_mastery_graze`
+  - `apply_mastery_effects` dispatch helper called from `_attack_roll`
+- **`Actor.weapon_masteries: list`** field — the properties the
+  actor *knows*. Distinct from a weapon's intrinsic mastery
+  property (which is on the weapon spec).
+- **`cli._build_actor`** loads `weapon_masteries` from actor_spec
+  override → template top-level → [].
+- **`pc_schema`**:
+  - Accepts `pc_spec.weapon_masteries: [vex, sap, topple, graze]`
+  - Validates against KNOWN_MASTERIES via `validate_mastery_list`
+  - Bakes onto template top-level + `derived_from_pc_schema`
+  - v1 does NOT enforce the class-level "masteries known" cap from
+    level table (Fighter L1: 3, L4: 4, L10: 5, L16: 6). Tracked
+    as a future tightening.
+- **Weapon spec extension**: `mastery: <id>` on the weapon dict.
+  `_build_weapon_action` validates the id and bakes a self-
+  contained `mastery: {id, ability_mod, damage_type, save_dc}`
+  sub-dict into attack_roll params. Self-contained means the
+  runtime helper doesn't need to re-read the actor template;
+  everything it needs is in the params dict.
+- **Ordering fix in `_attack_roll`**: dispatch fires AFTER lifetime
+  expiry, not before. The expiry sweep includes
+  `owner_made_attack` which consumes `per_owner_attack` modifiers.
+  If we registered Vex *before* expiry, it'd consume on the
+  triggering swing instead of the next one. Pinned with the Vex
+  test confirming `per_owner_attack` lifetime is set.
+- **Per-property implementations:**
+  - **Vex** — registers `advantage_for_self` attack_modifier on
+    actor with `per_owner_attack` lifetime + `when:
+    attacker_is_self`. RAW says "next attack against this target,"
+    but v1 uses the simpler "next attack period" semantics —
+    practically equivalent for sequential-target AI. Tracked as
+    a future refinement.
+  - **Sap** — registers `disadvantage_for_self` on TARGET (owner_id
+    = target.id) with same lifetime. Fires when target attacks next.
+  - **Topple** — rolls CON save (d20 + target.con_save vs DC
+    8+ability_mod+PB). On fail, applies Prone via the standard
+    apply_condition flow (so condition's modifiers wire up
+    correctly). Save events logged.
+  - **Graze** — on miss, deals `ability_mod` damage of weapon's
+    damage type. Mirrors `_damage`'s resistance/vuln/immunity
+    handling. 0 or negative ability_mod → no damage (RAW: Graze
+    explicitly mentions "ability modifier" which is 0 at +0).
+- **f_weapon_mastery.yaml** feature file. Fighter class def already
+  declared `weapon_mastery_count` per level (3/4/5/6) and the
+  feature reference — this PR fills in the feature definition.
+- **Tests (36 new in `test_weapon_mastery.py`):**
+  - Validators (known set, normalize case, deferred raises with
+    clear message, unknown raises, list deduplicates/preserves
+    order, empty cases, non-list raises)
+  - `actor_knows_mastery` (in-list, not-in-list, empty list, empty id)
+  - PC schema integration (unknown raises, deferred raises, baked on
+    template, in derived_from, empty when not specified)
+  - `_build_weapon_action` (no mastery omits key, mastery baked with
+    full subdict including correct ability_mod / damage_type /
+    save_dc, unknown mastery raises)
+  - Vex (hit registers correct modifier, miss does NOT register,
+    actor without vex no-op, crit also triggers)
+  - Sap (hit registers on target, owner_id = target.id, miss no-op)
+  - Topple (failed save applies Prone via apply_condition,
+    passed save does not, miss doesn't force save)
+  - Graze (miss deals ability_mod damage, hit does not, zero mod
+    no damage, resistance halves, immunity zeros)
+  - Dispatch no-ops (None params, empty params)
+- **Fixture:** `weapon_mastery_showcase_encounter.yaml` — four L1
+  Fighters each wielding a different weapon (Rapier/Mace/Maul/
+  Greatsword) with each weapon's mastery active. All four know
+  all four masteries (over the L1 cap of 3 — v1 doesn't enforce).
+  Dummies have low CON saves for the Topple demo.
+- 837 tests pass (+36, no regressions).
+
+**Future-roadmap items (recorded, not in this PR):**
+- Cleave (extra attack on hit with Heavy melee — needs sub-attack
+  generation)
+- Push (forced movement primitive)
+- Slow (speed reduction with duration tracking)
+- Nick (off-hand attack as part of Attack action — bridges to the
+  TWF residue from PR #53)
+- Class-level "masteries known" cap enforcement (vs trust-the-
+  spec v1)
+- Per-target Vex lifetime (RAW: expires only on next attack
+  against same target; v1 expires on any next attack)
+- Barbarian / Paladin / Ranger / Rogue Weapon Mastery wirings
+
+---
+
 ## Session: 2026-05-26 — Two-Weapon Fighting + off-hand mechanics (PR #53)
 
 **Participants:** Phil, Claude
