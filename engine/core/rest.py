@@ -175,6 +175,13 @@ def apply_long_rest(actor: Actor, state: CombatState) -> dict:
         rage_result = _refresh_rage_uses_to_max(actor)
         if rage_result is not None:
             summary["rage_uses_refresh"] = rage_result
+    if cls == "c_paladin":
+        # PR #83: Lay on Hands pool fully refreshes on long rest.
+        # The max is stamped onto resources as
+        # `lay_on_hands_pool_max` by derive_pc_resources.
+        loh_result = _refresh_lay_on_hands_pool_to_max(actor)
+        if loh_result is not None:
+            summary["lay_on_hands_pool_refresh"] = loh_result
 
     state.event_log.append({
         "event": "long_rest_applied",
@@ -208,6 +215,23 @@ def _refresh_second_wind_to_max(actor: Actor,
         return None
     actor.resources["second_wind_uses_remaining"] = max_uses
     return {"new_total": max_uses}
+
+
+def _refresh_lay_on_hands_pool_to_max(actor: Actor) -> dict | None:
+    """Long rest fully restores the Paladin's Lay on Hands pool to
+    the level-table max stamped on
+    `actor.resources["lay_on_hands_pool_max"]` by
+    pc_schema.derive_pc_resources (PR #83). Returns None when the
+    actor has no pool_max declared (non-Paladin or fixture without
+    the resource pair)."""
+    max_pool = int(actor.resources.get("lay_on_hands_pool_max", 0))
+    if max_pool <= 0:
+        return None
+    cur = int(actor.resources.get("lay_on_hands_pool_remaining", 0))
+    if cur >= max_pool:
+        return None
+    actor.resources["lay_on_hands_pool_remaining"] = max_pool
+    return {"new_total": max_pool}
 
 
 def _refresh_rage_uses_to_max(actor: Actor) -> dict | None:

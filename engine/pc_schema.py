@@ -453,6 +453,16 @@ def derive_pc_resources(pc_spec: dict, content_registry: Any) -> dict:
             resources["rage_uses_remaining"] = uses
             resources["rage_uses_max"] = uses
 
+    # ---- Lay on Hands (Paladin L1+) — PR #83 ----
+    # Pool = 5 × paladin_level HP. Refreshes on long rest. The
+    # lay_on_hands primitive reads `lay_on_hands_pool_remaining` to
+    # gate / debit; apply_long_rest restores to
+    # `lay_on_hands_pool_max`.
+    if "f_lay_on_hands" in features_known and class_id == "c_paladin":
+        pool = 5 * level
+        resources["lay_on_hands_pool_remaining"] = pool
+        resources["lay_on_hands_pool_max"] = pool
+
     return resources
 
 

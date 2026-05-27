@@ -113,6 +113,21 @@ def defensive_ehp_healing(actor: Actor, target_ally: Actor, action: dict,
         return 0.0
 
     hp_frac = target_ally.hp_current / target_ally.hp_max if target_ally.hp_max else 0.0
+
+    # PR #83: Lay on Hands special path. The heal amount isn't
+    # baked into the action (it's `min(missing, pool)` at runtime),
+    # so `expected_healing` returns 0. Compute the actual amount
+    # from the actor's pool + target's missing HP, then apply the
+    # same desperation multiplier + missing cap.
+    for step in action.get("pipeline") or []:
+        if step.get("primitive") == "lay_on_hands":
+            pool = int(actor.resources.get(
+                "lay_on_hands_pool_remaining", 0))
+            if pool <= 0:
+                return 0.0
+            amount = min(missing, float(pool))
+            return amount * desperation_multiplier(hp_frac)
+
     raw = expected_healing(action, actor) * desperation_multiplier(hp_frac)
     return min(raw, missing)
 

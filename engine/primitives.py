@@ -1336,6 +1336,50 @@ def _dash(params: dict, state: CombatState, bus: EventBus) -> None:
     })
 
 
+def _lay_on_hands(params: dict, state: CombatState, bus: EventBus) -> None:
+    """Lay on Hands primitive (PR #83, Paladin L1+).
+
+    RAW PHB 2024: Paladin has a healing pool of 5 × paladin_level
+    HP. As a Bonus Action, touch a creature and restore HP up to
+    the remaining pool. v1 only models the heal half (deferred:
+    "spend 5 pool to neutralize Poisoned condition").
+
+    The amount healed is computed at primitive-invoke time as:
+        min(target_missing_hp, actor_pool_remaining)
+    This auto-rights the amount: never overheals, never wastes
+    pool below what the target needs. Pool drains by the actual
+    amount healed.
+
+    Reads pool from `actor.resources["lay_on_hands_pool_remaining"]`.
+    No-op (returns 0 heal, no pool drain, no event) when:
+      - Pool is empty / missing
+      - Target is at full HP / dead / not a valid heal target
+    """
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        raise ValueError("lay_on_hands requires a current actor")
+    target = (state.current_attack or {}).get("target") or actor
+    if not target.is_alive():
+        return
+    pool = int(actor.resources.get("lay_on_hands_pool_remaining", 0))
+    if pool <= 0:
+        return
+    missing = max(0, int(target.hp_max) - int(target.hp_current))
+    if missing <= 0:
+        return
+    amount = min(missing, pool)
+    target.hp_current = min(target.hp_max,
+                                int(target.hp_current) + amount)
+    actor.resources["lay_on_hands_pool_remaining"] = pool - amount
+    state.event_log.append({
+        "event": "lay_on_hands",
+        "actor": actor.id,
+        "target": target.id,
+        "amount": amount,
+        "pool_remaining": pool - amount,
+    })
+
+
 def _steady_aim(params: dict, state: CombatState, bus: EventBus) -> None:
     """Steady Aim primitive (PR #80, Rogue L3+).
 
@@ -1573,6 +1617,7 @@ def _populate_handler_table() -> None:
         "rage_start": _rage_start,
         "dash": _dash,
         "steady_aim": _steady_aim,
+        "lay_on_hands": _lay_on_hands,
     }
 
 
@@ -1613,6 +1658,8 @@ def _all_primitives() -> list[Primitive]:
         # PR #80 — Rogue L3 Steady Aim (BA: advantage on next
         # attack + speed 0 rest of turn)
         Primitive("steady_aim", _steady_aim, implemented=True),
+        # PR #83 — Paladin Lay on Hands (BA touch heal from pool)
+        Primitive("lay_on_hands", _lay_on_hands, implemented=True),
     ]
     # Populate handler lookup table for subprimitive invocations
     global _PRIMITIVE_HANDLERS
