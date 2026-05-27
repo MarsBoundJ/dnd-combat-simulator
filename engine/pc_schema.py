@@ -130,6 +130,21 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
     skill_proficiencies = _validate_skill_proficiencies(
         pc_spec.get("skill_proficiencies"))
 
+    # Skill expertise (PR #62) — list of skill names the PC has
+    # Expertise in (2× PB instead of 1× PB on those skill checks).
+    # RAW: Expertise requires Proficiency in the same skill — v1
+    # enforces this via `_validate_skill_expertise(expertise,
+    # proficiencies)` which raises if any expertise entry is not
+    # also in skill_proficiencies.
+    skill_expertise = _validate_skill_expertise(
+        pc_spec.get("skill_expertise"), skill_proficiencies)
+
+    # Skill magic-item bonuses (PR #62) — flat int bonus per skill,
+    # e.g. {stealth: 5, perception: 2} for a PC with Cloak of
+    # Elvenkind + Eyes of the Eagle. Validated against the known
+    # skill list. Stacks on top of any proficiency / expertise PB.
+    skill_bonuses = _validate_skill_bonuses(pc_spec.get("skill_bonuses"))
+
     # Weapon masteries (PR #54) — list of mastery property ids this
     # PC "knows" via the Weapon Mastery class feature. Validated
     # against the known set in engine.core.weapon_masteries. Baked
@@ -228,6 +243,8 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
             "level": level,
             "fighting_style": fighting_style,    # None if not chosen
             "skill_proficiencies": list(skill_proficiencies),
+            "skill_expertise": list(skill_expertise),
+            "skill_bonuses": dict(skill_bonuses),
             "weapon_masteries": list(weapon_masteries),
         },
         # Top-level skill_proficiencies for the runtime skill_modifier
@@ -235,6 +252,13 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
         # template `skills:` dict shape, except PCs store the list of
         # proficient skills (bonus computed on demand from ability + PB).
         "skill_proficiencies": list(skill_proficiencies),
+        # PR #62: Expertise list + magic-item bonuses. Both consumed
+        # by skill_modifier at runtime via has_skill_expertise and
+        # _skill_magic_bonus helpers. Monster templates use the
+        # `skills:` dict (which has the bonus already baked); these
+        # PC-side fields complement the proficiency list.
+        "skill_expertise": list(skill_expertise),
+        "skill_bonuses": dict(skill_bonuses),
         # Top-level weapon_masteries (PR #54) — read by cli._build_actor
         # onto Actor.weapon_masteries. Empty list = actor knows no
         # masteries (i.e., doesn't have the class feature OR didn't
@@ -245,7 +269,9 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
         # Loaded by cli._build_actor onto Actor.passive_perception.
         "senses": {
             "passive_perception": _compute_passive_perception(
-                ability_scores, skill_proficiencies, proficiency_bonus),
+                ability_scores, skill_proficiencies, proficiency_bonus,
+                skill_expertise=skill_expertise,
+                skill_bonuses=skill_bonuses),
         },
     }
 
@@ -501,24 +527,112 @@ def _validate_skill_proficiencies(value) -> list[str]:
     return out
 
 
+def _validate_skill_expertise(value,
+                                  proficiencies: list[str]) -> list[str]:
+    """Return a normalized list of skills the PC has Expertise in
+    (PR #62), or [] when None / empty.
+
+    Raises ValueError if:
+      - value is not a list
+      - any entry is not a known skill name
+      - any entry is not ALSO in `proficiencies` (RAW: Expertise
+        requires Proficiency — you can't double a PB you don't have)
+
+    The proficiency-required gate is enforced here rather than at
+    runtime so authors catch typos / missing proficiencies at
+    build time.
+    """
+    if value is None or value == "":
+        return []
+    from engine.core.skills import validate_skill_name
+    if not isinstance(value, (list, tuple)):
+        raise ValueError(
+            f"skill_expertise must be a list, got {type(value).__name__}"
+        )
+    profs_normalized = {s.lower() for s in proficiencies}
+    out: list[str] = []
+    seen: set[str] = set()
+    for raw in value:
+        n = validate_skill_name(str(raw))
+        if n not in profs_normalized:
+            raise ValueError(
+                f"Expertise in {n!r} requires also being proficient. "
+                f"Add {n!r} to skill_proficiencies, OR remove it from "
+                f"skill_expertise. Current proficiencies: "
+                f"{sorted(profs_normalized)}."
+            )
+        if n not in seen:
+            out.append(n)
+            seen.add(n)
+    return out
+
+
+def _validate_skill_bonuses(value) -> dict:
+    """Return a normalized dict of skill_name → int bonus, or {} when
+    None / empty (PR #62).
+
+    Raises ValueError if:
+      - value is not a dict
+      - any key is not a known skill name
+      - any value is not int-coercible
+
+    Used for magic-item bonuses (Cloak of Elvenkind +5 Stealth, etc.).
+    Different skills can independently get bonuses; the dict shape
+    is more authoring-friendly than a list-of-objects.
+    """
+    if value is None or value == "":
+        return {}
+    from engine.core.skills import validate_skill_name
+    if not isinstance(value, dict):
+        raise ValueError(
+            f"skill_bonuses must be a dict, got {type(value).__name__}"
+        )
+    out: dict = {}
+    for raw_key, raw_value in value.items():
+        n = validate_skill_name(str(raw_key))
+        try:
+            bonus = int(raw_value)
+        except (TypeError, ValueError):
+            raise ValueError(
+                f"skill_bonuses[{raw_key!r}] must be an int, got "
+                f"{type(raw_value).__name__}: {raw_value!r}"
+            )
+        out[n] = bonus
+    return out
+
+
 def _compute_passive_perception(ability_scores: dict,
                                     skill_proficiencies: list[str],
-                                    proficiency_bonus: int) -> int:
-    """10 + WIS_mod + (PB if proficient in Perception).
+                                    proficiency_bonus: int,
+                                    skill_expertise: list[str] | None = None,
+                                    skill_bonuses: dict | None = None) -> int:
+    """10 + WIS_mod + (PB×expertise_mult if proficient) + magic bonus.
 
     PR #51: PCs derive passive Perception so vision checks against
     hidden creatures (PR #48's Hide) have a number to compare
     against. Monster templates declare this directly under
     `senses.passive_perception`; we mirror that shape for PCs.
 
-    Expertise (double PB) is deferred until skill expertise lands.
-    Magic-item bonuses (e.g., Cloak of Elvenkind) deferred.
+    PR #62: factor skill expertise (2×PB) and magic-item bonuses
+    (Cloak of Elvenkind / Eyes of the Eagle / etc.) into the
+    passive value. Same shape as active `skill_modifier`.
     """
     wis_score = int((ability_scores.get("wis") or {}).get("score", 10))
     mod = ability_modifier(wis_score)
     base = 10 + mod
-    if "perception" in {s.lower() for s in skill_proficiencies}:
-        base += int(proficiency_bonus)
+    profs_lower = {s.lower() for s in skill_proficiencies}
+    if "perception" in profs_lower:
+        pb = int(proficiency_bonus)
+        expertise_lower = {s.lower() for s in (skill_expertise or [])}
+        if "perception" in expertise_lower:
+            base += 2 * pb
+        else:
+            base += pb
+    # Magic-item bonus: flat add (case-insensitive match)
+    for name, value in (skill_bonuses or {}).items():
+        if str(name).lower() == "perception":
+            base += int(value)
+            break
     return base
 
 

@@ -96,14 +96,64 @@ def has_skill_proficiency(actor: Actor, skill: str) -> bool:
     return False
 
 
+def has_skill_expertise(actor: Actor, skill: str) -> bool:
+    """True if the actor has Expertise in `skill` (PR #62).
+
+    Reads `template.skill_expertise` (PC schema bakes it there from
+    the pc_spec's `skill_expertise:` field). Expertise stacks ON
+    TOP of proficiency — both are required for the 2×PB bonus
+    (Expertise without proficiency is impossible per RAW; validation
+    in pc_schema enforces this).
+
+    For monsters with the `skills:` dict, Expertise is already baked
+    into the listed bonus (the monster's stat block authors handled
+    the doubling). Monster expertise isn't separately tracked here.
+    """
+    n = normalize_skill_name(skill)
+    template = actor.template or {}
+    listed = template.get("skill_expertise") or []
+    return n in {normalize_skill_name(s) for s in listed}
+
+
+def _skill_magic_bonus(actor: Actor, skill: str) -> int:
+    """Flat magic-item bonus to `skill` (PR #62).
+
+    Reads `template.skill_bonuses` — a dict like
+    `{stealth: 5, perception: 2}` where each value is an integer
+    flat bonus added to skill checks. Magic items that affect
+    specific skills (Cloak of Elvenkind, Gloves of Thievery, Boots
+    of Elvenkind, Eyes of the Eagle, etc.) populate this dict.
+
+    Returns 0 if no bonus declared for this skill. For monsters
+    using `template.skills.<name>`, magic item bonuses are
+    typically already baked into the listed total — this helper
+    doesn't apply on top of monster-listed bonuses.
+    """
+    n = normalize_skill_name(skill)
+    template = actor.template or {}
+    bonuses = template.get("skill_bonuses") or {}
+    for raw_name, value in bonuses.items():
+        if normalize_skill_name(raw_name) == n:
+            return int(value)
+    return 0
+
+
 def skill_modifier(actor: Actor, skill: str) -> int:
     """Total modifier for `skill` on `actor`.
 
     Resolution order:
-      1. If `template.skills.<skill>` is an explicit number, use it.
-         (SRD-monster shape — the bonus already includes ability +
-         proficiency + racial mods.)
-      2. Otherwise compute ability_mod + (PB if proficient).
+      1. If `template.skills.<skill>` is an explicit number, use it
+         as the base. Magic item bonus (`template.skill_bonuses`)
+         is added on top — RAW item bonuses stack with the monster
+         stat block's listed total.
+      2. Otherwise compute ability_mod + (PB×expertise_multiplier
+         if proficient) + magic item bonus.
+
+    Expertise multiplier (PR #62):
+      - Proficient AND not in skill_expertise → 1× PB
+      - Proficient AND in skill_expertise → 2× PB
+      - Not proficient → no PB added (Expertise without proficiency
+        is impossible per RAW; pc_schema validates this gate)
 
     Unknown skills raise — keeps typos from silently returning 0.
     """
@@ -114,9 +164,11 @@ def skill_modifier(actor: Actor, skill: str) -> int:
     skills_dict = template.get("skills") or {}
     for raw_name, bonus in skills_dict.items():
         if normalize_skill_name(raw_name) == n:
-            return int(bonus)
+            # Add any magic-item bonus on top (rare for monsters but
+            # supported for completeness).
+            return int(bonus) + _skill_magic_bonus(actor, n)
 
-    # 2. Compute from ability + PB
+    # 2. Compute from ability + (PB × expertise multiplier)
     ability = SKILL_TO_ABILITY[n]
     ability_block = (actor.abilities or {}).get(ability) or {}
     ability_score = int(ability_block.get("score", 10))
@@ -126,6 +178,17 @@ def skill_modifier(actor: Actor, skill: str) -> int:
         # Pull proficiency bonus from the template's cr block (same
         # field _execute_hide and other systems consult).
         pb = int((template.get("cr") or {}).get("proficiency_bonus", 2))
-        mod += pb
+        if has_skill_expertise(actor, n):
+            # PR #62: Expertise doubles PB. RAW: "your Proficiency
+            # Bonus is doubled if it isn't already." We don't currently
+            # track "already doubled" sources (Jack of All Trades,
+            # Reliable Talent variants); v1 always doubles when
+            # expertise is set.
+            mod += 2 * pb
+        else:
+            mod += pb
+
+    # Magic item bonus (always added, regardless of proficiency)
+    mod += _skill_magic_bonus(actor, n)
 
     return mod
