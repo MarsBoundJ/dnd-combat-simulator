@@ -1,0 +1,76 @@
+# f_steady_aim — Steady Aim (Rogue L3+, PHB 2024)
+# Source: SRD CC v5.2.1 / PHB 2024 p.114
+# Pattern: bonus-action self-buff, eligibility-gated
+
+id: f_steady_aim
+name: Steady Aim
+source: srd_5.2.1
+granted_by:
+  class: c_rogue
+  level: 3
+type: active
+is_signature: false
+
+# Bonus action — no spell slot, no feature charge. The eligibility
+# gate ("haven't moved this turn") is enforced by the pipeline
+# filter via the action's `requires_no_movement: true` flag.
+resource_cost:
+  type: bonus_action
+
+usage:
+  uses_per: at_will
+  rest_recovery:
+    short_rest: none      # nothing to refresh
+
+# pc_schema (engine/pc_schema.py::_build_feature_actions) auto-
+# generates a_steady_aim for Rogue L3+ PCs with:
+#   - type: defensive_buff (self-targeted)
+#   - slot: bonus_action
+#   - requires_no_movement: true (pipeline filter consumes)
+#   - pipeline: [{primitive: steady_aim, params: {}}]
+#
+# The steady_aim primitive:
+#   - Registers an attack_modifier on the actor: target=self,
+#     modifier=advantage, lifetime=per_owner_attack (consumes on
+#     the next swing)
+#   - Sets actor.moved_this_turn=True (RAW: speed becomes 0
+#     for the rest of this turn)
+
+effect_primitives:
+  - primitive: steady_aim
+    params: {}
+
+contract:
+  reads: [actor.moved_this_turn, actor.actions_used_this_turn]
+  writes: [actor.active_modifiers,        # advantage modifier
+            actor.moved_this_turn]         # block subsequent move
+  event: actor_turn_bonus_action
+  scope: per_use
+
+# RAW notes:
+#   - Eligibility: "you haven't moved during the current turn."
+#     Engine enforces via the requires_no_movement filter in
+#     pipeline.generate_candidates — actions flagged this way
+#     are dropped when actor.moved_this_turn is True.
+#   - "Your speed becomes 0 until the end of this turn." Engine
+#     models by setting moved_this_turn=True, which short-
+#     circuits _move_to_engage. The flag clears via reset_turn
+#     at the start of the actor's next turn.
+#   - "Advantage on your next attack roll on the current turn."
+#     v1 grants advantage on the actor's NEXT attack regardless
+#     of timing — RAW expires the bonus if the actor doesn't make
+#     the attack this turn OR if the attack misses. Today's
+#     modifier system consumes on owner-made-attack (any
+#     outcome); spurious carry into next turn is prevented by
+#     the modifier expiry on the actor's `turn_start` event being
+#     a no-op for `per_owner_attack` lifetime — defensive
+#     follow-up if a fixture surfaces a problem.
+#
+# Deferred:
+#   - Pre-targeting (RAW: pick a creature you can see within
+#     weapon range; v1 grants advantage on the next attack
+#     regardless of which enemy is hit)
+#   - "Advantage expires on miss" pedantic RAW detail
+#   - Synergy boost in AI scoring (Steady Aim's value is highest
+#     when SA is unavailable via ally-adjacent; scorer can
+#     uplift in that scenario — deferred to PR follow-up)

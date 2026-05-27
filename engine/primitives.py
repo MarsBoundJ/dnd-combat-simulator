@@ -1336,6 +1336,76 @@ def _dash(params: dict, state: CombatState, bus: EventBus) -> None:
     })
 
 
+def _steady_aim(params: dict, state: CombatState, bus: EventBus) -> None:
+    """Steady Aim primitive (PR #80, Rogue L3+).
+
+    RAW PHB 2024: "As a Bonus Action, you can take aim at one
+    creature you can see that is within range of a weapon you're
+    wielding. You have Advantage on your next attack roll against
+    the target. This benefit expires if you don't make the attack
+    roll before the end of the current turn or if your attack misses.
+    Your Speed is 0 until the end of this turn."
+
+    Eligibility (enforced at candidate-emission time, not here):
+      - Actor must NOT have moved this turn (RAW prohibits Steady
+        Aim once movement is spent)
+      - Actor has at least L3 Rogue (gated in pc_schema)
+      - Bonus Action available (standard BA gate)
+
+    Effects:
+      - Register an attack_modifier on the actor: advantage on next
+        attack. Lifetime `per_owner_attack` consumes on the
+        actor's NEXT attack roll — matches RAW's "next attack."
+      - Mark `actor.moved_this_turn = True` to prevent any
+        subsequent _move_to_engage call (RAW: "your speed is 0
+        until the end of this turn").
+
+    v1 simplifications:
+      - RAW also expires the buff "if your attack misses." Today's
+        modifier system consumes on owner-made-attack regardless of
+        outcome. The advantage still applies to the swing, which is
+        the load-bearing behavior; spurious carry-over only matters
+        for the rare path where a Rogue swings once with Steady Aim
+        and immediately tries to swing again — current engine
+        already gates that via actions_used_this_turn.
+      - "Target one creature you can see within weapon range" gate
+        deferred — the eligibility check above relies on the BA
+        candidate-emission flow, which doesn't yet pre-target a
+        specific enemy for Steady Aim (the advantage applies to
+        whatever the next attack hits).
+    """
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        raise ValueError("steady_aim requires a current actor")
+
+    # Speed-to-0 enforcement: mark as already-moved so the runner's
+    # _move_to_engage early-returns. Even if it never tried to move,
+    # this prevents subsequent attempts post-Steady-Aim. Cleared by
+    # reset_turn at start of next turn.
+    actor.moved_this_turn = True
+
+    # Register the advantage attack_modifier. Same shape as Vex
+    # mastery's per-owner-attack advantage rider (PR #54), so the
+    # `per_owner_attack` lifetime correctly consumes on the next
+    # swing rather than persisting.
+    entry = {
+        "primitive": "attack_modifier",
+        "params": {"target": "self", "modifier": "advantage"},
+        "lifetime": "per_owner_attack",
+        "source": {"type": "feature",
+                     "feature_id": "f_steady_aim",
+                     "source_creature_id": actor.id},
+        "applied_at_round": state.round,
+        "owner_id": actor.id,
+    }
+    actor.active_modifiers.append(entry)
+    state.event_log.append({
+        "event": "steady_aim_taken",
+        "actor": actor.id,
+        "round": state.round,
+    })
+
+
 def _rage_start(params: dict, state: CombatState, bus: EventBus) -> None:
     """Primitive that flips the actor into Rage (PR #71).
 
@@ -1502,6 +1572,7 @@ def _populate_handler_table() -> None:
         "multiattack": _multiattack,
         "rage_start": _rage_start,
         "dash": _dash,
+        "steady_aim": _steady_aim,
     }
 
 
@@ -1539,6 +1610,9 @@ def _all_primitives() -> list[Primitive]:
         # PR #74 — generic Dash (used by Cunning Action; future:
         # generic main-slot Dash for all actors)
         Primitive("dash", _dash, implemented=True),
+        # PR #80 — Rogue L3 Steady Aim (BA: advantage on next
+        # attack + speed 0 rest of turn)
+        Primitive("steady_aim", _steady_aim, implemented=True),
     ]
     # Populate handler lookup table for subprimitive invocations
     global _PRIMITIVE_HANDLERS

@@ -5,6 +5,55 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-27 — Rogue Steady Aim (PR #80)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- RAW PHB 2024 Steady Aim wired: BA at Rogue L3+ grants
+  advantage on next attack + sets speed 0 rest of turn;
+  requires you haven't moved this turn.
+- New `steady_aim` primitive: registers per_owner_attack
+  advantage modifier + flips `actor.moved_this_turn = True`
+  (RAW "speed becomes 0" enforced by short-circuiting
+  subsequent _move_to_engage calls).
+- New generic `requires_no_movement: true` action flag +
+  pipeline filter — actions with the flag are removed from
+  the candidate set when `actor.moved_this_turn` is True.
+  Future Stand-Still / Aim-shape actions reuse.
+- `is_self_targeted_defensive_buff` extended to recognize
+  `steady_aim` (same pattern as PR #71's rage_start, PR #74's
+  dash).
+- New `_score_steady_aim` AI scorer: per-attack damage ×
+  DELTA_HIT_FROM_ADVANTAGE (framework's standard advantage
+  value formula).
+- `_build_steady_aim_action` auto-generates `a_steady_aim` in
+  pc_schema for Rogue L3+; `f_steady_aim` added to c_rogue
+  L3 row; new `f_steady_aim.yaml` feature.
+- 14 new tests across 12 layers. Full suite: 1363 passed +
+  1 skipped (was 1349 + 14 new).
+
+**Scope decisions:**
+- Eligibility gate (`requires_no_movement`) implemented
+  generically so future actions with the same constraint
+  (Stand Still, future Aim feats) can reuse without
+  hardcoded Steady-Aim checks.
+- AI scoring formula: simple per-attack × advantage delta.
+  Doesn't yet credit Sneak Attack synergy uplift (advantage
+  guarantees SA fires without needing ally-adjacent —
+  deferred uplift for follow-up).
+- "Advantage expires on miss" RAW pedantry not modeled;
+  the modifier consumes on owner-made-attack regardless of
+  outcome (per_owner_attack lifetime).
+
+**Open items:**
+- Sneak Attack synergy uplift in Steady Aim scoring
+- Pre-targeting (RAW: pick a creature in weapon range; v1
+  grants advantage on the next attack to whichever target)
+- "Advantage expires on miss" pedantic RAW detail
+
+---
+
 ## Session: 2026-05-27 — More zone-creating spells (PR #79)
 
 **Participants:** Phil, Claude

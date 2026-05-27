@@ -305,6 +305,16 @@ def defensive_ehp_defensive_buff(actor: Actor, target_ally: Actor,
     if _pipeline_has_primitive(action, "dash"):
         return _score_dash(actor, state)
 
+    # PR #80: Steady Aim (Rogue L3 BA) — advantage on next attack.
+    # Standard buff scorer wouldn't pick it up (no
+    # attack/save_modifier in the pipeline; uses a custom primitive).
+    # Score = DELTA_HIT_FROM_ADVANTAGE × actor's expected per-attack
+    # damage. Rogues with Sneak Attack benefit additionally because
+    # advantage guarantees SA fires (if no ally adjacent), but
+    # v1 keeps the formula simple.
+    if _pipeline_has_primitive(action, "steady_aim"):
+        return _score_steady_aim(actor, state)
+
     buff = extract_buff_effect(action)
     if not buff:
         return 0.0
@@ -442,6 +452,37 @@ def _score_dash(actor: Actor, state: CombatState) -> float:
     if speed <= 0:
         return 0.0
     return min(5.0, 5.0 * (closed_ft / speed))
+
+
+def _score_steady_aim(actor: Actor, state: CombatState) -> float:
+    """Estimate eHP value of taking Steady Aim (PR #80).
+
+    Steady Aim grants advantage on the actor's next attack roll.
+    Approximation: actor's expected per-attack damage × DELTA_HIT_FROM_ADVANTAGE
+    (matches the standard advantage-value formula used in
+    Help / Vex mastery scoring).
+
+    Returns 0 when:
+      - No living enemies (no target to swing at)
+      - Actor's per-attack damage estimate is 0 (no weapons)
+
+    v1 doesn't yet credit the Sneak Attack synergy uplift —
+    Steady Aim guarantees SA fires (advantage satisfies the SA
+    trigger by itself), so a Rogue without an adjacent ally
+    gains MORE value than the base formula suggests. Deferred
+    follow-up; the base value already wins over typical other
+    Rogue BA candidates (Cunning Action Hide/Dash/Disengage
+    score in the 0.5-5 range).
+    """
+    from engine.ai.ehp_scoring import DELTA_HIT_FROM_ADVANTAGE
+    enemies = [a for a in state.encounter.actors
+                if a.side != actor.side and a.is_alive()]
+    if not enemies:
+        return 0.0
+    per_attack = estimate_per_attack_damage(actor)
+    if per_attack <= 0:
+        return 0.0
+    return per_attack * DELTA_HIT_FROM_ADVANTAGE
 
 
 # ============================================================================

@@ -864,6 +864,13 @@ def _build_feature_actions(features_known: set[str], level: int,
     # ADDS the BA usage; it doesn't replace the main-Action versions.
     if "f_cunning_action" in features_known and class_id == "c_rogue":
         actions.extend(_build_cunning_action_actions())
+    # PR #80: Rogue Steady Aim — Bonus Action that grants advantage
+    # on the next attack roll this turn AND sets speed to 0. Gated
+    # at candidate-emission time on `actor.moved_this_turn == False`
+    # (the pipeline filter skips Steady Aim when movement has been
+    # spent).
+    if "f_steady_aim" in features_known and class_id == "c_rogue":
+        actions.append(_build_steady_aim_action())
     # Extra Attack: count scales with feature presence (RAW Fighter
     # progression at L5 / L11 / L20). Only one of the three feature
     # ids is meaningful at a time — higher-level features supersede
@@ -1025,6 +1032,39 @@ def _build_cunning_action_actions() -> list[dict]:
             "pipeline": [],
         },
     ]
+
+
+def _build_steady_aim_action() -> dict:
+    """RAW (PHB 2024) Rogue Steady Aim (PR #80): Bonus Action that
+    grants advantage on the actor's next attack roll this turn and
+    sets speed to 0 for the rest of the turn. Requires that the
+    actor has NOT moved this turn (gated at candidate-emission
+    time via `requires_no_movement` — checked by the pipeline's
+    candidate generator).
+
+    Marked `is_signature: False` — Steady Aim is highly tactical
+    (only valuable when the Rogue has SA dice ready AND no allies
+    adjacent to enable the SA condition naturally). The
+    bonus-slot gate's `tactical_bonus` threshold gates how often
+    the AI takes it.
+    """
+    return {
+        "id": "a_steady_aim",
+        "name": "Steady Aim",
+        # type=defensive_buff routes through the candidate
+        # generator's self-targeted dedup (extended in PR #80's
+        # is_self_targeted_defensive_buff to recognize steady_aim).
+        "type": "defensive_buff",
+        "slot": "bonus_action",
+        "is_signature": False,
+        # PR #80: requires-no-movement gate. The pipeline filter
+        # skips candidates with this flag when the actor has
+        # already moved this turn (actor.moved_this_turn == True).
+        "requires_no_movement": True,
+        "pipeline": [
+            {"primitive": "steady_aim", "params": {}},
+        ],
+    }
 
 
 def _build_second_wind_action(fighter_level: int) -> dict:
