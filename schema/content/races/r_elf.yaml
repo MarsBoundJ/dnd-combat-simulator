@@ -1,0 +1,35 @@
+# r_elf — Elf (SRD CC v5.2.1)
+# Source: SRD CC v5.2.1 (PHB 2024 species)
+#
+# Wired racial traits (engine reads at runtime):
+#   - Darkvision 60 ft → stamped on Actor.darkvision_range_ft
+#   - Fey Ancestry (advantage on saves vs Charmed) → trait flag
+#     `t_fey_ancestry`; engine/core/racial_traits.py resolves via
+#     save-source context (state.current_save_context populated by
+#     _forced_save before query_save_modifiers fires). RAW also
+#     grants immunity to magical Sleep, but no Sleep-shape spell is
+#     wired in v1 — the immunity will trigger automatically once
+#     such a spell ships.
+#
+# Deferred traits:
+#   - Trance (4-hour long rest) — minimal combat impact; long-rest
+#     mechanic uses 8 hours uniformly today
+#   - Keen Senses (Insight/Perception/Survival proficiency choice)
+#     — easy follow-up via the same skill-proficiency append pattern
+#     as Human Skillful
+#   - Drow / High Elf / Wood Elf lineage variants (PHB 2024 makes
+#     these origin-only, no mechanical effect; would need separate
+#     pc_spec lineage field if/when wired)
+
+id: r_elf
+name: Elf
+source: srd_5.2.1
+
+creature_type: humanoid
+size: medium
+speed:
+  walk: 30
+darkvision_range_ft: 60
+
+racial_traits:
+  - t_fey_ancestry          # advantage on saves vs Charmed

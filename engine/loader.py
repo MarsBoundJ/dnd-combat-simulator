@@ -25,6 +25,7 @@ _ENTITY_DIRS = {
     "monster": "monsters",
     "spell": "spells",
     "condition": "conditions",
+    "race": "races",     # PR #75 — SRD species (Dwarf/Elf/Halfling/Human)
 }
 
 # Entity type → JSON Schema filename
@@ -35,6 +36,10 @@ _ENTITY_SCHEMAS = {
     "monster": "monster.schema.json",
     "spell": "spell.schema.json",
     "condition": "condition.schema.json",
+    # `race` schema deferred — loader silently skips validation for
+    # entity types without a corresponding schema file. PR #75 ships
+    # the race YAMLs + loader registration; a follow-up PR can add
+    # the strict JSON Schema.
 }
 
 

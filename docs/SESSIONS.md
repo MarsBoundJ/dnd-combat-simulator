@@ -5,6 +5,71 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-27 — SRD races v1 + save-source context (PR #75)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- First per-race substrate. Phil narrowed scope from broader
+  "10 species" proposal to SRD-only (Dwarf / Elf / Halfling /
+  Human) and chose "add save-source context now" over deferring
+  it — meaning racial traits like Brave / Fey Ancestry /
+  Dwarven Resilience saves actually work mechanically out of
+  the gate.
+- New `race` entity type registered in the loader; new
+  `schema/content/races/` directory with the 4 SRD species
+  YAMLs.
+- New `engine/core/racial_traits.py` module owns the trait
+  registry + integration helpers (`has_racial_trait`,
+  `racial_save_advantage_for`, `lucky_d20`, save-context
+  builders).
+- New `Actor.racial_traits` field; cli loads from template;
+  pc_schema stamps from race YAML.
+- New `state.current_save_context` — set by `_forced_save`
+  before the per-target loop and by
+  `_resolve_recurring_saves` before each query; restored
+  after. Shape `{"applied_conditions_on_fail": [...]}`.
+- `query_save_modifiers` reads the context and grants
+  advantage when a target's racial trait matches an
+  on_fail-applied condition.
+- Halfling Lucky (reroll nat 1 on d20) wired in `_attack_roll`,
+  `_forced_save`, and `_resolve_recurring_saves`.
+- Dwarf poison damage resistance baked on the template.
+- Human Skillful appends an extra skill proficiency at build
+  time (picked via pc_spec.extra_skill).
+- Sizes correctly stamped (Halfling=Small gates Push mastery
+  per PR #65; others Medium).
+- Speed inheritance: pc_spec.speed > race.speed > 30 ft default.
+- 39 new tests across 14 layers. Full suite: 1278 passed + 1
+  skipped (was 1239 + 39 new).
+
+**Scope decisions:**
+- SRD-only (Phil's narrower scope) — Dwarf / Elf / Halfling /
+  Human. Non-SRD species (Aasimar / Dragonborn / Gnome /
+  Goliath / Orc / Tiefling) deferred + would need
+  `source: user_authored` tagging per project policy.
+- "Add save-source context now" (Phil chose the bigger option
+  over deferring it) — wired the infrastructure cleanly so
+  the trait knowledge stays out of the primitives. Primitives
+  publish "what happens on fail"; the query side decides
+  which trait cares.
+- Lucky wired at three sites (attack / forced_save /
+  recurring save). Ability check sites (Hide, Search,
+  Counterspell, initiative, concentration saves) deferred —
+  the helper is ready, just not wired at those sites yet.
+
+**Open items:**
+- Lucky on ability check sites (~5 sites)
+- Halfling Nimbleness (move through larger creatures)
+- Elf Trance / Elf Keen Senses
+- Dwarf Stonecunning / Toolkit Proficiency
+- Non-SRD species (when project policy allows)
+- Strict JSON Schema for `race` entity type (loader currently
+  silently skips validation for race YAMLs because no schema
+  file exists)
+
+---
+
 ## Session: 2026-05-27 — Rogue Cunning Action v1 + generic Dash (PR #74)
 
 **Participants:** Phil, Claude

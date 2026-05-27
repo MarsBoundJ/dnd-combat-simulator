@@ -110,6 +110,24 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
 
     class_def = content_registry.get("class", class_id)
 
+    # PR #75: race lookup. Optional — pc_spec without a `race` field
+    # produces a "no race" PC (no racial traits, default size/speed).
+    # When `race: r_<species>` is set, we look up the race YAML and
+    # use its fields downstream to stamp size, speed, darkvision,
+    # damage resistances, racial trait flags, and any extra skill
+    # proficiencies (Human Skillful).
+    race_def = None
+    race_id = pc_spec.get("race")
+    if race_id:
+        try:
+            race_def = content_registry.get("race", race_id)
+        except (KeyError, AttributeError):
+            raise ValueError(
+                f"pc_spec.race={race_id!r} not found in content "
+                f"registry. Known SRD species: r_dwarf, r_elf, "
+                f"r_halfling, r_human."
+            )
+
     proficiency_bonus = _lookup_pb(class_def, level)
     save_profs = set(class_def.get("core_traits", {})
                        .get("save_proficiencies", []))
@@ -129,6 +147,19 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
     # since PCs compute the bonus on demand from ability + PB).
     skill_proficiencies = _validate_skill_proficiencies(
         pc_spec.get("skill_proficiencies"))
+
+    # PR #75: Human Skillful trait — one extra skill proficiency
+    # picked via pc_spec.extra_skill (e.g., `extra_skill: persuasion`).
+    # The race YAML's `extra_skill_proficiency_slots: 1` flags that
+    # this PC is allowed an extra; the slot value just bounds how
+    # many extras can be added (v1 only handles 1, the Human case).
+    if race_def and int(race_def.get("extra_skill_proficiency_slots", 0)) > 0:
+        extra_skill = pc_spec.get("extra_skill")
+        if extra_skill:
+            from engine.core.skills import validate_skill_name
+            normalized = validate_skill_name(str(extra_skill))
+            if normalized not in skill_proficiencies:
+                skill_proficiencies = list(skill_proficiencies) + [normalized]
 
     # Skill expertise (PR #62) — list of skill names the PC has
     # Expertise in (2× PB instead of 1× PB on those skill checks).
@@ -235,12 +266,31 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
                 "dice": f"{level}{hit_die}",
                 "con_contribution": con_mod * level,
             },
-            "speed": pc_spec.get("speed") or {"walk": 30},
+            "speed": (pc_spec.get("speed")
+                          or (race_def.get("speed") if race_def else None)
+                          or {"walk": 30}),
             "initiative": {
                 "modifier": ability_modifier(ability_scores["dex"]["score"]),
             },
         },
         "actions": actions,
+        # PR #75: race-derived top-level fields. cli._build_actor reads
+        # these onto the Actor (size, darkvision, racial_traits) so the
+        # existing per-Actor pipelines (Push gate, vision queries,
+        # racial_save_advantage_for, lucky_d20) consume them
+        # uniformly.
+        "size": (race_def.get("size") if race_def else "medium"),
+        "creature_type": (race_def.get("creature_type")
+                              if race_def else "humanoid"),
+        "darkvision_range_ft": (
+            int(race_def.get("darkvision_range_ft", 0))
+            if race_def else 0),
+        "racial_traits": list(race_def.get("racial_traits") or [])
+            if race_def else [],
+        "damage_resistances": list(race_def.get("damage_resistances") or [])
+            if race_def else [],
+        "race": race_id,    # telemetry only — runtime code uses
+                              # template.racial_traits, not the id
         # Per-class level table (read by primitives via
         # `template.levels.<class_short_name>`). Single-class PCs from
         # pc_schema get exactly one entry; multiclass support will

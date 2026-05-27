@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-05-27
 **Engine state:** Phase 1, post-PR #26 (Dodge + Disengage merged).
-**Test surface:** 1240 tests across 60+ modules; 14 CLI fixtures.
+**Test surface:** 1279 tests across 60+ modules; 14 CLI fixtures.
 
 This document captures what the simulator can actually do today — in
 observable behavioral terms, not module inventories. The companion
@@ -680,6 +680,82 @@ priority order:
    Rebuke**~~ — **Shipped in PR #45.**
 18. ~~**Counterspell + cast-event infra**~~ — **Shipped in PR #46.**
 19. ~~**Vision system v1**~~ — **Shipped in PR #47.**
+47. ~~**SRD races v1 + save-source context**~~ — **Shipped in
+   PR #75.** First per-race substrate. Ships the four SRD CC
+   v5.2.1 species (Dwarf / Elf / Halfling / Human) with sizes,
+   speeds, darkvision, racial traits, and damage resistances —
+   plus the new save-source-context infrastructure that lets
+   "advantage on saves vs X condition" traits actually fire
+   correctly without dragging trait knowledge into the
+   primitives.
+   - **New `race` entity type** registered in the loader; new
+     `schema/content/races/` directory with 4 species YAMLs
+     (`r_dwarf`, `r_elf`, `r_halfling`, `r_human`).
+   - **New `engine/core/racial_traits.py` module**: trait
+     registry (`SAVE_CONDITION_TRIGGERS`), `has_racial_trait`
+     predicate, `racial_save_advantage_for` resolver,
+     `lucky_d20` reroll helper, save-context builders
+     (`build_save_context`, `build_save_context_for_condition`).
+   - **New `Actor.racial_traits: list` field** — loaded from
+     `template.racial_traits` (stamped by pc_schema from the
+     race YAML) by cli; supports actor_spec override for
+     fixture flexibility. Empty for non-PC actors.
+   - **New `state.current_save_context: dict | None`** —
+     stashed by `_forced_save` BEFORE the per-target loop +
+     by `_resolve_recurring_saves` before each save query.
+     Restored to the prior value after to allow defensive
+     nesting (no spell nests today, but the pattern is
+     correct). Shape: `{"applied_conditions_on_fail": [...]}`.
+   - **`query_save_modifiers` reads the context** and the
+     target's `racial_traits` via `racial_save_advantage_for`;
+     grants advantage when any trait's triggering condition
+     matches the in-flight save's on_fail conditions. Sources
+     list includes `{"type": "racial_trait", "trait": ...}`
+     for telemetry.
+   - **Halfling Lucky** (reroll natural 1 on d20) wired in:
+     * `_attack_roll` — after advantage/disadvantage resolution
+       on the chosen d20
+     * `_forced_save` — same shape, on the target's chosen d20
+     * `_resolve_recurring_saves` — runner-side recurring saves
+   - **Halfling Brave / Elf Fey Ancestry / Dwarven Resilience
+     save advantage** all resolve via the save-context path —
+     advantage when the on_fail block applies
+     `co_frightened` / `co_charmed` / `co_poisoned`
+     respectively.
+   - **Dwarf poison damage resistance** baked onto the
+     template's `damage_resistances` list at PC-build time;
+     handled by the existing template-side `_damage`
+     resistance check.
+   - **Sizes correctly stamped**: Halfling is Small (gates Push
+     mastery immunity per PR #65); Dwarf / Elf / Human are
+     Medium.
+   - **Darkvision 60 ft** stamped on Dwarf + Elf via the
+     existing `Actor.darkvision_range_ft` field (PR #50).
+   - **Human Skillful** — pc_spec.extra_skill picks one
+     additional skill proficiency at build time; appended to
+     `skill_proficiencies` if not already present.
+   - **Speed inheritance**: pc_spec.speed > race.speed > 30 ft
+     default.
+   - 39 new tests across 14 layers (module helpers,
+     save-source context, advantage resolution,
+     query_save_modifiers integration, Lucky in attack /
+     save / recurring save, Brave / Fey Ancestry /
+     Resilience save advantage, Dwarf poison damage
+     resistance, race YAML loading, pc_schema race
+     integration, invalid race rejection).
+   - Deferred:
+     * Lucky on ability check sites (`_execute_hide`,
+       `_execute_search`, `_counterspell_resolve`,
+       initiative, concentration saves) — same helper, just
+       not wired at those sites yet
+     * Halfling Nimbleness (move through larger creatures)
+     * Elf Trance (4-hour long rest)
+     * Elf Keen Senses (skill proficiency choice)
+     * Dwarf Stonecunning / Toolkit Proficiency
+     * Non-SRD species (Aasimar / Dragonborn / Gnome /
+       Goliath / Orc / Tiefling) — would need
+       `source: user_authored` tagging per project policy
+
 46. ~~**Rogue Cunning Action v1 + generic Dash**~~ — **Shipped in
    PR #74.** Final feature in the per-class four-feature arc
    (Rage → SA → Divine Smite → Cunning Action). Adds three BA

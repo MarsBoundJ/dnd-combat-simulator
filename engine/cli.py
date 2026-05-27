@@ -250,6 +250,15 @@ def _build_actor(actor_spec: dict, registry) -> Actor:
     from engine.core.sizes import normalize_size
     size = normalize_size(raw_size)
 
+    # PR #75: racial traits from the template (stamped by
+    # pc_schema when pc_spec.race is set). Empty list for non-PC
+    # actors or PCs without a declared race. Fixture override via
+    # actor_spec.racial_traits supported for test/fixture flexibility.
+    racial_traits_raw = (actor_spec.get("racial_traits")
+                            if actor_spec.get("racial_traits") is not None
+                            else (template.get("racial_traits") or []))
+    racial_traits = list(racial_traits_raw)
+
     return Actor(
         id=instance_id,
         name=actor_spec.get("name", template.get("name", instance_id)),
@@ -271,6 +280,7 @@ def _build_actor(actor_spec: dict, registry) -> Actor:
         passive_perception=passive_perception,
         weapon_masteries=weapon_masteries,
         size=size,
+        racial_traits=racial_traits,
     )
 
 
