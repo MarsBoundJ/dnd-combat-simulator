@@ -129,14 +129,26 @@ def end_concentration(caster: Actor, state: CombatState,
     ]
     removed += before_auras - len(state.persistent_auras)
 
-    # PR #60: scrub environment magical_dark_zones whose caster_id +
-    # action_id match the dropped aura (Darkness spell zones live on
-    # the encounter env). Zones declared statically by fixtures lack
-    # these stamps and are preserved untouched.
+    # PR #60 + PR #68: scrub spell-created environment zones whose
+    # caster_id + action_id match the dropped aura. Iterates all
+    # zone-type lists (magical_dark_zones, heavily_obscured_zones,
+    # future types) — the matcher is generic. Zones declared
+    # statically by fixtures lack these stamps and are preserved
+    # untouched.
     if state.encounter is not None:
         env = state.encounter.environment or {}
-        zones = env.get("magical_dark_zones") or []
-        if zones:
+        # Mirror primitives._CREATES_ZONE_TO_ENV_KEY's value set.
+        # Listed here rather than imported to keep the engine.core
+        # → engine.primitives import direction one-way.
+        _SCRUBBABLE_ZONE_KEYS = (
+            "magical_dark_zones",
+            "heavily_obscured_zones",
+        )
+        env_dirty = False
+        for env_key in _SCRUBBABLE_ZONE_KEYS:
+            zones = env.get(env_key) or []
+            if not zones:
+                continue
             before_zones = len(zones)
             kept = [
                 z for z in zones
@@ -144,9 +156,11 @@ def end_concentration(caster: Actor, state: CombatState,
                         and z.get("action_id") == action_id)
             ]
             if len(kept) != before_zones:
-                env["magical_dark_zones"] = kept
-                state.encounter.environment = env
+                env[env_key] = kept
+                env_dirty = True
                 removed += before_zones - len(kept)
+        if env_dirty:
+            state.encounter.environment = env
 
     caster.concentration_on = None
     state.event_log.append({

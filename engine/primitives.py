@@ -789,6 +789,15 @@ def _recurring_save(params: dict, state: CombatState, bus: EventBus) -> None:
 # IMPLEMENTED — persistent_aura (Spirit Guardians, PR #43)
 # ============================================================================
 
+# PR #60 + PR #68: map `creates_zone` values to the encounter
+# environment list key they append to. Future zone-creating spells
+# (Fog Cloud, Stinking Cloud, Silence, Web, etc.) extend this dict.
+_CREATES_ZONE_TO_ENV_KEY: dict[str, str] = {
+    "magical_dark": "magical_dark_zones",
+    "heavy_obscurement": "heavily_obscured_zones",
+}
+
+
 def _persistent_aura(params: dict, state: CombatState, bus: EventBus) -> None:
     """Register a persistent self-anchored or point-anchored area effect.
 
@@ -872,27 +881,35 @@ def _persistent_aura(params: dict, state: CombatState, bus: EventBus) -> None:
         "affected": params.get("affected", "enemies"),
         "applied_at_round": state.round,
     }
-    # PR #60: `creates_zone` param — persistent_auras that ALSO
-    # declare an environment zone (Darkness spell creates a
-    # magical_dark_zone). The zone is stamped with caster_id +
-    # action_id so concentration end can scrub it alongside the
-    # aura. Currently only `magical_dark` is supported.
+    # PR #60 + PR #68: `creates_zone` param — persistent_auras that
+    # ALSO declare an environment zone. The zone is stamped with
+    # caster_id + action_id so concentration end can scrub it
+    # alongside the aura. Supported zone types:
+    #   - "magical_dark" (PR #60) — Darkness spell. Appends to
+    #     state.encounter.environment.magical_dark_zones.
+    #   - "heavy_obscurement" (PR #68) — Cloudkill / Fog Cloud /
+    #     other fog-shaped spells. Appends to heavily_obscured_zones.
+    # Both use sphere shape via the same `radius_ft` field. Future
+    # zone types (e.g., difficult_terrain) extend
+    # _CREATES_ZONE_TO_ENV_KEY.
     creates_zone = params.get("creates_zone")
-    if creates_zone == "magical_dark":
-        # Sphere shape: needs a fixed center. For caster-anchored
-        # auras we'd need to move the zone with the caster — not
-        # currently modeled (the Darkness spell is point-anchored
-        # per RAW: "centered on a point you choose"). For v1, only
-        # point-anchored magical_dark zones are supported.
+    if creates_zone is not None:
+        env_key = _CREATES_ZONE_TO_ENV_KEY.get(creates_zone)
+        if env_key is None:
+            raise ValueError(
+                f"creates_zone={creates_zone!r} not recognized. "
+                f"Known: {sorted(_CREATES_ZONE_TO_ENV_KEY)}."
+            )
         if anchor != "point" or origin is None:
             raise ValueError(
-                "creates_zone=magical_dark requires anchor=point "
-                "and a resolved origin. Caster-anchored magical "
-                "darkness deferred.")
+                f"creates_zone={creates_zone!r} requires "
+                f"anchor=point and a resolved origin. Caster-"
+                f"anchored zone spells deferred."
+            )
         # Ensure environment dict + zone list exist
         if state.encounter is not None:
             env = state.encounter.environment or {}
-            zones = list(env.get("magical_dark_zones") or [])
+            zones = list(env.get(env_key) or [])
             zones.append({
                 "shape": "sphere",
                 "center": list(origin),
@@ -900,13 +917,9 @@ def _persistent_aura(params: dict, state: CombatState, bus: EventBus) -> None:
                 "caster_id": actor.id,
                 "action_id": action.get("id"),
             })
-            env["magical_dark_zones"] = zones
+            env[env_key] = zones
             state.encounter.environment = env
-            entry["creates_zone"] = "magical_dark"
-    elif creates_zone is not None:
-        raise ValueError(
-            f"creates_zone={creates_zone!r} not recognized. v1 "
-            f"supports only 'magical_dark'.")
+            entry["creates_zone"] = creates_zone
 
     state.persistent_auras.append(entry)
     state.event_log.append({
