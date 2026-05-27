@@ -680,6 +680,34 @@ priority order:
    Rebuke**~~ — **Shipped in PR #45.**
 18. ~~**Counterspell + cast-event infra**~~ — **Shipped in PR #46.**
 19. ~~**Vision system v1**~~ — **Shipped in PR #47.**
+23. ~~**Skill proficiencies + passive Perception + Hide auto-spot**~~ —
+   **Shipped in PR #51.** Closes the Hide arc with the
+   detection-side mechanic. New `engine/core/skills.py` centralizes
+   the 5e 2024 skill list (18 skills), the skill→ability mapping,
+   and `skill_modifier(actor, skill)` — reads `template.skills.<name>`
+   directly for monsters (SRD shape) or falls back to ability + PB
+   if proficient for PCs. `has_skill_proficiency(actor, skill)` works
+   off either source. PC schemas now accept
+   `skill_proficiencies: [stealth, perception, ...]`; the list is
+   validated against the known set, normalized, and baked onto the
+   template (top-level + `derived_from_pc_schema` block). Passive
+   Perception auto-computed for PC templates (10 + WIS_mod + PB if
+   Perception-proficient) and exposed via `senses.passive_perception`
+   to match monster shape. New `Actor.passive_perception: int` field
+   loaded by `cli._build_actor` from the template (or explicit
+   actor_spec override). `_execute_hide` now adds Stealth proficiency
+   PB via `skill_modifier(actor, "stealth")` and records the rolled
+   `stealth_total` on the resulting `co_invisible` condition.
+   `can_actor_see` extended: if target has Hide-source Invisible
+   (`source_action_id == "a_hide"`) AND observer's `passive_perception
+   >= stealth_total`, observer auto-spots them (returns True, then
+   falls through to remaining gates — fog + darkness still block
+   even after a successful Perception spot). Spell-source Invisible
+   (Invisibility / Greater Invisibility) is NOT bypassable; only
+   Hide is. Deferred: active Perception search-as-action, skill
+   expertise (double PB), magic-item bonuses to Perception. 32 new
+   tests across the skills module, pc_schema integration, hide
+   wiring, cli loading, and vision auto-spot.
 22. ~~**Dark zones + Dim light zones + Darkvision**~~ —
    **Shipped in PR #50.** Extends the vision system started in
    PR #47 with light-level zones + per-actor darkvision range. Two

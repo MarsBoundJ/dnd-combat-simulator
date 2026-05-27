@@ -5,6 +5,82 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-26 — Skill proficiencies + passive Perception (PR #51)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Closes the Hide arc with the detection-side mechanic. Pre-scoped
+  to "Stealth + passive Perception only" — active Search-as-action
+  deferred (would be the first non-damage information action and
+  needs its own scoring infra).
+- **New `engine/core/skills.py`:** centralized 5e 2024 skill list
+  (18 skills), `SKILL_TO_ABILITY` map, `normalize_skill_name` +
+  `validate_skill_name`, `has_skill_proficiency`, `skill_modifier`.
+  Resolution order: monster-template `skills:` dict (already-
+  computed bonus, SRD shape) → ability + PB if proficient → just
+  ability mod. Unknown skill name raises (no silent typo).
+- **PC schema:** accepts `skill_proficiencies: [stealth, ...]`,
+  validates against the known set, normalizes (lowercase + under-
+  score), bakes onto template top-level + `derived_from_pc_schema`.
+  Also computes `senses.passive_perception` (10 + WIS_mod + PB if
+  Perception-proficient) so PC templates match the monster
+  template shape.
+- **`Actor.passive_perception: int`** field added. `cli._build_actor`
+  loads from explicit actor_spec override → template
+  `senses.passive_perception` → fallback 10.
+- **`_execute_hide` extension:** swapped `dex_mod` log key →
+  `stealth_mod` (which now includes proficiency PB via
+  `skill_modifier`). Recorded `stealth_total` on the resulting
+  `co_invisible` condition for downstream auto-spot comparison.
+  Updated the one existing test that asserted the old `dex_mod`
+  key — keeps the snapshot legible after rename.
+- **`can_actor_see` extension:** when target has Invisible, check
+  if any of its Invisible conditions are Hide-source
+  (`source_action_id == "a_hide"`). For those, observer's
+  `passive_perception >= stealth_total` ⇒ auto-spot. If spotted,
+  fall through to the remaining gates (fog / darkness still block
+  vision even after Perception spots them — the rogue might
+  still be invisible *to vision* because the air is full of fog).
+  Spell-source Invisible is NOT bypassable per RAW; only Hide.
+- **New private helper `_PERCEPTION_BYPASSABLE_INVISIBLE_SOURCES`
+  frozenset** holds the source_action_id allowlist (currently just
+  `a_hide`). Future Hide-equivalents (e.g., a future "Stealth as
+  Bonus Action" feature) would just add to this set.
+- **Tests (32 new in `test_perception_stealth.py`):**
+  - Skills module: 18-skill completeness, ability map, normalize +
+    validate, monster-listed-bonus path, PC compute path, not-
+    proficient path, proficiency detection from each source
+  - PC schema: unknown skill raises, normalization, derived_from
+    recording, default-empty, passive Perception with/without
+    proficiency
+  - `_execute_hide`: non-proficient uses DEX only; proficient adds
+    PB; `co_invisible` carries `stealth_total`
+  - `cli._build_actor`: template loading, actor_spec override
+    wins, fallback to 10
+  - `can_actor_see` auto-spot: passive ≥ stealth (above + equal),
+    passive < stealth, spell-Invisible NOT bypassable, mixed
+    sources documented (v1: auto-spot wins — concentration makes
+    this rare anyway), self-sees-self, auto-spot doesn't bypass
+    fog, auto-spot doesn't bypass darkness without darkvision
+- **Fixture update:** `rogue_hides_in_fog_encounter.yaml` updated
+  with `skill_proficiencies: [stealth]` on the rogue + explicit
+  `senses.passive_perception` on both rogue (11) and ogre (8).
+  Header comments updated to walk through the new RAW: stealth
+  total beats ogre's PP, fog still blocks emerging vision, etc.
+- 745 tests pass (+32, no regressions).
+
+**Future-roadmap items (recorded, not in this PR):**
+- Active Perception search-as-action (`type: search`)
+- Skill expertise (double PB on Stealth / Perception)
+- Magic-item Perception bonuses (Cloak of Elvenkind etc.)
+- "Stealth as Bonus Action" features (Rogue Cunning Action) —
+  would add an action type with `source_action_id` in
+  `_PERCEPTION_BYPASSABLE_INVISIBLE_SOURCES`
+- Fixture revisit: mixed-Invisible (Hide + spell) gating tightness
+
+---
+
 ## Session: 2026-05-26 — Dark zones + Dim light + Darkvision (PR #50)
 
 **Participants:** Phil, Claude

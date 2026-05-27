@@ -646,25 +646,29 @@ def _execute_single(chosen: dict, state: CombatState, event_bus, primitives) -> 
 
 def _execute_hide(actor, action: dict, state: CombatState,
                     event_bus, primitives) -> None:
-    """Execute a Hide action (PR #48).
+    """Execute a Hide action (PR #48 + PR #51).
 
     Gates (RAW 2024): actor must be either Heavily Obscured (in a
     declared obscurement zone) OR behind three-quarters or total
     cover. If neither applies, the hide attempt is logged as failed
     with reason=no_cover_or_obscurement.
 
-    On a passing gate, roll d20 + DEX_mod vs DC 15. v1 doesn't add
-    Stealth proficiency (PB). On success, apply `co_invisible`
-    condition with source.action_id="a_hide" so it can be scrubbed
-    when the actor next attacks (see primitives._attack_roll).
+    On a passing gate, roll d20 + DEX_mod + PB(stealth) vs DC 15
+    (PR #51: Stealth proficiency now adds PB to the roll via
+    engine.core.skills.skill_modifier). On success, apply
+    `co_invisible` condition with source.action_id="a_hide" so it
+    can be scrubbed when the actor next attacks (see
+    primitives._attack_roll). The rolled Stealth total is recorded
+    on the condition under `stealth_total` — `vision.can_actor_see`
+    consults this against an observer's passive Perception, so a
+    high-Wis observer auto-spots a low-Stealth hider.
 
     The action's `pipeline` is run AFTER the gate / check (in case
     a fixture wants extra effects on hide). v1 fixtures don't use
     this; the apply_condition is hard-coded here.
     """
-    import random as _random
-    from engine.core.state import ability_modifier
     from engine.core.vision import is_in_obscured_zone
+    from engine.core.skills import skill_modifier
 
     # Gate
     heavily_obscured = is_in_obscured_zone(actor.position, state)
@@ -678,13 +682,14 @@ def _execute_hide(actor, action: dict, state: CombatState,
         })
         return
 
-    # Stealth check — v1 d20 + DEX mod (no proficiency bonus yet)
+    # Stealth check — d20 + Stealth modifier (DEX + PB if proficient).
+    # PR #51: skill_modifier handles both monster-listed bonuses and
+    # PC-schema computed bonuses uniformly.
     import engine.primitives as primitives_module
     rng = primitives_module._rng    # use module-level rng (test-friendly)
     d20 = rng.randint(1, 20)
-    dex_score = (actor.abilities.get("dex") or {}).get("score", 10)
-    dex_mod = ability_modifier(dex_score)
-    total = d20 + dex_mod
+    stealth_mod = skill_modifier(actor, "stealth")
+    total = d20 + stealth_mod
     DC = 15
     success = total >= DC
 
@@ -692,7 +697,7 @@ def _execute_hide(actor, action: dict, state: CombatState,
         "event": "hide_attempted",
         "actor": actor.id,
         "d20": d20,
-        "dex_mod": dex_mod,
+        "stealth_mod": stealth_mod,
         "total": total,
         "dc": DC,
         "outcome": "success" if success else "failed",
@@ -702,17 +707,21 @@ def _execute_hide(actor, action: dict, state: CombatState,
         return
 
     # Apply co_invisible with source tagged as a_hide so attack
-    # primitives can scrub it after the actor attacks.
+    # primitives can scrub it after the actor attacks. PR #51:
+    # also record `stealth_total` so observer.passive_perception
+    # comparisons in vision.can_actor_see have a number to beat.
     actor.applied_conditions.append({
         "condition_id": "co_invisible",
         "source_id": actor.id,
         "source_action_id": "a_hide",
         "applied_at_round": state.round,
+        "stealth_total": total,
     })
     state.event_log.append({
         "event": "hidden",
         "actor": actor.id,
         "source": "a_hide",
+        "stealth_total": total,
     })
 
 

@@ -203,6 +203,18 @@ def _build_actor(actor_spec: dict, registry) -> Actor:
         darkvision_range_ft = tpl_special.get("darkvision", 0)
     darkvision_range_ft = int(darkvision_range_ft or 0)
 
+    # PR #51: passive Perception. Precedence:
+    #   1. Explicit `passive_perception:` on actor_spec (fixture override)
+    #   2. Template's `senses.passive_perception` — monsters declare this
+    #      directly; PC templates have it baked by pc_schema
+    #      (10 + WIS_mod + PB if perception-proficient)
+    #   3. Fallback 10 (raw human with neutral WIS, no proficiency)
+    passive_perception = actor_spec.get("passive_perception")
+    if passive_perception is None:
+        tpl_senses = (template.get("senses") or {})
+        passive_perception = tpl_senses.get("passive_perception", 10)
+    passive_perception = int(passive_perception)
+
     return Actor(
         id=instance_id,
         name=actor_spec.get("name", template.get("name", instance_id)),
@@ -219,6 +231,7 @@ def _build_actor(actor_spec: dict, registry) -> Actor:
         resources=resources,
         cover=cover,
         darkvision_range_ft=darkvision_range_ft,
+        passive_perception=passive_perception,
     )
 
 
