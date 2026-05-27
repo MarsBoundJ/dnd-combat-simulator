@@ -442,12 +442,28 @@ def _reaction_condition_satisfied(cond: str | None, reactor: Actor,
             return False
         if distance_ft(reactor.position, target.position) > 5:
             return False
+        # PR #47: Protection RAW: "When a creature you can see attacks
+        # a target other than you..." — gate on visibility of the
+        # attacker.
+        from engine.core.vision import can_actor_see
+        attacker = event_data.get("actor")
+        if attacker is not None and not can_actor_see(
+                reactor, attacker, state):
+            return False
         return True
     if cond == "damage_taken_by_self_from_attacker":
         if event_data.get("target_id") != reactor.id:
             return False
         attacker = event_data.get("attacker")
         if attacker is None or not attacker.is_alive():
+            return False
+        # PR #47: Hellish Rebuke RAW: "the creature that damaged you
+        # ... you can see" — gate on visibility. (RAW also has 60-ft
+        # range; deferred since we don't have a clean place to put the
+        # range check on the reactor side of damage events without
+        # threading more event_data through.)
+        from engine.core.vision import can_actor_see
+        if not can_actor_see(reactor, attacker, state):
             return False
         # Mark for try_use_reaction: forced_save's affected='current_target'
         # should be the attacker for retaliation reactions.
@@ -460,14 +476,16 @@ def _reaction_condition_satisfied(cond: str | None, reactor: Actor,
         #     or allies' spells)
         #   - reactor is not the caster (you can't counterspell yourself)
         #   - caster is within 60 ft (RAW range)
-        # RAW also requires "you can see" — deferred until a vision
-        # system exists.
+        #   - reactor can see the caster (PR #47: RAW "you see")
         caster = event_data.get("caster")
         if caster is None or caster.id == reactor.id:
             return False
         if caster.side == reactor.side:
             return False
         if distance_ft(reactor.position, caster.position) > 60:
+            return False
+        from engine.core.vision import can_actor_see
+        if not can_actor_see(reactor, caster, state):
             return False
         return True
     return False

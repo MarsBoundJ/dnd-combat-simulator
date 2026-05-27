@@ -679,6 +679,20 @@ priority order:
 17. ~~**Reaction infrastructure + Shield + Protection + Hellish
    Rebuke**~~ — **Shipped in PR #45.**
 18. ~~**Counterspell + cast-event infra**~~ — **Shipped in PR #46.**
+19. ~~**Vision system v1**~~ — **Shipped in PR #47.** New
+   `engine/core/vision.py` exposes `can_actor_see(observer, target,
+   state)` — returns False if observer Blinded OR target Invisible,
+   True otherwise. Wired into `_eval_when` so the
+   `attacker_can_see(self)` / `target_can_see(self)` atoms actually
+   compute (previously they were unknown atoms returning False,
+   which happened to give correct behavior for the Invisible
+   condition's specific clauses but not for anything else). Reaction
+   conditions tightened to respect RAW "you can see" gates:
+   Counterspell, Hellish Rebuke, and Protection now skip when the
+   relevant creature is Invisible or the reactor is Blinded.
+   Truesight / Blindsight / Darkvision / light levels / Heavily
+   Obscured zones / Hide action all deferred — `can_actor_see` is
+   the right place to extend when they land.
    New `spell_cast_initiated` event fires before any spell-slot
    action's pipeline runs (after slot availability check). The
    `state.cast_cancelled` flag — set by reactions like Counterspell —

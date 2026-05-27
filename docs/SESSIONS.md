@@ -5,6 +5,81 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-26 — Vision system v1 (PR #47)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Pre-discussion locked tight scope: unified can_actor_see() query +
+  tighten 3 reaction conditions. Light levels / Heavily Obscured
+  zones / Hide action / vision types (truesight, blindsight,
+  darkvision) all deferred.
+- New `engine/core/vision.py`:
+  - `can_actor_see(observer, target, state)` — single query
+    function. False if observer Blinded OR target Invisible; True
+    otherwise. Documents the deferred items + extension points.
+  - Helpers `has_condition`, `is_invisible`, `is_blinded`.
+  - Self-sees-self special case (returns True) — needed for
+    self-targeted modifier when-clauses on Invisible creatures.
+- `engine/core/modifiers.py` `_eval_when`: added handlers for
+  `attacker_can_see(self)` and `target_can_see(self)` atoms. These
+  were previously "unknown atoms" returning False, which happened
+  to give correct behavior for the Invisible condition's specific
+  when-clauses (`NOT attacker_can_see(self)` = `NOT False = True`).
+  The new implementation actually computes the result, so behavior
+  is correct for ALL cases (not just by coincidence).
+- `engine/core/reactions.py` _reaction_condition_satisfied: three
+  reactions tightened to respect RAW "you can see" gates:
+  - `enemy_casting_spell_within_60_ft` (Counterspell): adds
+    `can_actor_see(reactor, caster, state)` check
+  - `damage_taken_by_self_from_attacker` (Hellish Rebuke): adds
+    `can_actor_see(reactor, attacker, state)` check
+  - `attack_against_ally_within_5_ft` (Protection): adds
+    `can_actor_see(reactor, attacker, state)` check
+- 20 new tests in `tests/test_vision.py`: condition helpers,
+  can_actor_see (default true, invisible target, blinded observer,
+  both, self-sees-self, None safety), _eval_when integration
+  (attacker_can_see resolves correctly, regression on Invisible's
+  when-clause), reaction conditions (Counterspell / HR / Protection
+  all skipped against Invisible / by Blinded reactor), regression
+  test that Shield (no vision gate) still works for Blinded wizards.
+- Test count: 630 → 650. All green, stable across full-suite
+  re-runs.
+
+**Key decisions:**
+- **Unified query function** rather than scattered checks. Other
+  systems (Hide, ranged-attack cover bonuses, light-level
+  interactions) will compose on `can_actor_see` rather than rolling
+  their own visibility logic.
+- **Self always sees self.** Needed for Invisible creatures whose
+  own modifier when-clauses use `attacker_can_see(self)` — the
+  Invisible wizard doesn't want their own attacks to suddenly miss
+  because they "can't see themselves."
+- **`state` parameter accepted but unused in v1.** Light levels
+  will need it. Defining the signature now means no API break when
+  v2 lands.
+- **All vision types deferred.** Truesight (bypasses Invisible),
+  Blindsight (sees within range regardless), Darkvision (needs
+  light levels). Each is its own small extension on `can_actor_see`
+  when the creatures or environment that need them land.
+- **Hellish Rebuke 60-ft range gate STILL deferred** even with
+  vision in place. Adding it would require threading more event_data
+  through the damage path (we'd need the attacker's position at
+  trigger time, but currently we only pass attacker_id). Pinned as
+  open item.
+
+**Open items carried forward:**
+- [ ] Vision types (truesight, blindsight, darkvision)
+- [ ] Light levels (bright / dim / dark per tile)
+- [ ] Heavily Obscured zones
+- [ ] **Hide action** (needs heavy obscurement / cover; this PR
+  unblocks the vision side but not the cover side)
+- [ ] Hellish Rebuke 60-ft range gate
+- [ ] Cover (half / three-quarters / total) for ranged attacks
+- [ ] Stealth checks vs passive Perception for active hiding
+
+---
+
 ## Session: 2026-05-26 — Counterspell + cast-event infra (PR #46)
 
 **Participants:** Phil, Claude
