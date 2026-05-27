@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-05-27
 **Engine state:** Phase 1, post-PR #26 (Dodge + Disengage merged).
-**Test surface:** 1296 tests across 60+ modules; 14 CLI fixtures.
+**Test surface:** 1327 tests across 60+ modules; 14 CLI fixtures.
 
 This document captures what the simulator can actually do today — in
 observable behavioral terms, not module inventories. The companion
@@ -680,6 +680,70 @@ priority order:
    Rebuke**~~ — **Shipped in PR #45.**
 18. ~~**Counterspell + cast-event infra**~~ — **Shipped in PR #46.**
 19. ~~**Vision system v1**~~ — **Shipped in PR #47.**
+49. ~~**Upcast scaling for damage spells**~~ — **Shipped in
+   PR #77.** Closes the PR #67 residue. Spells that declare an
+   `upcast_scaling` block now actually cast at higher slot
+   levels: the candidate filter accepts higher slots when the
+   exact base level is unavailable; the executor picks the
+   lowest available slot ≥ base; the damage primitive applies
+   the per-level bonus dice.
+   - **New helpers in `engine/core/spell_slots.py`:**
+     `lowest_available_slot_at_or_above`, `is_upcastable`,
+     `has_slot_for_action`, `resolve_chosen_slot_level`. All
+     handle the cantrip / exact-level / upcastable cases
+     uniformly so callers don't repeat the dispatch.
+   - **Pipeline filter** (`generate_candidates`) now uses
+     `has_slot_for_action` — upcastable spells pass when ANY
+     slot ≥ base is available; non-upcastable still need exact.
+   - **Pipeline `execute`** computes `chosen_slot_level` via
+     `resolve_chosen_slot_level` (defaults to base, picks
+     lowest available ≥ base for upcastable), stashes it on
+     the `chosen` dict and `state.current_attack`, and consumes
+     it (not the base level) from the slot pool. Counterspell
+     also sees the chosen level via `spell_cast_initiated`.
+   - **Reaction execute path** (`try_use_reaction`) mirrors the
+     same: gate via `has_slot_for_action`, resolve chosen
+     slot, stash on state, consume the chosen level. Hellish
+     Rebuke now upcasts correctly via the reaction path.
+   - **`_damage` primitive** calls new
+     `_resolve_upcast_extra_dice` helper which reads
+     `state.current_attack.chosen_slot_level` and
+     `action.upcast_scaling`. Adds
+     `extra_dice_per_level × (chosen − base)` dice; optional
+     `damage_type` filter scopes bonus to matching damage
+     steps (so multi-type spells don't double-count). Crit
+     doubles the upcast dice same as base dice.
+   - **Persistent aura path also wired**: aura registration
+     captures `chosen_slot_level` + the action's
+     `spell_slot_level` + `upcast_scaling` block; runner's
+     `_resolve_persistent_aura_triggers` synthesizes an
+     action dict with these fields when invoking on_fail /
+     on_success sub-primitives. Hunger of Hadar and Cloudkill
+     per-turn damage now scales correctly when cast at a
+     higher slot.
+   - **Existing spells wired** with `upcast_scaling`:
+     * Hellish Rebuke: +1d10 fire per slot above 1st
+     * Hunger of Hadar: +1d6 cold per slot above 3rd
+     * Cloudkill: +1d8 poison per slot above 5th
+   - **AI scoring** of upcast: currently picks LOWEST
+     available slot (matches Divine Smite v1 from PR #73 —
+     RAW best practice). A follow-up PR can extend AI to dump
+     higher slots when burst value justifies it.
+   - 31 new tests across 13 layers (helpers, filter, executor,
+     damage primitive helper math, damage_type filter, crit
+     doubling, end-to-end HP delta, YAML wiring on HR / HoH /
+     Cloudkill).
+   - Deferred:
+     * AI choosing HIGHER-than-lowest slot when burst worth
+       it (current = lowest-available)
+     * Non-damage upcast (Magic Missile +1 dart, Hold Person
+       +1 target, Bless +1 ally, etc.) — would need
+       `upcast_scaling` extensions for non-dice patterns
+     * Upcasting in candidate scoring (the eHP scorer doesn't
+       yet factor upcast bonus damage when comparing candidates
+       — the AI uses upcast when forced but doesn't actively
+       prefer it)
+
 48. ~~**Total cover auto-miss**~~ — **Shipped in PR #76.**
    Closes the PR #48 residue. Adds `'total'` as a fourth cover
    state and wires the RAW PHB 2024 behavior: "a target with

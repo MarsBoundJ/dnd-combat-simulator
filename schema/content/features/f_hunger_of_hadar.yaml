@@ -54,6 +54,17 @@ action_template:
   spell_slot_level: 3
   concentration: true
   named_effect: hunger_of_hadar
+  # PR #77: upcast scaling — RAW: "Using a Higher-Level Spell Slot.
+  # The damage increases by 1d6 for each spell slot level above 3."
+  # Both the cold-damage step (on_success and on_fail share cold)
+  # AND the acid component (modeled in v1 as combined cold) get the
+  # scaling. We target damage_type=cold which catches both on_fail
+  # (4d6 cold) and on_success (2d6 cold). The persistent_aura
+  # registration captures the chosen_slot_level so per-turn damage
+  # ticks apply the upcast bonus correctly.
+  upcast_scaling:
+    extra_dice_per_level: "1d6"
+    damage_type: cold
   area:
     shape: sphere
     radius_ft: 20

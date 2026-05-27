@@ -339,13 +339,26 @@ class EncounterRunner:
             # turn-taking creature is the "target". area_origin
             # propagates so any AoE-aware sub-primitives can reference it.
             saved_attack = state.current_attack
+            # PR #77: propagate the aura's captured upcast metadata so
+            # _resolve_upcast_extra_dice in _damage can apply per-turn
+            # upcast bonus damage (HoH, Cloudkill, etc.). The aura's
+            # `action` synthetic-dict carries the original action's
+            # spell_slot_level + upcast_scaling for the upcast helper
+            # to read off state.current_attack.action.
+            synthetic_action = {
+                "id": aura["action_id"],
+                "named_effect": aura.get("named_effect"),
+                "spell_slot_level": aura.get("spell_slot_level", 0),
+            }
+            if aura.get("upcast_scaling"):
+                synthetic_action["upcast_scaling"] = aura["upcast_scaling"]
             state.current_attack = {
                 "actor": caster, "target": actor,
-                "action": {"id": aura["action_id"],
-                            "named_effect": aura.get("named_effect")},
+                "action": synthetic_action,
                 "state": None,
                 "had_advantage": False, "had_disadvantage": False,
                 "area_origin": tuple(origin), "area_direction": None,
+                "chosen_slot_level": aura.get("chosen_slot_level", 0),
             }
             try:
                 if aura.get("ability") is None:

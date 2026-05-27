@@ -5,6 +5,64 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-27 — Upcast scaling for damage spells (PR #77)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Closes the PR #67 residue. Spells declaring `upcast_scaling`
+  now actually cast at higher slot levels: candidate filter
+  accepts higher slots when exact is unavailable; executor
+  picks lowest available ≥ base; damage primitive applies
+  bonus dice; persistent_aura captures + propagates the
+  chosen slot through per-turn triggers.
+- New helpers in `engine/core/spell_slots.py`:
+  `lowest_available_slot_at_or_above`, `is_upcastable`,
+  `has_slot_for_action`, `resolve_chosen_slot_level`.
+- Pipeline filter via `has_slot_for_action` (cantrip /
+  exact-level / upcastable, all uniformly handled).
+- Pipeline `execute` resolves + stashes + consumes
+  `chosen_slot_level`. Counterspell sees the chosen level via
+  `spell_cast_initiated` (matches RAW: Counterspell keys off
+  the actual cast level).
+- Reaction `try_use_reaction` mirrors the same — Hellish
+  Rebuke upcasts correctly from the reaction path.
+- `_damage` calls `_resolve_upcast_extra_dice` which reads
+  `chosen_slot_level` + `action.upcast_scaling`, adds
+  `extra_dice_per_level × (chosen − base)` dice, with
+  optional `damage_type` filter for multi-type spells. Crit
+  doubles the upcast dice.
+- Persistent aura registration captures `chosen_slot_level`
+  + `upcast_scaling`; runner synthesizes an action dict with
+  these on each per-turn trigger so the upcast helper fires.
+- Three existing spells now upcast: Hellish Rebuke
+  (+1d10 fire/level), Hunger of Hadar (+1d6 cold/level),
+  Cloudkill (+1d8 poison/level).
+- 31 new tests across 13 layers. Full suite: 1326 passed +
+  1 skipped (was 1295 + 31 new).
+
+**Scope decisions:**
+- AI picks LOWEST available slot ≥ base (matches Divine Smite
+  v1 from PR #73). RAW best practice — higher slot dice
+  rarely beat saving the slot.
+- Persistent aura path wired (rather than deferred) so HoH +
+  Cloudkill actually upcast correctly. Required adding
+  upcast metadata to the aura entry and synthetic-action dict
+  the trigger creates.
+- Damage type filter on `upcast_scaling` so multi-type spells
+  (none in v1, but Hellish Rebuke half-damage-on-success and
+  HoH on_fail+on_success both single-type) scale only matching
+  damage steps.
+
+**Open items:**
+- AI choosing HIGHER-than-lowest slot when burst value justifies
+- Non-damage upcast patterns (Magic Missile +1 dart, Hold Person
+  +1 target, Bless +1 ally) — need schema extensions
+- Upcast factor in candidate scoring (AI doesn't actively prefer
+  upcast; it consumes it only when forced by slot scarcity)
+
+---
+
 ## Session: 2026-05-27 — Total cover auto-miss (PR #76)
 
 **Participants:** Phil, Claude

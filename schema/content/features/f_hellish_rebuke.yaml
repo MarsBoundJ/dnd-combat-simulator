@@ -47,6 +47,15 @@ action_template:
   trigger: damage_taken
   condition: damage_taken_by_self_from_attacker
   named_effect: hellish_rebuke
+  # PR #77: upcast scaling — RAW: "The damage increases by 1d10 for
+  # each spell slot level above 1st." Applies only to the fire
+  # damage step (damage_type filter ensures we don't double-scale
+  # the on_success half-damage variant — both steps are fire, so
+  # both will get the bonus on upcast, which matches RAW: half-on-
+  # success applies to the full upcasted damage too).
+  upcast_scaling:
+    extra_dice_per_level: "1d10"
+    damage_type: fire
   pipeline:
     - primitive: forced_save
       params:

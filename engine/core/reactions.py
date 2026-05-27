@@ -341,9 +341,14 @@ def try_use_reaction(reactor: Actor, action: dict, event_data: dict,
     # Spell-slot gate
     from engine.core.spell_slots import (
         required_slot_level, has_slot, consume_slot,
+        has_slot_for_action, resolve_chosen_slot_level,
     )
     slot_level = required_slot_level(action)
-    if slot_level > 0 and not has_slot(reactor, slot_level):
+    # PR #77: gate via has_slot_for_action so upcastable reactions
+    # (e.g., Hellish Rebuke with `upcast_scaling`) can fire from any
+    # slot level at or above their base. The actual slot level
+    # consumed is resolved below via resolve_chosen_slot_level.
+    if slot_level > 0 and not has_slot_for_action(reactor, action):
         return False
     # Feature-use gate
     from engine.core.feature_uses import (
@@ -403,6 +408,11 @@ def try_use_reaction(reactor: Actor, action: dict, event_data: dict,
         new_target = event_data.get("attacker")
     else:
         new_target = event_data.get("target") or reactor
+    # PR #77: resolve the chosen slot level for upcast scaling.
+    # Reactions that declare upcast_scaling AND have slots at
+    # higher levels get the bonus dice on their damage steps.
+    chosen_slot_level = (resolve_chosen_slot_level(reactor, action)
+                          if slot_level > 0 else 0)
     state.current_attack = {
         "actor": reactor,
         "target": new_target,
@@ -414,6 +424,7 @@ def try_use_reaction(reactor: Actor, action: dict, event_data: dict,
         "area_direction": None,
         "is_reaction": True,
         "reaction_event_data": event_data,
+        "chosen_slot_level": chosen_slot_level,
     }
     try:
         # Use the module-level handler registry via _invoke_subprimitive
@@ -427,8 +438,13 @@ def try_use_reaction(reactor: Actor, action: dict, event_data: dict,
 
     # Mark reaction used + consume resources
     reactor.actions_used_this_turn["reaction"] = True
-    if slot_level > 0:
-        consume_slot(reactor, slot_level, state, action_id=action.get("id"))
+    # PR #77: consume the chosen slot level (base for non-upcastable
+    # reactions; possibly higher for upcastable ones like Hellish
+    # Rebuke when only higher slots are available, or when slot
+    # picker prefers upcast).
+    if chosen_slot_level > 0:
+        consume_slot(reactor, chosen_slot_level, state,
+                       action_id=action.get("id"))
     if feature_key is not None:
         consume_use(reactor, feature_key, state, action_id=action.get("id"))
     state.event_log.append({

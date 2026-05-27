@@ -102,6 +102,86 @@ def remaining_slots(actor: Actor, slot_level: int) -> int:
     return int(actor.spell_slots.get(slot_level, 0))
 
 
+def lowest_available_slot_at_or_above(actor: Actor,
+                                          base_level: int) -> int | None:
+    """Return the lowest slot level >= base_level where the actor has
+    at least one slot available, or None if no eligible slot exists.
+
+    Used by upcastable spells (PR #77): when a spell declares
+    `upcast_scaling` and only higher slots are available, the
+    executor picks the lowest one to minimize slot opportunity cost
+    (matches the v1 Divine Smite heuristic from PR #73).
+
+    Caps at 9 (no slot levels above 9 in 5e). Returns None when
+    base_level <= 0 (cantrips have no slot to pick) OR when the
+    actor has no slots at any qualifying level.
+    """
+    if base_level <= 0:
+        return None
+    for level in range(base_level, 10):
+        if int(actor.spell_slots.get(level, 0)) > 0:
+            return level
+    return None
+
+
+def is_upcastable(action: dict) -> bool:
+    """True iff the action declares an `upcast_scaling` block.
+    PR #77 introduces this field — actions with it allow casting at
+    a higher slot level than the base for additional effect.
+    """
+    return bool(action.get("upcast_scaling"))
+
+
+def has_slot_for_action(actor: Actor, action: dict) -> bool:
+    """Generalized slot-availability check for the candidate filter
+    (PR #77). Handles both:
+      - Non-spell / cantrip actions (always available)
+      - Exact-level spell actions (need slot at exact level)
+      - Upcastable spell actions (need slot at base level OR HIGHER)
+
+    Cleaner than calling `has_slot(actor, required_slot_level(a))`
+    directly because it routes upcastable actions through the
+    at-or-above check.
+    """
+    base_level = required_slot_level(action)
+    if base_level <= 0:
+        return True   # cantrip / not a spell
+    if is_upcastable(action):
+        return lowest_available_slot_at_or_above(actor, base_level) is not None
+    return has_slot(actor, base_level)
+
+
+def resolve_chosen_slot_level(actor: Actor, action: dict) -> int:
+    """Decide which spell slot level to consume when casting this
+    action (PR #77). For non-upcastable actions, returns the action's
+    base level. For upcastable actions, returns the lowest available
+    slot at or above the base.
+
+    The "lowest available" heuristic mirrors the Divine Smite v1
+    pattern from PR #73 — higher slot dice rarely outweigh saving
+    the slot for a different spell. A follow-up PR can extend the
+    AI to choose higher slots when burst damage value justifies it.
+
+    Returns 0 for non-spell actions (no slot to consume). Raises
+    ValueError if the action requires a slot but none is available
+    (the candidate filter should prevent this).
+    """
+    base_level = required_slot_level(action)
+    if base_level <= 0:
+        return 0
+    if not is_upcastable(action):
+        return base_level
+    chosen = lowest_available_slot_at_or_above(actor, base_level)
+    if chosen is None:
+        raise ValueError(
+            f"resolve_chosen_slot_level: action "
+            f"{action.get('id')!r} has base level {base_level} "
+            f"but actor {actor.id!r} has no eligible slots — "
+            f"candidate filter should have caught this"
+        )
+    return chosen
+
+
 def consume_slot(actor: Actor, slot_level: int, state: CombatState,
                   action_id: str | None = None) -> None:
     """Decrement the actor's slot count at the given level. No-op for
