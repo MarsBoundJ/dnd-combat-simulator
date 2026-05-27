@@ -5,6 +5,80 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-27 — Skill expertise + magic-item bonuses (PR #62)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Closes the PR #51 residue. PC schemas now accept skill expertise
+  (2×PB on listed skills) and per-skill magic-item bonuses
+  (flat add). Both feed `skill_modifier` and passive Perception
+  uniformly.
+- **`engine/core/skills.py`:**
+  - `has_skill_expertise(actor, skill)` — reads
+    `template.skill_expertise` (case-insensitive match)
+  - `_skill_magic_bonus(actor, skill)` — reads
+    `template.skill_bonuses` (dict of skill → flat int)
+  - `skill_modifier` extended:
+    - Proficient + no expertise → +1×PB (unchanged from PR #51)
+    - Proficient + expertise → +2×PB
+    - Not proficient + expertise → no PB added (RAW: expertise
+      requires proficiency; validation in pc_schema enforces
+      this, but the runtime helper degrades gracefully)
+    - Magic bonus always added on top
+    - Monster-listed totals (`template.skills.<name>`) also get
+      the magic bonus added (rare but supported for completeness)
+- **`pc_schema` extensions:**
+  - New `_validate_skill_expertise(value, proficiencies)`:
+    requires expertise entries to be in the proficiencies list.
+    Raises with a clear message naming the gap. RAW gate
+    enforced at build time.
+  - New `_validate_skill_bonuses(value)`: dict shape with int
+    values; unknown skills + non-dict + non-int all raise.
+  - `build_pc_template` accepts `skill_expertise:` and
+    `skill_bonuses:` fields, validates them, bakes onto template
+    top-level + `derived_from_pc_schema` block.
+- **`_compute_passive_perception` extended** with `skill_expertise`
+  and `skill_bonuses` kwargs. Same shape as active `skill_modifier`:
+  - Proficient + expertise on Perception → 2×PB in passive
+  - Magic bonus on Perception → flat add (regardless of
+    proficiency)
+  - Old call sites still work (kwargs default to None / {})
+- **Tests (38 new in `test_skill_expertise_bonuses.py`):**
+  - `has_skill_expertise`: in/not-in/empty/normalized
+  - `_skill_magic_bonus`: returns bonus / 0 / unrelated /
+    normalized
+  - `skill_modifier`: proficient (1× PB), proficient + expertise
+    (2× PB), not-proficient (no PB), magic bonus with/without
+    proficiency, magic + expertise, monster-listed + magic
+  - `_validate_skill_expertise`: None → [], unknown raises,
+    expertise-without-proficiency raises (with message),
+    expertise-with-proficiency passes, normalized + deduped,
+    non-list raises
+  - `_validate_skill_bonuses`: None → {}, unknown raises,
+    non-int raises, non-dict raises, normalized keys
+  - PC schema baking: expertise + bonuses on template top-level
+    + derived_from; passive Perception with expertise / with
+    magic / with both; unknown skill raises at build; expertise-
+    without-proficiency raises at build
+  - `_compute_passive_perception` helper directly: no proficiency
+    / proficiency-only / expertise / magic-only-no-proficiency
+- 1029 tests pass (+38 new, 1 skip, no regressions).
+
+**Future-roadmap items (recorded, not in this PR):**
+- Jack of All Trades / Reliable Talent variants — RAW says
+  "PB doubled if it isn't already" implying some sources can
+  prevent doubling. v1 always doubles when expertise set;
+  refinements track sources separately when they land.
+- Cloak of Elvenkind RAW grants advantage on Stealth (not flat
+  bonus) — fixture authors can model as +5 proxy. A proper
+  advantage-grant magic-item path would need a separate hook.
+- Item-suite presets (e.g., "rogue with full elvish kit" that
+  auto-loads cloak + boots + gloves bonuses) — convenience for
+  fixture authors; not a mechanical change.
+
+---
+
 ## Session: 2026-05-27 — AI eHP scoring for Darkness (PR #61)
 
 **Participants:** Phil, Claude

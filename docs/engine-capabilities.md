@@ -680,6 +680,45 @@ priority order:
    Rebuke**~~ — **Shipped in PR #45.**
 18. ~~**Counterspell + cast-event infra**~~ — **Shipped in PR #46.**
 19. ~~**Vision system v1**~~ — **Shipped in PR #47.**
+34. ~~**Skill expertise + magic-item bonuses**~~ — **Shipped in
+   PR #62.** Closes the PR #51 residue. PC schemas now accept
+   `skill_expertise:` (list of skills with 2×PB) and
+   `skill_bonuses:` (dict of skill → flat magic-item bonus).
+   Both feed into `skill_modifier` + passive Perception.
+   - `engine/core/skills.py`:
+     - New `has_skill_expertise(actor, skill)` helper reading
+       `template.skill_expertise`
+     - New `_skill_magic_bonus(actor, skill)` helper reading
+       `template.skill_bonuses` (case-insensitive match)
+     - `skill_modifier` extended: if proficient + expertise →
+       2×PB; magic bonus added on top regardless of proficiency;
+       stacks on top of monster-listed totals
+   - `pc_schema`:
+     - New `_validate_skill_expertise(value, proficiencies)` —
+       validates against known skills AND enforces RAW gate that
+       expertise requires also being proficient. Raises with a
+       clear message if the gate fails.
+     - New `_validate_skill_bonuses(value)` — validates against
+       known skills + int values; non-dict / non-int values
+       raise.
+     - `build_pc_template` accepts both fields; bakes onto
+       template top-level + `derived_from_pc_schema` block.
+   - `_compute_passive_perception` extended with `skill_expertise`
+     and `skill_bonuses` kwargs. Proficient + expertise → 2×PB
+     in passive; magic bonus added always (proficient or not).
+   - 38 new tests across the helpers, `skill_modifier` integration
+     (proficient with/without expertise, magic bonus stacking
+     with/without proficiency, monster-listed + magic bonus),
+     validators (unknown / non-list / non-dict / expertise-
+     without-proficiency raises), pc_schema baking (template
+     fields, derived_from, passive Perception with each
+     combination), and the passive Perception helper directly.
+   - Deferred: Jack of All Trades / Reliable Talent variants
+     ("PB doubled if it isn't already" — v1 always doubles);
+     Stealth roll re-roll on advantage (Cloak of Elvenkind RAW
+     grants advantage, not flat bonus — we model it as a flat
+     +5 proxy if fixture authors prefer); item-suite presets
+     (a "rogue with full elvish kit" auto-loader).
 33. ~~**AI eHP scoring for Darkness**~~ — **Shipped in PR #61.**
    Closes the PR #60 residue. Darkness now competes against
    damage spells in the AI's candidate selection on a real
