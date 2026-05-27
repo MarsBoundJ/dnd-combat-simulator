@@ -680,6 +680,29 @@ priority order:
    Rebuke**~~ — **Shipped in PR #45.**
 18. ~~**Counterspell + cast-event infra**~~ — **Shipped in PR #46.**
 19. ~~**Vision system v1**~~ — **Shipped in PR #47.**
+22. ~~**Dark zones + Dim light zones + Darkvision**~~ —
+   **Shipped in PR #50.** Extends the vision system started in
+   PR #47 with light-level zones + per-actor darkvision range. Two
+   new environment fields: `encounter.environment.dim_light_zones`
+   and `encounter.environment.dark_zones` — both axis-aligned-rect
+   lists matching `heavily_obscured_zones` shape from PR #48. New
+   `Actor.darkvision_range_ft: int` field (defaults 0 = no
+   darkvision). Loaded from monster template's
+   `senses.special.darkvision` (numeric feet) OR from an explicit
+   `darkvision_range_ft:` actor_spec override (racial PC darkvision
+   lives here until race modeling lands). New vision helpers
+   `is_in_dim_light_zone` / `is_in_dark_zone`. `can_actor_see`
+   extended with one new gate: if either observer or target is in
+   a dark zone, observer needs darkvision AND must be within range
+   (RAW: darkvision treats darkness within range as dim light).
+   Dim light does NOT block sight in v1 — RAW only adds Perception
+   disadvantage, which lands when active-Perception checks land.
+   Precedence: blinded > invisible > heavy obscurement > dark zone
+   (with darkvision check). Deferred: Truesight (bypasses Invisible
+   + magical darkness), Blindsight (sees within range regardless),
+   per-tile light grid (vs zones), magical darkness (a higher tier
+   ordinary darkvision can't bypass), active Perception check vs
+   Hide DC. 24 new tests (66 total in vision + cover + light suite).
 21. ~~**Great Weapon Fighting + damage_die_floor primitive**~~ —
    **Shipped in PR #49.** Adds a fourth Fighting Style option
    (`great_weapon_fighting`, non-SRD per PHB 2024). New
