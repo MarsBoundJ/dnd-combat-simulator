@@ -5,6 +5,71 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-27 — Blind Fighting style (PR #63)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Closes the Fighting Style arc. All 6 styles now ship (Defense /
+  Dueling / Archery / GWF / TWF / Blind Fighting). The smallest
+  PR of the arc since the vision infrastructure was already in
+  place from PR #52.
+- **`blind_fighting` added to `_KNOWN_FIGHTING_STYLES`** with a
+  comment pointing to the senses-baking mechanism.
+- **New `_build_pc_senses_block` helper** in `pc_schema.py`.
+  Centralizes assembly of the `senses:` dict (passive_perception
+  + any `special` sense entries from class features). When
+  `fighting_style == "blind_fighting"`, adds
+  `special.blindsight: 10`. Future per-class senses (Devil's
+  Sight, etc.) can extend the same helper without touching the
+  template construction.
+- **`build_pc_template`** now calls `_build_pc_senses_block`
+  (passing `fighting_style`) instead of inlining the senses
+  dict construction.
+- **`cli._build_actor`** unchanged — PR #52 already wired
+  template `senses.special.blindsight` → `Actor.blindsight_range_ft`
+  loading. Blind Fighting just rides that pathway.
+- **Vision integration is automatic.** PR #52's `can_actor_see`
+  already honors blindsight as the dominant override (pierces
+  Invisible, fog, darkness, magical darkness, self-Blinded
+  within range). Blind Fighting actors with blindsight 10
+  benefit from this without any vision-system changes.
+- **New `f_fs_blind_fighting.yaml`** — user_authored (not in
+  SRD CC v5.2.1). Documents the RAW + engine application + the
+  two deferred RAW exceptions.
+- **Updated existing fighting-style tests** that used
+  `blind_fighting` as the "unknown style" id (after PR #53
+  swapped it from `two_weapon_fighting`). New genuinely-unknown
+  id: `interception` (a real RAW style not yet implemented).
+- **Tests (13 new in `test_blind_fighting.py`):**
+  - Validation: in known set, validate passes, normalize case
+  - `_build_pc_senses_block`: no style → no special; bf → +10;
+    other style → no special
+  - `build_pc_template`: bf → senses has blindsight; bf
+    recorded in derived_from; other style → no special; no
+    style → no special
+  - `cli._build_actor`: bf → Actor.blindsight_range_ft = 10;
+    other style → 0
+  - End-to-end vision: bf actor pierces magical darkness on a
+    target inside the sphere within 10 ft
+- 1042 tests pass (+13 new, 1 skip, no regressions).
+
+**Future-roadmap items (recorded, not in this PR):**
+- "Unless it successfully hides from you" RAW exception —
+  Blind Fighting RAW says blindsight can't see a creature that
+  has succeeded on a Hide check against you. v1 blindsight is
+  dominant; tightening would require a per-sense bypass list
+  similar to truesight's
+  `_PERCEPTION_BYPASSABLE_INVISIBLE_SOURCES`.
+- "Total Cover" exception — Total Cover blocks blindsight per
+  RAW. v1 doesn't model Total Cover (PR #48 handles half / 3/4
+  cover only).
+- The Fighting Style arc is now CLOSED. Future PRs in this area
+  would be class-feature wirings (e.g., Paladin's variant style
+  options) or new "expert" subclasses that select styles.
+
+---
+
 ## Session: 2026-05-27 — Skill expertise + magic-item bonuses (PR #62)
 
 **Participants:** Phil, Claude
