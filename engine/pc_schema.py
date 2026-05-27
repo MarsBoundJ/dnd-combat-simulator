@@ -178,6 +178,15 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
         off_hand_action = _build_weapon_action(
             off_hand_spec, ability_scores, proficiency_bonus,
             fighting_style=fighting_style, off_hand=True)
+        # PR #57: Nick mastery — if the actor knows Nick AND at least
+        # one wielded Light melee weapon (off-hand OR a primary) has
+        # mastery=nick, the off-hand attack happens as part of the
+        # Attack action (slot='free') instead of as a Bonus Action.
+        # The runner's free-phase fires slot=free actions
+        # automatically after the main action.
+        if _nick_active(off_hand_spec, weapons_list, weapon_masteries):
+            off_hand_action["slot"] = "free"
+            off_hand_action["nick_active"] = True
         actions.append(off_hand_action)
     # Auto-append class-feature actions (Second Wind etc.) for features
     # the PC has at this level. Resource counters were derived
@@ -427,6 +436,43 @@ def _validate_off_hand_weapon(off_hand: dict, weapons: list) -> None:
             "entry that is also Light melee (RAW: primary attack must "
             "be a Light weapon for the off-hand bonus to trigger)."
         )
+
+
+def _nick_active(off_hand_spec: dict, weapons: list,
+                    weapon_masteries: list[str]) -> bool:
+    """Determine if Nick mastery is active for the off-hand attack
+    (PR #57).
+
+    Returns True iff BOTH:
+      1. The actor knows the Nick mastery (it's in their declared
+         `weapon_masteries` list).
+      2. At least one wielded Light melee weapon (off-hand OR any
+         primary) has `mastery: nick` set on its spec.
+
+    When active, the caller (`build_pc_template`) overrides the
+    off-hand action's slot from `bonus_action` to `free`, and the
+    runner's free-phase auto-fires it after the main action — RAW:
+    "you can make that extra attack as part of the same action."
+
+    Returns False if either condition fails. Designed to fail-closed
+    on missing data so we never apply Nick to a weapon spec that
+    doesn't claim it.
+    """
+    if "nick" not in (weapon_masteries or []):
+        return False
+    # Check off-hand first (most common case: dual-wielding daggers,
+    # both of which have Nick).
+    if off_hand_spec and off_hand_spec.get("mastery") == "nick":
+        return True
+    # Otherwise check primary weapons for any Light melee with Nick.
+    for w in (weapons or []):
+        if "range_ft" in w:    # ranged disqualifies
+            continue
+        if not w.get("light"):    # Nick gate also requires Light
+            continue
+        if w.get("mastery") == "nick":
+            return True
+    return False
 
 
 def _validate_skill_proficiencies(value) -> list[str]:

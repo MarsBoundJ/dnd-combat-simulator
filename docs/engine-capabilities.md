@@ -680,6 +680,40 @@ priority order:
    Rebuke**~~ — **Shipped in PR #45.**
 18. ~~**Counterspell + cast-event infra**~~ — **Shipped in PR #46.**
 19. ~~**Vision system v1**~~ — **Shipped in PR #47.**
+29. ~~**Nick weapon mastery + runner free-phase**~~ — **Shipped in
+   PR #57.** Bridges the Weapon Mastery (PR #54) and TWF (PR #53)
+   arcs by closing both residues at once. RAW 2024: with Nick,
+   the off-hand attack happens as part of the Attack action
+   instead of as a Bonus Action — frees the bonus slot for
+   Second Wind, etc. `nick` promoted from `DEFERRED_MASTERIES`
+   to `KNOWN_MASTERIES`. New `_nick_active(off_hand_spec,
+   weapons, weapon_masteries)` helper in pc_schema.py: returns
+   True iff the actor's `weapon_masteries` list contains "nick"
+   AND at least one wielded Light melee weapon (off-hand OR any
+   primary) declares `mastery: nick`. When active,
+   `build_pc_template` overrides the off-hand action's slot from
+   `bonus_action` to `free` and marks `nick_active: true`. New
+   runner `_run_free_phase` between the action and bonus_action
+   phases: auto-fires ALL `slot=free` weapon_attack actions on
+   the actor (no AI scoring — RAW says it happens, so it
+   happens), targeting the dial-preferred enemy via the same
+   `pick_target` path as movement. Per-turn dedup set
+   (`_free_actions_fired_this_turn`) prevents double-firing if
+   the phase runs twice in a turn (e.g., Action Surge). Logs
+   `free_action_fired` / `free_action_skipped` events with
+   reason. Nick has no per-attack effect, so
+   `weapon_masteries.apply_mastery_effects` correctly falls
+   through (the if-elif chain doesn't list "nick"). Deferred:
+   AI scoring for free actions (vs always-fire), Cleave / Push /
+   Slow as the remaining deferred masteries. 20 new tests
+   across known-set membership, `_nick_active` helper (true
+   cases for off-hand-with-nick + primary-with-nick; false
+   cases for actor-doesn't-know-nick, empty masteries, non-
+   light primary, ranged primary), pc_schema integration (Nick
+   active → slot=free, Nick inactive → slot=bonus_action,
+   no-off-hand → no action), apply_mastery_effects no-op with
+   Nick id, runner free-phase end-to-end (fires automatically,
+   logs events, no slot consumption, no double-fire).
 28. ~~**Pace-aware reactions (Shield / Counterspell / Hellish Rebuke)**~~
    — **Shipped in PR #56.** Closes the always-fire residue from
    PR #45 and PR #46. `engine/core/feature_pacing.py` gains

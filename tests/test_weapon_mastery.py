@@ -122,7 +122,9 @@ class ValidatorTest(unittest.TestCase):
 
     def test_known_v1_set(self) -> None:
         self.assertEqual(KNOWN_MASTERIES,
-                            frozenset({"vex", "sap", "topple", "graze"}))
+                            # PR #57: nick promoted from DEFERRED to KNOWN
+                            frozenset({"vex", "sap", "topple", "graze",
+                                         "nick"}))
 
     def test_validate_passes(self) -> None:
         for m in KNOWN_MASTERIES:

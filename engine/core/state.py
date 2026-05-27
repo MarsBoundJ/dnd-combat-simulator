@@ -178,6 +178,13 @@ class Actor:
         # one turn and only reset on short / long rest.
         self.moved_this_turn = False
         self.action_surge_used_this_turn = False
+        # Per-turn dedup set for slot=free actions (PR #57). Nick-
+        # generated off-hand attacks fire here, once per turn.
+        # Reset attribute-style since the field isn't a dataclass
+        # member (avoids forcing a schema change for a runner-only
+        # bookkeeping detail).
+        if hasattr(self, "_free_actions_fired_this_turn"):
+            self._free_actions_fired_this_turn.clear()
 
 
 # ============================================================================
