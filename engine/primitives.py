@@ -78,6 +78,25 @@ def _roll_dice_expr(expr: str, rng: _random_module.Random) -> int:
     return sum(rng.randint(1, sides) for _ in range(count))
 
 
+def _roll_dice_expr_with_floor(expr: str, floor: int,
+                                  rng: _random_module.Random) -> int:
+    """Like _roll_dice_expr but clamps each individual die roll to
+    `max(roll, floor)`. Used by Great Weapon Fighting (PR #49): a
+    GWF user wielding a two-handed melee weapon treats any 1 or 2 on
+    a damage die as a 3 (RAW 2024). floor=3 implements that exactly.
+
+    floor=0 / floor=1 → no clamping happens (every roll is already
+    ≥ 1). Caller passes 0 to opt out cleanly.
+    """
+    if floor <= 1:
+        return _roll_dice_expr(expr, rng)
+    m = _DICE_PATTERN.fullmatch(expr.strip())
+    if not m:
+        raise ValueError(f"Invalid dice expression: {expr!r}")
+    count, sides = int(m.group(1)), int(m.group(2))
+    return sum(max(rng.randint(1, sides), floor) for _ in range(count))
+
+
 # ============================================================================
 # IMPLEMENTED — Attack pipeline (v0 + v1 modifier consultation)
 # ============================================================================
@@ -228,11 +247,15 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
     rng = _get_rng(state, bus)
 
     is_crit = state.current_attack.get("state") == "crit"
+    # PR #49: damage_die_floor (Great Weapon Fighting): each rolled
+    # die is clamped to max(roll, floor). floor=3 implements GWF
+    # 2024's "treat any 1 or 2 as a 3" exactly.
+    floor = int(params.get("damage_die_floor", 0))
 
     if dice:
-        rolled = _roll_dice_expr(dice, rng)
+        rolled = _roll_dice_expr_with_floor(dice, floor, rng)
         if is_crit:
-            rolled += _roll_dice_expr(dice, rng)
+            rolled += _roll_dice_expr_with_floor(dice, floor, rng)
     else:
         rolled = 0
 

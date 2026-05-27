@@ -96,8 +96,10 @@ class ValidateFightingStyleTest(unittest.TestCase):
         self.assertEqual(_validate_fighting_style("Dueling"), "dueling")
 
     def test_unknown_style_raises(self) -> None:
+        # PR #49: great_weapon_fighting is now a known style. Use a
+        # genuinely-unknown id for the rejection check.
         with self.assertRaises(ValueError):
-            _validate_fighting_style("great_weapon_fighting")
+            _validate_fighting_style("two_weapon_fighting")
         with self.assertRaises(ValueError):
             _validate_fighting_style("does_not_exist")
 
@@ -240,7 +242,7 @@ class TemplateTaggingTest(unittest.TestCase):
 class UnknownStyleRejectionTest(unittest.TestCase):
 
     def test_build_template_rejects_unknown_style(self) -> None:
-        spec = _base_spec(fighting_style="great_weapon_fighting")
+        spec = _base_spec(fighting_style="two_weapon_fighting")
         with self.assertRaises(ValueError):
             build_pc_template(spec, _registry())
 

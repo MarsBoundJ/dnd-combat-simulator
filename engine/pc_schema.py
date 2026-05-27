@@ -289,6 +289,12 @@ _KNOWN_FIGHTING_STYLES = frozenset({
     "protection",   # reaction: impose disadv on adjacent ally attacks
                     # (PR #45; action wired via f_fs_protection.yaml's
                     # action_template, attached by fixture for v1)
+    "great_weapon_fighting",   # PR #49: damage_die_floor=3 on 2H
+                                # melee weapons (RAW 2024: treat any
+                                # 1 or 2 on a damage die as a 3).
+                                # Versatile weapons wielded two-handed
+                                # deferred until weapon-grip state is
+                                # modeled.
 })
 
 
@@ -548,6 +554,12 @@ def _build_weapon_action(weapon: dict, ability_scores: dict,
     Fighting Style application:
       - Dueling: +2 damage on one-handed melee weapons
       - Archery: +2 attack on ranged weapons
+      - Great Weapon Fighting (PR #49): damage_die_floor=3 on two-handed
+        melee weapons. RAW 2024: any 1 or 2 rolled on a weapon's damage
+        die is treated as a 3. Implemented via the `damage_die_floor`
+        param on the damage primitive (clamps each individual die roll).
+        Versatile weapons wielded two-handed are deferred until weapon-
+        grip state is modeled — for now `two_handed: true` is the gate.
     """
     attack_ability = weapon.get("attack_ability", "str")
     ability_mod = ability_modifier(
@@ -566,6 +578,12 @@ def _build_weapon_action(weapon: dict, ability_scores: dict,
             and not is_ranged and not is_two_handed):
         damage_mod += 2
 
+    # PR #49: Great Weapon Fighting — damage die floor on 2H melee.
+    damage_die_floor = 0
+    if (fighting_style == "great_weapon_fighting"
+            and not is_ranged and is_two_handed):
+        damage_die_floor = 3
+
     attack_params: dict = {
         "kind": "ranged" if is_ranged else "melee",
         "bonus": attack_bonus,
@@ -575,6 +593,14 @@ def _build_weapon_action(weapon: dict, ability_scores: dict,
     else:
         attack_params["reach_ft"] = int(weapon.get("reach_ft", 5))
 
+    damage_params: dict = {
+        "dice": weapon.get("damage_dice", "1d4"),
+        "modifier": damage_mod,
+        "type": weapon.get("damage_type", "bludgeoning"),
+    }
+    if damage_die_floor > 0:
+        damage_params["damage_die_floor"] = damage_die_floor
+
     return {
         "id": weapon.get("id") or f"a_{weapon.get('name', 'weapon').lower().replace(' ', '_')}",
         "name": weapon.get("name", "Weapon"),
@@ -582,11 +608,7 @@ def _build_weapon_action(weapon: dict, ability_scores: dict,
         "pipeline": [
             {"primitive": "attack_roll", "params": attack_params},
             {"primitive": "damage",
-              "params": {
-                  "dice": weapon.get("damage_dice", "1d4"),
-                  "modifier": damage_mod,
-                  "type": weapon.get("damage_type", "bludgeoning"),
-              },
+              "params": damage_params,
               "when": {"event": "damage_roll",
                         "condition": "combat.attack_state == hit"}},
         ],

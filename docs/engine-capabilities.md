@@ -680,6 +680,27 @@ priority order:
    Rebuke**~~ — **Shipped in PR #45.**
 18. ~~**Counterspell + cast-event infra**~~ — **Shipped in PR #46.**
 19. ~~**Vision system v1**~~ — **Shipped in PR #47.**
+21. ~~**Great Weapon Fighting + damage_die_floor primitive**~~ —
+   **Shipped in PR #49.** Adds a fourth Fighting Style option
+   (`great_weapon_fighting`, non-SRD per PHB 2024). New
+   `_roll_dice_expr_with_floor` dice helper clamps individual rolls
+   to `max(roll, floor)`; `_damage` primitive reads
+   `damage_die_floor` from params and routes through it. Crit
+   doubles dice AND applies the floor to both roll passes. The
+   modifier is unaffected (RAW: floor applies only to weapon damage
+   dice). `pc_schema._build_weapon_action` injects
+   `damage_die_floor: 3` into the damage step's params when the
+   chosen Fighting Style is `great_weapon_fighting` AND the weapon
+   is melee (has `reach_ft`) AND is two-handed (`two_handed: true`).
+   Ranged-two-handed weapons (heavy crossbow) and one-handed melee
+   are correctly excluded. Versatile weapons wielded two-handed are
+   deferred until a runtime grip-state model lands. Bonus dice from
+   other sources (Sneak Attack, smite) are NOT clamped because
+   they're applied through separate primitive invocations — matches
+   the RAW reading of "the weapon's damage die." No re-roll
+   primitive was added (none currently needed: Lucky / Halfling
+   Lucky are d20 re-rolls, not damage dice). Closes the GWF arc
+   raised against PR #38.
 20. ~~**Cover + Heavy Obscurement zones + Hide action**~~ —
    **Shipped in PR #48.** Cover: per-actor `cover` field (`half` /
    `three_quarters` / `none`) gives +2/+5 AC + DEX-save bonus. No
