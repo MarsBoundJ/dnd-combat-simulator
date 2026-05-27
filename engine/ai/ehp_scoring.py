@@ -601,6 +601,147 @@ def offensive_ehp_search(actor: Actor, action: dict,
 EXPECTED_AURA_ROUNDS = 2.5     # matches EXPECTED_BUFF_ROUNDS for consistency
 
 
+# ============================================================================
+# Darkness vision-denial scoring (PR #61)
+# ============================================================================
+#
+# Darkness (PR #60) is a persistent_aura that DOESN'T deal damage —
+# it declares a magical_dark_zone that blocks vision into / out of
+# the sphere. The Darkness-shape scoring has nothing in common with
+# the damage-aura scoring (Spirit Guardians, Moonbeam, etc.), so we
+# fork to a dedicated function.
+#
+# Value model (per RAW vision rules):
+#   - In-sphere allies attacking out-sphere enemies → advantage
+#     (Invisible attacker, target can't see them)
+#   - Out-sphere enemies attacking in-sphere allies → disadvantage
+#     (target Invisible, attacker can't see them)
+#   - Within-sphere attacks (both inside or both outside) → no
+#     net change (mutual unseen advantages cancel for inside-inside;
+#     outside-outside sees normally)
+#   - Enemies inside the sphere get the SAME benefits against PCs
+#     outside — that's a cost. Net = ally benefit − enemy benefit.
+#
+# Truesight bypass: an enemy with truesight in range of an in-sphere
+# ally pierces the darkness — that pair doesn't contribute to
+# benefit. Same for ally-truesight piercing in-sphere enemies (cost).
+#
+# Duration multiplier: EXPECTED_AURA_ROUNDS (2.5, matching Spirit
+# Guardians-shape). Concentration spell, typical encounter shape.
+#
+# Deferred refinements:
+#   - Blindsight bypass (analogous to truesight; v1 ignores)
+#   - Per-target attack-frequency weighting (a multiattack monster's
+#     debuff is worth more than a one-attack-per-turn caster's)
+#   - "Caster forgot to put themselves in the sphere" detection
+#     (could subtract concentration opportunity cost)
+
+DARKNESS_RADIUS_SQUARES = 3       # 15-ft sphere = 3 squares radius
+
+
+def offensive_ehp_darkness(actor: Actor, action: dict,
+                              state: CombatState,
+                              origin: tuple[int, int] | None = None
+                              ) -> float:
+    """eHP scoring for Darkness-shape persistent_auras (PR #61).
+
+    Classifies actors as in-sphere vs out-of-sphere allies/enemies
+    via Chebyshev distance from the origin. Computes:
+      benefit = sum over (in-sphere ally × out-sphere enemy who can
+                reach them, no truesight piercing) of enemy_DPR ×
+                DELTA_HIT_FROM_ADVANTAGE
+              + sum over in-sphere allies of ally_DPR ×
+                DELTA_HIT_FROM_ADVANTAGE (one boosted attack per
+                round per ally) when there exist reachable
+                out-sphere enemies
+      cost   = mirror computation with sides swapped (in-sphere
+                enemies + out-sphere allies)
+      net    = benefit − cost, scaled by EXPECTED_AURA_ROUNDS
+
+    Returns max(0.0, net) — Darkness with a NEGATIVE net value (the
+    AI shouldn't cast it at all) clamps to 0 so it loses to any
+    damage option.
+
+    `origin` defaults to actor.position when not provided (caster
+    drops Darkness on themselves, the most common pattern).
+    """
+    from engine.ai.defensive_ehp import estimate_per_attack_damage
+    from engine.core.basic_actions import _max_attack_reach
+    from engine.core.geometry import distance_ft
+
+    if origin is None:
+        origin = tuple(actor.position)
+    ox, oy = int(origin[0]), int(origin[1])
+
+    def _in_sphere(actor_obj: Actor) -> bool:
+        ax, ay = actor_obj.position
+        return max(abs(ax - ox), abs(ay - oy)) <= DARKNESS_RADIUS_SQUARES
+
+    in_allies: list[Actor] = []
+    out_allies: list[Actor] = []
+    in_enemies: list[Actor] = []
+    out_enemies: list[Actor] = []
+    for a in state.encounter.actors:
+        if not a.is_alive():
+            continue
+        in_zone = _in_sphere(a)
+        if a.side == actor.side:
+            (in_allies if in_zone else out_allies).append(a)
+        else:
+            (in_enemies if in_zone else out_enemies).append(a)
+
+    # Truesight bypass helper — observer can see target if truesight
+    # range covers the distance. Blindsight not yet considered; v1
+    # underestimates Darkness vs blindsight monsters slightly.
+    def _truesight_pierces(observer: Actor, target: Actor) -> bool:
+        ts_range = int(getattr(observer, "truesight_range_ft", 0) or 0)
+        if ts_range <= 0:
+            return False
+        return distance_ft(observer, target) <= ts_range
+
+    def _reach_threat(attacker: Actor, target: Actor) -> bool:
+        """Can attacker reach target this round (speed + max reach)?"""
+        reach = _max_attack_reach(attacker)
+        if reach <= 0:
+            return False
+        speed = int((attacker.speed or {}).get("walk", 30))
+        return distance_ft(attacker, target) <= speed + reach
+
+    # Benefit: in-sphere allies vs out-sphere enemies
+    benefit = 0.0
+    for ally in in_allies:
+        # Defensive: each enemy who'd attack this ally suffers disadvantage
+        for enemy in out_enemies:
+            if _truesight_pierces(enemy, ally):
+                continue
+            if not _reach_threat(enemy, ally):
+                continue
+            enemy_dpr = estimate_per_attack_damage(enemy)
+            benefit += enemy_dpr * DELTA_HIT_FROM_ADVANTAGE
+        # Offensive: one boosted attack per round if any out-sphere
+        # enemy exists (ally swings with advantage)
+        if out_enemies:
+            ally_dpr = estimate_per_attack_damage(ally)
+            benefit += ally_dpr * DELTA_HIT_FROM_ADVANTAGE
+
+    # Cost: in-sphere enemies vs out-sphere allies (mirror)
+    cost = 0.0
+    for enemy in in_enemies:
+        for ally in out_allies:
+            if _truesight_pierces(ally, enemy):
+                continue
+            if not _reach_threat(ally, enemy):
+                continue
+            ally_dpr = estimate_per_attack_damage(ally)
+            cost += ally_dpr * DELTA_HIT_FROM_ADVANTAGE
+        if out_allies:
+            enemy_dpr = estimate_per_attack_damage(enemy)
+            cost += enemy_dpr * DELTA_HIT_FROM_ADVANTAGE
+
+    net = (benefit - cost) * EXPECTED_AURA_ROUNDS
+    return max(0.0, net)
+
+
 def offensive_ehp_persistent_aura(actor: Actor, action: dict,
                                        state: CombatState,
                                        origin: tuple[int, int] | None = None
@@ -639,6 +780,15 @@ def offensive_ehp_persistent_aura(actor: Actor, action: dict,
             break
     if aura_params is None:
         return 0.0
+
+    # PR #61: Darkness-shape auras (creates_zone=magical_dark) use a
+    # vision-denial scorer instead of the damage-aura formula below.
+    # Delegating here keeps the dispatch table simple — score_candidate
+    # routes all persistent_aura kinds to this function, and we fork
+    # based on the aura's payload.
+    if aura_params.get("creates_zone") == "magical_dark":
+        return offensive_ehp_darkness(actor, action, state,
+                                          origin=origin)
 
     shape = aura_params.get("shape", "sphere")
     anchor = aura_params.get("anchor", "caster")

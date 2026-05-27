@@ -680,6 +680,45 @@ priority order:
    Rebuke**~~ — **Shipped in PR #45.**
 18. ~~**Counterspell + cast-event infra**~~ — **Shipped in PR #46.**
 19. ~~**Vision system v1**~~ — **Shipped in PR #47.**
+33. ~~**AI eHP scoring for Darkness**~~ — **Shipped in PR #61.**
+   Closes the PR #60 residue. Darkness now competes against
+   damage spells in the AI's candidate selection on a real
+   eHP scale instead of falling through to a 0-value score.
+   - New `offensive_ehp_darkness(actor, action, state, origin)` in
+     `engine/ai/ehp_scoring.py`. Classifies actors as in-sphere
+     vs out-of-sphere allies / enemies via Chebyshev distance
+     from origin. Computes benefit (in-sphere allies' offensive
+     advantage + defensive disadvantage on out-sphere enemies)
+     minus cost (mirror for in-sphere enemies + out-sphere
+     allies). Scales by `EXPECTED_AURA_ROUNDS` (concentration
+     duration proxy). Clamps to 0 — Darkness that nets negative
+     value loses to any damage option without a sign-flip
+     surprise.
+   - Truesight bypass: out-sphere enemies with truesight in
+     range of an in-sphere ally don't contribute defensive
+     value (they pierce the darkness). Same for ally truesight
+     piercing in-sphere enemies (no cost from those allies).
+   - Reach gating: only in-threat-range attackers contribute to
+     defensive value. Out-of-range enemies wouldn't attack
+     anyway.
+   - Dispatch via `creates_zone` check: existing
+     `offensive_ehp_persistent_aura` inspects the aura params
+     and delegates to `offensive_ehp_darkness` when
+     `creates_zone == "magical_dark"`. Damage-aura path
+     unchanged (Spirit Guardians, Moonbeam, etc.).
+   - 11 new tests across the scorer (radius constant / empty
+     sphere → 0 / caster-inside-enemy-outside positive /
+     enemy-inside-only clamps to 0 / truesight enemy neutralizes
+     defensive / truesight ally neutralizes cost / out-of-reach
+     enemy no defensive / origin defaults to caster position /
+     multiple allies more benefit) and dispatch routing
+     (Darkness routes to darkness scorer / Spirit Guardians-
+     shape routes to damage scorer).
+   - Deferred refinements: blindsight bypass (analogous to
+     truesight; v1 ignores); per-target attack-frequency
+     weighting (multiattack monsters' debuff worth more);
+     opportunity-cost subtraction for concentration (caster
+     loses other concentration spells).
 32. ~~**Darkness spell as persistent_aura**~~ — **Shipped in PR #60.**
    Closes the PR #52 residue (magical_dark_zones previously needed
    fixture-authoring; the Darkness spell now declares its zone at

@@ -5,6 +5,84 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-27 — AI eHP scoring for Darkness (PR #61)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Closes the PR #60 residue. Darkness is a persistent_aura with
+  no damage payload, so `offensive_ehp_persistent_aura`'s damage
+  formula returned ~0 — the AI would never pick Darkness. PR #61
+  adds a dedicated vision-denial scorer and dispatches via the
+  `creates_zone` flag on the aura params.
+- **Value model:**
+  - Classify all living actors as in-sphere vs out-of-sphere
+    allies / enemies via Chebyshev distance from origin (matches
+    the engine's grid convention).
+  - **Benefit** = in-sphere allies' value, computed as:
+    - Defensive: sum over out-sphere enemies who can reach the
+      ally (speed + reach), filtering out enemies whose
+      truesight pierces. Each contributes
+      `enemy_dpr × DELTA_HIT_FROM_ADVANTAGE`.
+    - Offensive: one boosted attack per round per in-sphere ally
+      (when out-sphere enemies exist), worth
+      `ally_dpr × DELTA_HIT_FROM_ADVANTAGE`.
+  - **Cost** = mirror computation for in-sphere enemies + out-
+    sphere allies.
+  - Net = `(benefit - cost) × EXPECTED_AURA_ROUNDS`, clamped to
+    0. Darkness that nets negative loses to any damage option;
+    clamping avoids accidental sign-flip surprises.
+- **Truesight bypass:** Out-sphere enemies with truesight
+  covering the in-sphere ally don't contribute defensive value
+  (they pierce the darkness). Out-sphere allies with truesight
+  covering an in-sphere enemy don't contribute cost. This makes
+  the AI correctly value Darkness less when fighting truesight-
+  bearing enemies.
+- **Reach gating:** Only attackers within `speed + reach` of
+  the relevant target contribute. Out-of-reach actors wouldn't
+  attack anyway.
+- **Dispatch via `creates_zone`:**
+  `offensive_ehp_persistent_aura` inspects the aura params; if
+  `creates_zone == "magical_dark"`, delegates to
+  `offensive_ehp_darkness`. Damage-aura path (Spirit Guardians,
+  Moonbeam, etc.) unchanged. Clean fork rather than tangling
+  both formulas in one function.
+- **New module-level constant:** `DARKNESS_RADIUS_SQUARES = 3`
+  (15-ft sphere = 3 squares radius). Currently fixed; would
+  generalize when other zone-creating spells with different
+  radii land.
+- **Helpers (private to the function):** `_in_sphere(actor)`,
+  `_truesight_pierces(observer, target)`, `_reach_threat(
+  attacker, target)`. Each is a clean local closure — keeps
+  the main loop readable.
+- **Tests (11 new in `test_darkness_scoring.py`):**
+  - `DARKNESS_RADIUS_SQUARES = 3` constant
+  - Empty sphere → 0
+  - Caster-inside + reachable enemy outside → positive
+  - Enemy-inside-only → 0 (cost-only, clamped)
+  - Truesight enemy reduces benefit
+  - Truesight ally neutralizes cost
+  - Out-of-reach enemy → less defensive value
+  - Origin default = caster position
+  - Multiple allies → more benefit
+  - Dispatch: Darkness routes to darkness scorer
+  - Dispatch: Spirit Guardians-shape stays on damage scorer
+- 991 tests pass (+11 new, 1 skip, no regressions).
+
+**Future-roadmap items (recorded, not in this PR):**
+- Blindsight bypass — analogous to truesight; v1 underestimates
+  Darkness vs blindsight enemies slightly
+- Per-target attack-frequency weighting (multiattack monsters
+  contribute more than one-attack-per-turn casters)
+- Opportunity-cost subtraction for concentration (caster loses
+  other concentration spells; PR #56's pace-aware shape would
+  apply)
+- Generalize `DARKNESS_RADIUS_SQUARES` to read from aura params
+  (radius_ft) when other zone-creating spells with different
+  radii land
+
+---
+
 ## Session: 2026-05-27 — Darkness spell as persistent_aura (PR #60)
 
 **Participants:** Phil, Claude
