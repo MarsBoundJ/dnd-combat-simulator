@@ -27,8 +27,8 @@
 #   - "Spreads around corners" — the sphere shape already covers
 #     the area; corner-wrapping would matter only with terrain
 #     blocking, which v1 doesn't model.
-#   - Upcast scaling (+1d8 per slot level above 5); v1 doesn't
-#     yet model upcast.
+#   - Upcast scaling (+1d8 per slot level above 5) — wired in PR #77
+#     via the `upcast_scaling` block on the action template.
 
 id: f_cloudkill
 name: Cloudkill
@@ -53,6 +53,14 @@ action_template:
   spell_slot_level: 5
   concentration: true
   named_effect: cloudkill
+  # PR #77: upcast scaling — RAW: "+1d8 poison per slot level above
+  # 5th." Both the on_fail (5d8) and on_success (half-damage 5d8)
+  # damage steps scale because both are poison-typed. The runner's
+  # persistent_aura trigger stamps chosen_slot_level onto
+  # state.current_attack so _damage's upcast helper fires per-turn.
+  upcast_scaling:
+    extra_dice_per_level: "1d8"
+    damage_type: poison
   area:
     shape: sphere
     radius_ft: 20

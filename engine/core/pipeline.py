@@ -75,7 +75,8 @@ def generate_candidates(actor: Actor, state: CombatState,
         calls this twice per turn: once for the main slot, once for bonus.
     """
     from engine.core.geometry import is_within_ft
-    from engine.core.spell_slots import has_slot, required_slot_level
+    from engine.core.spell_slots import (
+        has_slot, required_slot_level, has_slot_for_action)
     from engine.core.basic_actions import (
         built_in_actions_for, is_self_targeted_defensive_buff,
         is_self_targeted_heal,
@@ -98,8 +99,11 @@ def generate_candidates(actor: Actor, state: CombatState,
     # Filter out spell actions whose required slot is unavailable. Free
     # actions (no `spell_slot_level`) pass through. Cantrips would have
     # `spell_slot_level: 0` and also pass.
+    # PR #77: filter via has_slot_for_action which handles both
+    # exact-level spells AND upcastable spells (any slot at or
+    # above base). Non-spell actions pass through unchanged.
     actions = [a for a in actions
-                if has_slot(actor, required_slot_level(a))]
+                if has_slot_for_action(actor, a)]
     # Filter out feature-use-gated actions whose resource is depleted.
     # Actions without a `feature_use` field pass through (not gated).
     from engine.core.feature_uses import (
@@ -543,19 +547,37 @@ def execute(chosen: dict, state: CombatState, event_bus, primitives) -> None:
         return
     actor = chosen["actor"]
     action = chosen["action"]
-    from engine.core.spell_slots import required_slot_level, consume_slot
-    slot_level = required_slot_level(action)
+    from engine.core.spell_slots import (
+        required_slot_level, consume_slot, resolve_chosen_slot_level)
+    base_slot_level = required_slot_level(action)
+    # PR #77: resolve the actual slot level to consume. For
+    # non-upcastable actions this equals the base level. For
+    # upcastable actions it's the lowest available slot >= base.
+    # Stashed on state.current_attack so the damage primitive can
+    # apply upcast bonus dice (and so the consume_slot call below
+    # uses the right level).
+    chosen_slot_level = (resolve_chosen_slot_level(actor, action)
+                          if base_slot_level > 0 else 0)
+    # Threading: propagate the chosen slot level on the `chosen`
+    # dict so _execute_single (and _execute_multiattack) can stash
+    # it onto state.current_attack for primitives that read it.
+    if chosen_slot_level > 0:
+        chosen = dict(chosen)   # don't mutate caller's dict
+        chosen["chosen_slot_level"] = chosen_slot_level
 
     # Counterspell hook: spell-cast event before pipeline execution.
     # `cast_cancelled` is per-action — set to False before, reactions
     # may flip to True.
     state.cast_cancelled = False
-    if slot_level > 0:
+    if base_slot_level > 0:
         from engine.core.reactions import resolve_reaction_triggers
+        # PR #77: counterspell sees the CHOSEN slot level (upcasted),
+        # not the base — Counterspell mechanics key off "the spell
+        # being cast" which RAW means the cast-level.
         resolve_reaction_triggers("spell_cast_initiated", {
             "caster": actor,
             "action": action,
-            "spell_slot_level": slot_level,
+            "spell_slot_level": chosen_slot_level,
         }, state, event_bus)
     cast_was_cancelled = state.cast_cancelled
     state.cast_cancelled = False  # reset after
@@ -567,7 +589,7 @@ def execute(chosen: dict, state: CombatState, event_bus, primitives) -> None:
             "event": "spell_cancelled",
             "actor": actor.id,
             "action": action.get("id"),
-            "slot_level": slot_level,
+            "slot_level": chosen_slot_level,
         })
     elif action.get("type") == "multiattack":
         _execute_multiattack(actor, action, state, event_bus, primitives)
@@ -621,9 +643,11 @@ def execute(chosen: dict, state: CombatState, event_bus, primitives) -> None:
     # Spell slot consumption — only fires for actions with
     # `spell_slot_level >= 1`. Free actions and cantrips skip. Slot
     # is consumed EVEN IF the spell was countered (RAW 2024).
-    level = slot_level
-    if level > 0:
-        consume_slot(actor, level, state, action_id=action.get("id"))
+    # PR #77: consume the chosen slot level (= base level for non-
+    # upcastable actions; possibly higher for upcastable ones).
+    if chosen_slot_level > 0:
+        consume_slot(actor, chosen_slot_level, state,
+                       action_id=action.get("id"))
 
     # Feature-use consumption — only fires for actions with a
     # `feature_use` resource key (Second Wind, Lay on Hands, etc.).
@@ -648,6 +672,12 @@ def _execute_single(chosen: dict, state: CombatState, event_bus, primitives) -> 
     # creatures by geometry.
     origin = chosen.get("origin_point")
     direction = chosen.get("direction")
+    # PR #77: propagate the chosen slot level for upcast scaling.
+    # `chosen["chosen_slot_level"]` is set by `execute()` when the
+    # action has spell_slot_level + upcast_scaling. Primitives that
+    # care (damage with upcast scaling) read this off
+    # state.current_attack.
+    chosen_slot_level = chosen.get("chosen_slot_level", 0)
 
     state.current_attack = {
         "actor": actor,
@@ -658,6 +688,7 @@ def _execute_single(chosen: dict, state: CombatState, event_bus, primitives) -> 
         "had_disadvantage": False,
         "area_origin": tuple(origin) if origin is not None else None,
         "area_direction": tuple(direction) if direction is not None else None,
+        "chosen_slot_level": chosen_slot_level,
     }
 
     if origin is not None:

@@ -314,6 +314,24 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
     else:
         rolled = 0
 
+    # PR #77: upcast scaling. If the in-flight action declares
+    # `upcast_scaling` AND state.current_attack.chosen_slot_level
+    # > the action's base spell_slot_level, roll the per-level
+    # extra dice. RAW upcast pattern: "+Xd[Y] per slot level above
+    # base." Schema:
+    #   upcast_scaling:
+    #     extra_dice_per_level: "1d6"   # the per-level scaling
+    #     damage_type: "fire"             # which damage step to scale
+    #                                       # (matches `params.type`)
+    # When `damage_type` matches the current damage step's `type`,
+    # the extra dice fire on THIS step. Spells with one damage type
+    # need just one upcast_scaling block; multi-damage-type spells
+    # would declare multiple entries (none in v1 — deferred to
+    # extension shape if needed).
+    upcast_extra = _resolve_upcast_extra_dice(state, dmg_type, rng, is_crit,
+                                                  floor)
+    rolled += upcast_extra
+
     # PR #71: Rage damage bonus on STR-mod melee weapon attacks.
     # Added BEFORE resistance/vuln/immunity so BPS resistance against
     # a raging attacker halves the full pre-resistance value (RAW: the
@@ -1005,6 +1023,17 @@ def _persistent_aura(params: dict, state: CombatState, bus: EventBus) -> None:
         "on_success": params.get("on_success") or [],
         "affected": params.get("affected", "enemies"),
         "applied_at_round": state.round,
+        # PR #77: capture the chosen_slot_level + the action's full
+        # upcast_scaling block at registration time so the runner's
+        # trigger path can stamp them onto state.current_attack when
+        # firing per-turn damage. Lets HoH / Cloudkill / future
+        # persistent_aura damage upcast correctly. The full action
+        # is also tucked away so _resolve_upcast_extra_dice has the
+        # spell_slot_level + upcast_scaling fields it needs.
+        "chosen_slot_level": int((state.current_attack or {})
+                                       .get("chosen_slot_level", 0)),
+        "spell_slot_level": int(action.get("spell_slot_level", 0)),
+        "upcast_scaling": dict(action.get("upcast_scaling") or {}) or None,
     }
     # PR #60 + PR #68: `creates_zone` param — persistent_auras that
     # ALSO declare an environment zone. The zone is stamped with
@@ -1193,6 +1222,56 @@ def _stub_handler(name: str):
 
 def _get_rng(state: CombatState, bus: EventBus) -> _random_module.Random:
     return _rng
+
+
+def _resolve_upcast_extra_dice(state: CombatState, damage_type: str,
+                                  rng: _random_module.Random,
+                                  is_crit: bool, floor: int) -> int:
+    """Compute the upcast bonus dice for the in-flight damage step
+    (PR #77). Returns 0 when:
+      - No current_attack (direct primitive call without context)
+      - chosen_slot_level == 0 (non-spell action)
+      - Action has no `upcast_scaling` block
+      - chosen_slot_level <= base spell_slot_level (no upcast)
+      - The upcast_scaling's damage_type filter doesn't match the
+        current damage step's type (multi-type spells can scale
+        only specific damage types per RAW)
+
+    Otherwise rolls `extra_dice_per_level × (chosen - base)` dice,
+    doubled on crit (matches the base-dice doubling pattern).
+    """
+    if not state.current_attack:
+        return 0
+    chosen_slot = int(state.current_attack.get("chosen_slot_level", 0))
+    if chosen_slot <= 0:
+        return 0
+    action = state.current_attack.get("action") or {}
+    upcast = action.get("upcast_scaling")
+    if not upcast:
+        return 0
+    base_level = int(action.get("spell_slot_level", 0))
+    if chosen_slot <= base_level:
+        return 0
+    extra_dice_expr = upcast.get("extra_dice_per_level")
+    if not extra_dice_expr:
+        return 0
+    # Optional damage-type filter — only scale matching type. For
+    # spells that scale a single damage type (Hellish Rebuke fire,
+    # HoH cold, Cloudkill poison), this gates the upcast bonus to
+    # the correct damage step. If absent, applies to all damage
+    # steps in the action.
+    scale_type = upcast.get("damage_type")
+    if scale_type and scale_type != damage_type:
+        return 0
+    levels_above = chosen_slot - base_level
+    total = 0
+    # Roll extra_dice_per_level × levels_above. e.g. "1d6" × 2
+    # levels above = 2d6 extra.
+    for _ in range(levels_above):
+        total += _roll_dice_expr_with_floor(extra_dice_expr, floor, rng)
+        if is_crit:
+            total += _roll_dice_expr_with_floor(extra_dice_expr, floor, rng)
+    return total
 
 
 def _extract_attack_params(state: CombatState) -> dict:
