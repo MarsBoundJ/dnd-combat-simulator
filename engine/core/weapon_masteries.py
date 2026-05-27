@@ -314,12 +314,18 @@ def _mastery_cleave(actor: Actor, target: Actor, state: CombatState,
         })
         return
 
-    # Find candidate: enemy within 5 ft of original target AND within
-    # actor's reach (using the same weapon's reach baked into params,
-    # not provided here — assume melee 5 ft default since Heavy melee
-    # is the gate. Future: pass weapon reach via params.)
+    # Find candidate: enemy within 5 ft of the original target AND
+    # within the attacker's reach. The "5 ft between primary and
+    # second target" is a fixed RAW distance (does not scale with
+    # the attacker's reach). The attacker-reach constraint reads
+    # from the mastery params (PR #66: passed through from the
+    # weapon spec at build time). Reach weapons (glaive / halberd
+    # / pike at 10 ft) can Cleave to a second target up to 10 ft
+    # from the attacker, even if it's > 5 ft from the primary's
+    # actual hex (as long as the second target IS within 5 ft of
+    # primary).
     from engine.core.geometry import distance_ft
-    reach_ft = 5    # v1: Heavy melee assumption
+    reach_ft = int(params.get("reach_ft", 5))
     candidates = [
         a for a in state.encounter.actors
         if a.id != target.id
