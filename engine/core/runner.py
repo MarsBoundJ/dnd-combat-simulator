@@ -483,14 +483,14 @@ class EncounterRunner:
             self._run_slot(actor, state, slot="action")
 
     def _run_free_phase(self, actor: Actor, state: CombatState) -> None:
-        """Auto-fire any slot='free' actions on the actor (PR #57).
+        """Auto-fire any slot='free' actions on the actor (PR #57 +
+        PR #70 scoring).
 
-        Free-slot actions don't go through candidate scoring — they
-        fire automatically if eligible. Currently only used by Nick
-        weapon mastery (off-hand attack as part of Attack action),
-        but the phase is generic so future "auto-trigger" mechanics
-        (Cleave, Sneak Attack auto-application, etc.) can reuse it
-        when they land.
+        Free-slot actions fire automatically if eligible. Currently
+        only used by Nick weapon mastery (off-hand attack as part
+        of the Attack action), but the phase is generic so future
+        "auto-trigger" mechanics (Cleave, Sneak Attack auto-
+        application, etc.) can reuse it when they land.
 
         Eligibility check per action:
           - action.slot == 'free'
@@ -498,6 +498,17 @@ class EncounterRunner:
             action types deferred until a non-attack free action
             exists)
           - At least one in-reach living enemy
+
+        **PR #70: scoring + optional gate.** Each candidate is
+        scored via `score_candidate` before firing. The eHP value
+        is logged in the `free_action_fired` event for telemetry.
+        If the action declares `min_score_to_fire: <float>`, the
+        candidate is skipped with `free_action_skipped`
+        (reason=below_min_score) when the score is below that
+        threshold. Default 0 → always-fire (preserves v1 Nick
+        semantics; the off-hand attack always swings against an
+        in-reach enemy, since the only cost is the swing itself
+        and Nick is RAW free).
 
         Fires each eligible free action ONCE per turn. The action's
         `slot` ('free') is not tracked in actions_used_this_turn,
@@ -509,6 +520,7 @@ class EncounterRunner:
         from engine.core.pipeline import _action_reach_ft
         from engine.ai.behavior_profile import resolve_targeting_preset
         from engine.ai.targeting import pick_target
+        from engine.ai.ehp_scoring import score_candidate
 
         if not hasattr(actor, "_free_actions_fired_this_turn"):
             actor._free_actions_fired_this_turn = set()
@@ -551,11 +563,27 @@ class EncounterRunner:
                 "target": target,
                 "action": action,
             }
+            # PR #70: score before firing. Log the value for
+            # telemetry + optionally skip via min_score_to_fire.
+            score = score_candidate(chosen, state)
+            min_score = float(action.get("min_score_to_fire", 0.0) or 0.0)
+            if score < min_score:
+                state.event_log.append({
+                    "event": "free_action_skipped",
+                    "actor": actor.id,
+                    "action": action.get("id"),
+                    "target": target.id,
+                    "reason": "below_min_score",
+                    "score": round(score, 2),
+                    "min_score": min_score,
+                })
+                continue
             state.event_log.append({
                 "event": "free_action_fired",
                 "actor": actor.id,
                 "action": action.get("id"),
                 "target": target.id,
+                "score": round(score, 2),
             })
             pipeline.execute(chosen, state, self.event_bus, self.primitives)
             already_fired.add(action.get("id"))

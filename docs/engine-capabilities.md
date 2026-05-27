@@ -1,8 +1,8 @@
 # Engine Capabilities — Checkpoint
 
-**Last updated:** 2026-05-26
+**Last updated:** 2026-05-27
 **Engine state:** Phase 1, post-PR #26 (Dodge + Disengage merged).
-**Test surface:** 375 tests across 15 modules; 14 CLI fixtures.
+**Test surface:** 1149 tests across 60+ modules; 14 CLI fixtures.
 
 This document captures what the simulator can actually do today — in
 observable behavioral terms, not module inventories. The companion
@@ -680,6 +680,50 @@ priority order:
    Rebuke**~~ — **Shipped in PR #45.**
 18. ~~**Counterspell + cast-event infra**~~ — **Shipped in PR #46.**
 19. ~~**Vision system v1**~~ — **Shipped in PR #47.**
+42. ~~**Free-action scoring (Nick / Cleave / off-hand) v1**~~ —
+   **Shipped in PR #70.** Free-slot actions (auto-fired between
+   the action and bonus-action phases by `_run_free_phase`) now
+   pass through the offensive-eHP scorer. Score is logged on the
+   `free_action_fired` event; a new optional
+   `min_score_to_fire` per-action gate skips weak free attacks
+   with a `free_action_skipped` event
+   (`reason: "below_min_score"`).
+   - `engine/core/runner.py::_run_free_phase` now imports
+     `score_candidate` and runs each chosen candidate through it
+     before firing. The score is rounded to 2 decimals on the
+     log event for telemetry.
+   - **Default behavior preserved:** `min_score_to_fire` defaults
+     to `0.0`, so v1 Nick (the only free-slot action that ships
+     today) still always fires when a reachable target exists.
+     This keeps PR #57's "Nick fires every turn" expectation
+     intact for all existing tests.
+   - **New gate semantics:** when `min_score_to_fire` is set
+     above 0, a candidate whose score falls below the threshold
+     is suppressed and the runner emits
+     `{event: "free_action_skipped", reason: "below_min_score",
+     score: <X>, min_score: <Y>}` instead of
+     `free_action_fired`.
+   - **Score signal:** for weapon_attack free actions the
+     scorer's `offensive_ehp_weapon` path computes hit-prob ×
+     expected damage × concentration multiplier, so the score
+     reflects real-target eHP (factors in AC, advantage, on-hit
+     riders) — not just raw damage.
+   - **6 new tests** across 3 classes in
+     `tests/test_free_action_scoring.py`: score field appears
+     on the fire event, score is positive against a reachable
+     enemy, high threshold suppresses with the correct skip
+     event, low threshold passes, no-threshold (default) fires
+     normally, explicit-zero threshold fires normally.
+   - **Foundation for AI control:** future free-slot actions
+     (Vex/Sap off-hand combos, BA Cleave hooks) can opt into
+     score-gated firing by setting `min_score_to_fire` in their
+     YAML. The v1 ship intentionally changes no live actor
+     behavior — the gate is wired but inactive everywhere by
+     default.
+   - Deferred: per-target re-selection (free-phase currently
+     reuses the action-phase target rather than re-picking
+     against the chosen free action's profile); free-action
+     scoring for non-weapon free actions (none ship yet).
 41. ~~**Blindsight bypass for Darkness scoring**~~ — **Shipped in
    PR #69.** Closes the PR #61 residue. The Darkness scorer's
    sense-bypass helper now checks both Truesight AND Blindsight
