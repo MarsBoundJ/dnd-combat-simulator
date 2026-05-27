@@ -562,6 +562,457 @@ BARBARIAN_GREATSWORD_DPR = {
 
 ---
 
+### Barbarian — Zealot (Greatsword)
+
+**Source:** Zealot subclass DPR analysis — `[TBD: separate Treantmonk video, not in the 23-video 2024 PHB DPS playlist]`
+**Build:** Greatsword (Graze mastery) "quality of life build — BA stays free", Zealot subclass
+**Starting stats (confirmed):** STR 17, CON 16 (DEX/INT/WIS/CHA unspecified)
+**Background:** Farmer (STR +2, CON +1, Tough origin feat)
+**ASIs:** Great Weapon Master L4 (STR 18), Strength +2 L8 (STR 20), Mage Slayer L12 (DEX +1), Speedy L16 (DEX +1), Boon of Irresistible Offense L19 (STR 21)
+**Assumptions (confirmed from screenshots):** 4 combats/LR, 4 rounds/combat, 1 SR, no outside advantage, Target AC 14 scaling +1 at L4/5/8/9/13/17, Rage round 1, Reckless Attack always used, GWM bonus action attack on crits only, Brutal Strike math computed each level — included in DPR only when it exceeds normal Reckless DPR
+**Average DPR across 20 levels: 41.5 (829.7/20)**
+
+**Zealot-specific mechanic — Divine Fury (L3):**
+- Once per turn, on the first creature hit, add `1d6 + ½ barbarian level` radiant/necrotic damage
+- Activation = P(at least one hit on turn): `0.84` with single attack (L3–L4), `0.97` with Extra Attack (L5+) under Reckless
+- Crit chance for DF damage = P(first-hitting attack is a crit) = `crit_1 + miss_1 × crit_2`
+  - With 2 Reckless attacks: `0.10 + 0.16 × 0.10 = 11%`
+  - With Brutal Strike (forgoes advantage on one attack): `~10%`
+- **Never triggers on a Bonus Action attack** — by the time BA fires, the main attack already hit, so DF was already spent
+- Crit-damage contribution from DF is `0.4` at every level — the `1d6` portion crits to `3.5` extra and multiplies the same way regardless of the underlying weapon path (Reckless vs Brutal Strike)
+
+**Per-level math (verbatim from Treantmonk's tables — see screenshots in `treantmonk-dpr-baselines` branch):**
+
+#### L1 — Str +3, Graze 3, Rage +2
+
+```
+Main: 2d6 + 3 + 2   (avg 12, crit extra 7)
+  12 × 0.60 = 7.2    hit
+   7 × 0.05 = 0.4    crit
+   3 × 0.40 = 1.2    Graze (= STR mod + Rage)
+  → 8.8
+
+DPR: 8.8
+```
+
+#### L2 — Reckless Attack (advantage: hit 0.84, crit 0.10, miss 0.16)
+
+```
+Main: 2d6 + 3 + 2   (avg 12, crit extra 7)
+  12 × 0.84 = 10.1
+   7 × 0.10 = 0.7
+   3 × 0.16 = 0.5
+  → 11.3
+
+DPR: 11.3
+```
+
+#### L3 — Divine Fury online
+
+```
+Main: (same as L2) → 11.3
+
+Divine Fury: 1d6 + 1   (avg 4.5, crit extra 3.5)
+  4.5 × 0.84 = 3.8    activation (single attack hit chance)
+  3.5 × 0.10 = 0.4    crit (single attack)
+  → 4.2
+
+DPR: 15.5
+```
+
+#### L4 — Str +4 (18), Graze 4, GWM +2; BA attack 10% × 0.75 (can't use round 1)
+
+```
+Main: 2d6 + 4 + 2 + 2   (avg 15, crit extra 7)
+  15 × 0.84 = 12.6
+   7 × 0.10 = 0.7
+   4 × 0.16 = 0.6
+  → 13.9
+
+Bonus Action attack (GWM, on crit only): 2d6 + 4 + 2   (avg 13, crit extra 7)
+  13 × 0.84 = 10.9
+   7 × 0.10 = 0.7
+   4 × 0.16 = 0.6
+  → 12.2 per use
+  BA contribution = 12.2 × 0.75 × 0.10 = 0.9
+
+Main + BA: 13.9 + 0.9 = 14.8
+
+Divine Fury: 1d6 + 2   (avg 5.5, crit extra 3.5)
+  5.5 × 0.84 = 4.6
+  3.5 × 0.10 = 0.4
+  → 5.0
+
+DPR: 19.8
+```
+
+#### L5 — Extra Attack (DF activation jumps to 0.97 = 1 − 0.16²)
+
+```
+Main (×2 attacks): 2d6 + 4 + 2 + 2   (avg 15, crit extra 7)
+  per attack: 12.6 + 0.7 + 0.6 = 13.9
+  × 2 = 27.8
+
+Bonus Action attack: 2d6 + 4 + 2   (avg 13, crit extra 7)
+  → 12.2 per use
+  BA contribution = 12.2 × 0.75 × 0.10 = 0.9
+
+Main + BA: 27.8 + 0.9 = 28.7
+
+Divine Fury: 1d6 + 2   (avg 5.5, crit extra 3.5)
+  5.5 × 0.97 = 5.3    activation (≥1 hit out of 2 reckless attacks)
+  3.5 × 0.11 = 0.4    crit (~11%)
+  → 5.7
+
+DPR: 34.4
+```
+
+#### L6 — GWM +3, BA chance up to 19% (×0.75 round-1 unavailable)
+
+```
+Main (×2 attacks): 2d6 + 4 + 2 + 3   (avg 16, crit extra 7)
+  per attack: 13.4 + 0.7 + 0.6 = 14.7
+  × 2 = 29.4
+
+Bonus Action attack: 2d6 + 4 + 2   (avg 13, crit extra 7)
+  → 12.2 per use
+  BA contribution = 12.2 × 0.75 × 0.19 = 1.7
+
+Main + BA: 29.4 + 1.7 = 31.1
+
+Divine Fury: 1d6 + 3   (avg 6.5, crit extra 3.5)
+  6.5 × 0.97 = 6.3
+  crit = 0.4
+  → 6.7
+
+DPR: 37.8
+```
+
+#### L7 — no new DPR features
+
+```
+DPR: 37.8 (unchanged from L6)
+```
+
+#### L8 — Str +5 (20), Graze 5
+
+```
+Main (×2 attacks): 2d6 + 5 + 2 + 3   (avg 17, crit extra 7)
+  per attack: 14.3 + 0.7 + 0.8 = 15.8
+  × 2 = 31.6
+
+Bonus Action attack: 2d6 + 5 + 2   (avg 14, crit extra 7)
+  14 × 0.84 = 11.8
+   7 × 0.10 = 0.7
+   5 × 0.16 = 0.8
+  → 13.3
+  BA contribution = 13.3 × 0.75 × 0.19 = 1.9
+
+Main + BA: 31.6 + 1.9 = 33.5
+
+Divine Fury: 1d6 + 4   (avg 7.5, crit extra 3.5)
+  7.5 × 0.97 = 7.3
+  crit = 0.4
+  → 7.7
+
+DPR: 41.2
+```
+
+#### L9 — Rage +3, GWM +4, Brutal Strike available (1d10 + Forceful Blow: 15' push or 15' slow)
+
+```
+Reckless attack (×2): 2d6 + 5 + 3 + 4   (avg 19, crit extra 7)
+  19 × 0.84 = 16.0
+   7 × 0.10 = 0.7
+   5 × 0.16 = 0.8
+  → 17.5 per attack
+
+Brutal Strike alternative (one attack, forgoes advantage):
+  2d6 + 1d10 + 5 + 3 + 4   (avg 24.5, crit extra 12.5)
+  24.5 × 0.60 = 14.7
+  12.5 × 0.05 = 0.6
+   5 × 0.40 = 2.0
+  → 17.3
+
+Bonus Action attack: 2d6 + 5 + 3   (avg 15, crit extra 7)
+  → 14.1 per use
+  No-BS BA contribution = 14.1 × 0.75 × 0.19 = 2.0
+  With-BS BA contribution = 14.1 × 0.75 × 0.14 = 1.5
+
+Main + BA (no BS):   17.5 × 2 + 2.0 = 36.9
+Main + BA (with BS): 17.5 + 17.3 + 1.5 = 36.2
+
+Divine Fury: 1d6 + 4   (avg 7.5)
+  No BS: 7.5 × 0.97 = 7.3, crit 0.4 → 7.7
+  BS:    7.5 × 0.94 + 0.4 = 7.5
+
+DPR: 44.6 (Reckless path wins by 0.7)
+```
+
+#### L10 — DF scales
+
+```
+Main + BA: 36.9
+Divine Fury: 1d6 + 5   (avg 8.5)
+  8.5 × 0.97 = 8.2
+  crit = 0.4
+  → 8.6
+
+DPR: 45.5
+```
+
+#### L11 — no change
+
+```
+DPR: 45.5
+```
+
+#### L12 — DF 1d6 + 6
+
+```
+Main + BA: 36.9
+Divine Fury: 1d6 + 6   (avg 9.5)
+  9.5 × 0.97 = 9.2
+  crit = 0.4
+  → 9.6
+
+DPR: 46.5
+```
+
+#### L13 — GWM +5, Brutal Strike gains "Trip" (Disadv next save) or "+5 to be hit" rider options
+
+```
+Reckless attack (×2): 2d6 + 5 + 3 + 5   (avg 20, crit extra 7)
+  20 × 0.84 = 16.8
+   7 × 0.10 = 0.7
+   5 × 0.16 = 0.8
+  → 18.3 per attack
+
+Brutal Strike alternative: 2d6 + 1d10 + 5 + 3 + 5   (avg 25.5, crit extra 12.5)
+  25.5 × 0.60 = 15.3
+  12.5 × 0.05 = 0.6
+   5 × 0.40 = 2.0
+  → 17.9
+
+Bonus Action attack: 2d6 + 5 + 3   (avg 15, crit extra 7)
+  → 14.1 per use
+  No-BS BA contribution = 14.1 × 0.75 × 0.19 = 2.0
+  With-BS BA contribution = 14.1 × 0.75 × 0.14 = 1.5
+
+Main + BA (no BS):   18.3 × 2 + 2.0 = 38.6
+Main + BA (with BS): 18.3 + 17.9 + 1.5 = 37.7
+
+Divine Fury: 1d6 + 6   (avg 9.5)
+  No BS: 9.5 × 0.97 + 0.4 = 9.6
+  BS:    9.5 × 0.94 + 0.4 = 9.3
+
+DPR: 48.2 (Reckless path wins)
+```
+
+#### L14 — DF 1d6 + 7
+
+```
+Main + BA: 38.6
+Divine Fury: 1d6 + 7   (avg 10.5)
+  10.5 × 0.97 = 10.2
+  crit = 0.4
+  → 10.6
+
+DPR: 49.2
+```
+
+#### L15 — no change
+
+```
+DPR: 49.2
+```
+
+#### L16 — Rage +4
+
+```
+Reckless attack (×2): 2d6 + 5 + 4 + 5   (avg 21, crit extra 7)
+  21 × 0.84 = 17.6
+   7 × 0.10 = 0.7
+   5 × 0.16 = 0.8
+  → 19.1 per attack
+
+Brutal Strike alternative: 2d6 + 1d10 + 5 + 4 + 5   (avg 26.5, crit extra 12.5)
+  26.5 × 0.60 = 15.9
+  12.5 × 0.05 = 0.6
+   5 × 0.40 = 2.0
+  → 18.5
+
+Bonus Action attack: 2d6 + 5 + 4   (avg 16, crit extra 7)
+  16 × 0.84 = 13.4
+   7 × 0.10 = 0.7
+   5 × 0.16 = 0.8
+  → 14.9 per use
+  No-BS BA contribution = 14.9 × 0.75 × 0.19 = 2.1
+  With-BS BA contribution = 14.9 × 0.75 × 0.14 = 1.6
+
+Main + BA (no BS):   19.1 × 2 + 2.1 = 40.3
+Main + BA (with BS): 19.1 + 18.5 + 1.6 = 39.2
+
+Divine Fury: 1d6 + 8   (avg 11.5)
+  11.5 × 0.97 + 0.4 = 11.6
+
+DPR: 51.9 (Reckless path)
+```
+
+#### L17 — GWM +6, Brutal Strike scales to 2d10 + can use **2** BS options on a hit  ← BS becomes optimal
+
+```
+Reckless attack (×2): 2d6 + 5 + 4 + 6   (avg 22, crit extra 7)
+  22 × 0.84 = 18.5
+   7 × 0.10 = 0.7
+   5 × 0.16 = 0.8
+  → 20.0 per attack
+
+Brutal Strike alternative: 2d6 + 2d10 + 5 + 4 + 6   (avg 33, crit extra 18)
+  33 × 0.60 = 19.8
+  18 × 0.05 = 0.9
+   5 × 0.40 = 2.0
+  → 22.7
+
+Bonus Action attack: 2d6 + 5 + 4   (avg 16, crit extra 7)
+  → 14.9 per use
+  No-BS BA contribution = 14.9 × 0.75 × 0.19 = 2.1
+  With-BS BA contribution = 14.9 × 0.75 × 0.14 = 1.6
+
+Main + BA (no BS):   20.0 × 2 + 2.1 = 42.1
+Main + BA (with BS): 20.0 + 22.7 + 1.6 = 44.3  ← BS now wins by 2.2
+
+Divine Fury: 1d6 + 8   (avg 11.5)  — using BS path
+  11.5 × 0.94 = 10.8
+  crit = 0.4
+  → 11.2
+
+DPR: 55.5 (Brutal Strike path)
+```
+
+#### L18 — DF 1d6 + 9
+
+```
+Main + BA (BS): 44.3
+Divine Fury: 1d6 + 9   (avg 12.5)
+  12.5 × 0.94 = 11.8
+  crit = 0.4
+  → 12.2
+
+DPR: 56.5
+```
+
+#### L19 — Boon of Irresistible Offense (crit damage +21 → crit extras explode)
+
+```
+Reckless attack (×2): 2d6 + 5 + 4 + 6   (avg 22, crit extra 28)
+  22 × 0.84 = 18.5
+  28 × 0.10 = 2.8
+   5 × 0.16 = 0.8
+  → 22.1 per attack
+
+Brutal Strike alternative: 2d6 + 2d10 + 5 + 4 + 6   (avg 33, crit extra 39)
+  33 × 0.60 = 19.8
+  39 × 0.05 = 2.0
+   5 × 0.40 = 2.0
+  → 23.8
+
+Bonus Action attack: 2d6 + 5 + 4   (avg 16, crit extra 28)
+  16 × 0.84 = 13.4
+  28 × 0.10 = 2.8
+   5 × 0.16 = 0.8
+  → 17.0 per use
+  No-BS BA contribution = 17.0 × 0.75 × 0.19 = 2.4
+  With-BS BA contribution = 17.0 × 0.75 × 0.14 = 1.8
+
+Main + BA (no BS):   22.1 × 2 + 2.4 = 46.6
+Main + BA (with BS): 22.1 + 23.8 + 1.8 = 47.7  ← BS path
+
+Divine Fury: 1d6 + 9   (avg 12.5)  — BS path
+  12.5 × 0.94 = 11.8
+  crit = 0.4
+  → 12.2
+
+DPR: 59.9 (BS path)
+```
+
+#### L20 — Str +7 (21), Graze 7; base hit 70% / 91% with advantage
+
+```
+Reckless attack (×2): 2d6 + 7 + 4 + 6   (avg 24, crit extra 28)
+  24 × 0.91 = 21.8
+  28 × 0.10 = 2.8
+   7 × 0.16 = 1.1
+  → 25.7 per attack
+
+Brutal Strike alternative: 2d6 + 2d10 + 7 + 4 + 6   (avg 35, crit extra 39)
+  35 × 0.70 = 24.5      (BS forgoes advantage: base 70% hit at this AC)
+  39 × 0.05 = 2.0
+   7 × 0.40 = 2.8
+  → 29.3
+
+Bonus Action attack: 2d6 + 7 + 4   (avg 18, crit extra 28)
+  18 × 0.91 = 16.4
+  28 × 0.10 = 2.8
+   7 × 0.16 = 1.1
+  → 20.3 per use
+  No-BS BA contribution = 20.3 × 0.75 × 0.19 = 2.9
+  With-BS BA contribution = 20.3 × 0.75 × 0.14 = 2.1
+
+Main + BA (no BS):   25.7 × 2 + 2.9 = 54.3
+Main + BA (with BS): 25.7 + 29.3 + 2.1 = 57.1  ← BS path
+
+Divine Fury: 1d6 + 10   (avg 13.5)  — BS path, activation now 97%
+  13.5 × 0.97 = 13.1
+  crit = 0.4
+  → 13.5
+
+DPR: 70.6 (BS path)
+```
+
+**Engine integration:**
+
+```python
+BARBARIAN_ZEALOT_GREATSWORD_DPR = {
+    1:  8.8,
+    2:  11.3,
+    3:  15.5,   # Divine Fury online
+    4:  19.8,
+    5:  34.4,   # Extra Attack
+    6:  37.8,
+    7:  37.8,
+    8:  41.2,
+    9:  44.6,   # Brutal Strike option (Reckless path still wins)
+    10: 45.5,
+    11: 45.5,
+    12: 46.5,
+    13: 48.2,
+    14: 49.2,
+    15: 49.2,
+    16: 51.9,
+    17: 55.5,   # Brutal Strike path now optimal (2d10 + 2 options)
+    18: 56.5,
+    19: 59.9,
+    20: 70.6,
+}
+# Career average: 829.7 / 20 = 41.5
+
+# Per-level "use Brutal Strike?" decision (False = Reckless wins)
+BARBARIAN_ZEALOT_USE_BRUTAL_STRIKE = {
+    level: level >= 17 for level in range(1, 21)
+}
+```
+
+**Engine notes:**
+- Zealot beats base Barbarian Greatsword (33.4 career) by +8.1 DPR through Divine Fury alone.
+- DF activation chance is a function of attack count and per-attack hit probability — engine should compute `1 - P(miss)^n_attacks` at each level rather than hardcoding 0.84/0.97.
+- DF crit chance is `P(first hitting attack is a crit)` = `crit_1 + miss_1 × crit_2` for two attacks. Worth a helper: `p_first_hit_is_crit(per_attack_hit, per_attack_crit, n_attacks)`.
+- Brutal Strike crossover is at L17 (when it scales to 2d10 + 2 simultaneous options). Before that, Reckless advantage outweighs the +1d10.
+- At L20, BS path uses base 70% hit on the BS attack while the regular Reckless attack still uses 91% — accurate modeling requires per-attack hit-chance tracking, not a single "build hit chance".
+- The `0.4` crit-damage line in DF is invariant across Reckless/BS paths because the `1d6` DF bonus crits the same way regardless of underlying weapon path. Useful invariant for test fixtures.
+
+---
+
 ### Monk
 
 `[PENDING — Video 2: "MONK: D&D 5.24 Damage 2024 Player's Handbook"]`
