@@ -1,0 +1,81 @@
+# c_rogue — Rogue (minimal v1)
+# Source: SRD CC v5.2.1 (PHB 2024)
+#
+# **Minimal class definition** (PR #64). Only Weapon Mastery
+# wiring shipped; other features (Expertise, Sneak Attack,
+# Thieves' Cant, Cunning Action, Cunning Strike, Reliable Talent,
+# etc.) wait for follow-on PRs.
+#
+# Weapon Mastery RAW (Rogue): 1 at L1, 2 at L9. Rogues have the
+# smallest mastery pool of the five mastery-knowing classes.
+#
+# Note: Rogues also get Expertise at L1 (2 skills) and L6 (2
+# more). PR #62 wired Expertise on the PC schema side
+# (`skill_expertise:`); fixtures can declare it directly. A
+# future PR may auto-emit Expertise choices from the class table.
+
+id: c_rogue
+name: Rogue
+source: srd_5.2.1
+
+core_traits:
+  primary_abilities: [dexterity]
+  hit_die: d8
+  save_proficiencies: [dexterity, intelligence]
+  skill_proficiencies:
+    choose: 4
+    from: [acrobatics, athletics, deception, insight,
+            intimidation, investigation, perception, performance,
+            persuasion, sleight_of_hand, stealth]
+  weapon_proficiencies: [simple, martial]    # 2024 PHB: full martial
+  armor_training: [light]
+  tool_proficiencies: [thieves_tools]
+
+multiclass_entry:
+  traits_gained: [light_armor, thieves_tools]
+  features_gained: [f_weapon_mastery]
+  multiclass_slot_contribution: none
+
+# No spellcasting at the base class. Arcane Trickster subclass adds
+# third-caster spell access at L3; not yet wired.
+
+level_table:
+  - level: 1
+    proficiency_bonus: 2
+    features: [f_weapon_mastery]
+    class_resources: { weapon_mastery_count: 1 }
+  - level: 2
+    proficiency_bonus: 2
+    features: []
+    class_resources: { weapon_mastery_count: 1 }
+  - level: 3
+    proficiency_bonus: 2
+    features: [grant_subclass]
+    class_resources: { weapon_mastery_count: 1 }
+  - level: 4
+    proficiency_bonus: 2
+    features: [grant_asi_or_feat]
+    class_resources: { weapon_mastery_count: 1 }
+  - level: 5
+    proficiency_bonus: 3
+    features: []
+    class_resources: { weapon_mastery_count: 1 }
+  - level: 9
+    proficiency_bonus: 4
+    features: []
+    class_resources: { weapon_mastery_count: 2 }
+
+subclass_grant_level: 3
+
+# Deferred class features:
+#   - Expertise (auto-emission from class table; PR #62 handles
+#     the mechanic when fixture declares skill_expertise)
+#   - Sneak Attack (extra dice on qualifying attacks)
+#   - Thieves' Cant (lore-only; no mechanical effect)
+#   - Cunning Action (Dash / Disengage / Hide as Bonus Action)
+#   - Cunning Strike (2024 PHB; trade Sneak Attack dice for effects)
+#   - Steady Aim
+#   - Uncanny Dodge
+#   - Evasion
+#   - Reliable Talent
+#   - Subclasses (Thief / Assassin / Arcane Trickster / Soulknife)
