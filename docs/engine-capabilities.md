@@ -680,6 +680,50 @@ priority order:
    Rebuke**~~ — **Shipped in PR #45.**
 18. ~~**Counterspell + cast-event infra**~~ — **Shipped in PR #46.**
 19. ~~**Vision system v1**~~ — **Shipped in PR #47.**
+37. ~~**Actor.size + Push size gate + Cleave/Graze Heavy gate**~~
+   — **Shipped in PR #65.** Closes two PR #58 residues:
+   Push lacked a target-size gate, and Cleave/Graze trusted the
+   weapon spec rather than enforcing the Heavy property.
+   - New `engine/core/sizes.py` module with 6 canonical sizes
+     (tiny / small / medium / large / huge / gargantuan),
+     `KNOWN_SIZES` tuple in canonical order, `PUSH_SIZES`
+     frozenset (those Push can affect — Large or smaller),
+     `normalize_size(value)` helper (case-insensitive,
+     None→'medium', unknown raises), and `size_at_or_below(a, b)`
+     comparison.
+   - New `Actor.size: str = "medium"` field. Loaded by
+     `cli._build_actor` from actor_spec override → template
+     top-level `size:` (monster SRD shape) → 'medium'.
+     Normalized through `sizes.normalize_size` so unknown size
+     names fail loudly at load time.
+   - `_mastery_push` gates on target size: skips with
+     `weapon_mastery_skipped` event (reason=size_immune) for
+     Huge / Gargantuan targets. RAW: Push only affects Large
+     or smaller.
+   - `_build_weapon_action` validates Cleave and Graze masteries
+     at build time:
+     - Weapon must declare `heavy: true` (RAW: both masteries
+       require Heavy melee)
+     - Weapon must NOT have `range_ft` (Heavy MELEE specifically;
+       Heavy Crossbow is heavy but ranged → rejected)
+     - Other masteries (Vex/Sap/Topple/Push/Nick) unaffected
+   - One existing fixture update: `weapon_mastery_showcase`'s
+     greatsword now declares `heavy: true` to match RAW (was
+     two_handed-only; the new gate would otherwise raise).
+   - 24 new tests across the sizes module (helpers + edge
+     cases), Actor.size loading (template, override, unknown,
+     default), Push gate (Medium / Large pushed, Huge /
+     Gargantuan immune, Tiny pushed), and Heavy gate (Cleave +
+     Graze on heavy passes, non-heavy raises, ranged-heavy
+     raises, other masteries unaffected).
+   - Deferred refinements: per-attacker push direction-of-
+     forced-movement (currently always away from attacker;
+     RAW also allows "into a different direction" with consent
+     of the pusher); collision handling on push destination
+     (still trusts open-battlefield); Heavy gate on monster-
+     template attacks (currently only PC-schema-generated
+     weapons gate; monster-template weapons trust their own
+     declarations).
 36. ~~**Other-class Weapon Mastery wirings + cap enforcement**~~ —
    **Shipped in PR #64.** Closes the PR #54 residue that left
    Weapon Mastery wired on Fighter only. All five RAW-mastery-

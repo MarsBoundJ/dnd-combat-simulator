@@ -141,6 +141,7 @@ actors:
           damage_type: slashing
           reach_ft: 5
           two_handed: true
+          heavy: true       # RAW: Greatsword has the Heavy property
           mastery: graze
 
   # ----- Four identical training dummies (low CON save for Topple demo) -----

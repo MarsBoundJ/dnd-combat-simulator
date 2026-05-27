@@ -432,11 +432,28 @@ def _mastery_push(actor: Actor, target: Actor, state: CombatState,
     """Push: on hit, push target up to 10 ft straight away from actor.
 
     Uses `geometry.push_creature` which snaps to the 8-direction
-    unit vector and moves the target in 5-ft steps. v1 doesn't
-    enforce target size (RAW: Large or smaller). v1 doesn't check
-    for collisions with other actors at the push destination.
+    unit vector and moves the target in 5-ft steps.
+
+    PR #65: enforces the RAW size gate — Push only affects Large or
+    smaller creatures. Huge / Gargantuan targets are immune; a
+    `weapon_mastery_skipped` event is logged with reason=size_immune.
+
+    v1 still doesn't check for collisions with other actors at the
+    push destination — open-battlefield assumption.
     """
     from engine.core.geometry import push_creature
+    from engine.core.sizes import PUSH_SIZES, normalize_size
+    target_size = normalize_size(getattr(target, "size", None))
+    if target_size not in PUSH_SIZES:
+        state.event_log.append({
+            "event": "weapon_mastery_skipped",
+            "mastery": "push",
+            "actor": actor.id,
+            "target": target.id,
+            "reason": "size_immune",
+            "target_size": target_size,
+        })
+        return
     pre_pos = target.position
     pushed_ft = push_creature(actor, target, 10)
     state.event_log.append({

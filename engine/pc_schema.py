@@ -1044,6 +1044,26 @@ def _build_weapon_action(weapon: dict, ability_scores: dict,
     if raw_mastery:
         from engine.core.weapon_masteries import validate_mastery
         mastery_id = validate_mastery(raw_mastery)
+        # PR #65: Heavy gate on Cleave + Graze. RAW restricts both
+        # to Heavy melee weapons. Validate at build time so authors
+        # catch the mismatch when loading the fixture; runtime
+        # dispatch trusts the gate.
+        if mastery_id in ("cleave", "graze"):
+            if not weapon.get("heavy"):
+                raise ValueError(
+                    f"Weapon mastery {mastery_id!r} requires a Heavy "
+                    f"melee weapon (RAW 2024). Weapon "
+                    f"{weapon.get('id', '<unnamed>')!r} is not "
+                    f"declared `heavy: true`. Add `heavy: true` to "
+                    f"the weapon spec, OR remove the mastery."
+                )
+            if "range_ft" in weapon:
+                raise ValueError(
+                    f"Weapon mastery {mastery_id!r} requires a Heavy "
+                    f"MELEE weapon (not ranged). Weapon "
+                    f"{weapon.get('id', '<unnamed>')!r} has range_ft "
+                    f"and so is ranged."
+                )
         # Topple save DC = 8 + ability_mod + PB (RAW). For non-Topple
         # masteries this value is unused, but we always bake it for
         # uniformity.

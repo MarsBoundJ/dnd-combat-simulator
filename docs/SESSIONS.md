@@ -5,6 +5,80 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-27 — Actor.size + Push size gate + Heavy gate (PR #65)
+
+**Participants:** Phil, Claude
+
+**Work done:**
+- Closes two PR #58 residues at once: Push lacked a target-size
+  gate, and Cleave/Graze trusted the weapon spec rather than
+  enforcing the Heavy property at build time. Both gates are
+  RAW-faithful and catch issues at fixture load.
+- **`engine/core/sizes.py`** (new module):
+  - 6 canonical sizes tiny < small < medium < large < huge <
+    gargantuan
+  - `KNOWN_SIZES` tuple in canonical order (so index-based
+    comparison via `size_at_or_below` is well-defined)
+  - `PUSH_SIZES` frozenset (Large or smaller — what Push can
+    affect per RAW)
+  - `normalize_size(value)` — lowercase, None/empty → 'medium',
+    unknown raises with the known-list
+  - `size_at_or_below(a, b)` — normalize both then index-compare
+- **`Actor.size: str = "medium"`** field. Default value matches
+  the "average human" baseline; the field defaults work for all
+  existing code paths that didn't set size.
+- **`cli._build_actor` loading:** precedence is actor_spec
+  override → template top-level `size:` → 'medium' default.
+  Normalized through `sizes.normalize_size` so typos raise at
+  fixture load. Existing monster YAMLs already declare
+  `size: small` (goblin) → no schema migration needed.
+- **`_mastery_push` size gate** (in weapon_masteries.py):
+  - Reads target.size, normalizes
+  - If not in PUSH_SIZES (i.e., Huge or Gargantuan): logs
+    `weapon_mastery_skipped` with reason=size_immune +
+    target_size; returns without moving the target
+  - Otherwise proceeds with the existing push_creature call
+- **`_build_weapon_action` Heavy gate** (in pc_schema.py):
+  - When weapon.mastery is cleave or graze:
+    - Raises if `heavy` is not True ("requires Heavy melee
+      weapon (RAW 2024)" with helpful add/remove hint)
+    - Raises if weapon has `range_ft` (Heavy MELEE specifically;
+      Heavy Crossbow is heavy but ranged and so disqualified)
+  - Other masteries unaffected — Vex/Sap/Topple/Push/Nick don't
+    require Heavy
+- **One existing fixture updated:** the weapon_mastery_showcase
+  greatsword now declares `heavy: true` (was two_handed-only —
+  the new gate would otherwise raise on Graze mastery).
+- **Tests (24 new in `test_size_gates.py`):**
+  - sizes module: KNOWN_SIZES count, PUSH_SIZES exclusions,
+    normalize edge cases, size_at_or_below
+  - Actor.size loading: default medium, explicit kept, cli loads
+    from template / overrides / unknown raises / defaults when
+    omitted
+  - Push gate: Medium / Large pushed; Huge / Gargantuan immune
+    (with skip event); Tiny pushed
+  - Heavy gate: Cleave on heavy passes / on non-heavy raises;
+    Graze on heavy passes / on non-heavy raises; Cleave on
+    ranged-heavy raises (Heavy Crossbow); other masteries
+    unaffected on light weapons
+- 1095 tests pass (+24 new, 1 skip, no regressions).
+
+**Future-roadmap items (recorded, not in this PR):**
+- Per-attacker push direction (RAW allows "in a straight line
+  away from you" only; future could support arc / push-into
+  variants for AI tactics)
+- Collision handling on push destination — still open-
+  battlefield assumption
+- Heavy gate on monster-template attack actions — currently
+  only PC-schema-generated weapons gate; monster templates
+  trust their own declarations
+- Grapple / Squeezing mechanics (size-relative checks)
+- Future per-class race wiring for PC size (currently PCs
+  default to medium; Halflings / Goblins / Centaurs etc. would
+  override via race)
+
+---
+
 ## Session: 2026-05-27 — Other-class Weapon Mastery wirings (PR #64)
 
 **Participants:** Phil, Claude
