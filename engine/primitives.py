@@ -1627,6 +1627,66 @@ def _hex_curse(params: dict, state: CombatState,
     })
 
 
+def _hunters_mark_mark(params: dict, state: CombatState,
+                          bus: EventBus) -> None:
+    """Hunter's Mark (PR #91): mark the target as the Ranger's quarry.
+
+    Mechanically identical to _hex_curse — registers a target-specific
+    weapon_damage_bonus on the caster gated via the `target_is(<id>)`
+    when-clause atom. Kept as a separate primitive (rather than aliased
+    to _hex_curse) so:
+      - Each spell has its own named_effect tag for cross-caster dedup
+        (a Ranger and a Warlock could both ride a single target with
+        Hunter's Mark + Hex stacking correctly — RAW: different
+        named effects don't dedup each other)
+      - Each spell's own event_log entry is distinguishable in
+        telemetry / debugging
+      - Future divergence (e.g., Hunter's Mark gaining favored-target
+        Perception tracking) can land without touching Hex
+
+    Params:
+      - value (int, default 3): flat bonus damage per hit. Defaults
+        to 3 (avg of 1d6 ≈ 3.5, floored to integer); same v1
+        simplification as Bless / Divine Favor / Searing Smite / Hex.
+    """
+    caster = (state.current_attack or {}).get("actor") or \
+              state.current_actor()
+    target = (state.current_attack or {}).get("target")
+    if caster is None or target is None:
+        raise ValueError(
+            "hunters_mark_mark requires a current caster + target")
+    value = int(params.get("value", 3))
+    action = (state.current_attack or {}).get("action") or {}
+    action_id = action.get("id", "a_hunters_mark")
+    when_clause = f"target_is({target.id})"
+    entry = {
+        "primitive": "weapon_damage_bonus",
+        "params": {
+            "target": "self",
+            "value": value,
+            "when": when_clause,
+        },
+        "lifetime": "until_short_rest",
+        "source": {
+            "type": "spell",
+            "id": action_id,
+            "action_id": action_id,
+            "caster_id": caster.id,
+            "named_effect": "hunters_mark",
+            "marked_target_id": target.id,
+        },
+        "applied_at_round": state.round,
+        "owner_id": caster.id,
+    }
+    caster.active_modifiers.append(entry)
+    state.event_log.append({
+        "event": "hunters_mark_applied",
+        "caster": caster.id,
+        "target": target.id,
+        "value": value,
+    })
+
+
 def _searing_smite_arm(params: dict, state: CombatState,
                           bus: EventBus) -> None:
     """Arm the caster with Searing Smite's one-shot rider (PR #89).
@@ -1872,6 +1932,7 @@ def _populate_handler_table() -> None:
         "recurring_damage": _recurring_damage,
         "searing_smite_arm": _searing_smite_arm,
         "hex_curse": _hex_curse,
+        "hunters_mark_mark": _hunters_mark_mark,
     }
 
 
@@ -1937,6 +1998,11 @@ def _all_primitives() -> list[Primitive]:
         # weapon_damage_bonus modifier on the caster gated via
         # target_is(<cursed_id>) when-clause atom.
         Primitive("hex_curse", _hex_curse, implemented=True),
+        # PR #91 — Hunter's Mark. Mechanically parallel to hex_curse
+        # (same target-specific damage rider machinery); kept distinct
+        # for named_effect tagging + event log clarity + future
+        # divergence (favored-target Perception tracking).
+        Primitive("hunters_mark_mark", _hunters_mark_mark, implemented=True),
     ]
     # Populate handler lookup table for subprimitive invocations
     global _PRIMITIVE_HANDLERS

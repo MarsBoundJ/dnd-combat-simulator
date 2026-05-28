@@ -1,0 +1,82 @@
+# f_hunters_mark — Hunter's Mark (1st-level Ranger spell, SRD CC v5.2.1)
+#
+# RAW summary: BA cast, 90 ft range, single creature target.
+# Concentration up to 1 hour. Mark the target as your quarry. When
+# you hit the target with a weapon attack, deal an extra 1d6 damage.
+# Advantage on Wisdom (Perception) and Wisdom (Survival) checks made
+# to find the target. If the target drops to 0 HP, BA on a subsequent
+# turn to mark a new creature.
+# At Higher Levels: 3-4 = 8 hours, 5+ = until next long rest.
+#
+# **PHB 2024 special note:** Rangers gain Hunter's Mark as a Favored
+# Enemy auto-prep at L1, with limited free uses per long rest before
+# they have to spend slots. The free-use mechanic is deferred —
+# treat as a normal 1st-level Ranger spell for v1.
+#
+# Engine modeling (PR #91):
+#   - Mechanically parallel to Hex (PR #90) — both are target-
+#     specific weapon damage riders via the `target_is(<id>)`
+#     when-clause atom.
+#   - type: offensive_buff (single-target enemy; "buff" is actually a
+#     mark on the enemy that boosts the caster's damage against THAT
+#     specific creature)
+#   - 1 Bonus Action cast time (RAW)
+#   - +1d6 on caster's weapon hits against the marked target —
+#     modeled as flat +3 average (same v1 simplification as Bless /
+#     Divine Favor / Searing Smite / Hex per-roll dice)
+#   - named_effect: "hunters_mark" → cross-caster dedup
+#
+# Deferred RAW bits:
+#   - Wisdom (Perception) + Wisdom (Survival) check advantage on the
+#     marked creature. Needs target-specific d20_test_modifier with
+#     skill / ability gating — same family of deferral as Hex's
+#     ability check disadvantage.
+#   - Rebind on target death (RAW: BA on subsequent turn to mark a
+#     new creature). Needs a rebind candidate (small follow-on,
+#     same shape Hex would need).
+#   - Per-roll 1d6 die (v1 uses flat +3)
+#   - Favored Enemy free-cast pool (Ranger-specific; needs a
+#     feature_use counter alongside the spell's slot consumption)
+#
+# **Class wiring note:** Hunter's Mark requires Ranger spell slots,
+# which aren't yet wired in c_ranger.yaml (minimal class per PR #64).
+# Ships forward-compat with `granted_by: {class: c_ranger, level: 2}`
+# but NOT added to the L2 features list yet. When Ranger spellcasting
+# lands (alongside the half-caster slot progression mirroring
+# Paladin's), add f_hunters_mark to L1 or L2 features and the
+# existing auto-attach pass (PR #82) wires the action.
+
+id: f_hunters_mark
+name: Hunter's Mark
+source: srd_5.2.1
+granted_by:
+  class: c_ranger
+  level: 2                   # Rangers gain 1st-level slots at L2
+                              # (when Ranger spellcasting eventually ships)
+type: active
+spell:
+  class: c_ranger
+  level: 1
+
+description: |
+  Mark one creature. Whenever you hit it with a weapon attack, deal
+  +1d6 (v1: flat +3) damage. Concentration, 1 hour. BA cast.
+
+action_template:
+  id: a_hunters_mark
+  name: Hunter's Mark
+  type: offensive_buff
+  spell_slot_level: 1
+  slot: bonus_action
+  concentration: true
+  named_effect: hunters_mark
+  range_ft: 90
+  pipeline:
+    # Mark the target: register a target-specific weapon_damage_bonus
+    # on the caster. The when-clause is substituted with the
+    # marked target's id at execution time (see engine.primitives
+    # ._hunters_mark_mark). All future weapon attacks the caster
+    # makes against THIS specific creature pick up the bonus.
+    - primitive: hunters_mark_mark
+      params:
+        value: 3
