@@ -1564,6 +1564,69 @@ def _steady_aim(params: dict, state: CombatState, bus: EventBus) -> None:
     })
 
 
+def _hex_curse(params: dict, state: CombatState,
+                  bus: EventBus) -> None:
+    """Hex (PR #90): place a curse on the target. Registers a
+    weapon_damage_bonus modifier on the caster gated to attacks
+    against this specific target via the `target_is(<id>)`
+    when-clause atom (engine.core.modifiers._eval_weapon_damage_when).
+
+    Params:
+      - value (int, default 3): flat bonus damage per hit. Defaults
+        to 3 (avg of 1d6 ≈ 3.5, floored to integer); per-roll d6
+        modeling is deferred alongside Bless / Divine Favor.
+
+    Reads:
+      - state.current_attack.target — the cursed creature (id used
+        in the when-clause substitution)
+      - state.current_attack.actor — the caster (modifier owner)
+      - state.current_attack.action — for action_id (source tag)
+
+    The modifier has lifetime=until_short_rest as a fallback; real
+    cleanup runs via end_concentration scrubbing modifiers tagged
+    with caster_id + action_id (PR #43 existing pattern).
+    """
+    caster = (state.current_attack or {}).get("actor") or \
+              state.current_actor()
+    target = (state.current_attack or {}).get("target")
+    if caster is None or target is None:
+        raise ValueError("hex_curse requires a current caster + target")
+    value = int(params.get("value", 3))
+    action = (state.current_attack or {}).get("action") or {}
+    action_id = action.get("id", "a_hex")
+    # Substitute the target id into the when-clause so future attacks
+    # by the caster against this specific creature will pick up the
+    # bonus damage. The query reads state.current_attack.target.id
+    # at attack-time and matches against this substituted id.
+    when_clause = f"target_is({target.id})"
+    entry = {
+        "primitive": "weapon_damage_bonus",
+        "params": {
+            "target": "self",
+            "value": value,
+            "when": when_clause,
+        },
+        "lifetime": "until_short_rest",
+        "source": {
+            "type": "spell",
+            "id": action_id,
+            "action_id": action_id,
+            "caster_id": caster.id,
+            "named_effect": "hex",
+            "cursed_target_id": target.id,
+        },
+        "applied_at_round": state.round,
+        "owner_id": caster.id,
+    }
+    caster.active_modifiers.append(entry)
+    state.event_log.append({
+        "event": "hex_curse_applied",
+        "caster": caster.id,
+        "target": target.id,
+        "value": value,
+    })
+
+
 def _searing_smite_arm(params: dict, state: CombatState,
                           bus: EventBus) -> None:
     """Arm the caster with Searing Smite's one-shot rider (PR #89).
@@ -1808,6 +1871,7 @@ def _populate_handler_table() -> None:
         "ready_action": _ready_action,
         "recurring_damage": _recurring_damage,
         "searing_smite_arm": _searing_smite_arm,
+        "hex_curse": _hex_curse,
     }
 
 
@@ -1869,6 +1933,10 @@ def _all_primitives() -> list[Primitive]:
         # rider on the caster's next melee weapon hit via
         # engine.core.searing_smite.try_apply_searing_smite_followup.
         Primitive("searing_smite_arm", _searing_smite_arm, implemented=True),
+        # PR #90 — Hex curse primitive. Registers a target-specific
+        # weapon_damage_bonus modifier on the caster gated via
+        # target_is(<cursed_id>) when-clause atom.
+        Primitive("hex_curse", _hex_curse, implemented=True),
     ]
     # Populate handler lookup table for subprimitive invocations
     global _PRIMITIVE_HANDLERS

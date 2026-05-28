@@ -270,16 +270,18 @@ def query_weapon_damage_bonus(attacker: Actor, attack_params: dict | None,
 
     Adds extra flat damage to weapon attacks. Used by spells like
     Divine Favor (+1d4 radiant on every weapon hit — modeled as
-    flat +2.5 average, rounded to +2 integer for damage). Future
-    consumers: Hex/Hunter's Mark (per-hit damage rider), Searing
-    Smite/Holy Weapon (typed weapon rider).
+    flat +2 average) and Hex (+1d6 necrotic gated to the cursed
+    target only — modeled as flat +3 average). Future consumers:
+    Hunter's Mark, Holy Weapon.
 
     Modifier entry shape:
       {
         "primitive": "weapon_damage_bonus",
         "params": {
           "value": int,           # flat damage to add on hit
-          "when": "...",          # optional gate (e.g., melee_attack)
+          "when": "...",          # optional gate (melee_attack |
+                                    # ranged_attack | weapon_attack |
+                                    # target_is(<actor_id>))
         },
         "lifetime": "until_short_rest" | "until_condition_ends",
         "source": {...},
@@ -295,18 +297,25 @@ def query_weapon_damage_bonus(attacker: Actor, attack_params: dict | None,
                                                   "weapon_damage_bonus"):
         params = mod.get("params") or {}
         when = params.get("when", "")
-        if when and not _eval_weapon_damage_when(when, attack_params):
+        if when and not _eval_weapon_damage_when(when, attack_params,
+                                                    state):
             continue
         total += int(params.get("value", 0))
     return total
 
 
 def _eval_weapon_damage_when(expr: str,
-                                attack_params: dict | None) -> bool:
+                                attack_params: dict | None,
+                                state: CombatState) -> bool:
     """Tiny vocabulary for weapon_damage_bonus when-clauses. Used to
-    let modifiers gate on attack shape (e.g., "melee_attack" only,
-    "ranged_attack" only). Empty / unrecognized clauses default to
-    True (modifier fires unconditionally).
+    let modifiers gate on attack shape AND target identity. Empty or
+    unrecognized clauses default to True (modifier fires
+    unconditionally).
+
+    Supported atoms:
+      - melee_attack / ranged_attack / weapon_attack — kind gates
+      - target_is(<actor_id>) — PR #90: fires only when in-flight
+        attack target id matches. Used by Hex's cursed-target gate.
     """
     if not expr:
         return True
@@ -319,6 +328,12 @@ def _eval_weapon_damage_when(expr: str,
     if expr == "weapon_attack":
         # Both melee and ranged weapon attacks (RAW "weapon attack")
         return kind in ("melee", "ranged")
+    if expr.startswith("target_is(") and expr.endswith(")"):
+        target_id = expr[len("target_is("):-1].strip()
+        current_target = (state.current_attack or {}).get("target")
+        if current_target is None:
+            return False
+        return current_target.id == target_id
     return True
 
 

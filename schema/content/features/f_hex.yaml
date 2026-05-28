@@ -1,0 +1,80 @@
+# f_hex — Hex (1st-level Warlock spell, SRD CC v5.2.1)
+#
+# RAW summary: BA cast, 90 ft range, single creature target.
+# Concentration up to 1 hour. Whenever you hit the target with an
+# attack roll, deal an extra 1d6 necrotic damage. Choose one ability
+# at cast time — target has disadvantage on ability checks with it.
+# If the target drops to 0 HP, BA on a subsequent turn to curse a
+# new creature.
+# At Higher Levels: 3-4 = 8 hours, 5+ = until long rest (duration
+# scaling only; engine ignores).
+#
+# Engine modeling (PR #90):
+#   - type: offensive_buff (single-target enemy; the "buff" is
+#     actually a curse on the enemy that boosts the caster's damage
+#     against THAT specific creature)
+#   - 1 Bonus Action cast time (RAW)
+#   - +1d6 necrotic on caster's hits against the cursed target —
+#     modeled as flat +3 average (same v1 simplification as Bless /
+#     Divine Favor / Searing Smite per-roll dice)
+#   - Target gating: weapon_damage_bonus's `target_is(<id>)`
+#     when-clause atom (PR #90) fires the bonus only on attacks
+#     against the cursed creature, not on attacks against other
+#     enemies the caster might also be fighting
+#   - named_effect: "hex" → cross-caster dedup so two Warlocks
+#     can't double-Hex the same creature
+#
+# Deferred RAW bits:
+#   - Ability check disadvantage on chosen ability (RAW: pick INT /
+#     STR / etc. at cast time). Needs d20_test_modifier with target-
+#     specific gating, which doesn't exist yet — tracked alongside
+#     the broader "context-aware d20_test_modifier" follow-on.
+#   - Rebind on target death (RAW: BA on subsequent turn to curse a
+#     new creature). Needs a "rebind_hex" BA candidate that's only
+#     emitted when the original cursed target is dead AND
+#     concentration is still active. Small follow-on.
+#   - Per-roll 1d6 die (v1 uses flat +3)
+#   - Necrotic damage type discrimination (same v1 gap shared with
+#     Divine Favor's radiant + Searing Smite's fire)
+#
+# **Class wiring note:** Hex is a Warlock spell. c_warlock doesn't
+# exist yet in the engine. This feature ships with `granted_by:
+# {class: c_warlock, level: 1}` for forward-compat — the YAML
+# loads cleanly without a c_warlock.yaml because the schema only
+# requires `class` to be a stable_id, not to exist in the registry.
+# When c_warlock ships, just add f_hex to the L1 level_table.features
+# list and the existing auto-attach pass (PR #82) wires the action.
+
+id: f_hex
+name: Hex
+source: srd_5.2.1
+granted_by:
+  class: c_warlock           # placeholder — c_warlock not yet implemented
+  level: 1
+type: active
+spell:
+  class: c_warlock
+  level: 1
+
+description: |
+  Curse one creature. Whenever you hit it with an attack, deal +1d6
+  (v1: flat +3) necrotic. Concentration, 1 hour. BA cast.
+
+action_template:
+  id: a_hex
+  name: Hex
+  type: offensive_buff
+  spell_slot_level: 1
+  slot: bonus_action
+  concentration: true
+  named_effect: hex
+  range_ft: 90
+  pipeline:
+    # Apply the curse: register a target-specific weapon_damage_bonus
+    # on the caster. The when-clause is substituted with the
+    # cursed target's id at execution time (see engine.primitives
+    # ._hex_curse). All future weapon attacks the caster makes
+    # against THIS specific creature pick up the bonus.
+    - primitive: hex_curse
+      params:
+        value: 3
