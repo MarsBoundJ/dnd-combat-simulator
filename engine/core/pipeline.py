@@ -433,49 +433,96 @@ def _emit_ready_candidates(actor: Actor, state: CombatState,
     out: list[dict] = []
     weapon_attacks = [a for a in actions
                         if a.get("type") == "weapon_attack"]
-    if not weapon_attacks or not enemies:
+    # PR #93: heal + defensive_buff sub-actions can be Readied for
+    # the ally_takes_damage trigger (Cleric Healing Word, Wizard
+    # Shield, etc.). Pulled separately because their emission gate
+    # is different from weapon-attack Ready.
+    heal_or_buff_actions = [a for a in actions
+                               if a.get("type") in
+                                   ("heal", "defensive_buff")]
+    if not enemies:
         return out
 
-    # Gate: skip Ready emission entirely if the actor can plausibly
-    # close-and-attack this turn (movement + swing reaches at least
-    # one enemy). With a real attack option on the table — even if
-    # it requires moving first — Ready is dominated. Without this,
-    # actors with no in-reach enemy but reachable enemies would
-    # Ready instead of closing, and OAs / engagements never resolve.
-    walk_speed = int((actor.speed or {}).get("walk", 30))
-    for weapon in weapon_attacks:
-        reach = _action_reach_ft(weapon)
-        # Already-in-reach: trivially dominated.
-        if any(is_within_ft(actor, e, reach) for e in enemies):
-            return out
-        # Reachable via movement this turn: also dominated.
-        for enemy in enemies:
-            if distance_ft(actor.position, enemy.position) <= walk_speed + reach:
-                return out
-
-    # enemy_enters_reach: emit when at least one enemy could plausibly
-    # close to melee this round. "Plausibly" = within their_walk_speed
-    # + our_reach + 5 (a small fudge for diagonal movement).
-    enters_reach_candidates: list[dict] = []
-    for weapon in weapon_attacks:
-        reach = _action_reach_ft(weapon)
-        if not _enters_reach_plausible(actor, enemies, reach):
-            continue
-        enters_reach_candidates.append(_make_ready_candidate(
-            actor, weapon, trigger="enemy_enters_reach",
-            trigger_params={"reach_ft": reach},
-        ))
-    out += enters_reach_candidates
-
-    # enemy_casts_spell: emit when at least one visible enemy has a
-    # spell action in their template (a known caster).
-    if _any_visible_enemy_caster(actor, enemies, state):
+    # Weapon-attack Ready triggers (enters_reach + casts_spell) —
+    # only emit when the actor has weapon attacks AND can NOT
+    # plausibly close-and-attack this turn. Heal/buff Ready triggers
+    # use a different gate (ally-in-danger) and bypass this block.
+    if weapon_attacks:
+        walk_speed = int((actor.speed or {}).get("walk", 30))
+        weapon_ready_dominated = False
         for weapon in weapon_attacks:
-            out.append(_make_ready_candidate(
-                actor, weapon, trigger="enemy_casts_spell",
-                trigger_params={"within_ft": 60},
-            ))
+            reach = _action_reach_ft(weapon)
+            # Already-in-reach: trivially dominated.
+            if any(is_within_ft(actor, e, reach) for e in enemies):
+                weapon_ready_dominated = True
+                break
+            # Reachable via movement this turn: also dominated.
+            if any(distance_ft(actor.position, e.position)
+                       <= walk_speed + reach for e in enemies):
+                weapon_ready_dominated = True
+                break
+
+        if not weapon_ready_dominated:
+            # enemy_enters_reach: emit when at least one enemy could
+            # plausibly close to melee this round. "Plausibly" =
+            # within their_walk_speed + our_reach + 5.
+            for weapon in weapon_attacks:
+                reach = _action_reach_ft(weapon)
+                if not _enters_reach_plausible(actor, enemies, reach):
+                    continue
+                out.append(_make_ready_candidate(
+                    actor, weapon, trigger="enemy_enters_reach",
+                    trigger_params={"reach_ft": reach},
+                ))
+
+            # enemy_casts_spell: emit when at least one visible
+            # enemy has a spell action (a known caster).
+            if _any_visible_enemy_caster(actor, enemies, state):
+                for weapon in weapon_attacks:
+                    out.append(_make_ready_candidate(
+                        actor, weapon, trigger="enemy_casts_spell",
+                        trigger_params={"within_ft": 60},
+                    ))
+
+    # PR #93: ally_takes_damage Ready candidates. Emit when the
+    # actor has heal/buff sub-actions AND at least one ally
+    # (excluding self) is in danger this round — within range of
+    # any living enemy's threat envelope. The Cleric Ready
+    # Healing-Word-on-ally-damage pattern. Independent of the
+    # weapon-attack gate above (a Cleric with no weapons should
+    # still Ready Healing Word).
+    if heal_or_buff_actions:
+        allies = [a for a in state.encounter.actors
+                    if a.side == actor.side
+                    and a.is_alive()
+                    and a.id != actor.id]
+        if allies and _any_ally_in_danger(allies, enemies):
+            for sub_action in heal_or_buff_actions:
+                out.append(_make_ready_candidate(
+                    actor, sub_action, trigger="ally_takes_damage",
+                    trigger_params={"within_ft": 60,
+                                      "min_damage": 1},
+                ))
     return out
+
+
+def _any_ally_in_danger(allies: list, enemies: list) -> bool:
+    """True if at least one ally is within plausible reach of any
+    living enemy this round (enemy_walk + enemy_max_reach). Coarse
+    gate for ally_takes_damage Ready emission — prevents the Cleric
+    from Ready-Healing-Word-ing when no ally is threatened."""
+    from engine.core.geometry import distance_ft
+    from engine.core.basic_actions import _max_attack_reach
+    for ally in allies:
+        for enemy in enemies:
+            enemy_speed = int((enemy.speed or {}).get("walk", 30))
+            enemy_reach = _max_attack_reach(enemy)
+            if enemy_reach <= 0:
+                continue
+            threat_range = enemy_speed + enemy_reach
+            if distance_ft(enemy.position, ally.position) <= threat_range:
+                return True
+    return False
 
 
 def _enters_reach_plausible(actor: Actor, enemies: list,

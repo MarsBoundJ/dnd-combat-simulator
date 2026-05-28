@@ -99,8 +99,10 @@ class TriggerVocabularyTest(unittest.TestCase):
     def test_register_unknown_trigger_raises(self) -> None:
         a = _make_actor("a1", actions=[_melee_attack("a_sword")])
         state = _make_state([a])
+        # PR #93: ally_takes_damage is now a known trigger, so use a
+        # different never-going-to-be-supported value as the canary.
         with self.assertRaises(ValueError):
-            ra.register(a, "a_sword", "ally_takes_damage", state)
+            ra.register(a, "a_sword", "never_a_trigger_name", state)
 
     def test_register_sets_actor_state(self) -> None:
         a = _make_actor("a1", actions=[_melee_attack("a_sword")])
