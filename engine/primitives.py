@@ -437,7 +437,29 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
         total = int(total * multiplier)
 
     total = max(0, total)
-    target.hp_current = max(0, target.hp_current - total)
+
+    # PR #94: temp HP absorbs damage before regular HP. RAW PHB 2024
+    # p.244: "When you take damage, the damage is subtracted from
+    # the temporary Hit Points first." If damage exceeds temp HP,
+    # the overflow hits regular HP. Both telemetry and downstream
+    # checks (concentration save, creature_dropped, rage damage
+    # tracker) see the FULL damage amount — temp HP is a defensive
+    # buffer, not a damage reduction.
+    if total > 0 and target.temp_hp > 0:
+        absorbed = min(total, target.temp_hp)
+        target.temp_hp -= absorbed
+        overflow = total - absorbed
+        if overflow > 0:
+            target.hp_current = max(0, target.hp_current - overflow)
+        state.event_log.append({
+            "event": "temp_hp_absorbed",
+            "target": target.id,
+            "absorbed": absorbed,
+            "overflow_to_hp": overflow,
+            "temp_hp_remaining": target.temp_hp,
+        })
+    else:
+        target.hp_current = max(0, target.hp_current - total)
 
     # PR #71: track damage taken while raging — feeds the end-of-turn
     # "no attack + no damage" auto-end check. Damage > 0 satisfies the
@@ -993,6 +1015,111 @@ class _NoOpBus:
 
     def emit(self, *args, **kwargs) -> None:
         return None
+
+
+def _temp_hp_grant(params: dict, state: CombatState,
+                      bus: EventBus) -> None:
+    """Grant temporary hit points to the current target (PR #94).
+
+    RAW PHB 2024 p.244: temp HP doesn't stack — gaining temp HP
+    while you already have some keeps the GREATER value. We use
+    max-semantics: `target.temp_hp = max(target.temp_hp, amount)`.
+
+    Params:
+      - target: 'self' | 'ally' | 'current_target' (default
+        'current_target' — caller sets state.current_attack.target)
+      - amount (int, optional): flat temp HP to grant
+      - amount_source (str, optional): one of
+        'caster_spellcasting_modifier' | 'caster_cha_mod' |
+        'caster_wis_mod' — computed at invoke time from the caster.
+        Mutually exclusive with `amount` (amount wins if both set).
+
+    Logs `temp_hp_granted` with target / amount / final_temp_hp.
+    """
+    target = state.current_attack.get("target") or state.current_actor()
+    if target is None:
+        raise ValueError("temp_hp_grant requires a current target")
+    if "amount" in params:
+        amount = int(params["amount"])
+    else:
+        amount = _resolve_temp_hp_amount(
+            params.get("amount_source", "caster_spellcasting_modifier"),
+            state)
+    if amount <= 0:
+        return
+    prior = target.temp_hp
+    target.temp_hp = max(target.temp_hp, amount)
+    state.event_log.append({
+        "event": "temp_hp_granted",
+        "target": target.id,
+        "amount": amount,
+        "prior_temp_hp": prior,
+        "final_temp_hp": target.temp_hp,
+    })
+
+
+def _resolve_temp_hp_amount(source: str, state: CombatState) -> int:
+    """Compute a temp HP amount from a source token. Used by
+    _temp_hp_grant and _recurring_temp_hp when `amount_source` is
+    declared instead of a literal `amount`. Returns max(1, value) so
+    a 0-mod caster still grants 1 temp HP (RAW: grants are positive)."""
+    caster = (state.current_attack or {}).get("actor") or \
+              state.current_actor()
+    if caster is None:
+        return 0
+    abilities = caster.abilities or {}
+    if source in ("caster_spellcasting_modifier",
+                    "caster_cha_mod"):
+        # Default to CHA (Paladin / Bard / Sorcerer / Warlock)
+        score = (abilities.get("cha") or {}).get("score", 10)
+    elif source == "caster_wis_mod":
+        score = (abilities.get("wis") or {}).get("score", 10)
+    elif source == "caster_int_mod":
+        score = (abilities.get("int") or {}).get("score", 10)
+    else:
+        return 0
+    mod = (score - 10) // 2
+    return max(1, mod)
+
+
+def _recurring_temp_hp(params: dict, state: CombatState,
+                          bus: EventBus) -> None:
+    """Register a per-turn temp HP grant on the current target
+    (PR #94). The dual of recurring_damage — used by Heroism and
+    future per-turn grant spells (Aid-shape effects with duration).
+
+    Each tick fires at the target's turn-start (resolved by
+    runner._resolve_recurring_temp_hp). Re-grants the amount each
+    time; max-semantics on Actor.temp_hp means the temp HP doesn't
+    accumulate (RAW: replace if greater).
+
+    Params:
+      - amount (int) OR amount_source (str): see _temp_hp_grant
+      - trigger_event (str, default 'target_turn_start')
+
+    Source ids stamped from state.current_attack so end_concentration
+    can match-and-scrub when the spell drops.
+    """
+    target = state.current_attack.get("target") or state.current_actor()
+    actor = state.current_attack.get("actor") or state.current_actor()
+    action = state.current_attack.get("action") or {}
+    if "amount" in params:
+        amount = int(params["amount"])
+    else:
+        amount = _resolve_temp_hp_amount(
+            params.get("amount_source", "caster_spellcasting_modifier"),
+            state)
+    if amount <= 0:
+        return
+    entry = {
+        "target_id": target.id,
+        "source_id": actor.id if actor else None,
+        "source_action_id": action.get("id"),
+        "amount": amount,
+        "trigger_event": params.get("trigger_event", "target_turn_start"),
+        "applied_at_round": state.round,
+    }
+    state.recurring_temp_hp.append(entry)
 
 
 def _recurring_damage(params: dict, state: CombatState,
@@ -1950,6 +2077,8 @@ def _populate_handler_table() -> None:
         "searing_smite_arm": _searing_smite_arm,
         "hex_curse": _hex_curse,
         "hunters_mark_mark": _hunters_mark_mark,
+        "temp_hp_grant": _temp_hp_grant,
+        "recurring_temp_hp": _recurring_temp_hp,
     }
 
 
@@ -2020,6 +2149,11 @@ def _all_primitives() -> list[Primitive]:
         # for named_effect tagging + event log clarity + future
         # divergence (favored-target Perception tracking).
         Primitive("hunters_mark_mark", _hunters_mark_mark, implemented=True),
+        # PR #94 — Temp HP grant + per-turn recurring grant. Dual of
+        # recurring_damage; used by Heroism and future Aid-shape
+        # spells. Max-semantics replacement on Actor.temp_hp.
+        Primitive("temp_hp_grant", _temp_hp_grant, implemented=True),
+        Primitive("recurring_temp_hp", _recurring_temp_hp, implemented=True),
     ]
     # Populate handler lookup table for subprimitive invocations
     global _PRIMITIVE_HANDLERS

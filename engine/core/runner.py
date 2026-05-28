@@ -151,6 +151,16 @@ class EncounterRunner:
         if actor.is_alive():
             self._resolve_recurring_damage(actor, state)
 
+        # PR #94: recurring temp HP grants (Heroism; future Aid-shape
+        # spells). Dual of recurring damage. Fires at the affected
+        # creature's turn-start, AFTER damage ticks so any damage
+        # that would have wiped the temp HP this turn lands first.
+        # (Net: recurring damage gets full benefit of the temp HP
+        # from the PREVIOUS round's grant; the new grant happens
+        # after the damage absorption.)
+        if actor.is_alive():
+            self._resolve_recurring_temp_hp(actor, state)
+
         # Run the 8-step decision pipeline
         if actor.is_alive():
             self._run_actor_turn(actor, state)
@@ -543,6 +553,55 @@ class EncounterRunner:
             # If the actor died from the tick, stop further ticks on them
             if not actor.is_alive():
                 break
+
+    def _resolve_recurring_temp_hp(self, actor: Actor,
+                                       state: CombatState) -> None:
+        """Fire recurring temp HP grants targeting `actor` at their
+        turn-start (PR #94). Dual of _resolve_recurring_damage.
+
+        Used by ongoing-grant spells like Heroism. Each entry grants
+        the declared amount via max-semantics (RAW: gaining temp HP
+        replaces if greater, keeps if lower). Re-grants every turn
+        so the temp HP buffer refills if the previous turn's grant
+        was burned off by damage.
+
+        Source remains registered until concentration ends or the
+        host condition is removed.
+        """
+        if not state.recurring_temp_hp:
+            return
+        for entry in list(state.recurring_temp_hp):
+            if entry.get("target_id") != actor.id:
+                continue
+            if entry.get("trigger_event") != "target_turn_start":
+                continue
+            caster = state._actor_by_id(entry.get("source_id"))
+            if caster is None:
+                state.recurring_temp_hp.remove(entry)
+                continue
+            saved_attack = state.current_attack
+            synthetic_action = {
+                "id": entry.get("source_action_id"),
+            }
+            state.current_attack = {
+                "actor": caster, "target": actor,
+                "action": synthetic_action,
+                "state": None,
+                "had_advantage": False, "had_disadvantage": False,
+            }
+            try:
+                self.primitives.invoke("temp_hp_grant", {
+                    "amount": entry.get("amount", 0),
+                }, state, self.event_bus)
+                state.event_log.append({
+                    "event": "recurring_temp_hp_tick",
+                    "target": actor.id,
+                    "source": caster.id,
+                    "source_action": entry.get("source_action_id"),
+                    "amount": entry.get("amount"),
+                })
+            finally:
+                state.current_attack = saved_attack
 
     def _resolve_recurring_saves(self, actor: Actor, state: CombatState) -> None:
         """At actor's turn_end, roll any recurring saves registered against them.

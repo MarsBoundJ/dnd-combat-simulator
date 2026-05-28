@@ -38,6 +38,18 @@ class Actor:
     # Combat stats
     hp_current: int = 0
     hp_max: int = 0
+    # Temporary hit points (PR #94). RAW PHB 2024 p.244: temp HP
+    # absorbs incoming damage before regular HP. Doesn't stack —
+    # gaining temp HP while you already have some keeps the
+    # GREATER value (ignore if new is lower). Doesn't refresh on
+    # rests; lost on long rest unless a feature says otherwise.
+    # Granted by Heroism, False Life, Aid (partial), Inspiring
+    # Leader, Fiendish Vigor, Tempest Cleric Wrath of the Storm,
+    # etc. Read+written by:
+    #   - _temp_hp_grant primitive (max-semantics replacement)
+    #   - _damage primitive (absorbs damage before hp_current)
+    #   - apply_long_rest (clears to 0)
+    temp_hp: int = 0
     ac: int = 10
     speed: dict = field(default_factory=lambda: {"walk": 30})
     position: tuple[int, int] = (0, 0)          # grid coords; (0,0) until movement matters
@@ -426,6 +438,22 @@ class CombatState:
     # condition_id matches when the host condition ends (e.g., co_ignited
     # via a save-to-end action, or via spell-targeted condition removal).
     recurring_damage: list = field(default_factory=list)
+
+    # Recurring per-turn temp HP grants (PR #94). The dual of
+    # recurring_damage — registered by spells like Heroism that grant
+    # temp HP at the start of each of the target's turns. Runner
+    # fires entries via _resolve_recurring_temp_hp at the target's
+    # turn-start. Concentration-end scrubs entries tied to the spell.
+    # Entry shape:
+    #   {
+    #     "target_id": "fighter_1",
+    #     "source_id": "paladin",       # caster (for concentration cleanup)
+    #     "source_action_id": "a_heroism",
+    #     "amount": 3,                  # temp HP granted per tick
+    #     "trigger_event": "target_turn_start",
+    #     "applied_at_round": 2,
+    #   }
+    recurring_temp_hp: list = field(default_factory=list)
 
     # Persistent auras (PR #43): self-anchored area effects that
     # trigger forced saves on creatures who satisfy the trigger
