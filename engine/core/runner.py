@@ -131,6 +131,13 @@ class EncounterRunner:
         # (the run_actor_turn check below will catch it again).
         self._resolve_persistent_aura_triggers(actor, state)
 
+        # PR #89: recurring damage ticks (Searing Smite burn; future
+        # Heat Metal). Fires at the affected creature's turn-start.
+        # Runs AFTER persistent_aura so ordering is consistent (auras
+        # first, then per-creature ongoing damage).
+        if actor.is_alive():
+            self._resolve_recurring_damage(actor, state)
+
         # Run the 8-step decision pipeline
         if actor.is_alive():
             self._run_actor_turn(actor, state)
@@ -463,6 +470,64 @@ class EncounterRunner:
                 state.current_attack = saved_attack
             # If the actor died from the aura, stop processing further
             # auras on them this turn (defensive).
+            if not actor.is_alive():
+                break
+
+    def _resolve_recurring_damage(self, actor: Actor,
+                                      state: CombatState) -> None:
+        """Fire recurring damage ticks targeting `actor` at their turn-
+        start (PR #89).
+
+        Used by ongoing-damage conditions like Searing Smite's Ignited.
+        Each entry deals dice damage of the declared type. The entry
+        stays registered until concentration ends or the host condition
+        is removed.
+
+        Resistance/vulnerability/immunity are applied by the _damage
+        primitive as usual (target template's damage_resistances etc.).
+        """
+        if not state.recurring_damage:
+            return
+        for entry in list(state.recurring_damage):
+            if entry.get("target_id") != actor.id:
+                continue
+            if entry.get("trigger_event") != "target_turn_start":
+                continue
+            caster = state._actor_by_id(entry.get("source_id"))
+            if caster is None:
+                # Source caster gone; orphan tick — drop it.
+                state.recurring_damage.remove(entry)
+                continue
+            # Set up state.current_attack so _damage can read actor +
+            # target. Mirrors persistent_aura's synthetic-attack pattern.
+            saved_attack = state.current_attack
+            synthetic_action = {
+                "id": entry.get("source_action_id"),
+                "spell_slot_level": 0,
+            }
+            state.current_attack = {
+                "actor": caster, "target": actor,
+                "action": synthetic_action,
+                "state": "hit",   # treat as a hit so on-hit damage applies
+                "had_advantage": False, "had_disadvantage": False,
+            }
+            try:
+                self.primitives.invoke("damage", {
+                    "dice": entry.get("dice", "1d6"),
+                    "modifier": 0,
+                    "type": entry.get("damage_type", "untyped"),
+                }, state, self.event_bus)
+                state.event_log.append({
+                    "event": "recurring_damage_tick",
+                    "target": actor.id,
+                    "source": caster.id,
+                    "source_action": entry.get("source_action_id"),
+                    "dice": entry.get("dice"),
+                    "type": entry.get("damage_type"),
+                })
+            finally:
+                state.current_attack = saved_attack
+            # If the actor died from the tick, stop further ticks on them
             if not actor.is_alive():
                 break
 

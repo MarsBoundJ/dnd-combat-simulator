@@ -1,0 +1,68 @@
+# f_searing_smite — Searing Smite (1st-level Paladin spell, SRD CC v5.2.1)
+#
+# RAW summary: Bonus Action, Self, Concentration up to 1 minute. The
+# next time you hit a creature with a Melee weapon during the spell's
+# duration, your weapon flares with white-hot intensity. The attack
+# deals an extra 1d6 fire damage to the target. Additionally, if the
+# target is a creature, it must succeed on a Constitution saving throw
+# or be Ignited until the spell ends.
+# At Higher Levels: damage increases by 1d6 per slot above 1st.
+#
+# Engine modeling (PR #89):
+#   - type: defensive_buff (self-targeted; the Paladin arms themselves)
+#   - 1 Bonus Action cast time (RAW 2024)
+#   - Concentration spell — competes with Bless / Shield of Faith /
+#     Divine Favor / Protection from Evil and Good for the Paladin's
+#     single concentration slot.
+#   - Pipeline: `searing_smite_arm` primitive registers a one-shot
+#     marker modifier on the caster (engine.core.searing_smite.
+#     register_armed). The _damage primitive checks the marker on
+#     the caster's next melee weapon hit, rolls 1d6 fire (+1d6 per
+#     upcast level, doubled on crit), fires a CON forced_save on the
+#     target, and on fail applies co_ignited (which has a
+#     recurring_damage effect dealing 1d6 fire per turn).
+#   - named_effect: "searing_smite" → cross-caster dedup
+#
+# Deferred RAW bits:
+#   - Target's "use an action to save vs CON to end" (the spell-target
+#     opt-in concentration break). Currently the burn ends only when
+#     the caster drops concentration. Needs candidate emission at the
+#     target's turn + AI scoring for save-action value.
+#   - Typed bonus damage: the +1d6 fire on the empowering attack is
+#     rolled as a separate damage instance but added to total. This
+#     means fire resistance/vulnerability on the target affects the
+#     1d6 the same way as the weapon damage. Per RAW the bonus is
+#     fire-typed; the current rider applies it without separate
+#     type-discrimination from the weapon's type (close enough for v1).
+
+id: f_searing_smite
+name: Searing Smite
+source: srd_5.2.1
+granted_by:
+  class: c_paladin
+  level: 2                   # Paladins gain 1st-level slots at L2
+type: active
+spell:
+  class: c_paladin
+  level: 1
+
+description: |
+  Self-buff. The Paladin's next melee weapon hit deals +1d6 fire
+  damage; target makes a CON save or is Ignited (1d6 fire per turn
+  until concentration ends). Concentration, 1 minute. BA cast.
+
+action_template:
+  id: a_searing_smite
+  name: Searing Smite
+  type: defensive_buff
+  spell_slot_level: 1
+  slot: bonus_action
+  concentration: true
+  named_effect: searing_smite
+  range_ft: 0                # self-only
+  pipeline:
+    # Register the one-shot armed marker on the caster. The actual
+    # rider (bonus damage + CON save + apply Ignited) fires in
+    # _damage on the caster's next melee weapon hit.
+    - primitive: searing_smite_arm
+      params: {}
