@@ -68,7 +68,8 @@ level_table:
     # repeating it 13 times would be noise).
   - level: 2
     proficiency_bonus: 2
-    features: [f_divine_smite, f_bless, f_shield_of_faith]
+    features: [f_divine_smite, f_bless, f_shield_of_faith,
+                f_divine_favor, f_protection_from_evil_and_good]
     class_resources:
       weapon_mastery_count: 2
       spell_slots: { 1: 2 }

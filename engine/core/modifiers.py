@@ -263,6 +263,65 @@ def query_crit_modifiers(
     return result
 
 
+def query_weapon_damage_bonus(attacker: Actor, attack_params: dict | None,
+                                  state: CombatState) -> int:
+    """Aggregate weapon_damage_bonus modifier entries on the attacker
+    that match the in-flight attack shape (PR #88).
+
+    Adds extra flat damage to weapon attacks. Used by spells like
+    Divine Favor (+1d4 radiant on every weapon hit — modeled as
+    flat +2.5 average, rounded to +2 integer for damage). Future
+    consumers: Hex/Hunter's Mark (per-hit damage rider), Searing
+    Smite/Holy Weapon (typed weapon rider).
+
+    Modifier entry shape:
+      {
+        "primitive": "weapon_damage_bonus",
+        "params": {
+          "value": int,           # flat damage to add on hit
+          "when": "...",          # optional gate (e.g., melee_attack)
+        },
+        "lifetime": "until_short_rest" | "until_condition_ends",
+        "source": {...},
+        "owner_id": attacker.id,
+      }
+
+    Returns the sum of all matching modifier values. 0 when no
+    matching modifiers exist (the common case — vast majority of
+    attacks aren't riding any weapon damage bonuses).
+    """
+    total = 0
+    for owner, mod in _iter_relevant_modifiers([attacker],
+                                                  "weapon_damage_bonus"):
+        params = mod.get("params") or {}
+        when = params.get("when", "")
+        if when and not _eval_weapon_damage_when(when, attack_params):
+            continue
+        total += int(params.get("value", 0))
+    return total
+
+
+def _eval_weapon_damage_when(expr: str,
+                                attack_params: dict | None) -> bool:
+    """Tiny vocabulary for weapon_damage_bonus when-clauses. Used to
+    let modifiers gate on attack shape (e.g., "melee_attack" only,
+    "ranged_attack" only). Empty / unrecognized clauses default to
+    True (modifier fires unconditionally).
+    """
+    if not expr:
+        return True
+    params = attack_params or {}
+    kind = params.get("kind", "melee")
+    if expr == "melee_attack":
+        return kind == "melee"
+    if expr == "ranged_attack":
+        return kind == "ranged"
+    if expr == "weapon_attack":
+        # Both melee and ranged weapon attacks (RAW "weapon attack")
+        return kind in ("melee", "ranged")
+    return True
+
+
 def query_d20_test_modifiers(
     actor: Actor, applies_to_key: str, state: CombatState
 ) -> D20TestModifierResult:
@@ -543,5 +602,18 @@ def _eval_expr(expr: str, owner: Actor, attacker: Actor, target: Actor,
     if expr == "target_can_see(self)":
         from engine.core.vision import can_actor_see
         return can_actor_see(target, owner, state)
+    # PR #88: Protection from Evil and Good creature-type gate.
+    # `attacker_creature_type_in(t1, t2, ...)` returns True iff the
+    # attacker's creature_type matches any of the listed types. Used
+    # by f_protection_from_evil_and_good's defensive buff to apply
+    # disadvantage only on incoming attacks from
+    # aberration / celestial / elemental / fey / fiend / undead per
+    # RAW. Lists tokens are comma-separated, optionally space-padded.
+    if expr.startswith("attacker_creature_type_in("):
+        list_part = expr[len("attacker_creature_type_in("):-1]
+        types = {t.strip().strip(",").lower()
+                   for t in list_part.split(",")}
+        return (getattr(attacker, "creature_type", "humanoid") or
+                  "humanoid").lower() in types
     # Unknown atom — log + default to False (conservative)
     return False
