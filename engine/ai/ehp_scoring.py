@@ -649,36 +649,61 @@ READY_TRIGGER_FIRES_PROBABILITY: float = 0.6
 
 def offensive_ehp_ready(actor: Actor, action: dict,
                           state: CombatState) -> float:
-    """eHP scoring for a Ready Action candidate (PR #86).
+    """eHP scoring for a Ready Action candidate (PR #86, extended in
+    PR #93 for ally_takes_damage trigger).
 
-    Score = expected_damage_of_sub_action × READY_TRIGGER_FIRES_PROBABILITY
+    Dispatches on the trigger:
+      - **Attack-shape triggers** (enemy_enters_reach, enemy_casts_spell):
+        Score = expected weapon-attack damage against proxy enemy ×
+        READY_TRIGGER_FIRES_PROBABILITY.
+      - **ally_takes_damage** (PR #93): Score = expected heal/buff
+        value on proxy ally × READY_TRIGGER_FIRES_PROBABILITY. Uses
+        defensive_ehp scorers via lazy import for the heal/buff
+        path so the offensive module stays cleanly separable.
 
-    The sub-action is the weapon attack the actor will fire when the
-    trigger matches. We estimate its damage against the most-likely
-    trigger-time target (the median enemy in HP, as a proxy — the
-    actual target is determined at trigger time, not now).
+    Returns 0.0 when no `_ready_sub_action` (defensive) or no living
+    enemies (no danger to react to).
 
-    Returns 0.0 when:
-      - No `_ready_sub_action` is stashed on the synthetic action
-        (defensive — candidate generator always sets this)
-      - No living enemies exist
-      - The sub-action has no scorable damage path
-
-    Note: candidate generator already gates emission on
-    "no in-reach enemy for any weapon", so this score doesn't need to
-    suppress itself when an immediate attack is available — those
-    candidates simply aren't emitted.
+    Note: candidate generator gates emission tightly — attack-shape
+    Ready emits only when actor can't close-and-attack; ally-damage
+    Ready emits only when actor has heal/buff AND an ally is in
+    enemy threat range. So this scorer doesn't need to suppress
+    itself in dominated scenarios.
     """
     sub_action = action.get("_ready_sub_action")
     if not sub_action:
         return 0.0
+    trigger = action.get("_ready_trigger")
     enemies = [a for a in state.encounter.actors
                 if a.side != actor.side and a.is_alive()]
     if not enemies:
         return 0.0
-    # Pick the median-HP enemy as the proxy target. Lower-HP enemies
-    # would be the "kill steal" target if Ready fires; median splits
-    # the difference between expected-damage and likelihood-of-firing.
+
+    # PR #93: ally_takes_damage scoring path. Pick lowest-HP ally as
+    # proxy target (most likely to need the heal/buff) and dispatch
+    # to defensive_ehp via the sub-action's type.
+    if trigger == "ally_takes_damage":
+        allies = [a for a in state.encounter.actors
+                    if a.side == actor.side
+                    and a.is_alive()
+                    and a.id != actor.id]
+        if not allies:
+            return 0.0
+        proxy_ally = min(allies, key=lambda a: a.hp_current)
+        from engine.ai import defensive_ehp as _def
+        sub_type = sub_action.get("type")
+        if sub_type == "heal":
+            base = _def.defensive_ehp_healing(
+                actor, proxy_ally, sub_action, state)
+        elif sub_type == "defensive_buff":
+            base = _def.defensive_ehp_defensive_buff(
+                actor, proxy_ally, sub_action, state)
+        else:
+            base = 0.0
+        return base * READY_TRIGGER_FIRES_PROBABILITY
+
+    # Attack-shape triggers (existing PR #86 path). Pick the
+    # median-HP enemy as the proxy target.
     enemies_sorted = sorted(enemies, key=lambda e: e.hp_current)
     proxy_target = enemies_sorted[len(enemies_sorted) // 2]
     base_score = offensive_ehp_single_attack(

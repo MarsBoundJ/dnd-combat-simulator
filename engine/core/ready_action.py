@@ -68,6 +68,12 @@ from engine.core.state import Actor, CombatState
 KNOWN_TRIGGERS: frozenset[str] = frozenset({
     "enemy_enters_reach",
     "enemy_casts_spell",
+    # PR #93: third common Ready trigger. Fires when a same-side ally
+    # takes damage (any source — enemy attack, AoE, ongoing damage
+    # tick from co_ignited, etc.). Unlocks the iconic Cleric pattern
+    # "Ready Cure Wounds on ally damage" + Wizard "Ready Shield on
+    # ally damage" + Bard "Ready Healing Word on ally drop" patterns.
+    "ally_takes_damage",
 })
 
 
@@ -88,6 +94,13 @@ def register(actor: Actor, sub_action_id: str, trigger: str,
         actor's weapon attacks).
       - `enemy_casts_spell`: {"within_ft": int} — range gate (defaults
         to 60 ft, the typical Counterspell-ish range).
+      - `ally_takes_damage` (PR #93): {"within_ft": int,
+        "min_damage": int} — range gate (defaults to 60 ft, typical
+        touch-to-medium-range heal/buff distance) + minimum damage
+        threshold to fire (defaults to 1, so any damage trips it).
+        min_damage lets a Cleric Ready Healing Word "if my ally
+        takes at least 10 damage" without burning the reaction on
+        chip damage.
 
     Logs `ready_action_taken` with actor / sub_action / trigger /
     round so the AI's choice is visible in the event log.
@@ -164,7 +177,9 @@ def find_actors_with_trigger(state: CombatState,
 
 
 def try_fire(actor: Actor, target: Actor, state: CombatState,
-              event_bus, primitives, *, reason: str = "trigger_matched") -> bool:
+              event_bus, primitives=None, *,
+              reason: str = "trigger_matched",
+              allow_dead_target: bool = False) -> bool:
     """Fire the actor's readied action against `target`. Returns True
     if it fired (slot consumed + sub-action pipeline executed), False
     if it was skipped (reaction slot already used, sub-action no
@@ -183,7 +198,22 @@ def try_fire(actor: Actor, target: Actor, state: CombatState,
         etc. consumed it first)
       - Sub-action no longer in actor's template (defensive — caller
         validation should prevent this)
-      - Target is dead / not in encounter
+      - Target is None / not in encounter (always skipped)
+      - Target is dead AND `allow_dead_target=False` (default for
+        attack-shape triggers like enters_reach + casts_spell)
+
+    PR #93 kwargs:
+      - `allow_dead_target=True` — used by `on_ally_takes_damage`
+        so a Cleric's Ready Healing Word fires on an ally who just
+        dropped to 0 HP (the iconic "pick them back up" pattern).
+        Attack-shape triggers leave the default False (no point
+        swinging at a dead enemy).
+
+    `primitives` param (legacy): kept as an optional adapter for
+    callers that have a PrimitiveRegistry to hand (the original
+    test seam). When None, the canonical `_invoke_subprimitive`
+    path is used — same dispatch table as forced_save / OA
+    execution. New call sites should pass None.
     """
     if actor.readied_action is None:
         return False
@@ -194,7 +224,9 @@ def try_fire(actor: Actor, target: Actor, state: CombatState,
             "reason": "reaction_already_used",
         })
         return False
-    if target is None or not target.is_alive():
+    if target is None:
+        return False
+    if not allow_dead_target and not target.is_alive():
         return False
 
     action_id = actor.readied_action["action_id"]
@@ -220,10 +252,19 @@ def try_fire(actor: Actor, target: Actor, state: CombatState,
         "is_readied_action": True,
     }
     try:
-        for step in (sub_action.get("pipeline") or []):
-            primitive_name = step["primitive"]
-            params = step.get("params", {})
-            primitives.invoke(primitive_name, params, state, event_bus)
+        if primitives is not None:
+            for step in (sub_action.get("pipeline") or []):
+                primitive_name = step["primitive"]
+                params = step.get("params", {})
+                primitives.invoke(primitive_name, params, state, event_bus)
+        else:
+            # No registry passed — use the canonical subprimitive
+            # invoker (module-level handler table populated at
+            # engine.primitives import). Same dispatch as
+            # _execute_oa / forced_save on_fail / on_success.
+            from engine.primitives import _invoke_subprimitive
+            for step in (sub_action.get("pipeline") or []):
+                _invoke_subprimitive(step, state, event_bus)
     finally:
         state.current_attack = saved_attack
 
@@ -277,6 +318,56 @@ def on_movement_completed(mover: Actor, pre_position: tuple[int, int],
                 # If the mover died from the readied swing, stop iterating
                 if not mover.is_alive():
                     break
+    return fired
+
+
+def on_ally_takes_damage(damaged: Actor, amount: int,
+                            state: CombatState, event_bus,
+                            primitives=None) -> int:
+    """Hook for `ally_takes_damage` triggers (PR #93). Called from
+    `_damage` AFTER damage is applied + reaction-event triggers
+    resolve (so Hellish-Rebuke-shape reactions fire first; readied
+    actions fire next).
+
+    For each SAME-SIDE actor (other than the damaged one) who has a
+    readied `ally_takes_damage` trigger with:
+      - The damaged ally within the readied range, AND
+      - The damage amount >= the readied min_damage threshold,
+    fire the readied action against the damaged ally as target.
+
+    Returns count fired. The readied action's pipeline runs with
+    state.current_attack.target = the damaged ally, letting heals
+    and defensive buffs naturally retarget to them.
+
+    Self-damage doesn't trigger: a Cleric who Readies Cure Wounds
+    on ally damage shouldn't self-fire when they take damage too.
+    The reactor's own damage is filtered by `damaged.id == actor.id`.
+    """
+    from engine.core.geometry import distance_ft
+    if amount <= 0:
+        return 0
+    fired = 0
+    actors_with_trigger = find_actors_with_trigger(state,
+                                                       "ally_takes_damage")
+    for actor in actors_with_trigger:
+        # Same-side gate: only allies of the damaged creature react.
+        # Skip self (the damaged creature is not their own "ally" for
+        # this trigger — they're the patient, not the doctor).
+        if actor.side != damaged.side:
+            continue
+        if actor.id == damaged.id:
+            continue
+        params = actor.readied_action.get("trigger_params") or {}
+        within = int(params.get("within_ft", 60))
+        if distance_ft(actor.position, damaged.position) > within:
+            continue
+        min_damage = int(params.get("min_damage", 1))
+        if amount < min_damage:
+            continue
+        if try_fire(actor, damaged, state, event_bus, primitives,
+                      reason="ally_took_damage",
+                      allow_dead_target=True):
+            fired += 1
     return fired
 
 

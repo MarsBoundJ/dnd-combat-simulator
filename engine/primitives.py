@@ -485,6 +485,23 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
             "type": dmg_type,
         }, state, bus)
 
+    # PR #93: Ready Action `ally_takes_damage` trigger. Fires AFTER
+    # damage applies + reaction-event resolution so the heal/buff
+    # readier sees the current HP. Allies of the damaged creature
+    # whose readied trigger matches react (typically Healing Word,
+    # Cure Wounds, Shield via Ready). Fires even if the damaged
+    # creature dropped to 0 HP — Healing Word picking up a downed
+    # ally is the most dramatic version of this pattern.
+    # Skipped when total <= 0 (no actual damage = no trigger).
+    if total > 0:
+        from engine.core import ready_action as _ra
+        # primitives=None → try_fire uses _invoke_subprimitive's
+        # module-level handler table (same dispatch path as
+        # forced_save's on_fail / on_success). allow_dead_target=True
+        # so a Cleric's Ready Healing Word fires on an ally who
+        # just dropped to 0 HP.
+        _ra.on_ally_takes_damage(target, total, state, bus)
+
     return {"amount": total, "target_hp": target.hp_current}
 
 
