@@ -56,12 +56,20 @@ class EncounterRunner:
                     rng=rng, content_registry=content_registry)
 
     def roll_initiative(self, state: CombatState) -> None:
-        """Roll initiative for every actor; sort descending; resolve ties by DEX."""
+        """Roll initiative for every actor; sort descending; resolve ties by DEX.
+
+        PR #95: Initiative is a DEX ability check per PHB 2024 — Halfling
+        Lucky applies. `lucky_d20` is a no-op for non-Halflings, so the
+        call is cheap.
+        """
+        from engine.core.racial_traits import lucky_d20
         rolls: list[tuple[int, int, str]] = []  # (init_roll, dex_mod_tiebreak, actor_id)
         for a in self.encounter.actors:
             init_mod = a.template.get("combat", {}).get("initiative", {}).get("modifier", 0)
             dex_mod = a.abilities.get("dex", {}).get("save", 0)
-            roll = self.rng.randint(1, 20) + init_mod
+            d20 = self.rng.randint(1, 20)
+            d20, _rerolled = lucky_d20(self.rng, d20, a)
+            roll = d20 + init_mod
             a.initiative = roll
             rolls.append((roll, dex_mod, a.id))
         rolls.sort(key=lambda x: (-x[0], -x[1]))

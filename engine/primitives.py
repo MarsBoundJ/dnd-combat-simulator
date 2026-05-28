@@ -1408,6 +1408,11 @@ def _counterspell_resolve(params: dict, state: CombatState,
                 .get("proficiency_bonus", 2))
     dc = 10 + target_level
     d20 = rng.randint(1, 20)
+    # PR #95: Halfling Lucky applies to Counterspell's INT ability
+    # check (RAW: Lucky fires on "an attack roll, an ability check,
+    # or a saving throw"). No-op for non-Halflings.
+    from engine.core.racial_traits import lucky_d20
+    d20, _rerolled = lucky_d20(rng, d20, counterspeller)
     total = d20 + int_mod + pb
     success = total >= dc
     if success:

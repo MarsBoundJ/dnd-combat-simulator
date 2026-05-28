@@ -8,9 +8,17 @@
 #   - Speed: 30 ft (PHB 2024 standardized halfling speed; 2014
 #     was 25 ft, no longer the case)
 #   - Lucky (reroll natural 1 on d20 attack rolls, ability checks,
-#     saves) → trait flag `t_lucky`; engine/primitives._attack_roll
-#     and _forced_save apply the reroll via
-#     engine/core/racial_traits.py::lucky_d20
+#     saves) → trait flag `t_lucky`; full RAW coverage via
+#     engine/core/racial_traits.py::lucky_d20 applied at 8 d20
+#     sites (PR #95 closed the residue from PR #75):
+#       * Attack rolls (_attack_roll, PR #75)
+#       * Forced saves (_forced_save, PR #75)
+#       * Recurring saves (_resolve_recurring_saves, PR #75)
+#       * Initiative (runner.roll_initiative, PR #95)
+#       * Counterspell ability check (_counterspell_resolve, PR #95)
+#       * Concentration save (attempt_concentration_save, PR #95)
+#       * Hide stealth check (_execute_hide, PR #95)
+#       * Search perception check (_execute_search, PR #95)
 #   - Brave (advantage on saves vs Frightened) → trait flag
 #     `t_brave`; resolved via save-source context (same path as
 #     Elf Fey Ancestry / Dwarven Resilience save adv)
