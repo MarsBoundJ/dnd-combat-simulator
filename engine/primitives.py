@@ -438,6 +438,31 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
 
     total = max(0, total)
 
+    # PR #96: Armor of Agathys reflective cold damage. Snapshot
+    # whether AoA fires BEFORE damage applies (RAW: thorns fire if
+    # the bearer has temp HP at the moment of the hit, even if the
+    # hit drops temp HP to 0). Three gates:
+    #   1. Target has an active armor_of_agathys_active marker
+    #   2. Target currently has temp HP > 0 (the "while you have
+    #      these hit points" clause)
+    #   3. Attack is melee (RAW: "melee attack")
+    #   4. Recursion guard: this isn't itself a thorn reflection
+    # Stored in a local; applied AFTER the target's damage resolves
+    # so the cold damage to attacker doesn't clobber state mid-flight.
+    agathys_marker = None
+    agathys_cold_damage = 0
+    if (total > 0 and target.temp_hp > 0
+            and (attack_params or {}).get("kind") == "melee"
+            and actor.is_alive()
+            and actor.id != target.id
+            and not state.current_attack.get("is_agathys_reflection")):
+        for mod in target.active_modifiers:
+            if mod.get("primitive") == "armor_of_agathys_active":
+                agathys_marker = mod
+                agathys_cold_damage = int(
+                    (mod.get("params") or {}).get("cold_damage", 5))
+                break
+
     # PR #94: temp HP absorbs damage before regular HP. RAW PHB 2024
     # p.244: "When you take damage, the damage is subtracted from
     # the temporary Hit Points first." If damage exceeds temp HP,
@@ -460,6 +485,48 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
         })
     else:
         target.hp_current = max(0, target.hp_current - total)
+
+    # PR #96: fire AoA reflective cold damage to the attacker now
+    # that the target's damage has resolved. The reflection runs
+    # _damage recursively with `is_agathys_reflection: True` set so
+    # the attacker's own AoA (if any) doesn't infinite-loop. After
+    # the reflection, if the target's temp HP is now 0, clear the
+    # marker — RAW: the spell ends when temp HP is depleted.
+    if agathys_marker is not None and agathys_cold_damage > 0:
+        saved_attack = state.current_attack
+        state.current_attack = {
+            "actor": target, "target": actor,
+            "action": {"id": "a_armor_of_agathys_thorns"},
+            "state": "hit",
+            "had_advantage": False, "had_disadvantage": False,
+            "is_agathys_reflection": True,
+        }
+        try:
+            state.event_log.append({
+                "event": "armor_of_agathys_reflected",
+                "bearer": target.id,
+                "attacker": actor.id,
+                "cold_damage": agathys_cold_damage,
+            })
+            _damage({
+                "dice": "", "modifier": agathys_cold_damage,
+                "type": "cold",
+            }, state, bus)
+        finally:
+            state.current_attack = saved_attack
+        # Clear the AoA marker if temp HP is now depleted from this
+        # hit (RAW: "while you have these hit points" — when they're
+        # gone, the spell ends).
+        if target.temp_hp <= 0:
+            try:
+                target.active_modifiers.remove(agathys_marker)
+                state.event_log.append({
+                    "event": "armor_of_agathys_ended",
+                    "bearer": target.id,
+                    "reason": "temp_hp_depleted",
+                })
+            except ValueError:
+                pass   # already removed by another path; safe no-op
 
     # PR #71: track damage taken while raging — feeds the end-of-turn
     # "no attack + no damage" auto-end check. Damage > 0 satisfies the
@@ -1019,7 +1086,8 @@ class _NoOpBus:
 
 def _temp_hp_grant(params: dict, state: CombatState,
                       bus: EventBus) -> None:
-    """Grant temporary hit points to the current target (PR #94).
+    """Grant temporary hit points to the current target (PR #94,
+    upcast extended in PR #96).
 
     RAW PHB 2024 p.244: temp HP doesn't stack — gaining temp HP
     while you already have some keeps the GREATER value. We use
@@ -1028,11 +1096,17 @@ def _temp_hp_grant(params: dict, state: CombatState,
     Params:
       - target: 'self' | 'ally' | 'current_target' (default
         'current_target' — caller sets state.current_attack.target)
-      - amount (int, optional): flat temp HP to grant
+      - amount (int, optional): flat temp HP to grant (base value)
       - amount_source (str, optional): one of
         'caster_spellcasting_modifier' | 'caster_cha_mod' |
         'caster_wis_mod' — computed at invoke time from the caster.
         Mutually exclusive with `amount` (amount wins if both set).
+      - amount_per_slot_above_base (int, optional, PR #96): per-
+        upcast-level bonus. When set + spell cast at slot N above
+        base level B, adds `(N - B) × this_value` to the grant.
+        Reads cast level from state.current_attack.chosen_slot_level
+        (set by pipeline.execute for upcasted casts). Used by
+        Armor of Agathys (+5 temp HP per upcast level).
 
     Logs `temp_hp_granted` with target / amount / final_temp_hp.
     """
@@ -1045,6 +1119,16 @@ def _temp_hp_grant(params: dict, state: CombatState,
         amount = _resolve_temp_hp_amount(
             params.get("amount_source", "caster_spellcasting_modifier"),
             state)
+    # PR #96: upcast scaling. Apply per-level bonus when the cast
+    # slot exceeds the action's base spell_slot_level.
+    per_slot_bonus = int(params.get("amount_per_slot_above_base", 0))
+    if per_slot_bonus > 0:
+        chosen_level = int(state.current_attack.get(
+            "chosen_slot_level") or 0)
+        action = state.current_attack.get("action") or {}
+        base_level = int(action.get("spell_slot_level", 1))
+        if chosen_level > base_level:
+            amount += (chosen_level - base_level) * per_slot_bonus
     if amount <= 0:
         return
     prior = target.temp_hp
@@ -1713,6 +1797,75 @@ def _steady_aim(params: dict, state: CombatState, bus: EventBus) -> None:
     })
 
 
+def _armor_of_agathys_arm(params: dict, state: CombatState,
+                              bus: EventBus) -> None:
+    """Register the Armor of Agathys reflective-cold marker on the
+    caster (PR #96).
+
+    Companion to the temp_hp_grant step in f_armor_of_agathys's
+    pipeline. The marker is read by `_damage` when the marker-bearer
+    is hit by a melee attack AND has temp HP at the moment of the
+    hit — fires cold damage back at the attacker.
+
+    Params:
+      - cold_damage (int, default 5): base cold damage dealt to a
+        melee attacker who hits the marker-bearer
+      - cold_damage_per_slot_above_base (int, default 5): per-upcast-
+        level bonus. Reads cast level from state.current_attack.
+        chosen_slot_level and the action's spell_slot_level.
+
+    The marker uses lifetime=until_short_rest as a fallback (RAW: 1-
+    hour duration — engine treats as "short rest" for cleanup since
+    we don't model true 1-hour timers). The marker is also auto-
+    cleared by `_damage` when the AoA-bearer's temp HP drops to 0
+    from a hit (RAW: the spell ends when the temp HP is depleted).
+    """
+    caster = (state.current_attack or {}).get("actor") or \
+              state.current_actor()
+    if caster is None:
+        raise ValueError("armor_of_agathys_arm requires a current actor")
+
+    cold_damage = int(params.get("cold_damage", 5))
+    per_slot_bonus = int(params.get(
+        "cold_damage_per_slot_above_base", 0))
+    if per_slot_bonus > 0:
+        chosen_level = int(state.current_attack.get(
+            "chosen_slot_level") or 0)
+        action = state.current_attack.get("action") or {}
+        base_level = int(action.get("spell_slot_level", 1))
+        if chosen_level > base_level:
+            cold_damage += (chosen_level - base_level) * per_slot_bonus
+
+    action = (state.current_attack or {}).get("action") or {}
+    action_id = action.get("id", "a_armor_of_agathys")
+    # Existing marker for this caster? Re-cast replaces (RAW: re-
+    # casting the spell while it's active overwrites with new amounts).
+    caster.active_modifiers = [
+        m for m in caster.active_modifiers
+        if m.get("primitive") != "armor_of_agathys_active"
+    ]
+    entry = {
+        "primitive": "armor_of_agathys_active",
+        "params": {"cold_damage": cold_damage},
+        "lifetime": "until_short_rest",
+        "source": {
+            "type": "spell",
+            "id": action_id,
+            "action_id": action_id,
+            "caster_id": caster.id,
+            "named_effect": "armor_of_agathys",
+        },
+        "applied_at_round": state.round,
+        "owner_id": caster.id,
+    }
+    caster.active_modifiers.append(entry)
+    state.event_log.append({
+        "event": "armor_of_agathys_armed",
+        "caster": caster.id,
+        "cold_damage": cold_damage,
+    })
+
+
 def _hex_curse(params: dict, state: CombatState,
                   bus: EventBus) -> None:
     """Hex (PR #90): place a curse on the target. Registers a
@@ -2084,6 +2237,7 @@ def _populate_handler_table() -> None:
         "hunters_mark_mark": _hunters_mark_mark,
         "temp_hp_grant": _temp_hp_grant,
         "recurring_temp_hp": _recurring_temp_hp,
+        "armor_of_agathys_arm": _armor_of_agathys_arm,
     }
 
 
@@ -2159,6 +2313,12 @@ def _all_primitives() -> list[Primitive]:
         # spells. Max-semantics replacement on Actor.temp_hp.
         Primitive("temp_hp_grant", _temp_hp_grant, implemented=True),
         Primitive("recurring_temp_hp", _recurring_temp_hp, implemented=True),
+        # PR #96 — Armor of Agathys arming primitive. Registers a
+        # marker modifier on the caster that drives reflective cold
+        # damage to melee attackers (read by _damage via the
+        # `armor_of_agathys_active` primitive name).
+        Primitive("armor_of_agathys_arm", _armor_of_agathys_arm,
+                    implemented=True),
     ]
     # Populate handler lookup table for subprimitive invocations
     global _PRIMITIVE_HANDLERS

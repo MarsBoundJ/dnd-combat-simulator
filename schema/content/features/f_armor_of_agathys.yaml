@@ -1,0 +1,87 @@
+# f_armor_of_agathys — Armor of Agathys
+# (1st-level Warlock/Wizard Abjuration spell, SRD CC v5.2.1)
+#
+# RAW summary: Action cast time, self only, 1-hour duration, NOT
+# concentration. A protective magical force surrounds you. You gain
+# 5 temporary hit points for the duration. If a creature hits you
+# with a melee attack while you have these hit points, the creature
+# takes 5 cold damage.
+# At Higher Levels: both temp HP AND cold damage increase by 5 for
+# each slot level above 1st.
+#
+# Engine modeling (PR #96):
+#   - type: defensive_buff (self-targeted; the spell wraps the caster)
+#   - 1 Action cast time (RAW; NOT bonus action — distinguishes it
+#     from typical buff-shaped self-casts like Shield of Faith)
+#   - NOT concentration — Warlock can cast Hex / Hunter's Mark on a
+#     subsequent turn without dropping Agathys.
+#     **v1 simplification:** the engine doesn't model true 1-hour
+#     timed effects yet. The AoA marker uses
+#     `lifetime: until_short_rest` as a fallback (treating "1 hour"
+#     as "until short rest" since sim encounters resolve in ~1-3
+#     minutes). The temp HP itself persists per RAW (until depleted
+#     or long rest). The marker is also auto-cleared by _damage
+#     when the bearer's temp HP drops to 0 from a hit — RAW: the
+#     spell ends when the temp HP is depleted.
+#   - Pipeline:
+#       1. temp_hp_grant 5 base + 5 per upcast level (uses PR #94
+#          infra + PR #96's amount_per_slot_above_base extension)
+#       2. armor_of_agathys_arm registers the marker with
+#          cold_damage 5 + 5 per upcast level
+#   - Reflective cold damage: `_damage` checks for the marker on
+#     melee hits when target has temp HP > 0; fires `_damage`
+#     recursively at the attacker with type=cold. Recursion guard
+#     via state.current_attack.is_agathys_reflection.
+#   - named_effect: "armor_of_agathys" → cross-caster dedup (rare
+#     case: two AoA casts on the same Warlock; the arm primitive
+#     also explicitly replaces any prior marker)
+#
+# Deferred RAW bits:
+#   - True 1-hour duration timer (not modeled; treated as until short
+#     rest)
+#   - Material component (cup of water) — not yet modeled
+#
+# **Class wiring note:** Armor of Agathys is a Warlock/Wizard spell.
+# c_warlock doesn't exist yet in the engine (placeholder used in
+# Hex PR #90). Ships forward-compat under `granted_by: c_warlock`
+# for now; when c_warlock implements its level table, just add
+# f_armor_of_agathys to L1 features and the auto-attach pass
+# (PR #82) wires the action.
+
+id: f_armor_of_agathys
+name: Armor of Agathys
+source: srd_5.2.1
+granted_by:
+  class: c_warlock           # placeholder — c_warlock not yet implemented
+  level: 1
+type: active
+spell:
+  class: c_warlock
+  level: 1
+
+description: |
+  Self-buff. 5 temp HP (+5/upcast). Melee attackers who hit you
+  while you have these temp HP take 5 cold damage (+5/upcast).
+  1-hour duration (v1: until short rest), NOT concentration.
+
+action_template:
+  id: a_armor_of_agathys
+  name: Armor of Agathys
+  type: defensive_buff
+  spell_slot_level: 1
+  slot: action                 # RAW: Action cast (NOT bonus action)
+  named_effect: armor_of_agathys
+  range_ft: 0                  # self-only
+  pipeline:
+    # Grant 5 temp HP (5 base + 5 per upcast level above 1st)
+    - primitive: temp_hp_grant
+      params:
+        target: self
+        amount: 5
+        amount_per_slot_above_base: 5
+    # Register the reflective-cold marker. The _damage primitive
+    # reads this on melee hits + fires cold damage back at attacker.
+    - primitive: armor_of_agathys_arm
+      params:
+        cold_damage: 5
+        cold_damage_per_slot_above_base: 5
