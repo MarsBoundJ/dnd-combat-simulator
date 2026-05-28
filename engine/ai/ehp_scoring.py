@@ -553,6 +553,56 @@ def offensive_ehp_hide(actor: Actor, action: dict,
     return float(total)
 
 
+# Probability that a readied trigger actually fires before the actor's
+# next turn. Calibrated conservatively — Ready is a defensive interrupt
+# that costs a full Action; if it doesn't fire, the actor loses a
+# turn's worth of DPR. The trigger-fires probability decays linearly
+# from 0.85 (very-close enemy clearly closing) to 0.4 (enemy at edge
+# of plausibility). Empirical calibration via session sims is future
+# work; v1 uses a flat 0.6 baseline that matches "the AI takes Ready
+# in roughly the right situations" from manual smoke tests.
+READY_TRIGGER_FIRES_PROBABILITY: float = 0.6
+
+
+def offensive_ehp_ready(actor: Actor, action: dict,
+                          state: CombatState) -> float:
+    """eHP scoring for a Ready Action candidate (PR #86).
+
+    Score = expected_damage_of_sub_action × READY_TRIGGER_FIRES_PROBABILITY
+
+    The sub-action is the weapon attack the actor will fire when the
+    trigger matches. We estimate its damage against the most-likely
+    trigger-time target (the median enemy in HP, as a proxy — the
+    actual target is determined at trigger time, not now).
+
+    Returns 0.0 when:
+      - No `_ready_sub_action` is stashed on the synthetic action
+        (defensive — candidate generator always sets this)
+      - No living enemies exist
+      - The sub-action has no scorable damage path
+
+    Note: candidate generator already gates emission on
+    "no in-reach enemy for any weapon", so this score doesn't need to
+    suppress itself when an immediate attack is available — those
+    candidates simply aren't emitted.
+    """
+    sub_action = action.get("_ready_sub_action")
+    if not sub_action:
+        return 0.0
+    enemies = [a for a in state.encounter.actors
+                if a.side != actor.side and a.is_alive()]
+    if not enemies:
+        return 0.0
+    # Pick the median-HP enemy as the proxy target. Lower-HP enemies
+    # would be the "kill steal" target if Ready fires; median splits
+    # the difference between expected-damage and likelihood-of-firing.
+    enemies_sorted = sorted(enemies, key=lambda e: e.hp_current)
+    proxy_target = enemies_sorted[len(enemies_sorted) // 2]
+    base_score = offensive_ehp_single_attack(
+        actor, proxy_target, sub_action, state)
+    return base_score * READY_TRIGGER_FIRES_PROBABILITY
+
+
 def offensive_ehp_search(actor: Actor, action: dict,
                             state: CombatState) -> float:
     """eHP scoring for the Search action (PR #59).
@@ -1254,6 +1304,13 @@ def score_candidate(candidate: dict, state: CombatState) -> float:
         return offensive_ehp_hide(actor, action, state)
     if kind == "search" or action.get("type") == "search":
         return offensive_ehp_search(actor, action, state)
+    # PR #86: Ready Action — score the held sub-action against the
+    # best plausible trigger-time target, discounted for trigger
+    # uncertainty. Only emitted by the candidate generator when no
+    # in-reach enemy exists for any weapon (Ready is dominated when
+    # an immediate attack is available).
+    if kind == "ready" or action.get("type") == "ready":
+        return offensive_ehp_ready(actor, action, state)
 
     # Defensive — lazy-import to keep modules cleanly separable
     action_type = action.get("type")
