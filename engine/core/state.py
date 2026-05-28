@@ -404,6 +404,29 @@ class CombatState:
     # Resolved by runner at the appropriate turn boundary.
     recurring_saves: list = field(default_factory=list)
 
+    # Recurring per-turn damage ticks (PR #89). Registered by spells
+    # like Searing Smite (via co_ignited's effect_primitives) and
+    # future ongoing-damage spells (Heat Metal, Cloudkill-on-creature
+    # variants, etc.). The runner fires these at each affected
+    # creature's turn-start, deals the damage, and re-registers
+    # the entry for next turn.
+    # Entry shape:
+    #   {
+    #     "target_id": "goblin_1",
+    #     "source_id": "paladin",       # caster (for concentration cleanup)
+    #     "source_action_id": "a_searing_smite",
+    #     "dice": "1d6",
+    #     "damage_type": "fire",
+    #     "trigger_event": "target_turn_start",
+    #     "applied_at_round": 3,
+    #   }
+    # Concentration-end scrubs entries whose source_id + source_action_id
+    # match the dropped spell (see engine.core.concentration.
+    # end_concentration). Condition-removal scrubs entries whose
+    # condition_id matches when the host condition ends (e.g., co_ignited
+    # via a save-to-end action, or via spell-targeted condition removal).
+    recurring_damage: list = field(default_factory=list)
+
     # Persistent auras (PR #43): self-anchored area effects that
     # trigger forced saves on creatures who satisfy the trigger
     # condition (v1: at their turn-start while in the area). Spirit

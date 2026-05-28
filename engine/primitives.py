@@ -352,11 +352,11 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
         total = rolled + modifier
 
     # PR #88: weapon_damage_bonus riders (Divine Favor, future
-    # Hex/Hunter's Mark/Searing Smite). Only applies to weapon attacks
-    # — gated on attack_params.kind being melee or ranged. Adds AFTER
-    # rage bonus but BEFORE resistance, so Divine-Favor-buffed
-    # damage gets halved by BPS resistance the same way the weapon
-    # die does (RAW: the +1d4 radiant is part of the attack's damage).
+    # Hex/Hunter's Mark). Only applies to weapon attacks — gated on
+    # attack_params.kind being melee or ranged. Adds AFTER rage bonus
+    # but BEFORE resistance, so Divine-Favor-buffed damage gets
+    # halved by BPS resistance the same way the weapon die does
+    # (RAW: the +1d4 radiant is part of the attack's damage).
     is_weapon_attack = (attack_params or {}).get("kind") in ("melee",
                                                                 "ranged")
     if is_weapon_attack:
@@ -393,6 +393,21 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
             is_crit=(sa_state == "crit"),
             base_attack_damage=total)
         total += ds_damage
+        # PR #89: Searing Smite rider. Fires on the caster's next
+        # melee weapon hit when armed. Adds 1d6 fire damage (+1d6
+        # per upcast slot level above 1st, doubled on crit) AND
+        # fires a CON save on the target — on fail, target gets
+        # co_ignited (recurring_damage 1d6 fire per turn). The
+        # marker clears after firing (one-shot per cast;
+        # concentration continues for the burn). Melee only per
+        # RAW: "next time you hit a creature with a Melee weapon."
+        if is_weapon_attack and (attack_params or {}).get(
+                "kind", "melee") == "melee":
+            from engine.core import searing_smite as _ss
+            ss_damage = _ss.try_apply_searing_smite_followup(
+                actor, target, state, attack_params, rng,
+                is_crit=(sa_state == "crit"))
+            total += ss_damage
 
     # Resistance / vulnerability / immunity (template-level)
     template = target.template or {}
@@ -519,8 +534,22 @@ def _instantiate_condition_effects(target: Actor, application: dict,
         return  # condition not in registry; marker only
 
     for effect in cond_def.get("effects") or []:
+        prim = effect.get("primitive")
+        # PR #89: recurring_damage effects need to register an entry
+        # in state.recurring_damage, NOT in active_modifiers (it's
+        # not a modifier — it's a per-turn callback). Invoke the
+        # primitive directly with the current_attack context already
+        # set up by _apply_condition's caller.
+        if prim == "recurring_damage":
+            params = dict(effect.get("params") or {})
+            # Pass the host condition's id through so the entry can
+            # be scrubbed later via condition-removal cleanup.
+            params.setdefault("condition_id",
+                                application["condition_id"])
+            _recurring_damage(params, state, _NoOpBus())
+            continue
         entry = {
-            "primitive": effect.get("primitive"),
+            "primitive": prim,
             "params": effect.get("params") or {},
             "lifetime": "until_condition_ends",
             "source": {
@@ -937,6 +966,53 @@ def _slot_recovery_partial(params: dict, state: CombatState,
         "budget_remaining": budget,
     })
     return {"restored": restored_list}
+
+
+class _NoOpBus:
+    """Minimal event bus stand-in for sub-primitive invocations from
+    inside other primitives. _recurring_damage's _NoOpBus mirror at
+    the apply_condition call site; defining it here once keeps the
+    pattern uniform."""
+
+    def emit(self, *args, **kwargs) -> None:
+        return None
+
+
+def _recurring_damage(params: dict, state: CombatState,
+                         bus: EventBus) -> None:
+    """Register a per-turn damage tick on the current target (PR #89).
+
+    Used by ongoing-damage conditions like co_ignited (Searing Smite
+    burn). Each tick fires at the affected creature's turn-start
+    (resolved by runner._resolve_recurring_damage).
+
+    Params:
+      - dice (str): damage dice (e.g., "1d6")
+      - type (str): damage type (e.g., "fire")
+      - trigger_event (str, default 'target_turn_start'): when the
+        tick fires. v1 only supports 'target_turn_start'.
+      - condition_id (str, optional): the host condition id; lets
+        condition-removal scrub the tick (when the condition ends
+        via a save-to-end action or other mechanism).
+
+    Source ids (target_id / source_id / source_action_id) come from
+    `state.current_attack` so concentration-end cleanup in
+    end_concentration can match-and-scrub.
+    """
+    target = state.current_attack.get("target") or state.current_actor()
+    actor = state.current_attack.get("actor") or state.current_actor()
+    action = state.current_attack.get("action") or {}
+    entry = {
+        "target_id": target.id,
+        "source_id": actor.id if actor else None,
+        "source_action_id": action.get("id"),
+        "dice": params.get("dice", "1d6"),
+        "damage_type": params.get("type", "untyped"),
+        "trigger_event": params.get("trigger_event", "target_turn_start"),
+        "condition_id": params.get("condition_id"),
+        "applied_at_round": state.round,
+    }
+    state.recurring_damage.append(entry)
 
 
 def _recurring_save(params: dict, state: CombatState, bus: EventBus) -> None:
@@ -1488,6 +1564,51 @@ def _steady_aim(params: dict, state: CombatState, bus: EventBus) -> None:
     })
 
 
+def _searing_smite_arm(params: dict, state: CombatState,
+                          bus: EventBus) -> None:
+    """Arm the caster with Searing Smite's one-shot rider (PR #89).
+
+    Called from f_searing_smite's cast pipeline. Reads the cast slot
+    level from state.current_attack.chosen_slot_level (set by
+    pipeline.execute for upcasted casts) and the caster's spell save
+    DC from the action's `spell_save_dc` param OR the caster's CHA-
+    based default (8 + PB + CHA mod).
+
+    The marker modifier is registered with `lifetime: until_short_rest`
+    + source tagged with caster_id + action_id, so the existing
+    concentration-end / short-rest cleanup paths scrub it correctly
+    if the rider never fires.
+    """
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        raise ValueError("searing_smite_arm requires a current actor")
+    # Cast slot level (default 1 = base level; upcasted casts set
+    # higher in state.current_attack via pipeline.execute)
+    slot_level = int((state.current_attack or {}).get(
+        "chosen_slot_level") or 1)
+    # Spell save DC: param override OR caster's CHA-based DC
+    if "dc" in params:
+        dc = int(params["dc"])
+    else:
+        dc = _caster_spell_save_dc(actor)
+    action = (state.current_attack or {}).get("action") or {}
+    action_id = action.get("id", "a_searing_smite")
+    from engine.core.searing_smite import register_armed
+    register_armed(actor, slot_level=slot_level, spell_save_dc=dc,
+                     action_id=action_id, state=state)
+
+
+def _caster_spell_save_dc(actor: Actor) -> int:
+    """Compute the actor's spell save DC: 8 + proficiency_bonus +
+    spellcasting_ability_modifier. v1 reads CHA for Paladin (the only
+    spell-DC consumer in PR #89); future generalization will read
+    actor.template.spellcasting.ability or a per-class default."""
+    pb = int((actor.template.get("cr") or {}).get("proficiency_bonus", 2))
+    cha_score = (actor.abilities.get("cha") or {}).get("score", 10)
+    cha_mod = (cha_score - 10) // 2
+    return 8 + pb + cha_mod
+
+
 def _ready_action(params: dict, state: CombatState, bus: EventBus) -> None:
     """Primitive that records a readied action on the actor (PR #86).
 
@@ -1685,6 +1806,8 @@ def _populate_handler_table() -> None:
         "steady_aim": _steady_aim,
         "lay_on_hands": _lay_on_hands,
         "ready_action": _ready_action,
+        "recurring_damage": _recurring_damage,
+        "searing_smite_arm": _searing_smite_arm,
     }
 
 
@@ -1736,6 +1859,16 @@ def _all_primitives() -> list[Primitive]:
         # onto the actor; fires when the trigger matches before the
         # actor's next turn).
         Primitive("ready_action", _ready_action, implemented=True),
+        # PR #89 — Recurring per-turn damage tick (Searing Smite burn,
+        # future Heat Metal). Registers an entry in state.recurring_
+        # damage; runner._resolve_recurring_damage fires at each
+        # affected creature's turn-start.
+        Primitive("recurring_damage", _recurring_damage, implemented=True),
+        # PR #89 — Searing Smite arming primitive. Registers a one-
+        # shot marker modifier on the caster; _damage fires the
+        # rider on the caster's next melee weapon hit via
+        # engine.core.searing_smite.try_apply_searing_smite_followup.
+        Primitive("searing_smite_arm", _searing_smite_arm, implemented=True),
     ]
     # Populate handler lookup table for subprimitive invocations
     global _PRIMITIVE_HANDLERS

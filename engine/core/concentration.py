@@ -129,6 +129,16 @@ def end_concentration(caster: Actor, state: CombatState,
     ]
     removed += before_auras - len(state.persistent_auras)
 
+    # PR #89: scrub recurring damage ticks owned by this concentration
+    # (Searing Smite's burn ends when the Paladin drops concentration).
+    before_ticks = len(state.recurring_damage)
+    state.recurring_damage = [
+        t for t in state.recurring_damage
+        if not (t.get("source_id") == caster_id
+                and t.get("source_action_id") == action_id)
+    ]
+    removed += before_ticks - len(state.recurring_damage)
+
     # PR #60 + PR #68: scrub spell-created environment zones whose
     # caster_id + action_id match the dropped aura. Iterates all
     # zone-type lists (magical_dark_zones, heavily_obscured_zones,
