@@ -207,6 +207,27 @@ class Actor:
     rage_active: bool = False
     rage_damage_bonus: int = 0
 
+    # Reckless Attack state (PR #85, Barbarian L2). Activated via the
+    # runner's `_maybe_activate_reckless_attack` pre-action hook (RAW:
+    # "When you make your first attack roll on your turn, you can
+    # decide to attack recklessly" — engine collapses this to a
+    # pre-action decision so the AI commits before the first swing
+    # rather than mid-roll).
+    #   - reckless_active: True during THIS turn after activation;
+    #     drives advantage on the actor's STR-mod melee weapon attack
+    #     rolls. Cleared in reset_turn() at the start of the next
+    #     own turn.
+    #   - reckless_grants_advantage_until_next_turn: True from
+    #     activation until the start of the actor's next turn; drives
+    #     advantage on any attack roll TARGETING this actor. Same
+    #     reset point — the "until the start of your next turn"
+    #     window matches own-turn reset exactly.
+    # Both flags read directly off the Actor (like rage_active); no
+    # active_modifiers registration. See engine/core/reckless_attack.py
+    # for the eligibility / activation / scoring helpers.
+    reckless_active: bool = False
+    reckless_grants_advantage_until_next_turn: bool = False
+
     def is_alive(self) -> bool:
         return self.hp_current > 0 and not self.is_dead and not self.is_fled
 
@@ -269,6 +290,15 @@ class Actor:
         # but defensive).
         if hasattr(self, "_divine_smite_used_this_turn"):
             self._divine_smite_used_this_turn = False
+        # PR #85: Reckless Attack flags reset at start of own turn.
+        # RAW: "Attack rolls against you have advantage until the
+        # start of your next turn" — the grants-advantage window ends
+        # exactly here. The `reckless_active` flag is also a per-turn
+        # state (advantage applies "during this turn"), so it resets
+        # at the same boundary. The runner's pre-action hook may flip
+        # both back ON later in this same turn.
+        self.reckless_active = False
+        self.reckless_grants_advantage_until_next_turn = False
 
 
 # ============================================================================
