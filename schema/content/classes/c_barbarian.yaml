@@ -15,8 +15,14 @@
 #     rage_uses_remaining; flips Actor.rage_active + stamps the
 #     level-appropriate Actor.rage_damage_bonus
 #
+# Features added in PR #85:
+#   - f_reckless_attack (L2) → free pre-action declaration; grants
+#     advantage on actor's STR-melee swings this turn + advantage to
+#     attackers targeting actor until start of next turn. AI activation
+#     via engine.core.reckless_attack.should_activate (archetype
+#     overrides + cost-benefit fallback).
+#
 # Still deferred (each becomes a follow-on PR):
-#   - Reckless Attack (advantage + grant advantage to attackers)
 #   - Danger Sense (advantage on DEX saves vs visible effects)
 #   - Unarmored Defense (AC formula change)
 #   - Brutal Strike (2024 PHB; trade-off mechanic on attacks)
@@ -57,7 +63,7 @@ level_table:
       rage_damage_bonus: 2
   - level: 2
     proficiency_bonus: 2
-    features: []
+    features: [f_reckless_attack]
     class_resources:
       weapon_mastery_count: 2
       rage_uses: 2

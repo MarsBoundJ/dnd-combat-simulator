@@ -1,0 +1,56 @@
+# f_reckless_attack — Reckless Attack (Barbarian)
+# Source: SRD CC v5.2.1 / PHB 2024 p.50
+# Pattern: marker feature (no pipeline / no action). Runtime behavior
+# wired in engine code, not via the modifier registry:
+#   - engine.core.reckless_attack — eligibility, activation, scoring
+#   - engine.core.runner._maybe_activate_reckless_attack — pre-action
+#     hook that fires once per turn before the main slot
+#   - engine.core.modifiers.query_attack_modifiers — reads the two
+#     flags off the actor to grant advantage on outgoing STR-melee
+#     swings AND advantage on incoming attacks against the Barbarian
+
+id: f_reckless_attack
+name: Reckless Attack
+source: srd_5.2.1
+granted_by:
+  class: c_barbarian
+  level: 2
+type: passive
+
+# No resource_cost (RAW: free declaration, not an action / bonus
+# action / reaction). No usage limit (RAW: usable on every turn).
+# No effect_primitives (the flag-flip happens in the runner hook,
+# not via the action pipeline) — the feature ship as a marker so
+# pc_schema's features_known set includes it.
+
+contract:
+  reads: [actor.features_known, actor.template.actions]
+  writes: [actor.reckless_active,
+            actor.reckless_grants_advantage_until_next_turn]
+  event: actor_turn_start
+  scope: per_turn
+
+# RAW effects (handled at primitive sites, not via on-cast modifier
+# registration — these are identity-state checks read each time the
+# relevant calculation fires):
+#   - Advantage on actor's STR-mod melee weapon attack rolls during
+#     the activation turn (engine.core.modifiers.query_attack_modifiers
+#     reads actor.reckless_active + checks attack kind/ability)
+#   - Advantage on attack rolls against the actor until the start of
+#     their next turn (same query reads target.reckless_grants_
+#     advantage_until_next_turn — any incoming attack, no shape filter)
+#
+# End conditions (RAW):
+#   - "During this turn" (advantage on self): cleared at the start of
+#     the actor's next turn by Actor.reset_turn
+#   - "Until the start of your next turn" (advantage against self):
+#     same — cleared at the actor's next reset_turn
+#
+# Decision timing: RAW says "When you make your first attack roll on
+# your turn." Engine collapses to a pre-action hook (decision committed
+# before the first swing — same observable outcome in v1).
+#
+# Deferred:
+#   - Versatile-grip detection: a Longsword used two-handed should
+#     still qualify (currently the eligibility check requires kind=melee
+#     + ability=str, which Greatsword/Greataxe natively satisfy)

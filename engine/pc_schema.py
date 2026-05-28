@@ -319,6 +319,16 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
         # PR #73's Divine Smite reads `levels.paladin`. Same
         # convention everywhere.
         "levels": {_short_class_name(class_id): level},
+        # PR #85: features the PC has at this level — passive +
+        # active feature ids accumulated from class.level_table.features
+        # entries up to and including `level`. Read by runtime gates
+        # like engine.core.reckless_attack.is_eligible that check
+        # whether a marker-style feature is present without firing a
+        # pipeline. Mirrors the same `features_known` set used by
+        # the pc_schema builders above to decide which feature
+        # actions to auto-generate; just exposed onto the template
+        # for runtime consumers.
+        "features_known": sorted(features_known),
         # Per-class spell slot derivation (PR #73). For classes
         # whose level_table declares `spell_slots` in class_resources
         # (Paladin's half-caster progression today; Wizard / Cleric /

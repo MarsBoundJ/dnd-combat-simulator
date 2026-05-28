@@ -137,7 +137,55 @@ def query_attack_modifiers(
             continue
         modifier_type = params.get("modifier", "")
         _apply_attack_modifier(result, modifier_type, params, mod)
+    # PR #85: Reckless Attack — identity-state checks read off the
+    # actor (mirrors the rage STR-saves pattern in query_save_modifiers).
+    # Two arms:
+    #   1. Attacker is reckless + this is a STR-melee swing → advantage
+    #      on the outgoing attack. Reads the in-flight attack params
+    #      from state.current_attack.action.pipeline (set when the
+    #      pipeline executes the action's attack_roll step).
+    #   2. Target's "grants advantage" window is open → advantage on
+    #      every attack rolled against them. No attack-shape filter
+    #      (RAW: "Attack rolls against you have advantage" — period).
+    from engine.core import reckless_attack as _ra
+    if attacker.reckless_active:
+        attack_params = _extract_inflight_attack_params(state)
+        if _ra.applies_self_advantage(attacker, attack_params):
+            result.has_advantage = True
+            result.sources.append({
+                "type": "reckless_attack",
+                "source_creature_id": attacker.id,
+                "arm": "self_advantage",
+            })
+    if _ra.applies_attacker_advantage_against(target):
+        result.has_advantage = True
+        result.sources.append({
+            "type": "reckless_attack",
+            "source_creature_id": target.id,
+            "arm": "grants_advantage_to_attacker",
+        })
     return result
+
+
+def _extract_inflight_attack_params(state: CombatState) -> dict:
+    """Pull the in-flight attack's attack_roll params from
+    `state.current_attack.action.pipeline`. Returns {} if there isn't
+    an action recorded (e.g., direct primitive-test callers).
+
+    Local copy of engine.primitives._extract_attack_params to avoid a
+    circular import (primitives.py imports modifiers.py at module load
+    time). Logic is identical and stays in lockstep with that helper.
+    """
+    if not state.current_attack:
+        return {}
+    explicit = state.current_attack.get("attack_roll_params")
+    if explicit is not None:
+        return dict(explicit)
+    action = state.current_attack.get("action") or {}
+    for step in (action.get("pipeline") or []):
+        if step.get("primitive") == "attack_roll":
+            return dict(step.get("params") or {})
+    return {}
 
 
 def query_save_modifiers(

@@ -207,6 +207,52 @@ class EncounterRunner:
             "cost_eHP": round(cost, 2),
         })
 
+    def _maybe_activate_reckless_attack(self, actor: Actor,
+                                          state: CombatState) -> None:
+        """Decide whether `actor` activates Reckless Attack this turn
+        (PR #85).
+
+        RAW (Barbarian L2, PHB 2024): a free declaration made at the
+        first attack roll. The engine collapses this to a pre-action
+        hook so the AI commits before the first swing — functionally
+        identical for v1 since no engine code path lets the player
+        un-decide mid-roll.
+
+        Eligibility:
+          1. Actor has `f_reckless_attack` in features_known
+          2. Actor has at least one STR-melee weapon_attack action
+          3. At least one enemy is alive
+          4. Not already activated this turn
+
+        Decision: delegates to `reckless_attack.should_activate`
+        which applies archetype overrides (mindless / fanatic always
+        commit; cowardly never) and otherwise compares expected DPR
+        gain to expected incoming-damage cost.
+
+        Side effects when activated:
+          - Sets `actor.reckless_active = True`
+          - Sets `actor.reckless_grants_advantage_until_next_turn = True`
+          - Logs `reckless_attack_activated`
+
+        When skipped, logs `reckless_attack_skipped` with the reason
+        (eligibility / heuristic). Logging-only for non-Barbarians is
+        suppressed (the `no_feature` reason fires every turn for every
+        non-Barbarian and would flood the log).
+        """
+        from engine.core import reckless_attack as _ra
+        activate, reason = _ra.should_activate(actor, state)
+        if activate:
+            _ra.activate(actor, state)
+            return
+        # Only log skips that are decision-meaningful — suppress the
+        # non-Barbarian "no_feature" sentinel that fires every turn.
+        if reason not in ("no_feature", "already_active"):
+            state.event_log.append({
+                "event": "reckless_attack_skipped",
+                "actor": actor.id,
+                "reason": reason,
+            })
+
     def _move_to_engage(self, actor: Actor, state: CombatState) -> None:
         """Move actor toward the dial-preferred enemy up to walk speed.
 
@@ -495,6 +541,16 @@ class EncounterRunner:
         # `action_surge_used_this_turn` flag is set; the post-bonus-slot
         # check below re-runs the main slot once.
         self._maybe_activate_action_surge(actor, state)
+
+        # ---- PR #85: Reckless Attack pre-action activation ----
+        # Barbarian L2 free declaration: "When you make your first
+        # attack roll on your turn, you can decide to attack
+        # recklessly." Engine collapses to a pre-action decision so
+        # advantage applies to the first swing and the AI commits
+        # before seeing any rolls. Cost (advantage to incoming
+        # attackers) opens immediately and lasts until reset_turn at
+        # start of next own turn.
+        self._maybe_activate_reckless_attack(actor, state)
 
         # ---- Main slot ----
         self._run_slot(actor, state, slot="action")
