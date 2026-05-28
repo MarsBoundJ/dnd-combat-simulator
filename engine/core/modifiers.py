@@ -443,9 +443,20 @@ def _apply_attack_modifier(result: AttackModifierResult, modifier_type: str,
 
 
 def _lifetime_matches(lifetime: Any, trigger_events: set[str]) -> bool:
-    """Does this lifetime expire on any of the given trigger events?"""
+    """Does this lifetime expire on any of the given trigger events?
+
+    Supports two shapes:
+      - str: single lifetime kind (canonical case)
+      - list[str]: PR #92 — composite "expire on ANY listed trigger"
+        (used by Help: ["per_owner_attack", "until_source_caster_next_turn"]
+        — the modifier consumes EITHER when the ally swings OR when
+        the helper's next turn starts, whichever comes first)
+    """
     if not lifetime:
         return False
+    # Composite (list): OR semantics — any matching lifetime triggers expiry
+    if isinstance(lifetime, list):
+        return any(_lifetime_matches(lt, trigger_events) for lt in lifetime)
     if isinstance(lifetime, str):
         lookup = {
             "per_single_attack": {"attack_complete"},
@@ -456,6 +467,16 @@ def _lifetime_matches(lifetime: Any, trigger_events: set[str]) -> bool:
             # when the ally next swings.
             "per_owner_attack": {"owner_made_attack"},
             "until_actor_next_turn_start": {"turn_start"},
+            # PR #92: expires when the modifier's SOURCE CASTER (not
+            # the owner) starts their next turn. Used by Help to
+            # enforce RAW timing: "advantage on next attack made
+            # before YOUR next turn". The scrub is driven by
+            # `scrub_source_caster_turn_start_modifiers` at the
+            # caster's turn-start, not by expire_modifiers (which
+            # walks the owner's modifiers only). Listing it here so
+            # `_lifetime_matches` returns True when the caller is the
+            # scrub helper passing {"source_caster_turn_start"}.
+            "until_source_caster_next_turn": {"source_caster_turn_start"},
             "until_short_rest": {"short_rest_end"},
             "until_long_rest": {"long_rest_end"},
             # 'until_condition_ends' / 'until_spell_ends' / 'until_dispelled' —
@@ -463,6 +484,46 @@ def _lifetime_matches(lifetime: Any, trigger_events: set[str]) -> bool:
         }
         return bool(lookup.get(lifetime, set()) & trigger_events)
     return False
+
+
+def scrub_source_caster_turn_start_modifiers(
+        source_caster_id: str, state: CombatState) -> int:
+    """At `source_caster_id`'s turn-start, scan every actor's
+    active_modifiers and remove entries whose:
+      - source.caster_id == source_caster_id, AND
+      - lifetime includes 'until_source_caster_next_turn'
+
+    PR #92: used to enforce RAW Help expiration ("advantage on next
+    attack made before YOUR next turn"). The standard
+    `expire_modifiers` walks the OWNER's modifier list — Help's
+    modifier is owned by the helped ally, so owner-based expiry
+    fires on the ally's turn, which is the wrong window. This
+    scrub fires on the HELPER's turn instead, matching RAW.
+
+    Returns the count of removed modifiers (telemetry / debug).
+    Reusable for any future "expires on source caster's next turn"
+    effects (Inspiring Word's helper-driven re-trigger, etc.).
+    """
+    removed = 0
+    for actor in state.encounter.actors:
+        before = len(actor.active_modifiers)
+        actor.active_modifiers = [
+            m for m in actor.active_modifiers
+            if not _is_source_caster_scrubbable(m, source_caster_id)
+        ]
+        removed += before - len(actor.active_modifiers)
+    return removed
+
+
+def _is_source_caster_scrubbable(mod: dict,
+                                    source_caster_id: str) -> bool:
+    """True iff `mod` should be scrubbed at `source_caster_id`'s
+    turn-start. See scrub_source_caster_turn_start_modifiers."""
+    source = mod.get("source") or {}
+    if source.get("caster_id") != source_caster_id:
+        return False
+    return _lifetime_matches(mod.get("lifetime"),
+                                {"source_caster_turn_start"})
 
 
 def _source_matches(source: dict | None, source_type: str, source_id: str,
