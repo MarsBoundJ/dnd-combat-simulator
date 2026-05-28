@@ -351,6 +351,20 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
     else:
         total = rolled + modifier
 
+    # PR #88: weapon_damage_bonus riders (Divine Favor, future
+    # Hex/Hunter's Mark/Searing Smite). Only applies to weapon attacks
+    # — gated on attack_params.kind being melee or ranged. Adds AFTER
+    # rage bonus but BEFORE resistance, so Divine-Favor-buffed
+    # damage gets halved by BPS resistance the same way the weapon
+    # die does (RAW: the +1d4 radiant is part of the attack's damage).
+    is_weapon_attack = (attack_params or {}).get("kind") in ("melee",
+                                                                "ranged")
+    if is_weapon_attack:
+        weapon_bonus = _modifiers.query_weapon_damage_bonus(
+            actor, attack_params, state)
+        if weapon_bonus:
+            total += weapon_bonus
+
     # PR #72: Sneak Attack rider. Fires on hit/crit only (this
     # branch only runs when the `when: combat.attack_state == hit`
     # filter passes, which is enforced by the pipeline before
@@ -669,6 +683,30 @@ def _crit_modifier(params: dict, state: CombatState, bus: EventBus) -> None:
 def _crit_threshold_modifier(params: dict, state: CombatState, bus: EventBus) -> None:
     owner = _resolve_modifier_owner(params, state)
     entry = _build_modifier_entry("crit_threshold_modifier", params, owner, state)
+    owner.active_modifiers.append(entry)
+
+
+def _weapon_damage_bonus(params: dict, state: CombatState,
+                            bus: EventBus) -> None:
+    """Register a weapon_damage_bonus on the current target/actor
+    (PR #88).
+
+    Used by Divine Favor (+1d4 radiant on weapon hits, modeled as
+    flat +2 average). Future consumers: Hex / Hunter's Mark / Searing
+    Smite / Holy Weapon.
+
+    Params (mirror attack_modifier's modifier-entry shape):
+      - target: 'self' | 'ally' | 'current_target' (default 'self')
+      - value: int — flat damage to add on each qualifying weapon hit
+      - when: optional gate string (melee_attack | ranged_attack |
+        weapon_attack); empty → fires on every weapon attack
+      - lifetime: until_short_rest / until_concentration_ends / etc.
+      - source: caster_id / action_id / named_effect for concentration
+        scrub
+    """
+    owner = _resolve_modifier_owner(params, state)
+    entry = _build_modifier_entry("weapon_damage_bonus", params, owner,
+                                       state)
     owner.active_modifiers.append(entry)
 
 
@@ -1635,6 +1673,7 @@ def _populate_handler_table() -> None:
         "d20_test_modifier": _d20_test_modifier,
         "crit_modifier": _crit_modifier,
         "crit_threshold_modifier": _crit_threshold_modifier,
+        "weapon_damage_bonus": _weapon_damage_bonus,
         "forced_save": _forced_save,
         "recurring_save": _recurring_save,
         "slot_recovery_partial": _slot_recovery_partial,
@@ -1663,6 +1702,11 @@ def _all_primitives() -> list[Primitive]:
         Primitive("d20_test_modifier", _d20_test_modifier, implemented=True),
         Primitive("crit_modifier", _crit_modifier, implemented=True),
         Primitive("crit_threshold_modifier", _crit_threshold_modifier, implemented=True),
+        # PR #88 — Weapon damage rider (Divine Favor; future Hex /
+        # Hunter's Mark / Searing Smite). Registers an active_modifier
+        # entry on the owner; read by _damage via
+        # modifiers.query_weapon_damage_bonus.
+        Primitive("weapon_damage_bonus", _weapon_damage_bonus, implemented=True),
         # v1 — Spell mechanics
         Primitive("forced_save", _forced_save, implemented=True),
         Primitive("recurring_save", _recurring_save, implemented=True),

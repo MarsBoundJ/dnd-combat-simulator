@@ -262,6 +262,16 @@ def _build_actor(actor_spec: dict, registry) -> Actor:
                             else (template.get("racial_traits") or []))
     racial_traits = list(racial_traits_raw)
 
+    # PR #88: creature type. Precedence:
+    #   1. actor_spec.creature_type (fixture override)
+    #   2. template.creature_type (monster SRD; PC via pc_schema from
+    #      race.creature_type)
+    #   3. 'humanoid' (default — covers most PC species + skeleton
+    #      fixtures that don't declare a type)
+    creature_type = (actor_spec.get("creature_type")
+                       or template.get("creature_type")
+                       or "humanoid")
+
     return Actor(
         id=instance_id,
         name=actor_spec.get("name", template.get("name", instance_id)),
@@ -283,6 +293,7 @@ def _build_actor(actor_spec: dict, registry) -> Actor:
         passive_perception=passive_perception,
         weapon_masteries=weapon_masteries,
         size=size,
+        creature_type=creature_type,
         racial_traits=racial_traits,
     )
 

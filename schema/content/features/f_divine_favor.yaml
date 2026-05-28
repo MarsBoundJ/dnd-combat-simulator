@@ -1,0 +1,65 @@
+# f_divine_favor — Divine Favor (1st-level Paladin spell, SRD CC v5.2.1)
+#
+# RAW summary: Your weapon glows with white-hot light. Until the spell
+# ends, your weapon attacks deal an extra 1d4 radiant damage on a hit.
+# Self only. Bonus Action cast. Concentration, up to 1 minute.
+# At Higher Levels: no scaling.
+#
+# Engine modeling (PR #88):
+#   - type: defensive_buff (self-targeted; the actor buffs themselves)
+#   - 1 Bonus Action cast time (RAW 2024)
+#   - +1d4 radiant on weapon hits → modeled as flat +2 (avg of 1d4 =
+#     2.5, floored to integer +2 for damage steps). Per-roll d4 via
+#     a dice-rider primitive is deferred (tracked as PR #77 residue
+#     alongside Bless's per-roll d4).
+#   - named_effect: "divine_favor" → cross-caster dedup (PR #36)
+#     prevents stacking with itself or being re-cast by an ally
+#     for double bonus.
+#   - Concentration spell — competes with Bless / Shield of Faith /
+#     Searing Smite for the Paladin's single concentration slot.
+#     AI picks the highest-value option per buff scoring.
+#
+# Deferred RAW bits:
+#   - Per-roll 1d4 die (v1 uses flat +2)
+#   - Radiant damage type modeling — currently the +2 lands as
+#     untyped damage on the weapon's damage step, not as a separate
+#     radiant component. Means it bypasses radiant resistance/vuln
+#     but also doesn't trigger radiant-vulnerable enemy weakness.
+#     Acceptable v1 since damage_type-discriminated damage riders
+#     need additional plumbing (see PR #77 upcast_scaling pattern
+#     for the same gap on damage-type-aware extra dice).
+
+id: f_divine_favor
+name: Divine Favor
+source: srd_5.2.1
+granted_by:
+  class: c_paladin
+  level: 2                   # Paladins gain 1st-level slots at L2
+type: active
+spell:
+  class: c_paladin
+  level: 1
+
+description: |
+  Self-buff. Your weapon attacks deal an extra 1d4 (v1: flat +2)
+  radiant damage on hit. Concentration, 1 minute. Bonus Action cast.
+
+action_template:
+  id: a_divine_favor
+  name: Divine Favor
+  type: defensive_buff
+  spell_slot_level: 1
+  slot: bonus_action
+  concentration: true
+  named_effect: divine_favor
+  range_ft: 0                # self-only
+  pipeline:
+    # +2 damage on every weapon attack until concentration ends. Gated
+    # on `when: weapon_attack` so non-weapon damage (spells / class
+    # features dealing typed damage) doesn't pick up the rider.
+    - primitive: weapon_damage_bonus
+      params:
+        target: self
+        value: 2
+        when: weapon_attack
+        lifetime: until_short_rest

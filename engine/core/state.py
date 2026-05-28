@@ -184,6 +184,19 @@ class Actor:
     # KNOWN_SIZES ordering and PUSH_SIZES filter.
     size: str = "medium"
 
+    # Creature type (PR #88). One of the RAW 14 types: aberration /
+    # beast / celestial / construct / dragon / elemental / fey /
+    # fiend / giant / humanoid / monstrosity / ooze / plant /
+    # undead. Default "humanoid" — covers most PCs. Loaded from
+    # monster template's `creature_type` (already declared on SRD
+    # monsters) or from the PC race's creature_type (set by
+    # pc_schema). Read by Protection from Evil and Good's
+    # `attacker_creature_type_in` when-clause to gate disadvantage
+    # on incoming attacks from aberration/celestial/elemental/fey/
+    # fiend/undead. Future: Hunter's Mark favored-enemy filtering,
+    # Holy Weapon damage type gating, type-based spell immunities.
+    creature_type: str = "humanoid"
+
     # Racial trait ids (PR #75). Loaded from PC race spec via
     # pc_schema → cli — e.g. `["t_lucky", "t_brave"]` for a Halfling.
     # Read at runtime by query_save_modifiers (Brave / Fey Ancestry /

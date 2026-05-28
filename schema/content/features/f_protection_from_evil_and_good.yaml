@@ -1,0 +1,75 @@
+# f_protection_from_evil_and_good — Protection from Evil and Good
+# (1st-level Cleric/Paladin/Warlock/Wizard spell, SRD CC v5.2.1)
+#
+# RAW summary: One willing creature you touch is protected against
+# aberrations, celestials, elementals, fey, fiends, and undead.
+# Action cast time. Concentration, up to 10 minutes.
+# Effects against creatures of those types:
+#   - Has disadvantage on attack rolls against the target
+#   - The target can't be charmed, frightened, or possessed by them
+#     (deferred — needs condition-immunity-by-source plumbing)
+#   - Can't willingly come within 5 ft of the target (deferred —
+#     needs movement-gate-by-attacker-creature-type)
+# At Higher Levels: no scaling.
+#
+# Engine modeling (PR #88):
+#   - type: defensive_buff (single-ally target)
+#   - 1 Action cast time (RAW; Paladins can use bonus action via
+#     Bonus Action spell selection but RAW base is Action)
+#   - Disadvantage on attack rolls against target, gated on attacker's
+#     creature_type matching one of the 6 protected-against types.
+#     Uses the `attacker_creature_type_in(...)` when-clause atom
+#     added in PR #88 to _eval_when.
+#   - named_effect: "protection_from_evil_and_good" → cross-caster
+#     dedup
+#
+# Deferred RAW bits:
+#   - Charm/Frighten/Possession immunity against the 6 types (needs
+#     condition-source-aware immunity check; not in v1 condition
+#     application path)
+#   - Movement gate (the 5-ft "can't willingly approach" rule needs
+#     a per-(mover, target) movement filter)
+#   - Touch range (currently emitted at range_ft=60 like Shield of
+#     Faith; touch-range gating is a small follow-up — most current
+#     fixtures have allies adjacent at cast time anyway)
+
+id: f_protection_from_evil_and_good
+name: Protection from Evil and Good
+source: srd_5.2.1
+granted_by:
+  class: c_paladin
+  level: 2                   # Paladins gain 1st-level slots at L2
+type: active
+spell:
+  class: c_paladin
+  level: 1
+
+description: |
+  Defensive buff on one ally. Attackers of these types — aberration,
+  celestial, elemental, fey, fiend, undead — have disadvantage on
+  attack rolls against the warded ally. Concentration, 10 minutes.
+
+action_template:
+  id: a_protection_from_evil_and_good
+  name: Protection from Evil and Good
+  type: defensive_buff
+  spell_slot_level: 1
+  slot: action
+  concentration: true
+  named_effect: protection_from_evil_and_good
+  range_ft: 60               # touch in RAW; widened for v1 candidate
+                              # emission so the AI can pick reasonable
+                              # ally targets without forced repositioning
+  pipeline:
+    # Attackers of the 6 protected-against types roll attacks at
+    # disadvantage. `disadvantage_for_attacker` is the canonical
+    # "attacker's roll has disadvantage" modifier (see Blinded /
+    # Restrained / Dodge). The when-clause gates on the attacker's
+    # creature_type — fired by query_attack_modifiers via _eval_when's
+    # attacker_creature_type_in(...) atom (PR #88).
+    - primitive: attack_modifier
+      params:
+        target: ally
+        modifier: disadvantage_for_attacker
+        when: "attacker_creature_type_in(aberration, celestial, elemental, fey, fiend, undead)"
+        lifetime: until_short_rest
