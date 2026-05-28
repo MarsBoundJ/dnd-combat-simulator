@@ -5,6 +5,355 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-28 — 8-PR engine push (PRs #85–#92)
+
+**Participants:** Phil, Claude (Sonnet)
+
+**Test count: ~1453 → 1544 passed + 1 skipped. Zero regressions across
+the entire session.** Eight PRs landed sequentially, each merged after
+explicit confirm. Two long arcs progressed in parallel — **party
+coordination** (Reckless self-debuff → Ready Action → Help timing) and
+**Paladin spell suite expansion** (Divine Favor / Prot from E&G →
+Searing Smite → Hex → Hunter's Mark) — and a third smaller
+**Rogue tactical polish** sub-arc shipped between them.
+
+### Overview — patterns + infra that fell out
+
+The session's real value isn't the spell list — it's the reusable
+infrastructure that compounds. Future spells will land in much smaller
+PRs because of what shipped here:
+
+| Infra | Future consumers |
+|---|---|
+| `weapon_damage_bonus` primitive + query (PR #88) | Divine Favor, Hex, Hunter's Mark all used it |
+| `target_is(<id>)` when-clause atom (PR #90) | Hex, Hunter's Mark, future target-specific riders |
+| `recurring_damage` primitive + state list + runner hook (PR #89) | Heat Metal, Wall of Fire, ongoing poison |
+| `attacker_creature_type_in(...)` atom (PR #88) | Prot from E&G, favored-enemy patterns |
+| `Actor.creature_type` field (PR #88) | Same |
+| `Actor.features_known` template stamp (PR #85) | Any future marker-feature gate |
+| Pre-action runner hook pattern (PR #85, mirrors AS) | Any future free declaration |
+| Composite lifetime (list-OR semantics) (PR #92) | First non-string lifetime; any future "expires on EITHER X OR Y" effect |
+| `until_source_caster_next_turn` lifetime (PR #92) | Bardic Inspiration, Inspiring Word, future source-driven expirations |
+| `scrub_source_caster_turn_start_modifiers` helper (PR #92) | Same |
+| SA-aware Steady Aim scorer pattern (PR #87) | Template for "feature-interaction-aware" scoring uplifts |
+| Searing Smite armed-marker pattern (PR #89) | Pattern for other "next-hit-only" spell riders |
+| Ready Action machinery (PR #86) | Foundation for hold-initiative / ally_takes_damage / Ready-a-spell follow-ons |
+
+---
+
+### PR #85 — Barbarian Reckless Attack
+
+**Work done:**
+- L2 Barbarian free declaration. Pre-action runner hook
+  `_maybe_activate_reckless_attack` fires before main slot, mirroring
+  Action Surge's pre-action timing.
+- Two boolean Actor flags (`reckless_active`,
+  `reckless_grants_advantage_until_next_turn`) read directly by
+  `query_attack_modifiers` — same identity-state pattern as Rage.
+- AI scoring: archetype overrides (mindless_aggressor +
+  berserker_fanatic always; cowardly_skirmisher never), else
+  cost-benefit (expected DPR uplift vs incoming damage uplift at
+  `RECKLESS_HIT_UPLIFT = 0.25`).
+- Side benefit: `template.features_known` now stamped by `pc_schema` —
+  opens the door for marker-style features without re-scanning class
+  tables. Used by Reckless's eligibility check.
+- 32 new tests. Suite: 1453 passed.
+
+**Scope decisions:**
+- No new active_modifiers entry (rejected for the Rage-style direct
+  flag pattern). Cleaner for two-flag-with-coordinated-reset semantics.
+- Pre-action hook vs slot-cost: Reckless is a free decision, not a BA.
+  Pre-action hook matches RAW timing without consuming any slot.
+
+**Open items:**
+- Versatile-grip detection (Longsword two-handed should qualify)
+- Per-enemy threat weighting in cost calc (v1 averages)
+
+---
+
+### PR #86 — Ready Action (party-coordination arc, first PR)
+
+**Work done:**
+- First piece of the party-coordination arc Phil flagged after PR #81
+  Trip-formula correction. Two RAW triggers shipped:
+  `enemy_enters_reach` (Ready a swing) + `enemy_casts_spell` (Ready
+  an interrupt).
+- `Actor.readied_action: dict | None` — single-slot, overwrites on
+  re-ready (RAW: one Ready per turn).
+- `engine/core/ready_action.py` — KNOWN_TRIGGERS / register /
+  discard / try_fire + `on_movement_completed` +
+  `on_spell_cast_initiated` event handlers.
+- New `_ready_action` primitive flips the flag.
+- Runner hooks: `_move_to_engage` fires enters_reach AFTER OAs;
+  `pipeline.execute` fires casts_spell AFTER counterspell resolution
+  + only if cast wasn't cancelled.
+- Reaction slot consumed only when readied action fires (not at
+  Ready time — RAW lets you ignore the trigger).
+- AI: `_emit_ready_candidates` in pipeline gates emission to
+  outranged actors only (can't close-and-attack this turn).
+  `offensive_ehp_ready` scorer: expected damage ×
+  `READY_TRIGGER_FIRES_PROBABILITY` (0.6 baseline).
+- 20 new tests. Suite: 1473.
+
+**Scope decisions:**
+- Two triggers (vs single or full 3+spell). Phil's explicit pick via
+  AskUserQuestion.
+- AI emission gate caught a regression in OA tests during dev where
+  overly-aggressive Ready emission diverted goblins from movement.
+  Fix: emit only when actor can't close-and-attack (\walk + reach < distance).
+
+**Open items:**
+- `ally_takes_damage` trigger (Ready Cure Wounds on damaged ally)
+- Ready-a-spell with concentration plumbing
+- Hold-initiative / delay-turn mechanic
+- Buff-before-burst sequencing
+- Per-trigger probability calibration via session sims
+
+---
+
+### PR #87 — SA-aware Steady Aim scoring uplift
+
+**Work done:**
+- Closed PR #80 residue. Old Steady Aim scorer treated the BA as a
+  generic advantage buff, missing the dominant value path: Steady
+  Aim's advantage SATISFIES the Sneak Attack trigger, unlocking SA
+  dice that wouldn't otherwise fire when no ally is adjacent.
+- New two-component formula:
+  - Base: `per_attack × DELTA_HIT_FROM_ADVANTAGE` (unchanged)
+  - SA-unlock (Rogues only):
+    - No adjacent ally → `expected_sa_damage × 0.7` (Steady Aim
+      unlocks SA dice — pure uplift)
+    - Adjacent ally present → `expected_sa_damage × 0.225` (SA
+      would fire anyway; only hit-chance uplift on the dice)
+- Suppressed when SA already fired this turn (RAW once-per-turn cap).
+- L3 Rogue solo: ~0.34 → ~5.2 eHP (comfortably beats Cunning Action
+  0.5-5 range). L11 Rogue solo: ~21 eHP. AI now commits to Steady
+  Aim in the right tactical situations.
+- 5 new tests on top of 14 existing. Suite: 1478.
+
+**Scope decisions:**
+- `STEADY_AIM_SA_UNLOCK_HIT_PROXY = 0.7` (conservative — typical
+  Rogue +7 vs AC 15 with advantage is ~0.875; rounded down).
+- Cunning Strike interaction not separately modeled — CS trades SA
+  dice for effects at execution time, but the advantage delta
+  applies regardless of how the dice are spent.
+
+**Open items:** None — closes PR #80 residue cleanly.
+
+---
+
+### PR #88 — Divine Favor + Protection from Evil and Good
+
+**Work done:**
+- Two new 1st-level Paladin concentration spells, taking the
+  Paladin's concentration menu from 2 (Bless / Shield of Faith) to
+  4 viable options.
+- **Divine Favor:** self-buff, BA cast, +1d4 radiant on weapon
+  hits (flat +2 average per Bless pattern).
+- **Protection from Evil and Good:** ally-targeted defensive buff,
+  Action cast, disadvantage on incoming attacks from aberration /
+  celestial / elemental / fey / fiend / undead.
+- **New `weapon_damage_bonus` primitive** + `query_weapon_damage_bonus`
+  helper. Integrated into `_damage` on weapon attacks only (skips
+  spell damage). Reusable for future Hex / Hunter's Mark / Searing
+  Smite damage riders — and was, in PRs #89-91 below.
+- **New `Actor.creature_type` field** + cli loading from monster
+  template or PC race.
+- **New `attacker_creature_type_in(...)` when-clause atom** in
+  `_eval_when` for runtime gating.
+- 12 new tests. Suite: 1490.
+
+**Scope decisions:**
+- Built the weapon_damage_bonus infra here knowing it would carry
+  Hex / Hunter's Mark / Searing Smite later.
+- Prot from E&G's charm/frighten/possession immunity + movement
+  gate explicitly deferred (each needs additional plumbing).
+
+**Open items:**
+- Per-roll d4 die (v1 flat +2, same as Bless)
+- Charm/frighten/possession immunity by creature type
+- Movement gate (the 5-ft "can't willingly approach" rule)
+
+---
+
+### PR #89 — Searing Smite + recurring damage infrastructure
+
+**Work done:**
+- Paladin smite-spell counterpart to Divine Smite (passive on-hit
+  rider). BA cast, concentration, one-shot rider that empowers next
+  melee hit + applies Ignited burning condition.
+- **Major new infrastructure (all reusable):**
+  - `state.recurring_damage` list — per-turn damage tick entries
+  - `recurring_damage` primitive — registers entries
+  - `runner._resolve_recurring_damage` — fires at affected creature's
+    turn-start, invokes `_damage` with synthetic context
+  - `_apply_condition` extension — when condition effect's primitive
+    is `recurring_damage`, invoke directly instead of stashing on
+    active_modifiers (not a modifier shape)
+  - `end_concentration` extension — scrubs recurring_damage entries
+    tied to dropped spell
+- **`co_ignited` condition** — recurring_damage effect (1d6 fire,
+  target_turn_start).
+- **`engine/core/searing_smite.py`** — `register_armed` /
+  `find_armed_entry` / `clear_armed` transitions +
+  `try_apply_searing_smite_followup` fires from `_damage` on next
+  melee weapon hit. Adds 1d6 fire (+1d6 per upcast level, doubled
+  on crit) + CON forced_save + apply co_ignited on fail.
+- 15 new tests (all passed first try). Suite: 1505.
+
+**Scope decisions:**
+- New `state.recurring_damage` list (vs piggybacking on
+  recurring_save). recurring_save asks for saves; recurring_damage
+  just deals damage — distinct semantics.
+- Armed-marker pattern: one-shot modifier with `searing_smite_armed`
+  primitive, cleared on first qualifying hit. Concentration
+  continues for the burn after marker clears.
+
+**Open items:**
+- Target's action-to-save-to-end (RAW Ignited save break — currently
+  only caster concentration drop ends it)
+- Per-turn-burn upcast scaling (RAW: only empowering attack scales)
+
+---
+
+### PR #90 — Hex (target-specific damage rider)
+
+**Work done:**
+- Warlock signature 1st-level concentration spell. First spell to
+  use the target-specific weapon damage rider pattern that PR #88's
+  `weapon_damage_bonus` infra was built for.
+- BA cast, 90 ft, +1d6 (flat +3) necrotic on hits against the
+  cursed creature only.
+- **`_eval_weapon_damage_when` extended with `target_is(<actor_id>)`
+  atom.** Reads `state.current_attack.target.id` at attack-time and
+  compares against id substituted into when-clause at cast time.
+- `_hex_curse` primitive reads in-flight target's id, substitutes
+  into when-clause, registers modifier on caster.
+- Zero new state fields — pure consolidation of PR #88's
+  `weapon_damage_bonus` + PR #43's concentration scrub + PR #36's
+  `named_effect` dedup.
+- **Class wiring note:** ships forward-compat with `granted_by:
+  c_warlock` even though c_warlock doesn't exist yet. Schema accepts
+  unknown class refs.
+- 10 new tests (all passed first try). Suite: 1515.
+
+**Scope decisions:**
+- Target gate via new when-atom (vs a dedicated `hex_curse`
+  modifier primitive). Cleaner; reusable for Hunter's Mark.
+- Ability check disadvantage + rebind on death explicitly deferred.
+
+**Open items:**
+- Ability check disadvantage on chosen ability (needs target-
+  specific d20_test_modifier with when-clause support)
+- Rebind on target death (BA on subsequent turn)
+- c_warlock class implementation
+
+---
+
+### PR #91 — Hunter's Mark (consolidation)
+
+**Work done:**
+- Ranger 1st-level concentration spell. Mechanically parallel to
+  Hex — both ride PR #88's `weapon_damage_bonus` + PR #90's
+  `target_is(<id>)` atom.
+- New `_hunters_mark_mark` primitive (distinct from `_hex_curse`
+  for named_effect tagging + event log clarity + future divergence
+  like favored-target Perception tracking).
+- **Notable test:** Hex + Hunter's Mark stack on same target —
+  validates that cross-caster dedup uses `named_effect` as
+  discriminator (not just "weapon damage bonus exists").
+- Class wiring note like Hex — ships forward-compat under c_ranger
+  L2 since Ranger spellcasting isn't wired yet.
+- 8 new tests (all passed first try). Suite: 1523.
+
+**Scope decisions:**
+- Distinct primitive vs aliasing `_hex_curse`. Code clarity over
+  DRY here — each spell's primitive is clearly attributable and
+  can diverge later. ~25 lines duplication accepted.
+
+**Open items:**
+- WIS (Perception/Survival) advantage on the marked creature
+  (shared deferral with Hex's ability check disadvantage)
+- Rebind on target death
+- Favored Enemy free-cast pool (Ranger-specific PHB 2024)
+
+---
+
+### PR #92 — Help-action timing (party-coordination arc, second PR)
+
+**Work done:**
+- Second PR in the party-coordination arc. Closes three gaps in
+  the existing Help built-in:
+  1. **RAW lifetime fix.** Help's RAW lifetime is "until the start
+     of your next turn." The previous per_owner_attack-only lifetime
+     let the buff persist across multiple helper turns if the ally
+     never swung. **Composite lifetime** now expires on EITHER
+     ally-swing OR helper's-next-turn-start.
+  2. **Initiative-aware scoring.** Help wasted if ally won't act
+     before helper's next turn. Scorer walks `state.turn_order`
+     forward, returns 0 if ally doesn't appear before wrapping back.
+  3. **Wasted-advantage detection.** Help dominated when ally
+     already swings with advantage (Reckless, prior Help, Steady
+     Aim, Vex proc). Returns 0.
+- **New reusable infrastructure:**
+  - Composite lifetime (list of lifetime kinds, OR semantics) —
+    first non-string lifetime in the engine
+  - `until_source_caster_next_turn` lifetime kind mapped to new
+    `source_caster_turn_start` event
+  - `scrub_source_caster_turn_start_modifiers` helper scans all
+    actors and removes matching entries — reusable for future
+    Bardic Inspiration / Inspiring Word-shape effects
+  - Runner integration at `tick()` turn-start
+- BUILT_IN_HELP updates: added `named_effect: "help"` + composite
+  lifetime.
+- 21 new tests. Suite: 1544.
+
+**Scope decisions:**
+- Composite lifetime as list (vs adding a new "OR" lifetime kind).
+  More general; future "expires on N triggers" effects just list
+  them.
+- Source-caster scrub via separate helper (vs extending
+  `expire_modifiers` to take owner-walk vs all-walk modes). Single-
+  purpose helper has clearer call site.
+
+**Open items:**
+- Hold-initiative / delay-turn mechanic (next in party-coord arc)
+- Buff-before-burst sequencing
+- Same scrub for future source-caster-driven effects
+
+---
+
+### Session-level open items
+
+**Party coordination arc (Ready was the foundation):**
+- Hold-initiative / delay-turn mechanic
+- Buff-before-burst sequencing
+- `ally_takes_damage` Ready trigger
+- Ready-a-spell with concentration plumbing
+
+**Paladin polish (smaller now):**
+- Compelled Duel (hard control via WIS save)
+- Lay on Hands "cure Poisoned" branch
+- Defensive-buff cross-caster dedup
+
+**Race polish:**
+- More racial traits (Elf Keen Senses, Dwarf Stonecunning, Halfling Nimbleness)
+- Lucky on remaining d20 sites (Hide / Search / Counterspell / initiative / concentration)
+
+**Spell additions:**
+- Heroism (temp-HP-per-turn — would test the recurring-grant pattern at the temp-HP end of the spectrum, mirroring recurring_damage)
+- Multi-target Bless (candidate-grouping extension)
+- AI active-upcast preference
+- Non-damage upcast (Magic Missile darts, Hold Person targets)
+- AI scoring uplift for Silence
+- Per-spell V-component declaration
+
+**Other:**
+- Strict JSON Schema validation with cross-file $refs
+- Actual feat / equipment / background content YAMLs (empty folders)
+
+---
+
 ## Session: 2026-05-27 — Paladin Lay on Hands (PR #83)
 
 **Participants:** Phil, Claude

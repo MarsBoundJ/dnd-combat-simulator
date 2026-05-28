@@ -1,7 +1,7 @@
 # CONTEXT.md — D&D Combat Simulator
 
 **Paste this file at the start of every AI session on this project.**  
-Last updated: 2026-05-26
+Last updated: 2026-05-28
 
 ---
 
