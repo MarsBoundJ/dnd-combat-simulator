@@ -97,6 +97,19 @@ class EncounterRunner:
         actor.reset_turn()
         modifiers.expire_modifiers(actor, {"turn_start"})
 
+        # PR #92: source-caster-driven expiration. Modifiers tagged
+        # with lifetime `until_source_caster_next_turn` (Help, future
+        # Bardic Inspiration-shape buffs) expire at the SOURCE
+        # CASTER's turn-start, not the owner's. The standard
+        # expire_modifiers above only scans `actor`'s own modifiers;
+        # this scrub walks every actor's modifiers and removes those
+        # whose source.caster_id matches the current actor (i.e.,
+        # "Help I cast on the Fighter expires now that MY turn has
+        # come back around"). See engine.core.modifiers.scrub_source_
+        # caster_turn_start_modifiers for the helper.
+        modifiers.scrub_source_caster_turn_start_modifiers(
+            actor.id, state)
+
         # PR #86: forward the readied-action discard event from
         # reset_turn. Actor.reset_turn clears `readied_action` but
         # stashes the discarded entry on a sentinel attr; we log it

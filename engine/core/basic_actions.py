@@ -104,6 +104,11 @@ BUILT_IN_HELP = {
     "id": "_builtin_help",
     "name": "Help (built-in)",
     "type": "help",
+    # PR #92: named_effect stamp lets cross-caster dedup detect a
+    # prior Help on the ally + lets the source-caster-turn-start
+    # scrub identify Help modifiers when the helper's turn comes
+    # back around.
+    "named_effect": "help",
     "pipeline": [
         # `advantage_for_self` = the owner of this modifier has advantage
         # on their OWN attack rolls. The target=ally resolution attaches
@@ -116,11 +121,18 @@ BUILT_IN_HELP = {
         # the Invisible condition in co_invisible.yaml). Plain
         # `advantage` is not recognized for attack rolls; use the
         # _for_self / _for_attacker pair.
+        # PR #92: composite lifetime — expires EITHER when the ally
+        # swings (per_owner_attack, consumed-on-use) OR when the
+        # helper's next turn starts (until_source_caster_next_turn,
+        # RAW timing window). Closes the gap where the previous
+        # per_owner_attack-only lifetime let Help advantage persist
+        # across multiple helper turns if the ally never swung.
         {"primitive": "attack_modifier",
           "params": {"target": "ally",
                       "when": "attacker_is_self",
                       "modifier": "advantage_for_self",
-                      "lifetime": "per_owner_attack"}},
+                      "lifetime": ["per_owner_attack",
+                                    "until_source_caster_next_turn"]}},
     ],
 }
 

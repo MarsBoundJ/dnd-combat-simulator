@@ -377,9 +377,9 @@ def offensive_ehp_help(actor: Actor, target_ally: Actor, action: dict,
 
     Notes:
       - No EXPECTED_BUFF_ROUNDS multiplier here. Help's lifetime is
-        explicitly per_single_attack — it buys one attack's worth of
-        advantage, period. Bless gets ×2.5 because it's concentration
-        over multiple rounds and many attacks; Help does not.
+        explicitly per_owner_attack OR until_source_caster_next_turn
+        (PR #92) — it buys one attack's worth of advantage and the
+        window closes at the helper's next turn either way.
       - Per RAW the helped ally's attack must target a creature within
         5 ft of the helper. v1 doesn't filter the ally's eventual
         target by that constraint (we'd need a "who will the ally
@@ -389,8 +389,12 @@ def offensive_ehp_help(actor: Actor, target_ally: Actor, action: dict,
     Returns 0.0 if:
       - target is not an ally / is dead / is self
       - ally has no weapon-attack actions to score against
-      - Help is already active on the ally from this caster (don't
-        stack)
+      - Help is already active on the ally from this caster
+      - **PR #92 timing gate**: ally won't act before helper's next
+        turn (advantage would expire unused at helper's turn-start)
+      - **PR #92 wasted-advantage gate**: ally would already have
+        advantage on their next attack from another source (Reckless,
+        a prior Help, Steady Aim, etc.). Help would buy nothing.
     """
     if target_ally is None or not target_ally.is_alive():
         return 0.0
@@ -406,11 +410,90 @@ def offensive_ehp_help(actor: Actor, target_ally: Actor, action: dict,
     if buff_already_active(target_ally, action, actor):
         return 0.0
 
+    # PR #92 timing gate: Help's advantage expires at the helper's
+    # next turn-start (RAW). If the ally won't have a turn between
+    # NOW and the helper's next turn, Help is wasted — score 0.
+    if not _ally_acts_before_caster_next_turn(actor, target_ally, state):
+        return 0.0
+
+    # PR #92 wasted-advantage gate: if the ally would already swing
+    # with advantage on their next attack from another source, Help
+    # adds nothing. Detected sources:
+    #   - Reckless Attack active (Barbarian L2+)
+    #   - An existing advantage-granting attack_modifier on the ally
+    #     (prior Help, Steady Aim, Vex mastery proc, etc.)
+    if _ally_has_pending_advantage_source(target_ally):
+        return 0.0
+
     from engine.ai.defensive_ehp import estimate_per_attack_damage
     per_attack = estimate_per_attack_damage(target_ally)
     if per_attack <= 0:
         return 0.0
     return per_attack * DELTA_HIT_FROM_ADVANTAGE
+
+
+def _ally_acts_before_caster_next_turn(caster: Actor, ally: Actor,
+                                          state: CombatState) -> bool:
+    """True iff `ally` has a turn in initiative order between NOW
+    (just after `caster`'s current turn) and `caster`'s NEXT turn.
+
+    Walks state.turn_order starting one step past caster's current
+    index, stopping when we wrap back to caster. If we encounter
+    ally.id before wrapping back, ally acts in the Help window.
+
+    Defensive defaults:
+      - Empty turn_order or caster not in it: return True (don't
+        over-prune Help — this is the conservative fallback for
+        legacy fixtures that bypass roll_initiative)
+      - ally not in turn_order: return False (can't act)
+    """
+    order = state.turn_order or []
+    if not order or caster.id not in order:
+        return True
+    if ally.id not in order:
+        return False
+    caster_idx = order.index(caster.id)
+    # Walk forward from one past caster, wrapping; if we see ally
+    # before we cycle back to caster, ally acts in the window.
+    n = len(order)
+    for i in range(1, n + 1):
+        pos = (caster_idx + i) % n
+        if order[pos] == caster.id:
+            return False
+        if order[pos] == ally.id:
+            return True
+    return False
+
+
+def _ally_has_pending_advantage_source(ally: Actor) -> bool:
+    """True iff `ally` would attack with advantage on their next
+    attack from a source other than the Help being scored. Detects:
+
+      - Reckless Attack active (Barbarian)
+      - Active attack_modifier on the ally granting advantage_for_self
+        (prior Help, Steady Aim, Vex mastery proc, Faerie Fire on
+        target — anything that sets up advantage for the ally's
+        next swing)
+
+    Used by the wasted-advantage gate in offensive_ehp_help — Help
+    is dominated when the ally already has advantage queued.
+    """
+    if getattr(ally, "reckless_active", False):
+        return True
+    for mod in ally.active_modifiers:
+        if mod.get("primitive") != "attack_modifier":
+            continue
+        params = mod.get("params") or {}
+        modifier_type = params.get("modifier", "")
+        # advantage_for_self = the owner has advantage on their own
+        # attacks (Help-shape buff). Catches the existing-Help and
+        # Steady-Aim cases without needing to enumerate sources.
+        if modifier_type == "advantage_for_self":
+            return True
+        # advantage_for_attacker on the ally = whoever attacks the
+        # ally gets advantage — NOT relevant for the ally's
+        # outgoing attacks; skip.
+    return False
 
 
 # ============================================================================
