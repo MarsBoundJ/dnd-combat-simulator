@@ -131,6 +131,13 @@ def apply_long_rest(actor: Actor, state: CombatState) -> dict:
     if actor.hp_current > hp_before:
         summary["hp_restored"] = actor.hp_current - hp_before
 
+    # ---- Universal: temp HP cleared (PR #94) ----
+    # RAW PHB 2024 p.244: "Any temporary Hit Points you have are
+    # also lost when you take a Long Rest."
+    if actor.temp_hp > 0:
+        summary["temp_hp_cleared"] = actor.temp_hp
+        actor.temp_hp = 0
+
     # ---- Universal: spell slots restore ----
     slots_restored: dict = {}
     for lvl, max_at in actor.spell_slots_max.items():

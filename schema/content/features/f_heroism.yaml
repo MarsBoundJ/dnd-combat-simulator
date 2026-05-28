@@ -1,0 +1,84 @@
+# f_heroism — Heroism (1st-level Bard/Paladin spell, SRD CC v5.2.1)
+#
+# RAW summary: BA cast, touch range, single willing creature target.
+# Concentration up to 1 minute. Target is Immune to the Frightened
+# condition AND gains temp HP equal to your spellcasting ability
+# modifier at the start of each of its turns.
+# At Higher Levels: target one additional creature per slot level
+# above 1st (multi-target deferred — same family as Bless's
+# multi-target deferral).
+#
+# Engine modeling (PR #94):
+#   - type: defensive_buff (single-ally target)
+#   - 1 Bonus Action cast time (RAW 2024)
+#   - Concentration spell — competes with Bless / Shield of Faith /
+#     Divine Favor / Prot from E&G / Searing Smite for the Paladin's
+#     single concentration slot. (Paladin now has 6 viable 1st-level
+#     concentration options at L2 with Heroism added.)
+#   - Pipeline:
+#       1. temp_hp_grant immediate (covers the "current turn" RAW
+#          clause + standard player expectation that the spell does
+#          something visible at cast time)
+#       2. recurring_temp_hp registers per-turn future grants
+#   - named_effect: "heroism" → cross-caster dedup (PR #36)
+#
+# Deferred RAW bits:
+#   - Frightened immunity (RAW: "the creature is Immune to the
+#     Frightened condition"). Currently the engine doesn't have a
+#     condition-immunity-by-source query path; deferred until the
+#     same infra lands for Prot from E&G's charm immunity gap.
+#     Not relevant for the v1 encounter mix (few Frightened sources).
+#   - Multi-target upcast (1 + slot_level - 1 creatures, RAW). Same
+#     family as Bless multi-target deferral — needs candidate-grouping
+#     extension.
+
+id: f_heroism
+name: Heroism
+source: srd_5.2.1
+granted_by:
+  class: c_paladin
+  level: 2                   # Paladins gain 1st-level slots at L2
+type: active
+spell:
+  class: c_paladin
+  level: 1
+
+description: |
+  Defensive buff on one ally. Target gains temp HP equal to caster's
+  spellcasting modifier at the start of each of its turns; also
+  Frightened-immune (deferred). Concentration, 1 minute. BA cast.
+
+action_template:
+  id: a_heroism
+  name: Heroism
+  type: defensive_buff
+  spell_slot_level: 1
+  slot: bonus_action
+  concentration: true
+  named_effect: heroism
+  range_ft: 30              # touch in RAW; widened to 30 ft for v1
+                              # candidate emission so the AI can pick
+                              # reasonable ally targets without forced
+                              # repositioning (same simplification as
+                              # Prot from E&G PR #88)
+  pipeline:
+    # Immediate temp HP grant at cast time. Per RAW: "including the
+    # current turn if any" — if the cast happens during the target's
+    # own turn, the temp HP applies right away. Granting immediately
+    # at cast covers this case AND matches player expectation that
+    # the spell does something visible on the cast.
+    - primitive: temp_hp_grant
+      params:
+        target: ally
+        amount_source: caster_spellcasting_modifier
+    # Schedule per-turn future grants. The recurring entry stays
+    # registered until concentration ends (scrubbed by
+    # end_concentration via source-matching). Max-semantics on
+    # Actor.temp_hp means re-grants don't accumulate — the temp HP
+    # stays at the caster's mod value, refilling each turn as
+    # damage burns it off.
+    - primitive: recurring_temp_hp
+      params:
+        target: ally
+        amount_source: caster_spellcasting_modifier
+        trigger_event: target_turn_start

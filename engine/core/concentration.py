@@ -139,6 +139,19 @@ def end_concentration(caster: Actor, state: CombatState,
     ]
     removed += before_ticks - len(state.recurring_damage)
 
+    # PR #94: scrub recurring temp HP grants owned by this concentration
+    # (Heroism's per-turn temp HP ends when the caster drops
+    # concentration). The dual of recurring_damage cleanup. Note: the
+    # target's CURRENT temp_hp is NOT scrubbed — RAW: existing temp
+    # HP persists until depleted by damage or until long rest.
+    before_grants = len(state.recurring_temp_hp)
+    state.recurring_temp_hp = [
+        t for t in state.recurring_temp_hp
+        if not (t.get("source_id") == caster_id
+                and t.get("source_action_id") == action_id)
+    ]
+    removed += before_grants - len(state.recurring_temp_hp)
+
     # PR #60 + PR #68: scrub spell-created environment zones whose
     # caster_id + action_id match the dropped aura. Iterates all
     # zone-type lists (magical_dark_zones, heavily_obscured_zones,

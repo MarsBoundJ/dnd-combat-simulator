@@ -330,6 +330,13 @@ def defensive_ehp_defensive_buff(actor: Actor, target_ally: Actor,
     if _pipeline_has_primitive(action, "steady_aim"):
         return _score_steady_aim(actor, state)
 
+    # PR #94: Heroism — temp HP grant per turn. Standard buff scorer
+    # ignores temp_hp_grant / recurring_temp_hp primitives. Score
+    # based on expected total temp HP value over the buff duration.
+    if _pipeline_has_primitive(action, "recurring_temp_hp") or \
+            _pipeline_has_primitive(action, "temp_hp_grant"):
+        return _score_heroism(actor, target_ally, action, state)
+
     buff = extract_buff_effect(action)
     if not buff:
         return 0.0
@@ -479,6 +486,57 @@ def _score_dash(actor: Actor, state: CombatState) -> float:
 # proxy is calibrated to the framework's other "expected per-swing"
 # estimators (Help-shape, Vex mastery).
 STEADY_AIM_SA_UNLOCK_HIT_PROXY: float = 0.7
+
+
+# Empirical fraction of granted temp HP that gets absorbed each
+# round it persists (PR #94). Calibrated for typical melee-ally
+# scenarios where the buffed target is being attacked roughly
+# every round. Back-line targets (Wizards out of melee reach) would
+# absorb less; the constant is a mid-case proxy. Future calibration
+# could vary by buffed-target archetype, but a single constant
+# matches the framework's approach for other per-round buff values
+# (Bless's flat-+2 averages over hits / misses similarly).
+TEMP_HP_ABSORPTION_FRACTION: float = 0.6
+
+
+def _score_heroism(actor: Actor, target_ally: Actor, action: dict,
+                     state: CombatState) -> float:
+    """Estimate eHP value of casting Heroism (PR #94).
+
+    Heroism grants `caster_spellcasting_modifier` temp HP at the
+    start of each of the target's turns for the spell's duration.
+    Per-tick value = grant × TEMP_HP_ABSORPTION_FRACTION (fraction
+    of temp HP that actually absorbs damage before the next tick
+    refills it via max-semantics).
+
+    Total value = per_tick × EXPECTED_BUFF_ROUNDS.
+
+    The grant amount is computed from the caster's CHA modifier
+    (default spellcasting ability for Paladin / Bard / Sorcerer /
+    Warlock — the four classes that learn Heroism). Returns 0 when
+    the caster has a negative or zero modifier (rare; PCs typically
+    have +2 or better in their casting stat by L2).
+    """
+    if target_ally is None or not target_ally.is_alive():
+        return 0.0
+    if target_ally.side != actor.side:
+        return 0.0
+    # Don't re-cast on a target who already has heroism active (PR
+    # #36 named_effect dedup catches identical re-casts, but check
+    # explicitly here too).
+    from engine.ai.named_effects import buff_already_active
+    if buff_already_active(target_ally, action, actor):
+        return 0.0
+    # Estimate caster's spellcasting modifier (default CHA for the
+    # four Heroism-learning classes; Bards/Paladins/Sorcerers/Warlocks
+    # all use CHA). Wizard-style INT casters could learn Heroism via
+    # multiclass eventually; v1 reads CHA.
+    cha_score = (actor.abilities.get("cha") or {}).get("score", 10)
+    cha_mod = (cha_score - 10) // 2
+    if cha_mod <= 0:
+        return 0.0
+    per_tick_value = cha_mod * TEMP_HP_ABSORPTION_FRACTION
+    return per_tick_value * EXPECTED_BUFF_ROUNDS
 
 
 def _score_steady_aim(actor: Actor, state: CombatState) -> float:
