@@ -97,6 +97,24 @@ class EncounterRunner:
         actor.reset_turn()
         modifiers.expire_modifiers(actor, {"turn_start"})
 
+        # PR #86: forward the readied-action discard event from
+        # reset_turn. Actor.reset_turn clears `readied_action` but
+        # stashes the discarded entry on a sentinel attr; we log it
+        # here in the runner where we have a state reference. The
+        # event records why the Ready was wasted (no trigger fired
+        # before next turn).
+        discarded = getattr(actor, "_ready_discarded_this_reset", None)
+        if discarded:
+            state.event_log.append({
+                "event": "ready_action_discarded",
+                "actor": actor.id,
+                "sub_action": discarded.get("action_id"),
+                "trigger": discarded.get("trigger"),
+                "reason": "turn_start",
+                "round": state.round,
+            })
+            actor._ready_discarded_this_reset = None
+
         # PR #58: expire Slow weapon-mastery effects whose source is
         # the actor whose turn is starting. Slow says "until start of
         # actor's next turn" — when that turn begins, slowed creatures
@@ -327,6 +345,18 @@ class EncounterRunner:
             actor, from_pos, state,
             self.event_bus, self.primitives, self.rng,
         )
+
+        # PR #86: Ready Action `enemy_enters_reach` trigger. Fires
+        # AFTER OAs so the "leaving reach" reactions resolve before
+        # the "entering reach" readied actions. The mover may have
+        # died from an OA — `try_fire` checks `target.is_alive()`
+        # and short-circuits.
+        if actor.is_alive():
+            from engine.core import ready_action as _ra
+            _ra.on_movement_completed(
+                actor, from_pos, state,
+                self.event_bus, self.primitives,
+            )
 
     def _resolve_persistent_aura_triggers(self, actor: Actor,
                                               state: CombatState) -> None:

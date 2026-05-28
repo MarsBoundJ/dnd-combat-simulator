@@ -228,6 +228,29 @@ class Actor:
     reckless_active: bool = False
     reckless_grants_advantage_until_next_turn: bool = False
 
+    # Ready Action state (PR #86). Set when the actor takes Ready on
+    # their main action; cleared at start of next own turn (RAW: the
+    # readied reaction is discarded if not taken before the start of
+    # the actor's next turn). At most ONE readied action at a time —
+    # taking Ready while another is pending overwrites the prior one
+    # (RAW: Ready is one action per turn; can't stack readied actions).
+    # Shape when set:
+    #   {
+    #     "action_id": "a_longsword",     # sub-action id to fire
+    #     "trigger": "enemy_enters_reach" # trigger key (KNOWN_TRIGGERS
+    #     | "enemy_casts_spell",          # in engine/core/ready_action.py)
+    #     "trigger_params": {...},        # trigger-specific data
+    #                                       # (reach_ft for enters_reach;
+    #                                       # within_ft for casts_spell)
+    #     "round_readied": int,           # round when Ready was taken
+    #   }
+    # The reaction slot is NOT pre-consumed at Ready time; it's
+    # consumed when the readied action actually fires (via
+    # actions_used_this_turn["reaction"]). Discarded by reset_turn at
+    # start of next own turn — counted as a wasted action when no
+    # trigger fired (logged via `ready_action_discarded`).
+    readied_action: dict | None = None
+
     def is_alive(self) -> bool:
         return self.hp_current > 0 and not self.is_dead and not self.is_fled
 
@@ -290,6 +313,20 @@ class Actor:
         # but defensive).
         if hasattr(self, "_divine_smite_used_this_turn"):
             self._divine_smite_used_this_turn = False
+        # PR #86: Ready Action discard at start of own next turn.
+        # RAW: "The reaction is discarded if you don't take it before
+        # the start of your next turn." Logged for telemetry so callers
+        # can see how often Ready was wasted (a high discard rate
+        # indicates the AI is over-eager to Ready).
+        if self.readied_action is not None:
+            # Log via a sentinel attribute that the runner can read +
+            # forward into state.event_log. We don't have a state ref
+            # here, so the runner's tick() picks up the discard event
+            # after reset_turn returns.
+            self._ready_discarded_this_reset = dict(self.readied_action)
+            self.readied_action = None
+        else:
+            self._ready_discarded_this_reset = None
         # PR #85: Reckless Attack flags reset at start of own turn.
         # RAW: "Attack rolls against you have advantage until the
         # start of your next turn" — the grants-advantage window ends

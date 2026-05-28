@@ -1450,6 +1450,33 @@ def _steady_aim(params: dict, state: CombatState, bus: EventBus) -> None:
     })
 
 
+def _ready_action(params: dict, state: CombatState, bus: EventBus) -> None:
+    """Primitive that records a readied action on the actor (PR #86).
+
+    Params:
+      - sub_action_id (str, required): the action id to fire on trigger
+      - trigger (str, required): trigger key (see KNOWN_TRIGGERS in
+        engine/core/ready_action.py)
+      - trigger_params (dict, optional): trigger-specific params
+
+    The action slot is consumed by the normal pipeline.execute path
+    (Ready is a full Action). The reaction slot is NOT pre-consumed
+    here — it's consumed when the readied action actually fires.
+    """
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        raise ValueError("ready_action requires a current actor")
+    sub_action_id = params.get("sub_action_id")
+    trigger = params.get("trigger")
+    if not sub_action_id or not trigger:
+        raise ValueError(
+            "ready_action requires sub_action_id + trigger params"
+        )
+    from engine.core.ready_action import register
+    register(actor, sub_action_id, trigger, state,
+              trigger_params=params.get("trigger_params"))
+
+
 def _rage_start(params: dict, state: CombatState, bus: EventBus) -> None:
     """Primitive that flips the actor into Rage (PR #71).
 
@@ -1618,6 +1645,7 @@ def _populate_handler_table() -> None:
         "dash": _dash,
         "steady_aim": _steady_aim,
         "lay_on_hands": _lay_on_hands,
+        "ready_action": _ready_action,
     }
 
 
@@ -1660,6 +1688,10 @@ def _all_primitives() -> list[Primitive]:
         Primitive("steady_aim", _steady_aim, implemented=True),
         # PR #83 — Paladin Lay on Hands (BA touch heal from pool)
         Primitive("lay_on_hands", _lay_on_hands, implemented=True),
+        # PR #86 — Ready Action (records a readied sub-action + trigger
+        # onto the actor; fires when the trigger matches before the
+        # actor's next turn).
+        Primitive("ready_action", _ready_action, implemented=True),
     ]
     # Populate handler lookup table for subprimitive invocations
     global _PRIMITIVE_HANDLERS

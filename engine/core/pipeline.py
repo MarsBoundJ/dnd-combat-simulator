@@ -400,7 +400,142 @@ def generate_candidates(actor: Actor, state: CombatState,
                         "direction": direction,
                         "actor": actor,
                     })
+
+    # PR #86: Ready Action candidate emission. Only fires for the
+    # main slot (Ready is a full Action; bonus-slot Ready isn't a
+    # thing in RAW). Generates ONE candidate per (sub_action × trigger)
+    # combo when the trigger is plausibly going to fire. Emission is
+    # gated so the AI doesn't Ready when an immediate attack is
+    # available (Ready is a defensive / interrupt choice, not an
+    # alternative attack):
+    #   - enemy_enters_reach: emit only if NO enemy is in reach of
+    #     the chosen weapon AND at least one enemy is within plausible
+    #     close-distance (their_walk_speed + reach + 5).
+    #   - enemy_casts_spell: emit only if NO enemy is in reach AND
+    #     at least one visible enemy has a spell_slot_level >= 1
+    #     action available (a known caster).
+    # See score_ready_candidate in engine.ai.ehp_scoring for the
+    # cost-discounted expected-value formula.
+    if slot == "action":
+        candidates += _emit_ready_candidates(
+            actor, state, actions, enemies)
     return candidates
+
+
+def _emit_ready_candidates(actor: Actor, state: CombatState,
+                              actions: list[dict],
+                              enemies: list) -> list[dict]:
+    """Build Ready candidate dicts. Each synthesizes a Ready action
+    that wraps a chosen sub-action + trigger in the `ready_action`
+    primitive. Target is the actor itself (Ready is self-targeted —
+    the actual fire-time target comes from the trigger event)."""
+    from engine.core.geometry import distance_ft, is_within_ft
+    out: list[dict] = []
+    weapon_attacks = [a for a in actions
+                        if a.get("type") == "weapon_attack"]
+    if not weapon_attacks or not enemies:
+        return out
+
+    # Gate: skip Ready emission entirely if the actor can plausibly
+    # close-and-attack this turn (movement + swing reaches at least
+    # one enemy). With a real attack option on the table — even if
+    # it requires moving first — Ready is dominated. Without this,
+    # actors with no in-reach enemy but reachable enemies would
+    # Ready instead of closing, and OAs / engagements never resolve.
+    walk_speed = int((actor.speed or {}).get("walk", 30))
+    for weapon in weapon_attacks:
+        reach = _action_reach_ft(weapon)
+        # Already-in-reach: trivially dominated.
+        if any(is_within_ft(actor, e, reach) for e in enemies):
+            return out
+        # Reachable via movement this turn: also dominated.
+        for enemy in enemies:
+            if distance_ft(actor.position, enemy.position) <= walk_speed + reach:
+                return out
+
+    # enemy_enters_reach: emit when at least one enemy could plausibly
+    # close to melee this round. "Plausibly" = within their_walk_speed
+    # + our_reach + 5 (a small fudge for diagonal movement).
+    enters_reach_candidates: list[dict] = []
+    for weapon in weapon_attacks:
+        reach = _action_reach_ft(weapon)
+        if not _enters_reach_plausible(actor, enemies, reach):
+            continue
+        enters_reach_candidates.append(_make_ready_candidate(
+            actor, weapon, trigger="enemy_enters_reach",
+            trigger_params={"reach_ft": reach},
+        ))
+    out += enters_reach_candidates
+
+    # enemy_casts_spell: emit when at least one visible enemy has a
+    # spell action in their template (a known caster).
+    if _any_visible_enemy_caster(actor, enemies, state):
+        for weapon in weapon_attacks:
+            out.append(_make_ready_candidate(
+                actor, weapon, trigger="enemy_casts_spell",
+                trigger_params={"within_ft": 60},
+            ))
+    return out
+
+
+def _enters_reach_plausible(actor: Actor, enemies: list,
+                              reach: int) -> bool:
+    """True if any enemy could close to `actor`'s reach this round
+    (within their walk speed + reach + 5 ft fudge)."""
+    from engine.core.geometry import distance_ft
+    for enemy in enemies:
+        speed = int((enemy.speed or {}).get("walk", 30))
+        if distance_ft(enemy.position, actor.position) <= speed + reach + 5:
+            return True
+    return False
+
+
+def _any_visible_enemy_caster(actor: Actor, enemies: list,
+                                state: CombatState) -> bool:
+    """True if any enemy has at least one action with
+    spell_slot_level >= 1 AND the actor can see them."""
+    from engine.core.vision import can_actor_see
+    for enemy in enemies:
+        if not can_actor_see(actor, enemy, state):
+            continue
+        for a in (enemy.template.get("actions") or []):
+            if int(a.get("spell_slot_level", 0)) >= 1:
+                return True
+    return False
+
+
+def _make_ready_candidate(actor: Actor, sub_action: dict, *,
+                            trigger: str,
+                            trigger_params: dict) -> dict:
+    """Build a synthetic Ready action that wraps the chosen sub-action
+    + trigger in a single-step pipeline. Used by the AI: when picked,
+    `_ready_action` primitive records the readied action onto the
+    actor; the sub-action itself doesn't fire here — it fires later
+    when the trigger event matches."""
+    sub_id = sub_action.get("id")
+    synthetic = {
+        "id": f"a_ready__{sub_id}__on__{trigger}",
+        "name": f"Ready {sub_action.get('name', sub_id)} on {trigger}",
+        "type": "ready",
+        "slot": "action",
+        "pipeline": [{
+            "primitive": "ready_action",
+            "params": {
+                "sub_action_id": sub_id,
+                "trigger": trigger,
+                "trigger_params": dict(trigger_params),
+            },
+        }],
+        # Stash the sub-action for the scorer to read without a re-lookup.
+        "_ready_sub_action": sub_action,
+        "_ready_trigger": trigger,
+    }
+    return {
+        "kind": "ready",
+        "action": synthetic,
+        "target": actor,
+        "actor": actor,
+    }
 
 
 def _persistent_aura_radius(action: dict) -> int:
@@ -632,6 +767,18 @@ def execute(chosen: dict, state: CombatState, event_bus, primitives) -> None:
         }, state, event_bus)
     cast_was_cancelled = state.cast_cancelled
     state.cast_cancelled = False  # reset after
+
+    # PR #86: Ready Action `enemy_casts_spell` trigger. Fires AFTER
+    # counterspell resolution and only if the spell wasn't cancelled —
+    # a successfully countered spell never "completed casting" per
+    # RAW, so readied actions keyed on the cast don't trigger. Order:
+    # counterspell first, then readied actions, then spell pipeline.
+    # The cast itself still runs after Ready fires (the readied
+    # action is a reaction interleaved with the cast, not a
+    # replacement for it).
+    if base_slot_level > 0 and not cast_was_cancelled:
+        from engine.core import ready_action as _ra
+        _ra.on_spell_cast_initiated(actor, state, event_bus, primitives)
 
     if cast_was_cancelled:
         # Spell countered. Skip the pipeline, but still consume the
