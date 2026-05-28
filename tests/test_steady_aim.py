@@ -320,6 +320,110 @@ class PcSchemaSteadyAimTest(unittest.TestCase):
 
 
 # ============================================================================
+# Layer 7B (PR #87): SA-unlock scoring uplift
+# ============================================================================
+#
+# RAW: Steady Aim's advantage satisfies the Sneak Attack trigger by
+# itself. The scoring uplift PR #87 credits the SA dice as additional
+# value when the Rogue would NOT otherwise have SA on their next
+# attack (no adjacent-to-target ally). The base advantage formula
+# remains for non-Rogues + Rogues who already qualify for SA.
+
+class SteadyAimSaUpliftTest(unittest.TestCase):
+
+    def _make_ally(self, position, side="pc"):
+        return _make_target("ally", position=position, side=side, hp=20)
+
+    def _score(self, actor, state):
+        action = {
+            "id": "a_steady_aim", "type": "defensive_buff",
+            "pipeline": [{"primitive": "steady_aim", "params": {}}],
+        }
+        return defensive_ehp_defensive_buff(actor, actor, action, state)
+
+    def test_rogue_no_adjacent_ally_gets_sa_unlock_uplift(self) -> None:
+        # Solo Rogue (no ally adjacent to target) — Steady Aim unlocks
+        # SA dice that wouldn't fire otherwise. Score should be
+        # substantially higher than base advantage value alone.
+        rogue = _make_rogue(level=3)         # 2d6 SA = 7 avg
+        target = _make_target(position=(1, 0))
+        state = _make_state([rogue, target])
+        score = self._score(rogue, state)
+        # Base advantage alone for ~1.5 per_attack would be ~0.34.
+        # SA-unlock adds 7 × 0.7 = ~4.9. Total ≥ ~4.5.
+        self.assertGreater(score, 3.0)
+
+    def test_rogue_with_adjacent_ally_smaller_uplift(self) -> None:
+        # Rogue with ally adjacent to target — SA would fire WITHOUT
+        # Steady Aim. Uplift = sa_dice × DELTA_HIT_FROM_ADVANTAGE only.
+        # Should still beat the no-ally case... no wait, it should be
+        # SMALLER (less unique value from Steady Aim).
+        rogue = _make_rogue(level=3)
+        target = _make_target(position=(1, 0))
+        # Ally adjacent to target (within 5 ft of (1,0))
+        ally = _make_target("ally", position=(2, 0), side="pc", hp=20)
+        state = _make_state([rogue, target, ally])
+        score_with_ally = self._score(rogue, state)
+
+        # Compare to solo case
+        rogue2 = _make_rogue(level=3)
+        target2 = _make_target("dummy2", position=(1, 0))
+        state2 = _make_state([rogue2, target2])
+        score_solo = self._score(rogue2, state2)
+
+        self.assertLess(score_with_ally, score_solo)
+
+    def test_non_rogue_gets_base_advantage_only(self) -> None:
+        # Same scoring path but with a non-Rogue actor (level 0 in
+        # template.levels.rogue). No SA uplift; just the base
+        # advantage formula.
+        attacker = _make_rogue(level=3)
+        attacker.template["levels"] = {"fighter": 5}   # not a Rogue
+        target = _make_target(position=(1, 0))
+        state = _make_state([attacker, target])
+        score_non_rogue = self._score(attacker, state)
+
+        # Compare to actual Rogue at same level
+        rogue = _make_rogue(level=3)
+        target2 = _make_target("dummy2", position=(1, 0))
+        state2 = _make_state([rogue, target2])
+        score_rogue = self._score(rogue, state2)
+
+        self.assertGreater(score_rogue, score_non_rogue)
+
+    def test_sa_already_used_no_uplift(self) -> None:
+        # If SA fired earlier this turn (e.g., on a reaction OA), the
+        # Steady Aim BA can't unlock SA again — falls back to base.
+        rogue = _make_rogue(level=3)
+        rogue._sneak_attack_used_this_turn = True
+        target = _make_target(position=(1, 0))
+        state = _make_state([rogue, target])
+        score_used = self._score(rogue, state)
+
+        # Same setup without the SA-used flag
+        rogue2 = _make_rogue(level=3)
+        target2 = _make_target("dummy2", position=(1, 0))
+        state2 = _make_state([rogue2, target2])
+        score_fresh = self._score(rogue2, state2)
+
+        self.assertLess(score_used, score_fresh)
+
+    def test_higher_level_rogue_scales_uplift(self) -> None:
+        # L11 Rogue has 6d6 SA (avg 21) — uplift should be ~3x a
+        # L3 Rogue's (2d6, avg 7).
+        rogue_low = _make_rogue("rogue_low", level=3)
+        rogue_high = _make_rogue("rogue_high", level=11)
+        target_l = _make_target("dlow", position=(1, 0))
+        target_h = _make_target("dhigh", position=(1, 0))
+        state_l = _make_state([rogue_low, target_l])
+        state_h = _make_state([rogue_high, target_h])
+        score_l = self._score(rogue_low, state_l)
+        score_h = self._score(rogue_high, state_h)
+        # L11 should be substantially higher than L3
+        self.assertGreater(score_h, score_l + 5)
+
+
+# ============================================================================
 # Layer 12: feature YAML loading
 # ============================================================================
 
