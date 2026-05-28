@@ -270,6 +270,13 @@ def attempt_concentration_save(target: Actor, damage_taken: int,
     dc = max(10, (damage_taken + 1) // 2)   # ceil(damage / 2)
     con_save = (target.abilities.get("con") or {}).get("save", 0)
     d20 = rng.randint(1, 20)
+    # PR #95: Halfling Lucky applies to the CON concentration save
+    # (RAW: Lucky fires on saving throws). No-op for non-Halflings.
+    # Critically important for Halfling spellcasters — losing
+    # concentration on a key spell to a nat-1 hits hard, and Lucky
+    # is the one trait that lets them re-roll out of it.
+    from engine.core.racial_traits import lucky_d20
+    d20, _rerolled = lucky_d20(rng, d20, target)
     total = d20 + con_save
     outcome = "success" if total >= dc else "fail"
 

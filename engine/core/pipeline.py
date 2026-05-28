@@ -1002,6 +1002,12 @@ def _execute_hide(actor, action: dict, state: CombatState,
     import engine.primitives as primitives_module
     rng = primitives_module._rng    # use module-level rng (test-friendly)
     d20 = rng.randint(1, 20)
+    # PR #95: Halfling Lucky applies to the Stealth ability check
+    # (RAW: Lucky fires on ability checks). The Hide action's Stealth
+    # check qualifies. Halfling Rogues finally get to reroll a nat-1
+    # on their Hide attempts.
+    from engine.core.racial_traits import lucky_d20
+    d20, _rerolled = lucky_d20(rng, d20, actor)
     stealth_mod = skill_modifier(actor, "stealth")
     total = d20 + stealth_mod
     DC = 15
@@ -1095,8 +1101,14 @@ def _execute_search(actor, action: dict, state: CombatState,
         })
         return
 
+    # PR #95: Halfling Lucky applies to the Perception ability check
+    # rolled by the Search action (RAW: Lucky fires on ability
+    # checks). Imported once outside the per-target loop.
+    from engine.core.racial_traits import lucky_d20
+
     for target, hide_cond in candidates:
         d20 = rng.randint(1, 20)
+        d20, _rerolled = lucky_d20(rng, d20, actor)
         check_total = d20 + perception_mod
         stealth_total = int(hide_cond.get("stealth_total", 0))
         success = check_total >= stealth_total
