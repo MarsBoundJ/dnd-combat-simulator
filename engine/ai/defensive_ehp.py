@@ -469,27 +469,61 @@ def _score_dash(actor: Actor, state: CombatState) -> float:
     return min(5.0, 5.0 * (closed_ft / speed))
 
 
-def _score_steady_aim(actor: Actor, state: CombatState) -> float:
-    """Estimate eHP value of taking Steady Aim (PR #80).
+# Probability proxy for a Rogue's next attack hitting WITH advantage,
+# used by the Steady-Aim SA-unlock uplift (PR #87). Calibration:
+# typical L3+ Rogue is +7 to hit vs default AC 15 → p_hit = 0.65 normally,
+# ~0.875 with advantage (0.65 + DELTA_HIT_FROM_ADVANTAGE × ~1). Round to
+# a clean 0.7 — slightly conservative so the scorer doesn't overweight
+# the SA-unlock arm in marginal cases. A per-target hit-chance calc is
+# possible but adds complexity for diminishing return; the constant
+# proxy is calibrated to the framework's other "expected per-swing"
+# estimators (Help-shape, Vex mastery).
+STEADY_AIM_SA_UNLOCK_HIT_PROXY: float = 0.7
 
-    Steady Aim grants advantage on the actor's next attack roll.
-    Approximation: actor's expected per-attack damage × DELTA_HIT_FROM_ADVANTAGE
-    (matches the standard advantage-value formula used in
-    Help / Vex mastery scoring).
+
+def _score_steady_aim(actor: Actor, state: CombatState) -> float:
+    """Estimate eHP value of taking Steady Aim (PR #80, scoring uplift
+    in PR #87).
+
+    Two components:
+
+      **Base component** — Steady Aim grants advantage on next attack.
+      Value = expected per-attack damage × DELTA_HIT_FROM_ADVANTAGE
+      (matches the standard advantage-value formula used in Help / Vex
+      mastery scoring).
+
+      **SA-unlock component (PR #87)** — for Rogues, advantage from
+      Steady Aim satisfies the Sneak Attack trigger by itself. When the
+      Rogue would NOT otherwise have SA (no adjacent ally; SA not yet
+      used this turn), Steady Aim unlocks the SA dice and the
+      `expected_sa_damage × P(hit_with_advantage)` is pure uplift on
+      top of the base advantage value. When SA would already fire
+      (an ally is adjacent to the best target), Steady Aim still
+      raises the hit chance on the SA dice — smaller uplift
+      (sa_damage × DELTA_HIT_FROM_ADVANTAGE).
 
     Returns 0 when:
       - No living enemies (no target to swing at)
       - Actor's per-attack damage estimate is 0 (no weapons)
 
-    v1 doesn't yet credit the Sneak Attack synergy uplift —
-    Steady Aim guarantees SA fires (advantage satisfies the SA
-    trigger by itself), so a Rogue without an adjacent ally
-    gains MORE value than the base formula suggests. Deferred
-    follow-up; the base value already wins over typical other
-    Rogue BA candidates (Cunning Action Hide/Dash/Disengage
-    score in the 0.5-5 range).
+    The SA-unlock uplift is the difference between "SA dice are about
+    to roll" vs "they aren't" — a much larger swing than the base
+    advantage value. For a L3 Rogue (2d6 SA = 7 avg) with no adjacent
+    ally, taking Steady Aim is worth roughly 7 × 0.7 ≈ 4.9 eHP of SA
+    uplift on top of ~1-2 eHP of base advantage value, comfortably
+    beating Cunning Action Dash/Hide/Disengage (0.5-5 eHP) and the
+    BA-slot threshold for tactical activation.
+
+    Cunning Strike (PR #81) interaction: CS trades SA dice for an
+    effect at execution time. v1 scorer doesn't try to anticipate
+    whether the Rogue will spend dice on CS — the advantage delta
+    applies regardless of how those dice are spent, so it's a wash.
     """
     from engine.ai.ehp_scoring import DELTA_HIT_FROM_ADVANTAGE
+    from engine.core.sneak_attack import (
+        sneak_attack_dice_at_level, _rogue_level,
+        _has_ally_adjacent_to_target,
+    )
     enemies = [a for a in state.encounter.actors
                 if a.side != actor.side and a.is_alive()]
     if not enemies:
@@ -497,7 +531,75 @@ def _score_steady_aim(actor: Actor, state: CombatState) -> float:
     per_attack = estimate_per_attack_damage(actor)
     if per_attack <= 0:
         return 0.0
-    return per_attack * DELTA_HIT_FROM_ADVANTAGE
+
+    base_value = per_attack * DELTA_HIT_FROM_ADVANTAGE
+
+    # Non-Rogues only get the base advantage value (no SA dice to unlock).
+    rogue_level = _rogue_level(actor)
+    if rogue_level <= 0:
+        return base_value
+
+    # SA can only fire once per turn. If it already fired this turn,
+    # Steady Aim provides no SA-unlock value (the rest of this turn's
+    # attacks can't SA again).
+    if getattr(actor, "_sneak_attack_used_this_turn", False):
+        return base_value
+
+    sa_dice = sneak_attack_dice_at_level(rogue_level)
+    if sa_dice <= 0:
+        return base_value
+    sa_avg = sa_dice * 3.5    # average of N d6
+
+    # Pick the best plausible SA target. v1 uses the closest enemy
+    # within max attack reach as a proxy — same heuristic the runner's
+    # targeting layer applies. If we can't pick one, fall back to base.
+    best_target = _pick_best_steady_aim_target(actor, enemies)
+    if best_target is None:
+        return base_value
+
+    # If an ally is already adjacent to the best target, SA would fire
+    # WITHOUT Steady Aim — so Steady Aim only adds the hit-chance uplift
+    # on the SA dice (small bump). Otherwise, Steady Aim unlocks the
+    # full SA dice firing — much bigger bump.
+    if _has_ally_adjacent_to_target(actor, best_target, state):
+        sa_uplift = sa_avg * DELTA_HIT_FROM_ADVANTAGE
+    else:
+        sa_uplift = sa_avg * STEADY_AIM_SA_UNLOCK_HIT_PROXY
+
+    return base_value + sa_uplift
+
+
+def _pick_best_steady_aim_target(actor: Actor,
+                                    enemies: list) -> Actor | None:
+    """Pick the closest in-reach enemy as the proxy SA target.
+
+    Walks the actor's weapon_attack actions, finds the max reach, and
+    returns the closest living enemy within that distance. None if no
+    in-reach enemy exists — Steady Aim still has base value via raising
+    the next-attack hit chance (which the caller scores), but the
+    SA-unlock branch can't pick a specific target.
+    """
+    from engine.core.geometry import distance_ft
+    actions = (actor.template or {}).get("actions") or []
+    reaches: list[int] = []
+    for action in actions:
+        if action.get("type") != "weapon_attack":
+            continue
+        for step in (action.get("pipeline") or []):
+            if step.get("primitive") != "attack_roll":
+                continue
+            params = step.get("params") or {}
+            if "range_ft" in params:
+                reaches.append(int(params["range_ft"]))
+            elif "reach_ft" in params:
+                reaches.append(int(params["reach_ft"]))
+    max_reach = max(reaches) if reaches else 5
+    in_reach = [e for e in enemies
+                  if distance_ft(actor.position, e.position) <= max_reach]
+    if not in_reach:
+        return None
+    in_reach.sort(key=lambda e: distance_ft(actor.position, e.position))
+    return in_reach[0]
 
 
 # ============================================================================
