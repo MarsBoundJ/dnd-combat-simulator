@@ -5,6 +5,153 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-28 (cont.) — 6 more PRs (PRs #93–#98)
+
+**Participants:** Phil, Claude (Sonnet for #93–96, Opus 4.8 for #97–98)
+
+Continuation of the same day's push. Test suite 1544 → 1622 passed +
+1 skipped. Zero regressions. Six PRs: finished the party-coordination
+Ready arc, expanded the Paladin concentration menu to 6, and built
+out the **HP-resource family** (temp HP / recurring temp HP /
+reflective thorns / max-HP raise) plus the long-deferred **multi-
+target candidate grouping**.
+
+### Headline infra (compounding for future PRs)
+
+| Infra | Source PR | Future consumers |
+|---|---|---|
+| `Actor.temp_hp` + `_damage` absorption + `_temp_hp_grant` (max-semantics) | #94 | Heroism, Armor of Agathys, False Life, Inspiring Leader |
+| `state.recurring_temp_hp` + runner hook | #94 | Heroism, Aid-shape per-turn grants |
+| `_damage` reflective-thorns branch + recursion guard | #96 | Armor of Agathys; future Fire Shield / spiked-armor |
+| `temp_hp_grant` upcast (`amount_per_slot_above_base`) | #96 | Any temp-HP spell that scales |
+| `Actor.hp_max_bonuses` + `_hp_max_grant` + `remove_hp_max_bonus` | #97 | Aid, Heroes' Feast, False Life max-HP variants |
+| **Multi-target candidate grouping** (`max_targets`, `_select_multi_target_group`, per-target execute + summed scoring) | #97 | Aid, **Bless** (#98), Mass Cure Wounds, Mass Healing Word |
+| `ally_takes_damage` Ready trigger + `try_fire(allow_dead_target=)` | #93 | Ready-Cure-Wounds; future ally-reactive readies |
+
+The standout demonstration: PR #97 (Aid) **built** multi-target
+grouping; PR #98 (Bless) **reused** it with ~3 lines of real code +
+a `max_targets: 3` YAML flip. That's the architecture working as
+designed.
+
+### PR #93 — ally_takes_damage Ready trigger
+
+Third + final v1 Ready trigger (after enters_reach + casts_spell in
+PR #86). Unlocks Cleric Ready-Healing-Word-on-ally-damage, Wizard
+Ready-Shield, etc.
+- New `ally_takes_damage` in KNOWN_TRIGGERS; trigger_params
+  `within_ft` (60) + `min_damage` (1).
+- `on_ally_takes_damage` handler fires from `_damage` after the
+  existing `damage_taken` reaction-trigger resolution.
+- **`try_fire(allow_dead_target=True)`** — so Ready Healing Word
+  fires on an ally who just dropped to 0 HP (the iconic pickup).
+- `try_fire`'s `primitives` arg made optional (uses
+  `_invoke_subprimitive` canonical path when None — `_damage` has
+  no registry to hand).
+- AI emission for heal/defensive_buff Ready candidates gated on
+  "ally in enemy threat range"; scoring routes through defensive_ehp.
+- 15 new tests + 1 canary fix (the unknown-trigger test had used
+  "ally_takes_damage" as its example). Suite: 1559.
+- **Scope:** Two triggers were Phil's original Ready pick; this adds
+  the third. All three RAW-common triggers now shipped.
+
+### PR #94 — Heroism + temp HP infra
+
+First true temp-HP support. Tests the **dual of recurring_damage**
+(per-turn temp HP grant vs per-turn damage).
+- `Actor.temp_hp` + `_damage` absorbs temp HP before regular HP
+  (overflow hits HP; telemetry sees full damage).
+- `_temp_hp_grant` (max-semantics, no stacking) + `_recurring_temp_hp`
+  + `runner._resolve_recurring_temp_hp` (fires at turn-start AFTER
+  recurring_damage).
+- `end_concentration` + `apply_long_rest` cleanup paths.
+- f_heroism (BA, concentration) → Paladin concentration menu 4→5.
+- 19 new tests. Suite: 1578.
+- **Scope:** Frightened immunity deferred (no source-aware
+  condition-immunity query yet). Per-roll d4 → flat (same v1
+  simplification as Bless).
+
+### PR #95 — Lucky on 5 remaining d20 sites
+
+Closed PR #75 residue. Halfling Lucky was wired at 3 sites (attack /
+forced save / recurring save); RAW applies at more.
+- Added: initiative (DEX check), Counterspell INT check,
+  concentration save (CON), Hide stealth, Search perception.
+- **8 sites total** now covered. r_halfling.yaml docstring
+  enumerates all 8.
+- **Intentional deferral:** AI retreat WIS save (engine/ai/retreat)
+  — an AI-behavior trigger, not a RAW combat roll.
+- 10 new tests (Halfling-reroll + non-Halfling-keep pairs via a
+  `_ScriptedRng` mock). Suite: 1588.
+
+### PR #96 — Armor of Agathys + reflective thorns
+
+First **passive reflective damage** (distinct from reaction-shape
+Hellish Rebuke). Exercises PR #94's temp HP infra target-
+discriminatingly.
+- Warlock self-buff, Action cast, **NOT concentration**. 5 temp HP
+  + 5 cold to melee attackers, both +5/upcast.
+- `_armor_of_agathys_arm` registers a marker; `_damage` fires cold
+  reflection on melee hits while bearer has temp HP.
+- **Recursion guard** (`is_agathys_reflection`) — two-AoA actors
+  don't infinite-loop. Snapshot fires BEFORE damage applies (RAW:
+  thorns fire if temp HP > 0 at moment of hit even if depleted).
+- Marker auto-cleared when temp HP hits 0.
+- `temp_hp_grant` gained `amount_per_slot_above_base` upcast.
+- 14 new tests. Suite: 1602.
+- **Scope:** Forward-compat under `granted_by: c_warlock` (class
+  not yet implemented — same pattern as Hex / Hunter's Mark). True
+  1-hour timer deferred (treated as until short rest).
+
+### PR #97 — Aid + max-HP grant + multi-target grouping
+
+Two long-deferred infra pieces in one PR.
+- **hp_max_grant** — raises ACTUAL max + current HP (distinct from
+  temp HP). `Actor.hp_max_bonuses` ledger; `remove_hp_max_bonus`
+  caps current at reduced max; `apply_long_rest` clears bonuses
+  BEFORE HP restore.
+- **Multi-target candidate grouping** — deferred since Bless
+  (PR #82). Generic `max_targets` field; `_select_multi_target_group`
+  (most-wounded-first, range-gated); candidate carries `targets`
+  list; `execute()` loops per target; `score_candidate` sums.
+- f_aid (Action, NOT concentration, max_targets 3, +5/+5/upcast).
+- 15 new tests. Suite: 1617.
+- **Scope:** Both AskUserQuestion forks chose the fuller option
+  (full grouping + tracked-modifier cleanup). 8-hour timer deferred.
+  Forward-compat under c_paladin L5 but NOT in the level table
+  (Paladin 2nd-level slot wiring is separate).
+
+### PR #98 — multi-target Bless
+
+The reuse demonstration. Generalized PR #97's grouping infra from
+defensive_buff to offensive_buff.
+- offensive_buff candidate branch: `max_targets > 1` → one grouped
+  candidate (self excluded). score_candidate offensive_buff sum.
+  f_bless `max_targets: 3`.
+- Updated `test_paladin_spellcasting`'s Bless candidate test (was
+  asserting 2 per-ally candidates → now 1 grouped).
+- 5 new tests + 1 updated. Suite: 1622.
+- **Known rough edge (documented):** `_select_multi_target_group`'s
+  most-wounded-first ordering is built for heals; for an attack buff
+  it's a rough fit, but Bless value is flat per ally so subset
+  choice only matters past 3 allies. Future scoring refinement
+  (prefer highest-DPR ally), not a correctness issue.
+
+### Session-cumulative open items (carried forward)
+
+Party coordination: hold-initiative / delay-turn, buff-before-burst,
+Ready-a-spell with concentration plumbing.
+Paladin/spell: Compelled Duel, Lay on Hands cure-Poisoned, defensive-
+buff cross-caster dedup, False Life, AI active-upcast preference,
+non-damage upcast (Magic Missile / Hold Person), Silence scoring
+uplift, per-spell V-component declaration.
+Race: Elf Keen Senses / Dwarf Stonecunning / Halfling Nimbleness.
+Class scaffolding: c_warlock (activates Hex + Armor of Agathys),
+c_ranger spellcasting (activates Hunter's Mark), c_cleric.
+Multi-target ordering: prefer-highest-DPR for offensive buffs.
+Other: strict JSON Schema $refs, feat/equipment/background YAMLs.
+
+---
+
 ## Session: 2026-05-28 — 8-PR engine push (PRs #85–#92)
 
 **Participants:** Phil, Claude (Sonnet)
