@@ -5,6 +5,132 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-29 — 7 PRs (PRs #105–#111): AI tactical depth + Ranger caster
+
+**Participants:** Phil, Claude (Opus 4.8)
+
+Test suite 1683 → **1753** passed + 1 skipped, zero regressions. Seven
+PRs. Theme: the engine's AI got noticeably smarter (multi-target
+ordering, knockback value, buff-before-burst, arming-smite selection)
+and the **Ranger became a working caster**, which lit up the
+forward-compat Hunter's Mark. Two latent scoring bugs surfaced and
+closed along the way (Divine Favor and both arming smites had been
+scoring 0 — mechanically working but never AI-selected).
+
+### Headline: a string of "light up dormant content" wins
+
+Three PRs activated things already half-built: Ranger spellcasting
+(#107) lit up Hunter's Mark (shipped forward-compat in #91, same
+pattern as Warlock→Hex); buff-before-burst (#109) made Divine Favor
+AI-castable for the first time; arming-smite scoring (#111) did the
+same for Searing Smite (#89) AND Ensnaring Strike (#110). The
+build-once-reuse discipline kept paying out.
+
+### PR #105 — Multi-target ordering refinement
+
+Closed the rough edge from PR #98. `_select_multi_target_group`
+dispatched on `action.type`: **offensive_buff (Bless) → highest-DPR
+allies first**; heal/defensive/temp-HP/max-HP (Aid) → most-wounded
+first (the v1 default Bless had wrongly inherited). Pure
+scoring/selection logic, no new content. Suite 1696.
+
+### PR #106 — Repelling Blast invocation + `forced_movement` primitive
+
+Second Eldritch Invocation (via the #103 registry). On an EB beam hit,
+push the target 10 ft. New **general-purpose `forced_movement`
+primitive** wrapping `geometry.push_creature` (8-dir snap, 5-ft steps,
+RAW Large-or-smaller size gate shared with the Push mastery). Rides
+each beam (composes with Agonizing per-beam) gated `when: hit`.
+`f_repelling_blast.yaml`. Suite 1701.
+
+### PR #107 — Ranger half-caster spellcasting (activates Hunter's Mark)
+
+WIS half-caster, mirroring the Paladin convention. Added a
+`spellcasting` block (ability: wisdom) + the half-caster `spell_slots`
+table (L2-start, identical values to Paladin) + `f_hunters_mark` in
+c_ranger L2 → the #82 auto-attach pass wires `a_hunters_mark`.
+pc_schema stamps `spellcasting_ability = wisdom`. Suite 1711.
+- **Scope:** 2024 L1-start + Favored Enemy free casts deferred (kept
+  the codebase's L2-start half-caster convention); prepared spells
+  beyond Hunter's Mark each = own feature.
+
+### PR #108 — Knockback AI scoring (closes #106's deferred half)
+
+The AI now VALUES the Repelling push, not just the EB damage. New
+`knockback_ehp` additive on the damage score:
+`target_DPR × min(1, expected_push_ft / speed) × 0.5`, where
+`expected_push_ft = per-beam push × beams × p_hit`. Gated to **melee
+targets** (ranged enemies don't care) and forced-movement actions;
+scales with beam count, inversely with enemy speed. Suite 1722.
+- **Scope:** the kiting case (push-then-move-away = full lost attack)
+  needs movement-aware AI; off-ledge/hazard pushes deferred.
+
+### PR #109 — Buff-before-burst: self weapon-damage buff scoring
+
+**Latent bug fix.** Divine Favor (self `weapon_damage_bonus` buff)
+wasn't recognized by `extract_buff_effect` → scored 0 → never cast.
+New `_score_self_weapon_damage_buff`:
+`bonus × expected_hits_per_round × buff_rounds`. A multiattacking
+caster values it more (more hits ride the bonus); since it's a Bonus
+Action, the runner already lets the caster buff + attack same turn.
+New helper `_expected_hits_per_round`. Suite 1731.
+
+### PR #110 — Ensnaring Strike (Ranger smite-shape control spell)
+
+Structural twin of Searing Smite (parallel module, like Hex vs
+Hunter's Mark). Arms on BA → next weapon hit (melee OR ranged, unlike
+Searing's melee-only) → STR save or `co_ensnared` (Restrained via
+`inherits_conditions: [co_restrained]` + 1d6 piercing/turn). No bonus
+hit damage.
+- **Bonus fix:** generalized `_caster_spell_save_dc` to read
+  `template.spellcasting_ability` (Ranger WIS), CHA fallback —
+  matching the #104 `_resolve_dc` fix on the execution side.
+- New: `engine/core/ensnaring_strike.py`, `co_ensnared.yaml`,
+  `ensnaring_strike_arm` primitive + `_damage` hook,
+  `f_ensnaring_strike.yaml` at c_ranger L2. Suite 1743.
+
+### PR #111 — Arming-smite AI scoring (Searing + Ensnaring)
+
+**Latent gap fix** (flagged in #110). Both arming smites scored 0 in
+the buff scorer (bespoke arm primitives, no attack/save_modifier) →
+never AI-cast. Two scorers dispatched on the arm primitive:
+- Searing: `p_hit × (bonus_fire + p_fail_CON × burn × rounds)`
+- Ensnaring: `p_hit × p_fail_STR × (enemy_DPR × restrain_denial ×
+  rounds + pierce × rounds)`
+Both score against the highest-DPR enemy (the plausible next target).
+New helpers `_self_next_hit_prob`, `_caster_spell_dc` (scoring-time
+ability-aware DC), `_representative_enemy`. Reuses
+`save_fail_probability` + `PARTIAL_CONTROL_CONDITIONS["co_restrained"]`
+(0.5). Suite 1753.
+
+### Infra shipped this block (reusable)
+
+| Infra | PR | Future use |
+|---|---|---|
+| type-dispatched multi-target ordering | #105 | any future multi-target buff/heal |
+| **`forced_movement` primitive** | #106 | generic shove/pull, future control |
+| Ranger WIS half-caster wiring | #107 | more Ranger spells; c_cleric template |
+| **`knockback_ehp`** additive control score | #108 | any forced-movement attack |
+| self weapon-damage buff scorer + `_expected_hits_per_round` | #109 | future self-damage buffs |
+| **`co_ensnared`** (condition inheritance + DoT) | #110 | any "restrained + tick" effect |
+| **ability-aware spell-save-DC** (exec #104 + scoring #110/#111) | #110/#111 | correct DC for every non-INT caster, both sides |
+| arming-smite scorers + `_self_next_hit_prob` / `_caster_spell_dc` | #111 | future on-next-hit riders |
+
+### Open items (carried)
+
+Smite-rider family **generalization** (Searing + Ensnaring now
+duplicate arm/find/clear/followup across two near-identical modules —
+candidate for a single parameterized system). Scoring-time
+`_resolve_dc_for_action` still hardcodes INT (the execution side is
+fixed; the hard-control scoring path has the same latent bug #104/#110
+fixed elsewhere). Kiting / off-ledge knockback value (movement-aware
+AI). Ranger: more prepared spells, 2024 L1-start + Favored Enemy free
+casts, Extra Attack, subclasses. Race traits (Elf/Dwarf/Halfling).
+c_cleric. Compelled Duel movement leash + end triggers. Hold-initiative
+/ delay-turn.
+
+---
+
 ## Session: 2026-05-28 (cont.) — 6 more PRs (PRs #99–#104), the Warlock build-out
 
 **Participants:** Phil, Claude (Opus 4.8)
