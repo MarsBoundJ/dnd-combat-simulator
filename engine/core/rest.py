@@ -125,6 +125,23 @@ def apply_long_rest(actor: Actor, state: CombatState) -> dict:
     from engine.core import modifiers
     summary: dict = {}
 
+    # ---- Universal: max-HP bonuses expire (PR #97) ----
+    # Aid-style hp_max raises end at long rest (RAW: they have a
+    # duration of 8 hours / until the spell ends; a long rest is the
+    # cleanup point in the sim's session model). Done BEFORE the HP
+    # restore so hp_max is back to its base before we set current =
+    # max. Without this ordering, the Aid bonus would silently become
+    # permanent (current=boosted-max persists, ledger never cleared).
+    if actor.hp_max_bonuses:
+        total_bonus = sum(int(e.get("amount", 0))
+                            for e in actor.hp_max_bonuses)
+        actor.hp_max_bonuses = []
+        if total_bonus > 0:
+            actor.hp_max = max(1, actor.hp_max - total_bonus)
+            summary["hp_max_bonus_cleared"] = total_bonus
+        # hp_current is reset to hp_max in the next block, so no
+        # explicit cap needed here.
+
     # ---- Universal: HP restore ----
     hp_before = int(actor.hp_current)
     actor.hp_current = int(actor.hp_max)

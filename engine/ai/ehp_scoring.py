@@ -1426,12 +1426,27 @@ def score_candidate(candidate: dict, state: CombatState) -> float:
             or kind in ("heal", "defensive_buff", "hard_control"):
         from engine.ai import defensive_ehp as _def
         effective_type = action_type or kind
-        if effective_type == "heal":
-            return _def.defensive_ehp_healing(actor, target, action, state)
-        if effective_type == "defensive_buff":
-            return _def.defensive_ehp_defensive_buff(actor, target, action, state)
-        if effective_type == "hard_control":
-            return _def.defensive_ehp_hard_control(actor, target, action, state)
+
+        def _score_one(tgt: Actor) -> float:
+            if tgt is None or not tgt.is_alive():
+                return 0.0
+            if effective_type == "heal":
+                return _def.defensive_ehp_healing(actor, tgt, action, state)
+            if effective_type == "defensive_buff":
+                return _def.defensive_ehp_defensive_buff(
+                    actor, tgt, action, state)
+            if effective_type == "hard_control":
+                return _def.defensive_ehp_hard_control(
+                    actor, tgt, action, state)
+            return 0.0
+
+        # PR #97: multi-target candidate — sum the per-target value
+        # across the whole group (Aid covering 2-3 allies). Single-
+        # target candidates fall through to scoring just `target`.
+        targets = candidate.get("targets")
+        if targets and len(targets) > 1:
+            return sum(_score_one(t) for t in targets)
+        return _score_one(target)
     return 0.0
 
 
