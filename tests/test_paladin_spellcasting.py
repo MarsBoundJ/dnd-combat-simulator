@@ -210,7 +210,12 @@ class CandidateGenerationTest(unittest.TestCase):
             spell_slots_max=dict(template.get("spell_slots") or {}),
         )
 
-    def test_bless_emits_per_ally_offensive_buff(self) -> None:
+    def test_bless_emits_one_grouped_multi_target_candidate(self) -> None:
+        # PR #98: Bless now has max_targets: 3, so it emits ONE
+        # grouped candidate covering up to 3 allies (was one-per-ally
+        # before the multi-target candidate-grouping infra). The
+        # paladin is excluded from the group (offensive_buff skips
+        # self). With 2 allies, the group covers both.
         paladin = self._make_paladin_actor()
         ally1 = _make_actor("ally1", position=(1, 0))
         ally2 = _make_actor("ally2", position=(2, 0))
@@ -220,9 +225,11 @@ class CandidateGenerationTest(unittest.TestCase):
                                                       slot="action")
         bless_candidates = [c for c in candidates
                               if c.get("action", {}).get("id") == "a_bless"]
-        # One per ally (excluding paladin themselves per
-        # offensive_buff dedup pattern from PR #44)
-        self.assertEqual(len(bless_candidates), 2)
+        self.assertEqual(len(bless_candidates), 1)
+        targets = bless_candidates[0]["targets"]
+        # Both allies covered; paladin excluded
+        self.assertEqual(len(targets), 2)
+        self.assertNotIn(paladin, targets)
 
     def test_shield_of_faith_emits_per_ally_defensive_buff(self) -> None:
         paladin = self._make_paladin_actor()
