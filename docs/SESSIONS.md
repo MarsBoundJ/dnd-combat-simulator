@@ -5,6 +5,142 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-28 (cont.) — 6 more PRs (PRs #99–#104), the Warlock build-out
+
+**Participants:** Phil, Claude (Opus 4.8)
+
+Same-day continuation. Test suite 1622 → **1683** passed + 1 skipped,
+zero regressions. Six PRs: stood up the **Warlock from scratch** (now
+combat-complete) + closed out the temp-HP family with False Life +
+shipped Compelled Duel (which fixed a latent spell-DC bug).
+
+### Headline: Warlock went 0 → combat-complete in 4 PRs
+
+PR #100 (class) → #101 (short-rest economy) → #102 (Eldritch Blast) →
+#103 (Agonizing Blast). And the forward-compat pattern paid off
+loudly: Hex (#90) and Armor of Agathys (#96) were shipped months
+earlier against a non-existent `c_warlock`; PR #100 referenced them
+in the class table and **they activated with zero spell-side
+changes.**
+
+### PR #99 — False Life (one-shot self temp HP)
+
+Simplest temp-HP spell; near-pure reuse of PR #94 temp-HP infra +
+PR #96 upcast. One-shot flat self grant (1d4+4 → flat 6, +5/upcast),
+NOT concentration.
+- `is_self_targeted_defensive_buff` now recognizes temp_hp_grant /
+  hp_max_grant (target:self) + armor_of_agathys_arm → self-buff
+  temp-HP spells emit ONE candidate, not one-per-ally. **Side
+  cleanup:** Armor of Agathys now emits self-only too.
+- defensive_ehp temp-HP dispatch split: `recurring_temp_hp` →
+  Heroism scorer; one-shot `temp_hp_grant` → new
+  `_score_temp_hp_oneshot`. Caught a latent mis-route (a one-shot
+  grant would have used Heroism's per-turn caster-mod formula).
+- 9 tests. Suite 1631.
+- **Scope:** forward-compat under c_wizard L1 (spell-prep wiring
+  separate). Per-roll d4 → flat (shared v1 simplification).
+
+### PR #100 — c_warlock class
+
+Minimal Warlock, shipped primarily to ACTIVATE Hex + Armor of
+Agathys.
+- CHA primary, d8, Pact Magic slot table via per-row
+  class_resources.spell_slots (all slots at highest castable level,
+  concentrated counts: L1 {1:1} … L11 {5:3} … L17 {5:4}).
+- f_pact_magic marker + f_hex + f_armor_of_agathys at L1.
+- 11 tests. Suite 1642.
+- **Scope (Phil's calls):** slots-only (short-rest recovery deferred
+  to #101); minimal class (Eldritch Blast / invocations / boons /
+  subclasses deferred). Both Hex + AoA activated unchanged.
+
+### PR #101 — Pact Magic short-rest recovery
+
+The Warlock's signature short-rest economy (closes #100's deferral).
+- `apply_short_rest` gains a `cls == "c_warlock"` branch →
+  `_apply_pact_magic_short_rest_refresh` restores spell_slots to
+  spell_slots_max. **Class-gated** (other casters stay long-rest).
+- 8 tests incl. **non-Warlock regression guards** (Wizard + Paladin
+  slots NOT restored on short rest). Suite 1650.
+- **Scope:** single-class assumption documented (a Warlock multiclass
+  would need pact slots separated from standard slots).
+
+### PR #102 — Eldritch Blast cantrip
+
+The Warlock's iconic at-will. **First ranged spell attack in the
+engine.** 1d10 force/beam, beams scale with CHARACTER level
+(1/2/3/4 at L1/5/11/17), cantrip (no slot).
+- Mirrors Fighter Extra Attack: single beam always present +
+  multiattack wrapper at L5+ (both candidates; AI picks the multi).
+- `_build_feature_actions` extended with ability_scores + PB so the
+  spell attack bonus (CHA + PB) computes.
+- 10 tests. Suite 1660.
+- **Scope:** Agonizing Blast (#103), Repelling Blast, per-beam target
+  splitting deferred.
+
+### PR #103 — Agonizing Blast + minimal invocations system
+
+The Warlock's most-taken invocation (+CHA to each EB beam) +
+bootstraps Eldritch Invocations.
+- **Invocations system:** player-CHOSEN via pc_spec `invocations:
+  [...]` (parallel to fighting_style). `_validate_invocations`:
+  Warlock-only gate, `_KNOWN_INVOCATIONS` registry, prerequisite
+  check (Agonizing Blast requires EB), dedup. Merges into
+  features_known.
+- Agonizing effect: EB beam damage_mod = CHA mod when known (rides
+  the single beam → all multiattack beams inherit). Marker feature,
+  NOT auto-granted.
+- 12 tests incl. validation (non-Warlock / unknown id / prereq).
+  Suite 1672.
+- **Scope:** generalized prereq schema, invocation-count cap, other
+  invocations deferred (registry + per-invocation hooks extend).
+
+### PR #104 — Compelled Duel + source-aware when-eval + spell-DC fix
+
+Paladin hard-control debuff (disadvantage on the marked enemy's
+attacks against anyone but the caster). Fresh control shape + two
+infra wins.
+- **Source-aware when-clauses.** `_eval_when`/`_eval_expr` now thread
+  the modifier entry so atoms read source.source_creature_id. New
+  atom `attack_target_is_not_source`. Reusable for future
+  source-referencing effects (Sanctuary etc.).
+- **Spell-DC fix (latent bug).** `_resolve_dc`'s caster_spell_save_dc
+  was hardcoded INT — silently wrong for every CHA/WIS caster
+  (Paladin/Cleric/Bard/Warlock). Now reads
+  `template.spellcasting_ability` (stamped by pc_schema from the
+  class spellcasting block), INT fallback for legacy fixtures.
+  c_paladin gained a CHA spellcasting block.
+- co_compelled_duel (source_referencing) + f_compelled_duel
+  (hard_control, BA, concentration) at c_paladin L2.
+  PARTIAL_CONTROL_CONDITIONS += co_compelled_duel (0.25).
+- 11 tests. Suite 1683.
+- **Scope:** movement leash, spell-end-on-caster-attacks-others,
+  end-of-turn re-save deferred. v1 ends on concentration drop.
+
+### Infra shipped this block (reusable)
+
+| Infra | PR | Future use |
+|---|---|---|
+| self-targeted temp/max-HP candidate dedup | #99 | any self-buff resource grant |
+| one-shot vs recurring temp-HP scorer split | #99 | future flat temp-HP spells |
+| Pact Magic short-rest refresh (class-gated) | #101 | Warlock; multiclass pact slots later |
+| EB beam-scaling via Extra Attack pattern | #102 | any "N attack rolls" cantrip/feature |
+| `_build_feature_actions` gets ability_scores+PB | #102 | stat-dependent feature actions |
+| **Eldritch Invocations system** (`invocations` pc_spec + registry + validate) | #103 | Repelling Blast, Devil's Sight, all future invocations |
+| **source-aware when-eval** (`mod` threading + `attack_target_is_not_source`) | #104 | Sanctuary, any "who cast me" condition |
+| **spellcasting_ability stamp + DC fix** | #104 | correct save DC for ALL non-INT casters |
+
+### Open items (carried)
+
+Warlock: invocation-count-by-level cap, Pact Boons, patron
+subclasses, Mystic Arcanum, more invocations (Repelling Blast cheap
+now). Party-coord arc: hold-initiative, buff-before-burst. Race
+traits: Elf/Dwarf/Halfling. Multi-target ordering: prefer-highest-DPR
+for offensive buffs. Compelled Duel: movement leash + end triggers.
+Class scaffolding: c_cleric, c_ranger spellcasting (activates
+Hunter's Mark).
+
+---
+
 ## Session: 2026-05-28 (cont.) — 6 more PRs (PRs #93–#98)
 
 **Participants:** Phil, Claude (Sonnet for #93–96, Opus 4.8 for #97–98)
