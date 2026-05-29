@@ -348,6 +348,13 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
         # `spell_slots:`. Empty dict for non-casters or for classes
         # whose table doesn't declare the field.
         "spell_slots": _derive_class_spell_slots(class_def, level),
+        # PR #104: spellcasting ability (from the class's spellcasting
+        # block — 'charisma' for Paladin/Warlock, 'intelligence' for
+        # Wizard, etc.). Read by _resolve_dc to compute the correct
+        # spell save DC (8 + spellcasting_mod + PB). None for
+        # non-casters; _resolve_dc falls back to INT.
+        "spellcasting_ability": (
+            (class_def.get("spellcasting") or {}).get("ability")),
         # Tag for telemetry / debugging
         "derived_from_pc_schema": {
             "class": class_id,

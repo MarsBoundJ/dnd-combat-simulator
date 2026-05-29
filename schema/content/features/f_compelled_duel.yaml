@@ -1,0 +1,61 @@
+# f_compelled_duel — Compelled Duel (1st-level Paladin spell, SRD CC v5.2.1)
+#
+# RAW summary: Bonus Action, 30 ft, one creature. WIS save; on fail
+# the target is compelled into a duel — disadvantage on attack rolls
+# against any creature other than you, and magically leashed to stay
+# near you. Concentration, up to 1 minute.
+#
+# Engine modeling (PR #104):
+#   - type: hard_control (forced_save → on_fail apply_condition).
+#     The candidate generator emits one per enemy; defensive_ehp_
+#     hard_control scores it via co_compelled_duel's denial fraction.
+#   - 1 Bonus Action cast, concentration.
+#   - WIS save vs the Paladin's spell save DC (CHA-based — PR #104
+#     added a spellcasting block to c_paladin + taught _resolve_dc to
+#     read template.spellcasting_ability so the DC uses CHA not INT).
+#   - on_fail applies co_compelled_duel: disadvantage on the target's
+#     attacks against anyone other than the caster (the new
+#     attack_target_is_not_source when-clause atom, PR #104).
+#   - named_effect: compelled_duel → cross-caster dedup.
+#
+# Deferred RAW bits (documented on co_compelled_duel too):
+#   - Movement leash (can't move >30 ft from caster)
+#   - Spell-end triggers (target moves away; caster attacks/damages
+#     someone else). v1 ends on concentration drop only.
+#   - End-of-turn re-save to break free.
+
+id: f_compelled_duel
+name: Compelled Duel
+source: srd_5.2.1
+granted_by:
+  class: c_paladin
+  level: 2                   # Paladins gain 1st-level slots at L2
+type: active
+spell:
+  class: c_paladin
+  level: 1
+
+description: |
+  Force one enemy into a duel: WIS save or have disadvantage on
+  attacks against anyone but you. Concentration, 1 minute. BA cast.
+
+action_template:
+  id: a_compelled_duel
+  name: Compelled Duel
+  type: hard_control
+  spell_slot_level: 1
+  slot: bonus_action
+  concentration: true
+  named_effect: compelled_duel
+  range_ft: 30
+  pipeline:
+    - primitive: forced_save
+      params:
+        ability: wisdom
+        dc_source: caster_spell_save_dc
+        on_fail:
+          - primitive: apply_condition
+            params:
+              condition_id: co_compelled_duel
+              duration: until_spell_ends
+        on_success: []

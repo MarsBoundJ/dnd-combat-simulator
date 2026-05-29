@@ -56,6 +56,20 @@ multiclass_entry:
   features_gained: [f_weapon_mastery]
   multiclass_slot_contribution: half
 
+# Paladin is a CHA half-caster (PR #104 added this block so the spell
+# save DC for save-based Paladin spells — Compelled Duel's WIS save —
+# resolves with CHA, not the INT default. pc_schema stamps
+# template.spellcasting_ability from `ability` below; _resolve_dc
+# reads it.) Slot progression stays driven by the per-row
+# class_resources.spell_slots table (Divine Smite shipped that in
+# PR #73); slots_progression here is descriptive.
+spellcasting:
+  enabled: true
+  ability: charisma
+  save_dc_formula: "8 + actor.cha_mod + actor.proficiency_bonus"
+  attack_mod_formula: "actor.cha_mod + actor.proficiency_bonus"
+  slots_progression: half_caster
+
 level_table:
   - level: 1
     proficiency_bonus: 2
@@ -70,7 +84,7 @@ level_table:
     proficiency_bonus: 2
     features: [f_divine_smite, f_bless, f_shield_of_faith,
                 f_divine_favor, f_protection_from_evil_and_good,
-                f_searing_smite, f_heroism]
+                f_searing_smite, f_heroism, f_compelled_duel]
     class_resources:
       weapon_mastery_count: 2
       spell_slots: { 1: 2 }

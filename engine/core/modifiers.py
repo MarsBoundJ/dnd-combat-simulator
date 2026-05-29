@@ -133,7 +133,7 @@ def query_attack_modifiers(
         params = mod.get("params") or {}
         when = params.get("when", "")
         if not _eval_when(when, owner=owner, attacker=attacker,
-                          target=target, state=state):
+                          target=target, state=state, mod=mod):
             continue
         modifier_type = params.get("modifier", "")
         _apply_attack_modifier(result, modifier_type, params, mod)
@@ -585,7 +585,7 @@ def _resolve_numeric_expr(expr: str, actor: Actor) -> int | None:
 # ============================================================================
 
 def _eval_when(expr: str, *, owner: Actor, attacker: Actor, target: Actor,
-                state: CombatState) -> bool:
+                state: CombatState, mod: dict | None = None) -> bool:
     """Evaluate a when-clause boolean expression.
 
     Supported atoms:
@@ -595,15 +595,25 @@ def _eval_when(expr: str, *, owner: Actor, attacker: Actor, target: Actor,
       - attacker_not_within_ft(N) — distance(attacker, target) > N
       - attack_hits              — current attack state is hit or crit
       - attack_target_is_not(<expr>) — target is not the referenced source
+      - attack_target_is_not_source — (PR #104) the in-flight attack
+        target is NOT this modifier's source creature. Used by
+        Compelled Duel: the marked creature attacking someone OTHER
+        than the Paladin who cast it has disadvantage. Requires `mod`
+        (the modifier entry) so its source.source_creature_id can be
+        read.
 
     Operators: AND, OR, NOT, parentheses (basic; not fully nested).
 
     Skeleton-grade: position-based checks default to TRUE since the
     skeleton uses (0,0) for everyone. Real engine needs grid math.
+
+    `mod` carries the modifier entry so source-aware atoms can read
+    its source.source_creature_id; None for callers that don't have
+    a modifier in hand (the atom then defaults conservatively).
     """
     if not expr:
         return True
-    return _eval_expr(expr.strip(), owner, attacker, target, state)
+    return _eval_expr(expr.strip(), owner, attacker, target, state, mod)
 
 
 def _eval_save_when(expr: str, save_ability: str, owner: Actor, target: Actor,
@@ -626,22 +636,23 @@ def _eval_save_when(expr: str, save_ability: str, owner: Actor, target: Actor,
 
 
 def _eval_expr(expr: str, owner: Actor, attacker: Actor, target: Actor,
-                state: CombatState) -> bool:
+                state: CombatState, mod: dict | None = None) -> bool:
     expr = expr.strip()
     # Parentheses (single level; skeleton)
     if expr.startswith("(") and expr.endswith(")"):
-        return _eval_expr(expr[1:-1].strip(), owner, attacker, target, state)
+        return _eval_expr(expr[1:-1].strip(), owner, attacker, target,
+                            state, mod)
     # AND / OR / NOT (left-associative; skeleton)
     if " AND " in expr:
         left, right = expr.split(" AND ", 1)
-        return _eval_expr(left, owner, attacker, target, state) and \
-               _eval_expr(right, owner, attacker, target, state)
+        return _eval_expr(left, owner, attacker, target, state, mod) and \
+               _eval_expr(right, owner, attacker, target, state, mod)
     if " OR " in expr:
         left, right = expr.split(" OR ", 1)
-        return _eval_expr(left, owner, attacker, target, state) or \
-               _eval_expr(right, owner, attacker, target, state)
+        return _eval_expr(left, owner, attacker, target, state, mod) or \
+               _eval_expr(right, owner, attacker, target, state, mod)
     if expr.startswith("NOT "):
-        return not _eval_expr(expr[4:], owner, attacker, target, state)
+        return not _eval_expr(expr[4:], owner, attacker, target, state, mod)
     # Atoms
     if expr == "target_is_self":
         return target.id == owner.id
@@ -668,6 +679,18 @@ def _eval_expr(expr: str, owner: Actor, attacker: Actor, target: Actor,
         # Used by Grappled: target other than the grappler
         # Skeleton: True if there's any target at all
         return True
+    if expr == "attack_target_is_not_source":
+        # PR #104: the in-flight attack target is NOT this modifier's
+        # source creature. Compelled Duel: the marked creature has
+        # disadvantage when attacking anyone OTHER than the Paladin
+        # who cast it. Reads source.source_creature_id off `mod`.
+        src = (mod or {}).get("source") or {}
+        src_id = src.get("source_creature_id")
+        if src_id is None:
+            # No recorded source — can't restrict; fire the modifier
+            # (conservative: a debuff with no anchor still applies).
+            return True
+        return target.id != src_id
     # PR #47: vision predicates. attacker_can_see(self) and
     # target_can_see(self) — "self" refers to the modifier owner.
     # Used by co_invisible's when-clauses and (future) other
