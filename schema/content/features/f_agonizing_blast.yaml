@@ -1,0 +1,48 @@
+# f_agonizing_blast — Agonizing Blast (Eldritch Invocation)
+# Source: SRD CC v5.2.1 / PHB 2024
+#
+# The Warlock's most-taken invocation. RAW: when you cast Eldritch
+# Blast, add your Charisma modifier to the damage it deals on a hit
+# (each beam). Turns EB from 1d10 force/beam into 1d10 + CHA/beam —
+# the single biggest sustained-DPR boost a Warlock gets.
+#
+# **Eldritch Invocation model (v1, PR #103):** invocations are
+# player-CHOSEN Warlock features (not auto-granted). A pc_spec
+# declares them via an `invocations: [...]` list, validated by
+# pc_schema._validate_invocations against the _KNOWN_INVOCATIONS
+# registry + prerequisites. Chosen invocations merge into
+# features_known. Agonizing Blast's effect is applied in
+# pc_schema._build_eldritch_blast_actions (beam damage_mod = CHA mod
+# when f_agonizing_blast is known) rather than via a pipeline, since
+# it modifies a dynamically-built action.
+#
+# Prerequisite: knowing Eldritch Blast (f_eldritch_blast). Enforced
+# in _validate_invocations.
+#
+# This is the first Eldritch Invocation. Future invocations (Repelling
+# Blast, Devil's Sight, Armor of Shadows, etc.) extend the registry +
+# add their own application hooks.
+
+id: f_agonizing_blast
+name: Agonizing Blast
+source: srd_5.2.1
+granted_by:
+  class: c_warlock
+  level: 1                   # invocations start at L1 (PHB 2024)
+type: passive
+
+# No effect_primitives / action_template — the CHA-to-damage bump is
+# baked into the Eldritch Blast beam(s) at PC-build time by
+# pc_schema when f_agonizing_blast is in the chosen invocations.
+
+contract:
+  reads: [actor.abilities.cha]
+  writes: [combat.damage_total]
+  event: passive
+  scope: modifies_eldritch_blast
+
+# Deferred:
+#   - Generalized "invocation prerequisites" schema (v1 hardcodes the
+#     EB prereq in _validate_invocations)
+#   - Invocation count by level (RAW: Warlocks know a limited number
+#     that scales with level; v1 doesn't cap the chosen list)
