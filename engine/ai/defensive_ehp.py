@@ -344,12 +344,20 @@ def defensive_ehp_defensive_buff(actor: Actor, target_ally: Actor,
     if _pipeline_has_primitive(action, "hp_max_grant"):
         return _score_hp_max_grant(actor, target_ally, action, state)
 
-    # PR #94: Heroism — temp HP grant per turn. Standard buff scorer
-    # ignores temp_hp_grant / recurring_temp_hp primitives. Score
-    # based on expected total temp HP value over the buff duration.
-    if _pipeline_has_primitive(action, "recurring_temp_hp") or \
-            _pipeline_has_primitive(action, "temp_hp_grant"):
+    # PR #94: Heroism — RECURRING per-turn temp HP grant. The
+    # recurring_temp_hp primitive is the discriminator (one-shot
+    # temp_hp_grant spells like False Life fall through to the
+    # one-shot scorer below).
+    if _pipeline_has_primitive(action, "recurring_temp_hp"):
         return _score_heroism(actor, target_ally, action, state)
+
+    # PR #99: one-shot temp HP grant (False Life-shape). Flat-amount
+    # temp HP, no recurring tick. Value = amount × absorption
+    # fraction (the fraction of the buffer that lands before it would
+    # otherwise expire). Routed here only when there's no
+    # recurring_temp_hp step.
+    if _pipeline_has_primitive(action, "temp_hp_grant"):
+        return _score_temp_hp_oneshot(actor, target_ally, action, state)
 
     buff = extract_buff_effect(action)
     if not buff:
@@ -606,6 +614,47 @@ def _score_armor_of_agathys(actor: Actor, target_ally: Actor,
     # they're in the fight)
     offensive_value = base_cold * ARMOR_OF_AGATHYS_EXPECTED_REFLECTIONS
     return defensive_value + offensive_value
+
+
+def _score_temp_hp_oneshot(actor: Actor, target_ally: Actor,
+                              action: dict,
+                              state: CombatState) -> float:
+    """Estimate eHP value of a one-shot temp HP grant (PR #99,
+    False Life-shape).
+
+    Value = grant_amount × TEMP_HP_ABSORPTION_FRACTION. Temp HP is a
+    direct damage buffer; the absorption fraction discounts for the
+    portion that may go unused if the buff expires before being
+    spent. (For a self-cast pre-fight buff the whole amount usually
+    lands, but the same conservative fraction used for Heroism keeps
+    the two temp-HP scorers calibrated to one shared assumption.)
+
+    Reads the flat `amount` from the temp_hp_grant step. Returns 0
+    when the target already has a matching named_effect (dedup; the
+    primitive also no-ops via max-semantics, so a re-cast that
+    wouldn't raise temp HP is wasted) — but only when the existing
+    temp HP is >= this grant (a bigger pending grant is still worth
+    casting). v1 keeps it simple: dedup purely on named_effect
+    presence among active modifiers is not tracked for temp HP (it's
+    a scalar, not a modifier list), so we skip the dedup branch and
+    rely on the AI not re-casting a self-buff it just cast.
+    """
+    if target_ally is None or not target_ally.is_alive():
+        return 0.0
+    if target_ally.side != actor.side:
+        return 0.0
+    grant = 0
+    for step in (action.get("pipeline") or []):
+        if step.get("primitive") == "temp_hp_grant":
+            grant = int((step.get("params") or {}).get("amount", 0))
+            break
+    if grant <= 0:
+        return 0.0
+    # Don't re-cast if the target already has temp HP >= this grant
+    # (max-semantics means the grant would do nothing).
+    if target_ally.temp_hp >= grant:
+        return 0.0
+    return grant * TEMP_HP_ABSORPTION_FRACTION
 
 
 def _score_heroism(actor: Actor, target_ally: Actor, action: dict,

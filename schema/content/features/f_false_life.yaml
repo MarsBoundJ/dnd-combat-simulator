@@ -1,0 +1,72 @@
+# f_false_life — False Life (1st-level Necromancy, SRD CC v5.2.1)
+#
+# RAW summary: Action cast, Self, 1-hour duration, NOT concentration.
+# "Bolstering yourself with a necromantic facsimile of life, you gain
+# 1d4 + 4 temporary hit points for the duration."
+# At Higher Levels: +5 temporary HP per slot level above 1st.
+#
+# The simplest possible temp-HP spell — a one-shot self grant. Pure
+# reuse of the temp HP infra (PR #94) + upcast scaling (PR #96).
+# Contrast:
+#   - Heroism (PR #94): RECURRING temp HP per turn (caster mod)
+#   - Armor of Agathys (PR #96): temp HP + reflective cold thorns
+#   - Aid (PR #97): raises MAX HP (different mechanic), multi-target
+#   - False Life: one-shot flat self temp HP, nothing else
+#
+# Engine modeling (PR #99):
+#   - type: defensive_buff (self-targeted — emits ONE candidate via
+#     the temp_hp_grant(target:self) detection added to
+#     is_self_targeted_defensive_buff)
+#   - 1 Action cast, NOT concentration
+#   - temp_hp_grant amount 6 (RAW 1d4+4 avg 6.5, floored to 6 to
+#     match the flat-average convention used for Bless/Divine Favor's
+#     1d4 → +2). + 5 per upcast level above 1st via
+#     amount_per_slot_above_base.
+#   - max-semantics (PR #94): re-casting / overlapping temp HP keeps
+#     the greater value, doesn't stack.
+#   - Scored by _score_temp_hp_oneshot (flat amount × absorption
+#     fraction), distinct from Heroism's recurring scorer.
+#
+# Deferred RAW bits:
+#   - Per-roll 1d4+4 (v1 uses flat 6)
+#   - True 1-hour duration timer (temp HP persists until depleted by
+#     damage or cleared at long rest — apply_long_rest handles that)
+#
+# **Class wiring note:** False Life is a Wizard/Sorcerer/Warlock-
+# adjacent Necromancy spell (also on some other lists). c_warlock /
+# c_wizard-as-prepared-caster spell wiring isn't fully built; ships
+# forward-compat under `granted_by: c_wizard, level: 1`. c_wizard
+# exists (PR #64-era minimal class) but its spell-prep wiring is
+# separate; when that lands, add f_false_life to the known-spells
+# set and the auto-attach pass (PR #82) picks up the action_template.
+
+id: f_false_life
+name: False Life
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 1
+type: active
+spell:
+  class: c_wizard
+  level: 1
+
+description: |
+  Self-buff. Gain 1d4+4 (v1: flat 6) temporary HP. +5 per upcast
+  level above 1st. 1-hour duration (v1: until depleted / long rest),
+  NOT concentration. Action cast.
+
+action_template:
+  id: a_false_life
+  name: False Life
+  type: defensive_buff
+  spell_slot_level: 1
+  slot: action
+  named_effect: false_life
+  range_ft: 0                # self-only
+  pipeline:
+    - primitive: temp_hp_grant
+      params:
+        target: self
+        amount: 6
+        amount_per_slot_above_base: 5

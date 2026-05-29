@@ -403,6 +403,20 @@ def is_self_targeted_defensive_buff(action: dict) -> bool:
         # attack + speed 0. Same self-targeted pattern.
         if prim == "steady_aim":
             return True
+        # PR #96: Armor of Agathys arms the caster (self-buff). Its
+        # pipeline pairs temp_hp_grant(self) + armor_of_agathys_arm;
+        # the marker primitive is the unambiguous self signal.
+        if prim == "armor_of_agathys_arm":
+            return True
+        # PR #99: one-shot self temp HP (False Life) + self temp HP
+        # grants generally. A temp_hp_grant / hp_max_grant step with
+        # target: self marks the whole action self-targeted so it
+        # emits ONE candidate, not one-per-ally.
+        if prim in ("temp_hp_grant", "hp_max_grant"):
+            params = step.get("params") or {}
+            if params.get("target") == "self":
+                return True
+            continue
         if prim not in ("attack_modifier", "save_modifier"):
             continue
         params = step.get("params") or {}
