@@ -411,6 +411,18 @@ def defensive_ehp_defensive_buff(actor: Actor, target_ally: Actor,
     if _pipeline_has_primitive(action, "recurring_temp_hp"):
         return _score_heroism(actor, target_ally, action, state)
 
+    # PR #111: arming-smite family — self-buffs that arm a one-shot
+    # rider firing on the caster's NEXT weapon hit. Their pipelines use
+    # bespoke arm primitives (no attack/save_modifier), so the generic
+    # extract_buff_effect path returned 0 and the AI never cast them.
+    # Scored against the caster's next-hit probability × the rider's
+    # payoff (Searing = bonus fire + ignite DoT; Ensnaring = restrain
+    # control + pierce DoT).
+    if _pipeline_has_primitive(action, "searing_smite_arm"):
+        return _score_searing_smite(actor, state)
+    if _pipeline_has_primitive(action, "ensnaring_strike_arm"):
+        return _score_ensnaring_strike(actor, state)
+
     # PR #109: self weapon-damage buff (Divine Favor shape) — a flat
     # +N on the caster's OWN weapon hits. extract_buff_effect doesn't
     # recognize weapon_damage_bonus, so without this branch the buff
@@ -1104,6 +1116,112 @@ def defensive_ehp_hard_control(actor: Actor, target_enemy: Actor,
     enemy_dpr = estimate_dpr(target_enemy)
     return (enemy_dpr * p_fail * EXPECTED_CONTROL_ROUNDS
             * intent["denial_fraction"])
+
+
+# ============================================================================
+# Arming-smite scoring (PR #111) — Searing Smite / Ensnaring Strike
+# ============================================================================
+
+# Mean of 1d6 (the empowering-attack bonus + the per-turn DoT on both
+# spells). v1 scores the base cast; upcast bonus dice aren't modeled at
+# selection time (the rider rolls them at execution).
+_SMITE_D6_MEAN = 3.5
+
+
+def _self_next_hit_prob(actor: Actor) -> float:
+    """Probability the caster LANDS its next weapon attack (AC 15
+    proxy, same baseline as estimate_dpr). Arming smites fire on the
+    next hit, so this gates their whole value. Returns the p_hit of the
+    caster's highest-damage weapon attack; 0.0 if it has none."""
+    actions = (actor.template or {}).get("actions") or []
+    best_value = 0.0
+    p_hit_of_best = 0.0
+    for action in actions:
+        if action.get("type") != "weapon_attack":
+            continue
+        bonus = _attack_bonus(action) or 0
+        needed = 15 - bonus
+        if needed <= 2:
+            p_hit = 19 / 20
+        elif needed > 20:
+            p_hit = 1 / 20
+        else:
+            p_hit = (21 - needed) / 20
+        value = _approximate_damage_on_hit(action) * p_hit
+        if value > best_value:
+            best_value = value
+            p_hit_of_best = p_hit
+    return p_hit_of_best
+
+
+def _caster_spell_dc(actor: Actor) -> int:
+    """Scoring-time spell save DC: 8 + PB + spellcasting-ability mod.
+    Ability-aware (reads template.spellcasting_ability; CHA fallback),
+    matching the generalized primitives._caster_spell_save_dc (PR #110)
+    so the AI scores against the same DC the rider will roll."""
+    pb = int((actor.template.get("cr") or {}).get("proficiency_bonus", 2))
+    ability = ((actor.template or {}).get("spellcasting_ability")
+                 or "charisma")
+    short = _short_ability(ability)
+    score = (actor.abilities.get(short) or {}).get("score", 10)
+    return 8 + pb + ability_modifier(score)
+
+
+def _representative_enemy(actor: Actor, state: CombatState):
+    """The highest-DPR living enemy — the one the caster most wants to
+    burn / lock down, and the proxy target the arming smite is scored
+    against (the real target is whoever the caster hits next)."""
+    enemies = [a for a in state.encounter.actors
+                 if a.side != actor.side and a.is_alive()]
+    if not enemies:
+        return None
+    return max(enemies, key=estimate_dpr)
+
+
+def _score_searing_smite(actor: Actor, state: CombatState) -> float:
+    """eHP of arming Searing Smite (PR #111).
+
+      eHP = p_hit × (bonus_fire + p_fail_CON × burn_per_turn × rounds)
+
+    The +1d6 fire lands on the empowering hit regardless of the save;
+    the ignite DoT (1d6/turn) only if the target fails its CON save.
+    Scored against the highest-DPR enemy as the plausible next target.
+    """
+    enemy = _representative_enemy(actor, state)
+    if enemy is None:
+        return 0.0
+    p_hit = _self_next_hit_prob(actor)
+    if p_hit <= 0:
+        return 0.0
+    p_fail = save_fail_probability(enemy, "constitution",
+                                     _caster_spell_dc(actor), state)
+    burn = p_fail * _SMITE_D6_MEAN * EXPECTED_BUFF_ROUNDS
+    return p_hit * (_SMITE_D6_MEAN + burn)
+
+
+def _score_ensnaring_strike(actor: Actor, state: CombatState) -> float:
+    """eHP of arming Ensnaring Strike (PR #111).
+
+      eHP = p_hit × p_fail_STR
+            × (enemy_DPR × restrain_denial × rounds + pierce × rounds)
+
+    No bonus damage on the hit; on a failed STR save the target is
+    Restrained (control denial, reusing PARTIAL_CONTROL_CONDITIONS'
+    co_restrained fraction) and takes 1d6 piercing per turn. Scored
+    against the highest-DPR enemy (most worth locking down).
+    """
+    enemy = _representative_enemy(actor, state)
+    if enemy is None:
+        return 0.0
+    p_hit = _self_next_hit_prob(actor)
+    if p_hit <= 0:
+        return 0.0
+    p_fail = save_fail_probability(enemy, "strength",
+                                     _caster_spell_dc(actor), state)
+    denial = PARTIAL_CONTROL_CONDITIONS.get("co_restrained", 0.5)
+    control = estimate_dpr(enemy) * denial * EXPECTED_CONTROL_ROUNDS
+    dot = _SMITE_D6_MEAN * EXPECTED_BUFF_ROUNDS
+    return p_hit * p_fail * (control + dot)
 
 
 # ============================================================================
