@@ -78,6 +78,21 @@ def apply_short_rest(actor: Actor, state: CombatState) -> dict:
         asg = _apply_action_surge_short_rest_refresh(actor, level, state)
         if asg is not None:
             summary["action_surge_refresh"] = asg
+    # PR #101: Warlock Pact Magic — slots recover on a SHORT rest
+    # (the Warlock's signature short-rest economy). Restore
+    # spell_slots to spell_slots_max. Gated on c_warlock: every other
+    # caster's slots are long-rest only, so we must NOT blanket-
+    # restore spell_slots for non-Warlocks here.
+    # NOTE: single-class assumption — a pure Warlock's slots are ALL
+    # pact slots. A future Warlock multiclass would have a mix of
+    # pact (short-rest) + standard (long-rest) slots that this
+    # blanket restore would over-recover; documented for the
+    # multiclass PR. The f_pact_magic feature presence is the
+    # forward-looking gate if class-dispatch is ever insufficient.
+    if cls == "c_warlock":
+        pact = _apply_pact_magic_short_rest_refresh(actor, state)
+        if pact is not None:
+            summary["pact_magic_refresh"] = pact
     state.event_log.append({
         "event": "short_rest_applied",
         "actor": actor.id,
@@ -354,6 +369,40 @@ def _apply_second_wind_short_rest_refresh(actor: Actor, level: int,
     actor.resources["second_wind_uses_remaining"] = cur + 1
     return {"added": 1,
              "new_total": actor.resources["second_wind_uses_remaining"]}
+
+
+def _apply_pact_magic_short_rest_refresh(
+        actor: Actor, state: CombatState) -> dict | None:
+    """Per RAW (PR #101): Warlock Pact Magic slots recover on a SHORT
+    rest. Restore `actor.spell_slots` to `actor.spell_slots_max`.
+
+    Returns a `{level: restored_count, ...}` summary of what was
+    refilled, or None if nothing was expended (all slots already at
+    max) or the actor has no pact slot ceiling recorded.
+
+    Single-class assumption: a pure Warlock's slots are ALL pact
+    slots, so a blanket restore-to-max is correct. The caller gates
+    this on `cls == "c_warlock"`; a Warlock multiclass (not modeled)
+    would need to separate pact slots from standard slots before this
+    blanket restore is safe.
+    """
+    if not actor.spell_slots_max:
+        return None
+    restored: dict = {}
+    for lvl, max_at in actor.spell_slots_max.items():
+        cur = int(actor.spell_slots.get(lvl, 0))
+        max_int = int(max_at)
+        if cur < max_int:
+            restored[lvl] = max_int - cur
+            actor.spell_slots[lvl] = max_int
+    if not restored:
+        return None
+    state.event_log.append({
+        "event": "pact_magic_slots_restored",
+        "actor": actor.id,
+        "restored": restored,
+    })
+    return restored
 
 
 def _apply_action_surge_short_rest_refresh(actor: Actor, level: int,
