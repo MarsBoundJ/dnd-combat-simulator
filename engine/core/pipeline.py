@@ -206,6 +206,21 @@ def generate_candidates(actor: Actor, state: CombatState,
                     "target": actor,
                     "actor": actor,
                 })
+            elif int(action.get("max_targets", 1)) > 1:
+                # PR #97: multi-target grouping (Aid-shape spells).
+                # Emit ONE candidate covering the best up-to-N allies
+                # instead of N single-target candidates. Scoring sums
+                # the per-target value across the group.
+                group = _select_multi_target_group(
+                    action, allies, actor, state)
+                if group:
+                    candidates.append({
+                        "kind": action_type,
+                        "action": action,
+                        "target": group[0],     # primary (back-compat)
+                        "targets": group,        # full group
+                        "actor": actor,
+                    })
             else:
                 for ally in allies:
                     candidates.append({
@@ -420,6 +435,42 @@ def generate_candidates(actor: Actor, state: CombatState,
         candidates += _emit_ready_candidates(
             actor, state, actions, enemies)
     return candidates
+
+
+def _select_multi_target_group(action: dict, allies: list,
+                                  actor: Actor,
+                                  state: CombatState) -> list:
+    """Pick the best up-to-N allies for a multi-target buff/heal
+    (PR #97). RAW spells like Aid name up to `max_targets` creatures
+    within range; the AI picks the highest-value subset.
+
+    Selection heuristic:
+      - Filter to allies within `range_ft` of the caster (default
+        generous range if unset).
+      - Prefer the most-wounded allies first (lowest current-HP
+        fraction) — for Aid the current-HP bump heals them, and the
+        max-HP bump benefits everyone equally, so wounded allies get
+        strictly more value from the same cast.
+      - Take up to `max_targets`.
+
+    Self IS eligible (Aid can target the caster). Returns the chosen
+    ally list (possibly fewer than max_targets if the party is small),
+    or [] if no eligible allies.
+    """
+    from engine.core.geometry import distance_ft
+    max_targets = int(action.get("max_targets", 1))
+    range_ft = int(action.get("range_ft", 9999))
+    eligible = [a for a in allies
+                  if distance_ft(actor, a) <= range_ft]
+    if not eligible:
+        return []
+    # Most-wounded-first: sort by current-HP fraction ascending.
+    def _hp_fraction(a: Actor) -> float:
+        if a.hp_max <= 0:
+            return 1.0
+        return a.hp_current / a.hp_max
+    eligible.sort(key=_hp_fraction)
+    return eligible[:max_targets]
 
 
 def _emit_ready_candidates(actor: Actor, state: CombatState,
@@ -866,6 +917,16 @@ def execute(chosen: dict, state: CombatState, event_bus, primitives) -> None:
         # is global (one mutation, all observers see); per-observer
         # `spotted_by:` tracking deferred.
         _execute_search(actor, action, state, event_bus, primitives)
+    elif chosen.get("targets") and len(chosen["targets"]) > 1:
+        # PR #97: multi-target execution (Aid-shape). Run the
+        # pipeline once per target in the group, each with its own
+        # current_attack.target. A shallow copy of `chosen` swaps the
+        # `target` key per iteration so _execute_single's existing
+        # single-target logic is reused unchanged.
+        for tgt in chosen["targets"]:
+            per_target = dict(chosen)
+            per_target["target"] = tgt
+            _execute_single(per_target, state, event_bus, primitives)
     else:
         _execute_single(chosen, state, event_bus, primitives)
 

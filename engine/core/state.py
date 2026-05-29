@@ -50,6 +50,19 @@ class Actor:
     #   - _damage primitive (absorbs damage before hp_current)
     #   - apply_long_rest (clears to 0)
     temp_hp: int = 0
+    # Active max-HP bonuses (PR #97). RAW spells like Aid raise BOTH
+    # current and maximum HP for the duration (distinct from temp HP,
+    # which is a separate absorbing buffer). Each entry tracks a
+    # source so the bonus can be cleanly removed when the spell ends
+    # (capping current HP at the reduced max, per RAW). Entry shape:
+    #   {amount, source_id, source_action_id, named_effect}
+    # Written by _hp_max_grant primitive; removed by
+    # racial_traits-style cleanup at long rest (apply_long_rest) or a
+    # future timed-duration system. hp_max itself already reflects the
+    # bonuses (they're added in at grant time); this list is the
+    # ledger for clean removal. Reusable for Heroes' Feast,
+    # False Life's max-HP variants, etc.
+    hp_max_bonuses: list = field(default_factory=list)
     ac: int = 10
     speed: dict = field(default_factory=lambda: {"walk": 30})
     position: tuple[int, int] = (0, 0)          # grid coords; (0,0) until movement matters

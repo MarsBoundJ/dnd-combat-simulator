@@ -1166,6 +1166,114 @@ def _resolve_temp_hp_amount(source: str, state: CombatState) -> int:
     return max(1, mod)
 
 
+def _hp_max_grant(params: dict, state: CombatState,
+                     bus: EventBus) -> None:
+    """Raise the current target's maximum AND current HP (PR #97).
+
+    Distinct from temp HP (a separate absorbing buffer). RAW spells
+    like Aid raise both current and max HP for the duration:
+      "Each target's hit point maximum and current hit points
+       increase by 5 for the duration."
+
+    Params:
+      - target: 'self' | 'ally' | 'current_target' (default
+        current_attack.target)
+      - amount (int): base HP increase
+      - amount_per_slot_above_base (int, optional): per-upcast-level
+        bonus (reads chosen_slot_level vs action.spell_slot_level)
+
+    Dedup: keyed by the action's named_effect — if the target already
+    has an active bonus from the same named effect (e.g., Aid re-cast
+    on an ally who's still under a prior Aid), the grant is skipped
+    (RAW: same-named effects don't stack). The bonus ledger entry on
+    `target.hp_max_bonuses` lets `remove_hp_max_bonus` cleanly undo
+    the change when the spell ends.
+
+    Logs `hp_max_granted`.
+    """
+    target = state.current_attack.get("target") or state.current_actor()
+    caster = (state.current_attack or {}).get("actor") or \
+              state.current_actor()
+    if target is None:
+        raise ValueError("hp_max_grant requires a current target")
+    amount = int(params.get("amount", 0))
+    per_slot_bonus = int(params.get("amount_per_slot_above_base", 0))
+    if per_slot_bonus > 0:
+        chosen_level = int(state.current_attack.get(
+            "chosen_slot_level") or 0)
+        action = state.current_attack.get("action") or {}
+        base_level = int(action.get("spell_slot_level", 1))
+        if chosen_level > base_level:
+            amount += (chosen_level - base_level) * per_slot_bonus
+    if amount <= 0:
+        return
+    action = (state.current_attack or {}).get("action") or {}
+    named_effect = action.get("named_effect")
+    action_id = action.get("id")
+    # Dedup by named_effect (same spell doesn't stack on a target).
+    if named_effect:
+        for entry in target.hp_max_bonuses:
+            if entry.get("named_effect") == named_effect:
+                return   # already has this effect; no stacking
+    target.hp_max += amount
+    target.hp_current += amount
+    target.hp_max_bonuses.append({
+        "amount": amount,
+        "source_id": caster.id if caster else None,
+        "source_action_id": action_id,
+        "named_effect": named_effect,
+    })
+    state.event_log.append({
+        "event": "hp_max_granted",
+        "target": target.id,
+        "amount": amount,
+        "new_hp_max": target.hp_max,
+        "new_hp_current": target.hp_current,
+    })
+
+
+def remove_hp_max_bonus(target: Actor, *, source_id: str | None = None,
+                           source_action_id: str | None = None,
+                           named_effect: str | None = None) -> int:
+    """Remove matching max-HP bonuses from `target` and lower hp_max
+    accordingly (PR #97). Caps hp_current at the reduced hp_max per
+    RAW ("if this lowers your maximum below your current HP, your
+    current HP drops to match").
+
+    Matches entries where the provided keys equal the entry's fields
+    (None keys are wildcards — at least one key must be provided).
+    Returns the total HP amount removed (sum of matched bonuses).
+
+    Used by long-rest cleanup (apply_long_rest) and a future timed-
+    duration system when an Aid-style spell expires.
+    """
+    if not target.hp_max_bonuses:
+        return 0
+    removed_total = 0
+    kept: list = []
+    for entry in target.hp_max_bonuses:
+        match = True
+        if source_id is not None and entry.get("source_id") != source_id:
+            match = False
+        if (source_action_id is not None
+                and entry.get("source_action_id") != source_action_id):
+            match = False
+        if (named_effect is not None
+                and entry.get("named_effect") != named_effect):
+            match = False
+        if match:
+            removed_total += int(entry.get("amount", 0))
+        else:
+            kept.append(entry)
+    if removed_total > 0:
+        target.hp_max_bonuses = kept
+        target.hp_max = max(1, target.hp_max - removed_total)
+        # Cap current HP at the reduced maximum (RAW).
+        if target.hp_current > target.hp_max:
+            target.hp_current = target.hp_max
+    return removed_total
+
+
 def _recurring_temp_hp(params: dict, state: CombatState,
                           bus: EventBus) -> None:
     """Register a per-turn temp HP grant on the current target
@@ -2238,6 +2346,7 @@ def _populate_handler_table() -> None:
         "temp_hp_grant": _temp_hp_grant,
         "recurring_temp_hp": _recurring_temp_hp,
         "armor_of_agathys_arm": _armor_of_agathys_arm,
+        "hp_max_grant": _hp_max_grant,
     }
 
 
@@ -2319,6 +2428,10 @@ def _all_primitives() -> list[Primitive]:
         # `armor_of_agathys_active` primitive name).
         Primitive("armor_of_agathys_arm", _armor_of_agathys_arm,
                     implemented=True),
+        # PR #97 — Max-HP grant (Aid). Raises target's hp_max +
+        # hp_current; ledgered on Actor.hp_max_bonuses for clean
+        # removal at long rest. Distinct from temp HP.
+        Primitive("hp_max_grant", _hp_max_grant, implemented=True),
     ]
     # Populate handler lookup table for subprimitive invocations
     global _PRIMITIVE_HANDLERS

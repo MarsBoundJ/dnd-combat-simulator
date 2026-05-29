@@ -1,0 +1,81 @@
+# f_aid — Aid (2nd-level Cleric/Paladin/Bard/Ranger/Artificer
+# Abjuration spell, SRD CC v5.2.1)
+#
+# RAW summary: Action cast, 30 ft range, up to THREE creatures within
+# range. Each target's hit point maximum AND current hit points
+# increase by 5 for the duration (8 hours). NOT concentration.
+# At Higher Levels: the bonus increases by 5 for each slot level
+# above 2nd (+5 at 3rd = 10, +10 at 4th = 15, etc.).
+#
+# **The defining mechanic:** Aid raises ACTUAL max HP (and current
+# HP), NOT temp HP. Distinct from Heroism / Armor of Agathys, which
+# grant temp HP (a separate absorbing buffer). PR #97 added the
+# hp_max_grant primitive + Actor.hp_max_bonuses ledger for this.
+#
+# Engine modeling (PR #97):
+#   - type: defensive_buff (multi-target; the first spell to use the
+#     multi-target candidate-grouping infra deferred since Bless
+#     PR #82)
+#   - max_targets: 3 — pipeline._select_multi_target_group picks the
+#     best up-to-3 allies (most-wounded-first); ONE candidate covers
+#     the group; scoring sums per-target value; execute() loops the
+#     pipeline per target
+#   - 1 Action cast time (RAW)
+#   - NOT concentration — a Cleric can Aid the party then concentrate
+#     on another spell
+#   - Pipeline: hp_max_grant 5 base + 5 per upcast level above 2nd
+#   - named_effect: "aid" → per-target dedup in hp_max_grant (same
+#     spell doesn't stack on a creature)
+#   - Cleanup: hp_max_bonuses ledger entry is removed at long rest
+#     (apply_long_rest), restoring base max HP. v1 has no true 8-hour
+#     timer; long rest is the session-model cleanup point.
+#
+# Deferred RAW bits:
+#   - True 8-hour duration timer (treated as until long rest)
+#   - Per-target range re-check at execute time (group is selected
+#     at candidate-emission within range_ft; v1 doesn't re-validate
+#     range if a target moved between selection and execution — same
+#     turn, so moot)
+#
+# **Class wiring note:** Aid is a 2nd-level spell on multiple class
+# lists. Paladins gain 2nd-level slots at L5. Ships forward-compat
+# under `granted_by: c_paladin, level: 5`, but NOT added to the
+# c_paladin level table yet (Paladin L5 spellcasting + 2nd-level
+# slot wiring is a separate task — the existing c_paladin.yaml only
+# populates 1st-level slots through the L2-L4 rows the spells use).
+# When 2nd-level Paladin slots are wired, add f_aid to the L5
+# features list and the auto-attach pass (PR #82) picks it up.
+
+id: f_aid
+name: Aid
+source: srd_5.2.1
+granted_by:
+  class: c_paladin
+  level: 5                   # Paladins gain 2nd-level slots at L5
+type: active
+spell:
+  class: c_paladin
+  level: 2
+
+description: |
+  Buff up to 3 allies. Each gains +5 max HP and +5 current HP for
+  the duration (v1: until long rest). +5 per upcast level above 2nd.
+  Action cast, NOT concentration.
+
+action_template:
+  id: a_aid
+  name: Aid
+  type: defensive_buff
+  spell_slot_level: 2
+  slot: action
+  named_effect: aid
+  range_ft: 30
+  max_targets: 3             # PR #97: multi-target candidate grouping
+  pipeline:
+    # Raise max HP + current HP by 5 (+5 per upcast level above 2nd).
+    # Runs once per target in the selected group (execute() loops).
+    - primitive: hp_max_grant
+      params:
+        target: ally
+        amount: 5
+        amount_per_slot_above_base: 5

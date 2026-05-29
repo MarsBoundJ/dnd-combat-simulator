@@ -337,6 +337,13 @@ def defensive_ehp_defensive_buff(actor: Actor, target_ally: Actor,
     if _pipeline_has_primitive(action, "armor_of_agathys_arm"):
         return _score_armor_of_agathys(actor, target_ally, action, state)
 
+    # PR #97: Aid — raises max HP + current HP. The eHP value is the
+    # full grant amount (it's a direct HP buffer that persists the
+    # whole encounter and beyond). Scored per-target; the
+    # multi-target sum happens in score_candidate.
+    if _pipeline_has_primitive(action, "hp_max_grant"):
+        return _score_hp_max_grant(actor, target_ally, action, state)
+
     # PR #94: Heroism — temp HP grant per turn. Standard buff scorer
     # ignores temp_hp_grant / recurring_temp_hp primitives. Score
     # based on expected total temp HP value over the buff duration.
@@ -515,6 +522,41 @@ TEMP_HP_ABSORPTION_FRACTION: float = 0.6
 # use 1.5 as a midpoint between "absorbed in one hit" (5+ damage
 # attack) and "absorbed in two hits" (3-damage attacks).
 ARMOR_OF_AGATHYS_EXPECTED_REFLECTIONS: float = 1.5
+
+
+def _score_hp_max_grant(actor: Actor, target_ally: Actor,
+                            action: dict,
+                            state: CombatState) -> float:
+    """Estimate eHP value of an Aid-style max-HP grant on one ally
+    (PR #97).
+
+    Value = grant_amount (the max+current HP raise is wholesale eHP —
+    it directly increases the ally's effective hit points and persists
+    the whole encounter; unlike a damage rider or advantage buff, none
+    of it is probabilistic). The current-HP raise also un-bloodies /
+    pulls a downed-adjacent ally further from 0, but v1 keeps the
+    estimate at the flat grant amount for simplicity.
+
+    Per-target function — score_candidate sums this across the
+    multi-target group. Returns 0 if the target already has an Aid
+    bonus active (dedup; the hp_max_grant primitive also no-ops on
+    re-application, so a re-cast would be wasted).
+    """
+    if target_ally is None or not target_ally.is_alive():
+        return 0.0
+    if target_ally.side != actor.side:
+        return 0.0
+    named_effect = action.get("named_effect")
+    if named_effect:
+        for entry in target_ally.hp_max_bonuses:
+            if entry.get("named_effect") == named_effect:
+                return 0.0   # already has Aid; no value in re-applying
+    grant = 0
+    for step in (action.get("pipeline") or []):
+        if step.get("primitive") == "hp_max_grant":
+            grant = int((step.get("params") or {}).get("amount", 0))
+            break
+    return float(grant)
 
 
 def _score_armor_of_agathys(actor: Actor, target_ally: Actor,
