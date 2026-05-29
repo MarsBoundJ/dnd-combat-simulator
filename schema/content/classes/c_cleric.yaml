@@ -1,0 +1,172 @@
+# c_cleric — Cleric (WIS full-caster v1)
+# Source: SRD CC v5.2.1 (PHB 2024)
+#
+# First WIS full-caster in the engine (PR #114). Shipped primarily to
+# ACTIVATE dormant shared divine spells: Bless + Shield of Faith
+# (built for the Paladin in PR #82) and Aid (built forward-compat in
+# PR #97). All three are genuine Cleric spells; the engine's
+# `granted_by` field is single-class (a v1 doc limitation — see note
+# below), but the PR #82 auto-attach pass keys off features_known +
+# action_template, NOT granted_by, so listing them in the Cleric level
+# table wires their actions with zero spell-side changes. Same
+# "light up dormant content" pattern as Warlock→Hex and Ranger→Hunter's
+# Mark.
+#
+# **Spellcasting:** WIS full-caster. pc_schema stamps
+# template.spellcasting_ability = wisdom (so save-based Cleric spells
+# resolve their DC with WIS via the ability-aware DC helpers, PR
+# #110/#111/#113). Slots come from the per-row class_resources.spell_slots
+# full-caster table (the same mechanism Paladin/Ranger use; the
+# top-level slots_progression is descriptive).
+#
+# **Shared-spell note:** f_bless / f_shield_of_faith / f_aid keep their
+# original `granted_by: c_paladin` (doc-only). Representing a spell as
+# multi-class (Cleric AND Paladin both prepare these) needs a
+# list-valued granted_by — deferred. Functionally unaffected.
+#
+# Deferred class features (each a follow-on PR):
+#   - Divine Order (L1: Protector martial training OR Thaumaturge
+#     cantrip + bonus)
+#   - Channel Divinity (L2: Turn Undead / Divine Spark)
+#   - Sear Undead, Blessed Strikes, Divine Intervention
+#   - Cleric cantrips (Sacred Flame / Guidance) — need cantrip content
+#   - More prepared spells (Cure Wounds / Healing Word / Spirit
+#     Guardians — Spirit Guardians' aura infra exists from PR #43)
+#   - Subclasses (Life / Light / Trickery / War domains)
+
+id: c_cleric
+name: Cleric
+source: srd_5.2.1
+
+core_traits:
+  primary_abilities: [wisdom]
+  hit_die: d8
+  save_proficiencies: [wisdom, charisma]
+  skill_proficiencies:
+    choose: 2
+    from: [history, insight, medicine, persuasion, religion]
+  weapon_proficiencies: [simple]
+  armor_training: [light, medium, shields]
+  tool_proficiencies: []
+
+multiclass_entry:
+  traits_gained: [light_armor, medium_armor, shields, simple_weapons]
+  # Spellcasting is driven by the top-level `spellcasting` block +
+  # the per-row spell_slots table, not a feature marker (no
+  # f_spellcasting_cleric YAML in v1 — unlike the Wizard's
+  # f_spellcasting_wizard). Left empty to avoid a dangling ref.
+  features_gained: []
+  multiclass_slot_contribution: full_caster
+
+spellcasting:
+  enabled: true
+  ability: wisdom
+  save_dc_formula: "8 + actor.wis_mod + actor.proficiency_bonus"
+  attack_mod_formula: "actor.wis_mod + actor.proficiency_bonus"
+  preparation_model: prepared_from_class_list
+  preparation_change_trigger: long_rest
+  slots_progression: full_caster
+
+level_table:
+  - level: 1
+    proficiency_bonus: 2
+    features: [f_bless, f_shield_of_faith]
+    class_resources:
+      spell_slots: { 1: 2 }
+  - level: 2
+    proficiency_bonus: 2
+    features: []
+    class_resources:
+      spell_slots: { 1: 3 }
+  - level: 3
+    proficiency_bonus: 2
+    features: [grant_subclass, f_aid]
+    class_resources:
+      spell_slots: { 1: 4, 2: 2 }
+  - level: 4
+    proficiency_bonus: 2
+    features: [grant_asi_or_feat]
+    class_resources:
+      spell_slots: { 1: 4, 2: 3 }
+  - level: 5
+    proficiency_bonus: 3
+    features: []
+    class_resources:
+      spell_slots: { 1: 4, 2: 3, 3: 2 }
+  - level: 6
+    proficiency_bonus: 3
+    features: []
+    class_resources:
+      spell_slots: { 1: 4, 2: 3, 3: 3 }
+  - level: 7
+    proficiency_bonus: 3
+    features: []
+    class_resources:
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 1 }
+  - level: 8
+    proficiency_bonus: 3
+    features: [grant_asi_or_feat]
+    class_resources:
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 2 }
+  - level: 9
+    proficiency_bonus: 4
+    features: []
+    class_resources:
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 1 }
+  - level: 10
+    proficiency_bonus: 4
+    features: []
+    class_resources:
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2 }
+  - level: 11
+    proficiency_bonus: 4
+    features: []
+    class_resources:
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1 }
+  - level: 12
+    proficiency_bonus: 4
+    features: [grant_asi_or_feat]
+    class_resources:
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1 }
+  - level: 13
+    proficiency_bonus: 5
+    features: []
+    class_resources:
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1, 7: 1 }
+  - level: 14
+    proficiency_bonus: 5
+    features: []
+    class_resources:
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1, 7: 1 }
+  - level: 15
+    proficiency_bonus: 5
+    features: []
+    class_resources:
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1, 7: 1, 8: 1 }
+  - level: 16
+    proficiency_bonus: 5
+    features: [grant_asi_or_feat]
+    class_resources:
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1, 7: 1, 8: 1 }
+  - level: 17
+    proficiency_bonus: 6
+    features: []
+    class_resources:
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1, 7: 1, 8: 1, 9: 1 }
+  - level: 18
+    proficiency_bonus: 6
+    features: []
+    class_resources:
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 3, 6: 1, 7: 1, 8: 1, 9: 1 }
+  - level: 19
+    proficiency_bonus: 6
+    features: [grant_asi_or_feat]
+    class_resources:
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 3, 6: 2, 7: 1, 8: 1, 9: 1 }
+  - level: 20
+    proficiency_bonus: 6
+    features: []
+    class_resources:
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 3, 6: 2, 7: 2, 8: 1, 9: 1 }
+
+subclass_grant_level: 3
