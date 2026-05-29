@@ -1349,6 +1349,110 @@ def offensive_ehp_multiattack(actor: Actor, target: Actor, action: dict,
 
 
 # ============================================================================
+# Knockback / forced-movement control value (Repelling Blast, PR #108)
+# ============================================================================
+
+# eHP weight on forced repositioning of a melee threat. A melee enemy
+# pushed away must spend movement to re-close; if the push consumes its
+# whole movement it has effectively lost a turn of positioning (and, in
+# the kiting case the AI doesn't yet model, an attack). We treat a
+# full-speed displacement as worth half the enemy's expected DPR — a
+# soft tempo tax that breaks ties toward control without ever
+# dominating the damage score.
+KNOCKBACK_TEMPO_WEIGHT = 0.5
+
+
+def _forced_movement_distance(action: dict) -> int:
+    """Sum of `forced_movement` push distance (ft) across an action's
+    pipeline. 0 if the action has no forced-movement step."""
+    total = 0
+    for step in (action.get("pipeline") or []):
+        if step.get("primitive") == "forced_movement":
+            total += int((step.get("params") or {}).get("distance_ft", 0))
+    return total
+
+
+def _has_melee_attack(creature: Actor) -> bool:
+    """True if the creature has any melee weapon_attack — only melee
+    threats lose value from being pushed (a ranged enemy keeps firing).
+    """
+    for act in (creature.template.get("actions") or []):
+        for step in (act.get("pipeline") or []):
+            if step.get("primitive") == "attack_roll" and \
+                    (step.get("params") or {}).get("kind") == "melee":
+                return True
+    return False
+
+
+def _p_hit_for(actor: Actor, target: Actor, attack_action: dict,
+                 state: CombatState) -> float:
+    """Hit probability for a single attack action, consulting the
+    modifier registry (same math as offensive_ehp_single_attack).
+    Returns 0.0 for non-attack-roll actions."""
+    attack_bonus = extract_attack_bonus(attack_action)
+    if attack_bonus is None:
+        return 0.0
+    mods = query_attack_modifiers(actor, target, state)
+    crit = query_crit_modifiers(actor, target, state)
+    effective_ac = target.ac + mods.ac_modifier
+    effective_bonus = attack_bonus + mods.attack_bonus_modifier
+    return hit_probability(effective_bonus, effective_ac,
+                             mods.net_advantage(), crit.crit_threshold)
+
+
+def knockback_ehp(actor: Actor, target: Actor, action: dict,
+                    state: CombatState) -> float:
+    """Control eHP from forced movement on a weapon attack (Repelling
+    Blast; future generic shove). Additive on top of the damage score —
+    a small tempo bonus, NOT damage.
+
+      knockback_ehp = target_DPR
+                      × min(1, expected_push_ft / target_speed)
+                      × KNOCKBACK_TEMPO_WEIGHT
+
+    where expected_push_ft = per-beam push × beam count × p_hit (the
+    push only lands on a hit). For a multiattack wrapper the push rides
+    each beam (the sub-action), so it scales with the beam count.
+
+    Returns 0.0 when:
+      - the action has no forced_movement step
+      - the target has no melee attack (ranged enemies don't care)
+      - the target is dead
+
+    Deferred (documented): the kiting case (Warlock pushes then moves
+    away so the enemy can't re-close → a full lost attack), off-ledge /
+    into-hazard pushes, and pushing an enemy out of ITS reach on an
+    ally. v1 values only the repositioning-tempo tax.
+    """
+    if target is None or not target.is_alive():
+        return 0.0
+    # Resolve the per-beam push + which attack action carries the roll.
+    if action.get("type") == "multiattack":
+        sub_ids = action.get("sub_actions") or []
+        by_id = {a.get("id"): a
+                   for a in (actor.template.get("actions") or [])}
+        attack_action = by_id.get(sub_ids[0]) if sub_ids else None
+        per_push = _forced_movement_distance(attack_action) \
+            if attack_action else 0
+        count = int(action.get("count", 1))
+    else:
+        attack_action = action
+        per_push = _forced_movement_distance(action)
+        count = 1
+    if per_push <= 0 or attack_action is None:
+        return 0.0
+    if not _has_melee_attack(target):
+        return 0.0
+
+    from engine.ai.defensive_ehp import estimate_dpr
+    p_hit = _p_hit_for(actor, target, attack_action, state)
+    expected_push = per_push * count * p_hit
+    speed = float((target.speed or {}).get("walk", 30) or 30)
+    tempo_fraction = min(1.0, expected_push / max(speed, 1.0))
+    return estimate_dpr(target) * tempo_fraction * KNOCKBACK_TEMPO_WEIGHT
+
+
+# ============================================================================
 # Public scoring entry point — score one candidate
 # ============================================================================
 
@@ -1375,11 +1479,14 @@ def score_candidate(candidate: dict, state: CombatState) -> float:
     if not target.is_alive():
         return 0.0
 
-    # Offensive (this module)
+    # Offensive (this module). Knockback (PR #108) is additive on top of
+    # the damage score for forced-movement attacks (Repelling Blast).
     if kind == "multiattack" or action.get("type") == "multiattack":
-        return offensive_ehp_multiattack(actor, target, action, state)
+        return (offensive_ehp_multiattack(actor, target, action, state)
+                + knockback_ehp(actor, target, action, state))
     if kind == "weapon_attack" or action.get("type") == "weapon_attack":
-        return offensive_ehp_single_attack(actor, target, action, state)
+        return (offensive_ehp_single_attack(actor, target, action, state)
+                + knockback_ehp(actor, target, action, state))
     if kind == "aoe_attack" or action.get("type") == "aoe_attack":
         origin = candidate.get("origin_point")
         if origin is None:
