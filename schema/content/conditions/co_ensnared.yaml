@@ -1,0 +1,56 @@
+# co_ensnared — Ensnared (PHB 2024 Ensnaring Strike)
+# Source: srd_5.2.1 (Ensnaring Strike spell text)
+#
+# RAW summary: a creature caught by Ensnaring Strike's magical vines is
+# Restrained AND takes 1d6 piercing damage at the start of each of its
+# turns. It (or a creature within reach) can use an action to make a
+# Strength check (DC = spell save DC) to break free; on a success the
+# spell ends on it.
+#
+# Engine modeling (PR #110):
+#   - scope: source_referencing — the vines are tied to the caster's
+#     concentration; ending concentration ends the ensnare (mirrors
+#     co_ignited's relationship to Searing Smite).
+#   - inherits_conditions: [co_restrained] — reuses the full Restrained
+#     ruleset (speed 0, advantage to attackers, disadvantage on the
+#     ensnared creature's own attacks, DEX-save disadvantage) rather
+#     than duplicating it. The inheritance machinery
+#     (primitives._instantiate_condition_effects) applies the parent's
+#     effects transitively and expires them with the ensnare.
+#   - effects.recurring_damage: 1d6 piercing per turn-start, registered
+#     in state.recurring_damage; runner._resolve_recurring_damage
+#     fires it. source stamped for end_concentration scrub.
+#
+# Deferred RAW bits (mirror co_ignited / Searing Smite deferrals):
+#   - STR-check-to-break-free as the target's own action (target-side
+#     opt-in concentration break). v1 ends the ensnare only when the
+#     caster drops concentration. Adding the break action means
+#     emitting a candidate at the ensnared creature's turn — real AI
+#     scope, tracked for a follow-on PR.
+#   - Large-or-bigger creatures have advantage on the initial STR save
+#     (handled at the Ensnaring Strike rider, not here — see
+#     engine/core/ensnaring_strike.py deferral note).
+
+id: co_ensnared
+name: Ensnared
+source: srd_5.2.1
+category: condition
+scope: source_referencing       # vines tied to caster concentration
+
+inherits_conditions: [co_restrained]
+
+stacking:
+  type: none                    # one ensnare at a time
+
+effects:
+  # Per-turn piercing damage at the start of each affected creature's
+  # turn. Same shape as co_ignited's burn; source_id + source_action_id
+  # are stamped from the in-flight application context so
+  # end_concentration can scrub the tick.
+  - id: e_ensnared_pierce
+    primitive: recurring_damage
+    params:
+      dice: "1d6"
+      type: piercing
+      trigger_event: target_turn_start
+      condition_id: co_ensnared

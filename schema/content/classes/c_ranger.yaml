@@ -69,7 +69,7 @@ level_table:
     class_resources: { weapon_mastery_count: 2 }
   - level: 2
     proficiency_bonus: 2
-    features: [f_hunters_mark]
+    features: [f_hunters_mark, f_ensnaring_strike]
     class_resources:
       weapon_mastery_count: 2
       spell_slots: { 1: 2 }

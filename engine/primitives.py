@@ -408,6 +408,17 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
                 actor, target, state, attack_params, rng,
                 is_crit=(sa_state == "crit"))
             total += ss_damage
+        # PR #110: Ensnaring Strike rider (Ranger). Fires on the
+        # caster's next weapon hit when armed — ANY weapon (melee OR
+        # ranged), unlike Searing Smite. Adds NO direct damage; fires
+        # a STR save on the target and on fail applies co_ensnared
+        # (Restrained + 1d6 piercing/turn). One-shot marker clears
+        # after firing; concentration continues for the ensnare.
+        if is_weapon_attack:
+            from engine.core import ensnaring_strike as _es
+            _es.try_apply_ensnaring_strike_followup(
+                actor, target, state, attack_params, rng,
+                is_crit=(sa_state == "crit"))
 
     # Resistance / vulnerability / immunity (template-level)
     template = target.template or {}
@@ -2191,15 +2202,47 @@ def _searing_smite_arm(params: dict, state: CombatState,
                      action_id=action_id, state=state)
 
 
+def _ensnaring_strike_arm(params: dict, state: CombatState,
+                             bus: EventBus) -> None:
+    """Arm the caster with Ensnaring Strike's one-shot rider (PR #110).
+
+    Called from f_ensnaring_strike's cast pipeline. Mirrors
+    _searing_smite_arm but with no upcast-damage tracking (Ensnaring
+    deals no direct hit damage) — only the spell save DC is cached.
+    The DC is the caster's spellcasting-ability-based save DC (WIS for
+    Ranger via the generalized _caster_spell_save_dc), or a `dc` param
+    override.
+    """
+    actor = (state.current_attack or {}).get("actor") or \
+        state.current_actor()
+    if actor is None:
+        raise ValueError("ensnaring_strike_arm requires a current actor")
+    dc = int(params["dc"]) if "dc" in params else _caster_spell_save_dc(actor)
+    action = (state.current_attack or {}).get("action") or {}
+    action_id = action.get("id", "a_ensnaring_strike")
+    from engine.core.ensnaring_strike import register_armed
+    register_armed(actor, spell_save_dc=dc, action_id=action_id,
+                     state=state)
+
+
 def _caster_spell_save_dc(actor: Actor) -> int:
     """Compute the actor's spell save DC: 8 + proficiency_bonus +
-    spellcasting_ability_modifier. v1 reads CHA for Paladin (the only
-    spell-DC consumer in PR #89); future generalization will read
-    actor.template.spellcasting.ability or a per-class default."""
+    spellcasting_ability_modifier.
+
+    Generalized in PR #110 to read `template.spellcasting_ability`
+    (stamped by pc_schema from the class's spellcasting block — PR #104
+    for Paladin/CHA, PR #107 for Ranger/WIS) so the DC uses the right
+    ability per class. Falls back to CHA when unstamped, preserving the
+    PR #89 Paladin behavior. The 3-letter abbreviation is just the
+    first 3 chars of the full ability name (wisdom→wis, charisma→cha,
+    intelligence→int, etc. — all six map correctly)."""
     pb = int((actor.template.get("cr") or {}).get("proficiency_bonus", 2))
-    cha_score = (actor.abilities.get("cha") or {}).get("score", 10)
-    cha_mod = (cha_score - 10) // 2
-    return 8 + pb + cha_mod
+    ability = ((actor.template or {}).get("spellcasting_ability")
+                 or "charisma")
+    abbr = str(ability)[:3]
+    score = (actor.abilities.get(abbr) or {}).get("score", 10)
+    mod = (score - 10) // 2
+    return 8 + pb + mod
 
 
 def _ready_action(params: dict, state: CombatState, bus: EventBus) -> None:
@@ -2411,6 +2454,7 @@ def _populate_handler_table() -> None:
         "ready_action": _ready_action,
         "recurring_damage": _recurring_damage,
         "searing_smite_arm": _searing_smite_arm,
+        "ensnaring_strike_arm": _ensnaring_strike_arm,
         "hex_curse": _hex_curse,
         "hunters_mark_mark": _hunters_mark_mark,
         "forced_movement": _forced_movement,
@@ -2479,6 +2523,13 @@ def _all_primitives() -> list[Primitive]:
         # rider on the caster's next melee weapon hit via
         # engine.core.searing_smite.try_apply_searing_smite_followup.
         Primitive("searing_smite_arm", _searing_smite_arm, implemented=True),
+        # PR #110 — Ensnaring Strike arming primitive (Ranger). Twin of
+        # searing_smite_arm: registers a one-shot marker on the caster;
+        # _damage fires the rider on the caster's next weapon hit via
+        # engine.core.ensnaring_strike.try_apply_ensnaring_strike_followup
+        # (STR save → on fail co_ensnared). No bonus damage.
+        Primitive("ensnaring_strike_arm", _ensnaring_strike_arm,
+                    implemented=True),
         # PR #90 — Hex curse primitive. Registers a target-specific
         # weapon_damage_bonus modifier on the caster gated via
         # target_is(<cursed_id>) when-clause atom.
