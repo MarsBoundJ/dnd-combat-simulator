@@ -1,12 +1,32 @@
-# c_ranger — Ranger (minimal v1)
+# c_ranger — Ranger (Spellcasting + Weapon Mastery v1)
 # Source: SRD CC v5.2.1 (PHB 2024)
 #
-# **Minimal class definition** (PR #64). Only Weapon Mastery
-# wiring shipped; other features (Favored Enemy / Hunter's Mark
-# replacement, Deft Explorer, Fighting Style, Extra Attack,
-# Tireless, etc.) wait for follow-on PRs.
+# Extended in PR #107 to wire **half-caster spellcasting**, which
+# activates the forward-compat Hunter's Mark feature (f_hunters_mark,
+# PR #91) — the Ranger's class-defining 1st-level spell. Same shape as
+# the Paladin spellcasting wiring (PR #73/#82/#104): a `spellcasting`
+# block (WIS-based) + a per-level `spell_slots` half-caster table that
+# pc_schema reads and stamps onto the actor, plus f_hunters_mark added
+# to the L2 feature list so the auto-attach pass (PR #82) wires its
+# action. Weapon Mastery (PR #64) stays.
 #
 # Weapon Mastery RAW (Ranger): 2 at L1, 3 at L9.
+#
+# **Spellcasting note:** Ranger is a WIS half-caster. This def mirrors
+# the codebase's Paladin convention: slots start at L2 with the
+# half-caster progression — L2(2), L3(3), L5(4/2), L7(4/3),
+# L9(4/3/2), L11(4/3/3), L13(4/3/3/1), L15(4/3/3/2), L17(4/3/3/3/1),
+# L19+(4/3/3/3/2). pc_schema stamps template.spellcasting_ability =
+# wisdom (so save-based Ranger spells resolve their DC with WIS) and
+# derives spell_slots from the level table at PC-build time.
+#
+# Deferred RAW bits (mirror Paladin's deferrals):
+#   - 2024 L1 spellcasting start + Favored Enemy free Hunter's Mark
+#     casts (PB/long rest before spending slots). This def follows the
+#     codebase's L2-start convention for half-casters; the free-cast
+#     pool needs a feature_use counter alongside slot consumption.
+#   - Prepared-spell list beyond Hunter's Mark (Cure Wounds, Ensnaring
+#     Strike, etc.) — each lands as its own spell feature + L-table add.
 
 id: c_ranger
 name: Ranger
@@ -29,8 +49,18 @@ multiclass_entry:
   features_gained: [f_weapon_mastery]
   multiclass_slot_contribution: half
 
-# Spellcasting RAW: half-caster, starts at L1 in 2024 (Hunter's
-# Mark auto-prepared). Not yet wired in this minimal class def.
+# Ranger is a WIS half-caster (PR #107). pc_schema stamps
+# template.spellcasting_ability from `ability` below so save-based
+# Ranger spells resolve their DC with WIS; slot progression is driven
+# by the per-row class_resources.spell_slots table (slots_progression
+# here is descriptive). Hunter's Mark (f_hunters_mark) is granted at
+# L2 alongside the first slots.
+spellcasting:
+  enabled: true
+  ability: wisdom
+  save_dc_formula: "8 + actor.wis_mod + actor.proficiency_bonus"
+  attack_mod_formula: "actor.wis_mod + actor.proficiency_bonus"
+  slots_progression: half_caster
 
 level_table:
   - level: 1
@@ -39,33 +69,86 @@ level_table:
     class_resources: { weapon_mastery_count: 2 }
   - level: 2
     proficiency_bonus: 2
-    features: []
-    class_resources: { weapon_mastery_count: 2 }
+    features: [f_hunters_mark]
+    class_resources:
+      weapon_mastery_count: 2
+      spell_slots: { 1: 2 }
   - level: 3
     proficiency_bonus: 2
     features: [grant_subclass]
-    class_resources: { weapon_mastery_count: 2 }
+    class_resources:
+      weapon_mastery_count: 2
+      spell_slots: { 1: 3 }
   - level: 4
     proficiency_bonus: 2
     features: [grant_asi_or_feat]
-    class_resources: { weapon_mastery_count: 2 }
+    class_resources:
+      weapon_mastery_count: 2
+      spell_slots: { 1: 3 }
   - level: 5
     proficiency_bonus: 3
     features: []
-    class_resources: { weapon_mastery_count: 2 }
+    class_resources:
+      weapon_mastery_count: 2
+      spell_slots: { 1: 4, 2: 2 }
+  - level: 7
+    proficiency_bonus: 3
+    features: []
+    class_resources:
+      weapon_mastery_count: 2
+      spell_slots: { 1: 4, 2: 3 }
   - level: 9
     proficiency_bonus: 4
     features: []
-    class_resources: { weapon_mastery_count: 3 }
+    class_resources:
+      weapon_mastery_count: 3
+      spell_slots: { 1: 4, 2: 3, 3: 2 }
+  - level: 11
+    proficiency_bonus: 4
+    features: []
+    class_resources:
+      weapon_mastery_count: 3
+      spell_slots: { 1: 4, 2: 3, 3: 3 }
+  - level: 13
+    proficiency_bonus: 5
+    features: []
+    class_resources:
+      weapon_mastery_count: 3
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 1 }
+  - level: 15
+    proficiency_bonus: 5
+    features: []
+    class_resources:
+      weapon_mastery_count: 3
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 2 }
+  - level: 17
+    proficiency_bonus: 6
+    features: []
+    class_resources:
+      weapon_mastery_count: 3
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 1 }
+  - level: 19
+    proficiency_bonus: 6
+    features: []
+    class_resources:
+      weapon_mastery_count: 3
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2 }
+  - level: 20
+    proficiency_bonus: 6
+    features: []
+    class_resources:
+      weapon_mastery_count: 3
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2 }
 
 subclass_grant_level: 3
 
 # Deferred class features:
-#   - Favored Enemy / Hunter's Mark auto-prep (2024 PHB shape)
 #   - Deft Explorer (L1: expertise + extra languages)
 #   - Fighting Style (L2; shares f_fighting_style infra)
 #   - Extra Attack (L5)
 #   - Roving (L6)
 #   - Tireless (L10)
-#   - Spellcasting (half-caster slot table)
 #   - Subclasses (Hunter / Beast Master / Gloom Stalker / Fey Wanderer)
+#   - Prepared spells beyond Hunter's Mark (each = own spell feature)
+#   - 2024 L1 spellcasting start + Favored Enemy free Hunter's Mark
+#     casts (PB/long rest) — see header note
