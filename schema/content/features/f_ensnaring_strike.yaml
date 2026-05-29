@@ -1,0 +1,70 @@
+# f_ensnaring_strike — Ensnaring Strike (1st-level Ranger spell, SRD CC v5.2.1)
+#
+# RAW summary: Bonus Action, V, Self, Concentration up to 1 minute. The
+# next time you hit a creature with a weapon attack before the spell
+# ends, thorny vines erupt: the target makes a Strength saving throw or
+# is Restrained until the spell ends. A Large or larger creature has
+# advantage on the save. While Restrained it takes 1d6 piercing damage
+# at the start of each of its turns, and can use an action to make a
+# Strength check (DC = your spell save DC) to break free.
+# At Higher Levels: damage increases by 1d6 per slot above 1st.
+#
+# Engine modeling (PR #110): structural twin of Searing Smite (PR #89),
+# the "next weapon hit arms a one-shot rider" pattern.
+#   - type: defensive_buff (self-targeted; the Ranger arms themselves —
+#     same candidate-generation path as Searing Smite / Divine Favor).
+#   - 1 Bonus Action cast time (RAW 2024).
+#   - Concentration spell — competes with Hunter's Mark for the
+#     Ranger's single concentration slot. AI picks the higher-value
+#     option (Hunter's Mark = sustained DPR; Ensnaring Strike = lockdown
+#     control via Restrained, scored through co_ensnared's denial).
+#   - Pipeline: `ensnaring_strike_arm` registers a one-shot marker on
+#     the caster (engine.core.ensnaring_strike.register_armed). The
+#     _damage primitive checks the marker on the caster's next weapon
+#     hit (melee OR ranged), fires a STR forced_save on the target, and
+#     on fail applies co_ensnared (Restrained via inheritance + 1d6
+#     piercing per turn). No direct bonus damage on the empowering hit.
+#   - DC uses the Ranger's WIS-based spell save DC (the generalized
+#     _caster_spell_save_dc reads template.spellcasting_ability, PR
+#     #110, stamped by pc_schema from c_ranger's spellcasting block).
+#   - named_effect: "ensnaring_strike" → cross-caster dedup.
+#
+# Deferred RAW bits (shared with Searing Smite / co_ensnared):
+#   - STR-check-to-break-free as the target's own action. v1 ends the
+#     ensnare only when concentration drops.
+#   - Large-or-bigger advantage on the initial STR save (forced_save
+#     doesn't yet thread size-based save advantage).
+#   - Upcast +1d6 per slot above 1st on the per-turn piercing (v1 ticks
+#     a flat 1d6).
+
+id: f_ensnaring_strike
+name: Ensnaring Strike
+source: srd_5.2.1
+granted_by:
+  class: c_ranger
+  level: 2                   # Rangers gain 1st-level slots at L2
+type: active
+spell:
+  class: c_ranger
+  level: 1
+
+description: |
+  Self-buff. Your next weapon hit ensnares the target: STR save or be
+  Restrained (1d6 piercing per turn) until the spell ends.
+  Concentration, 1 minute. BA cast.
+
+action_template:
+  id: a_ensnaring_strike
+  name: Ensnaring Strike
+  type: defensive_buff
+  spell_slot_level: 1
+  slot: bonus_action
+  concentration: true
+  named_effect: ensnaring_strike
+  range_ft: 0                # self-only (arms the caster)
+  pipeline:
+    # Register the one-shot armed marker on the caster. The rider
+    # (STR save + apply co_ensnared) fires in _damage on the caster's
+    # next weapon hit.
+    - primitive: ensnaring_strike_arm
+      params: {}
