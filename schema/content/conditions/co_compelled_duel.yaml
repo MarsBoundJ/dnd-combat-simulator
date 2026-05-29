@@ -1,0 +1,50 @@
+# co_compelled_duel — Compelled Duel condition (PHB 2014/SRD)
+# Source: srd_5.2.1 (Compelled Duel spell text)
+#
+# RAW: a creature compelled into a duel has disadvantage on attack
+# rolls against any creature other than the caster, and is magically
+# drawn to stay near them (can't willingly move >30 ft away; the
+# spell ends if it does, or if the caster attacks/damages someone
+# else).
+#
+# Engine modeling (PR #104):
+#   - scope: source_referencing — the disadvantage references the
+#     spell's source (the Paladin). The condition application stamps
+#     source.source_creature_id = caster id; the when-clause atom
+#     `attack_target_is_not_source` reads it.
+#   - effects: a single attack_modifier giving the marked creature
+#     disadvantage_for_self when it attacks anyone OTHER than the
+#     caster. The "attacker_is_self" gate ensures it's the marked
+#     creature's OWN attacks (not attacks against it).
+#
+# Deferred RAW bits (each a follow-on):
+#   - "Drawn to caster" movement leash (can't move >30 ft away);
+#     needs a per-(mover, anchor) movement gate
+#   - End-the-spell triggers: target moves >30 ft away; caster
+#     attacks / damages / targets a hostile other than the marked
+#     creature. v1 ends only on concentration drop (Paladin loses
+#     concentration) or the target's end-of-turn save (also deferred).
+#   - End-of-turn WIS save to break free (RAW 2014 lets the target
+#     re-save). v1: lasts until concentration ends.
+
+id: co_compelled_duel
+name: Compelled Duel
+source: srd_5.2.1
+category: condition
+scope: source_referencing
+
+inherits_conditions: []
+
+stacking:
+  type: none
+
+effects:
+  # Disadvantage on the marked creature's attacks against anyone
+  # other than the caster (the Paladin who dueled them). Gated by
+  # attacker_is_self (the marked creature is the attacker) AND
+  # attack_target_is_not_source (the victim isn't the caster).
+  - id: e_compelled_duel_disadvantage
+    primitive: attack_modifier
+    params:
+      when: "attacker_is_self AND attack_target_is_not_source"
+      modifier: disadvantage_for_self

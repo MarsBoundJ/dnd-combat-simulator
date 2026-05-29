@@ -2208,14 +2208,24 @@ def _resolve_dc(params: dict, state: CombatState) -> int:
         return int(params["dc"])
     dc_source = params.get("dc_source", "")
     if dc_source == "caster_spell_save_dc":
-        # Skeleton: use current_attack.actor's spellcasting DC
-        # Fallback to a reasonable default (DC 13) if no caster info available
+        # 8 + spellcasting_mod + PB. PR #104: read the caster's actual
+        # spellcasting ability (stamped by pc_schema as
+        # template.spellcasting_ability — e.g. 'charisma' for Paladin/
+        # Warlock, 'intelligence' for Wizard, 'wisdom' for Cleric).
+        # Falls back to INT for legacy fixtures without the stamp
+        # (preserves prior behavior for Hold Person-style INT casters).
         actor = state.current_attack.get("actor") or state.current_actor()
         if actor:
-            # Try to compute: 8 + spellcasting_mod + PB
-            int_mod = ability_modifier(actor.abilities.get("int", {}).get("score", 10))
+            ability = (actor.template.get("spellcasting_ability")
+                         or "intelligence")
+            short = {"strength": "str", "dexterity": "dex",
+                       "constitution": "con", "intelligence": "int",
+                       "wisdom": "wis", "charisma": "cha"}.get(
+                           ability, "int")
+            mod = ability_modifier(
+                actor.abilities.get(short, {}).get("score", 10))
             pb = actor.template.get("cr", {}).get("proficiency_bonus", 2)
-            return 8 + int_mod + pb
+            return 8 + mod + pb
         return 13
     if dc_source.startswith("fixed:"):
         return int(dc_source[len("fixed:"):])

@@ -841,6 +841,14 @@ PARTIAL_CONTROL_CONDITIONS = {
     "co_frightened": 0.3,    # disadvantage on attacks while source visible
     "co_grappled":   0.2,    # can't move
     "co_prone":      0.3,    # disadvantage on attacks; melee attackers have advantage
+    # PR #104: Compelled Duel — disadvantage on the target's attacks
+    # against anyone other than the caster. In a multi-enemy fight the
+    # marked creature usually wants to hit someone other than the
+    # Paladin, so the disadvantage applies to most of its attacks —
+    # valued like Frightened's disadvantage-on-attacks (0.3). Lower
+    # than Frightened-vs-everyone since attacks ON the Paladin
+    # themselves are unaffected (the duel "works as intended" there).
+    "co_compelled_duel": 0.25,
 }
 
 
