@@ -238,6 +238,66 @@ def estimate_per_attack_damage(creature: Actor) -> float:
     return best_with_hit
 
 
+def _expected_hits_per_round(creature: Actor) -> float:
+    """Expected NUMBER of landed weapon hits per round (not damage).
+
+    Used by the self weapon-damage buff scorer (Divine Favor): a flat
+    +N-per-hit rider is worth N for each hit the caster lands, so the
+    value scales with hit count, not damage magnitude. Mirrors the
+    AC 15 hit-prob proxy + multiattack-count logic used by
+    `estimate_dpr` so the two paths stay calibrated.
+
+    Picks the p_hit of the highest-damage weapon attack (the one the
+    caster will actually swing) and multiplies by the multiattack
+    count. Returns 0.0 for creatures with no weapon attacks.
+    """
+    actions = (creature.template or {}).get("actions") or []
+    if not actions:
+        return 0.0
+    best_value = 0.0
+    p_hit_of_best = 0.0
+    for action in actions:
+        if action.get("type") != "weapon_attack":
+            continue
+        bonus = _attack_bonus(action) or 0
+        needed = 15 - bonus
+        if needed <= 2:
+            p_hit = 19 / 20
+        elif needed > 20:
+            p_hit = 1 / 20
+        else:
+            p_hit = (21 - needed) / 20
+        value = _approximate_damage_on_hit(action) * p_hit
+        if value > best_value:
+            best_value = value
+            p_hit_of_best = p_hit
+    if p_hit_of_best <= 0:
+        return 0.0
+    multi_count = 1
+    for action in actions:
+        if action.get("type") == "multiattack":
+            multi_count = max(multi_count, int(action.get("count", 1)))
+    return p_hit_of_best * multi_count
+
+
+def _extract_self_weapon_damage_bonus(action: dict) -> int:
+    """Flat +N weapon-damage bonus a buff grants its SELF target
+    (Divine Favor shape). Returns 0 if no self-targeting
+    weapon_damage_bonus step is present.
+
+    Only counts `target: self` steps so target-specific enemy riders
+    (Hex / Hunter's Mark, which mark an enemy) never route here."""
+    total = 0
+    for step in (action.get("pipeline") or []):
+        if step.get("primitive") != "weapon_damage_bonus":
+            continue
+        params = step.get("params") or {}
+        if params.get("target") != "self":
+            continue
+        total += int(params.get("value", 0))
+    return total
+
+
 # ============================================================================
 # Defensive buff eHP (AC bonus / disadvantage on attackers)
 # ============================================================================
@@ -351,6 +411,16 @@ def defensive_ehp_defensive_buff(actor: Actor, target_ally: Actor,
     if _pipeline_has_primitive(action, "recurring_temp_hp"):
         return _score_heroism(actor, target_ally, action, state)
 
+    # PR #109: self weapon-damage buff (Divine Favor shape) — a flat
+    # +N on the caster's OWN weapon hits. extract_buff_effect doesn't
+    # recognize weapon_damage_bonus, so without this branch the buff
+    # scored 0 and the AI never cast it. This is the "buff-before-
+    # burst" insight: the value is the extra damage the caster lands
+    # across its own attacks over the buff's lifetime. Dispatched on a
+    # self-targeting weapon_damage_bonus step.
+    if _extract_self_weapon_damage_bonus(action) > 0:
+        return _score_self_weapon_damage_buff(actor, action, state)
+
     # PR #99: one-shot temp HP grant (False Life-shape). Flat-amount
     # temp HP, no recurring tick. Value = amount × absorption
     # fraction (the fraction of the buffer that lands before it would
@@ -381,6 +451,44 @@ def defensive_ehp_defensive_buff(actor: Actor, target_ally: Actor,
     buff_rounds = float(action.get("defensive_buff_rounds",
                                        EXPECTED_BUFF_ROUNDS))
     return worst_dpr * delta_miss * buff_rounds
+
+
+def _score_self_weapon_damage_buff(actor: Actor, action: dict,
+                                      state: CombatState) -> float:
+    """eHP value of a self weapon-damage buff (Divine Favor, PR #109).
+
+      eHP = bonus × expected_hits_per_round × buff_rounds
+
+    The "buff-before-burst" payoff: a flat +N on every weapon hit is
+    worth N for each hit the caster lands, summed over its own attacks
+    across the buff's lifetime. A multiattacking caster (Extra Attack)
+    therefore values it more — more hits to ride the bonus. Because
+    Divine Favor is a Bonus Action, casting it doesn't cost the Attack
+    action, so the burst lands the same turn; the runner already
+    sequences BA-buff + Action-attack, so the scorer just needs to
+    credit the extra damage.
+
+    Returns 0.0 when:
+      - there's no self weapon_damage_bonus step (guarded by caller)
+      - the caster has no weapon attacks (no hits to buff)
+      - there are no living enemies (buffing in a vacuum is worthless)
+
+    `buff_rounds` defaults to EXPECTED_BUFF_ROUNDS; an action may
+    override via `offensive_buff_rounds`.
+    """
+    bonus = _extract_self_weapon_damage_bonus(action)
+    if bonus <= 0:
+        return 0.0
+    enemies = [a for a in state.encounter.actors
+                 if a.side != actor.side and a.is_alive()]
+    if not enemies:
+        return 0.0
+    hits_per_round = _expected_hits_per_round(actor)
+    if hits_per_round <= 0:
+        return 0.0
+    buff_rounds = float(action.get("offensive_buff_rounds",
+                                       EXPECTED_BUFF_ROUNDS))
+    return float(bonus) * hits_per_round * buff_rounds
 
 
 # ============================================================================
