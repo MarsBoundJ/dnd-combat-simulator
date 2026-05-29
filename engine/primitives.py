@@ -2097,6 +2097,66 @@ def _hunters_mark_mark(params: dict, state: CombatState,
     })
 
 
+def _forced_movement(params: dict, state: CombatState,
+                        bus: EventBus) -> None:
+    """Push the current attack's target straight away from the actor
+    (PR #106 — Repelling Blast invocation; future generic shove / pull
+    effects).
+
+    Reads actor + target from state.current_attack (the same context
+    the `damage` step reads). Pushes the target up to `distance_ft`
+    feet (default 10) directly away from the actor via
+    geometry.push_creature, which snaps to the 8-direction vector and
+    moves in 5-ft steps.
+
+    Params:
+      - distance_ft (int, default 10): max push distance.
+
+    RAW size gate (shared with the Push weapon mastery, PR #65): only
+    Large-or-smaller creatures can be moved; Huge / Gargantuan targets
+    are immune and a skipped event is logged.
+
+    Typically gated `when: combat.attack_state == hit` in the pipeline
+    so it only fires on a landed hit — but the primitive itself is
+    direction-only and harmless to call on a miss (the caller decides).
+
+    No-op (logged) if there's no current target, or actor and target
+    share a square (no defined push direction).
+    """
+    actor = (state.current_attack or {}).get("actor") or \
+              state.current_actor()
+    target = (state.current_attack or {}).get("target")
+    if actor is None or target is None:
+        state.event_log.append({
+            "event": "forced_movement_skipped",
+            "reason": "no_actor_or_target",
+        })
+        return
+    distance = int(params.get("distance_ft", 10))
+    from engine.core.geometry import push_creature
+    from engine.core.sizes import PUSH_SIZES, normalize_size
+    target_size = normalize_size(getattr(target, "size", None))
+    if target_size not in PUSH_SIZES:
+        state.event_log.append({
+            "event": "forced_movement_skipped",
+            "actor": actor.id,
+            "target": target.id,
+            "reason": "size_immune",
+            "target_size": target_size,
+        })
+        return
+    pre_pos = target.position
+    pushed_ft = push_creature(actor, target, distance)
+    state.event_log.append({
+        "event": "forced_movement_applied",
+        "actor": actor.id,
+        "target": target.id,
+        "pushed_ft": pushed_ft,
+        "from": list(pre_pos),
+        "to": list(target.position),
+    })
+
+
 def _searing_smite_arm(params: dict, state: CombatState,
                           bus: EventBus) -> None:
     """Arm the caster with Searing Smite's one-shot rider (PR #89).
@@ -2353,6 +2413,7 @@ def _populate_handler_table() -> None:
         "searing_smite_arm": _searing_smite_arm,
         "hex_curse": _hex_curse,
         "hunters_mark_mark": _hunters_mark_mark,
+        "forced_movement": _forced_movement,
         "temp_hp_grant": _temp_hp_grant,
         "recurring_temp_hp": _recurring_temp_hp,
         "armor_of_agathys_arm": _armor_of_agathys_arm,
@@ -2427,6 +2488,11 @@ def _all_primitives() -> list[Primitive]:
         # for named_effect tagging + event log clarity + future
         # divergence (favored-target Perception tracking).
         Primitive("hunters_mark_mark", _hunters_mark_mark, implemented=True),
+        # PR #106 — Forced movement (Repelling Blast invocation; future
+        # generic shove / pull). Pushes current target away from the
+        # actor via geometry.push_creature; RAW size gate (Large-or-
+        # smaller). Typically gated `when: combat.attack_state == hit`.
+        Primitive("forced_movement", _forced_movement, implemented=True),
         # PR #94 — Temp HP grant + per-turn recurring grant. Dual of
         # recurring_damage; used by Heroism and future Aid-shape
         # spells. Max-semantics replacement on Actor.temp_hp.
