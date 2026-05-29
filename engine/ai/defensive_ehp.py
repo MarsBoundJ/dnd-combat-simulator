@@ -330,6 +330,13 @@ def defensive_ehp_defensive_buff(actor: Actor, target_ally: Actor,
     if _pipeline_has_primitive(action, "steady_aim"):
         return _score_steady_aim(actor, state)
 
+    # PR #96: Armor of Agathys — self temp HP + reflective cold
+    # damage on melee attackers. Dispatched BEFORE the generic temp-HP
+    # branch since AoA's pipeline includes BOTH temp_hp_grant AND
+    # armor_of_agathys_arm; the latter is the discriminating shape.
+    if _pipeline_has_primitive(action, "armor_of_agathys_arm"):
+        return _score_armor_of_agathys(actor, target_ally, action, state)
+
     # PR #94: Heroism — temp HP grant per turn. Standard buff scorer
     # ignores temp_hp_grant / recurring_temp_hp primitives. Score
     # based on expected total temp HP value over the buff duration.
@@ -497,6 +504,66 @@ STEADY_AIM_SA_UNLOCK_HIT_PROXY: float = 0.7
 # matches the framework's approach for other per-round buff values
 # (Bless's flat-+2 averages over hits / misses similarly).
 TEMP_HP_ABSORPTION_FRACTION: float = 0.6
+
+
+# Expected number of melee hits the Agathys bearer absorbs over the
+# spell's effective duration. The temp HP usually depletes in 1-2
+# enemy melee hits at low levels (5 temp HP at base, typical L1-3
+# attacks deal ~4-8 damage). Per RAW, each hit while temp HP > 0
+# fires the cold reflection — so the expected reflections roughly
+# matches "hits until temp HP depletes." For the v1 calibration we
+# use 1.5 as a midpoint between "absorbed in one hit" (5+ damage
+# attack) and "absorbed in two hits" (3-damage attacks).
+ARMOR_OF_AGATHYS_EXPECTED_REFLECTIONS: float = 1.5
+
+
+def _score_armor_of_agathys(actor: Actor, target_ally: Actor,
+                                 action: dict,
+                                 state: CombatState) -> float:
+    """Estimate eHP value of casting Armor of Agathys on self (PR #96).
+
+    Two components both summed:
+      - **Defensive (temp HP buffer):** `temp_hp_amount × 1.0` — temp
+        HP directly absorbs an equal amount of incoming damage,
+        wholesale-eHP. Per RAW it persists past combat (until short
+        rest) so 100% of the grant counts in worst case.
+      - **Offensive (reflective cold damage):**
+        `cold_damage_per_reflection × expected_reflections` — each
+        reflected cold hit costs the attacker that many HP, which
+        the framework treats as DPR equivalent for the bearer.
+
+    AoA is self-targeted; this function is called with
+    `target_ally == actor`. Returns 0 if the AoA marker is already
+    active (the arm primitive replaces but the scorer dedups to
+    avoid the AI re-casting on the same turn).
+    """
+    if target_ally is None or not target_ally.is_alive():
+        return 0.0
+    if target_ally.id != actor.id:
+        # AoA RAW is self-only. Non-self target candidates shouldn't
+        # be emitted, but if one slips through, score 0.
+        return 0.0
+    # Dedup: don't re-cast if marker is already active
+    for mod in target_ally.active_modifiers:
+        if mod.get("primitive") == "armor_of_agathys_active":
+            return 0.0
+    # Extract base values from the pipeline
+    base_temp_hp = 5
+    base_cold = 5
+    for step in (action.get("pipeline") or []):
+        params = step.get("params") or {}
+        if step.get("primitive") == "temp_hp_grant":
+            base_temp_hp = int(params.get("amount", base_temp_hp))
+        elif step.get("primitive") == "armor_of_agathys_arm":
+            base_cold = int(params.get("cold_damage", base_cold))
+    # Defensive component — temp HP directly absorbs damage
+    defensive_value = float(base_temp_hp)
+    # Offensive component — cold reflections against expected
+    # melee attackers (only fires if AoA bearer is actually in
+    # melee range of enemies, but for self-cast scoring we assume
+    # they're in the fight)
+    offensive_value = base_cold * ARMOR_OF_AGATHYS_EXPECTED_REFLECTIONS
+    return defensive_value + offensive_value
 
 
 def _score_heroism(actor: Actor, target_ally: Actor, action: dict,
