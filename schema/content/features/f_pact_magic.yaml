@@ -1,0 +1,38 @@
+# f_pact_magic — Pact Magic (Warlock L1)
+# Source: SRD CC v5.2.1 / PHB 2024
+#
+# The Warlock's spellcasting feature. Marker feature (no pipeline /
+# no action) — the actual slot table lives in c_warlock.yaml's
+# level_table class_resources.spell_slots, derived at PC-build time
+# by pc_schema._derive_class_spell_slots.
+#
+# **v1 simplification (PR #100):** RAW Pact Magic slots recover on a
+# SHORT rest (the Warlock's signature short-rest economy). v1 leaves
+# slots on the standard LONG-rest recovery path like every other
+# caster — the short-rest refresh is the deferred piece. A follow-on
+# PR adds a pact-slot branch to engine.core.rest.apply_short_rest
+# that restores Warlock spell_slots to spell_slots_max.
+
+id: f_pact_magic
+name: Pact Magic
+source: srd_5.2.1
+granted_by:
+  class: c_warlock
+  level: 1
+type: passive
+
+# No resource_cost / usage / effect_primitives — Pact Magic is the
+# slot-granting spellcasting feature, modeled via the class slot
+# table rather than a pipeline. Ships as a features_known marker so
+# future Warlock features / invocations can gate on its presence.
+
+contract:
+  reads: [actor.spell_slots]
+  writes: []
+  event: passive
+  scope: always
+
+# Deferred (each a follow-on):
+#   - Short-rest slot recovery (the signature Pact Magic mechanic)
+#   - Mystic Arcanum (6th-9th level once-per-long-rest casts)
+#   - Pact Boon selection at L3

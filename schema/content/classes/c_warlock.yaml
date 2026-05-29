@@ -1,0 +1,121 @@
+# c_warlock — Warlock (minimal v1, PR #100)
+# Source: SRD CC v5.2.1 (PHB 2024)
+#
+# **Minimal class definition.** This PR ships the Warlock primarily to
+# ACTIVATE two spells that were shipped forward-compat against a
+# not-yet-existing c_warlock:
+#   - f_hex (PR #90) — target-specific +1d6 necrotic damage rider
+#   - f_armor_of_agathys (PR #96) — temp HP + reflective cold thorns
+#
+# **Pact Magic (v1 simplification).** RAW Warlock Pact Magic gives a
+# small number of slots, ALL at the highest level the Warlock can
+# cast, recovered on a SHORT rest. v1 models the slot COUNTS + LEVELS
+# correctly (via per-row class_resources.spell_slots, the wired
+# `_derive_class_spell_slots` path) but **slots recover on LONG rest
+# like every other caster** — the short-rest recovery is the one
+# deferred piece (Phil's scope call). This mis-models the Warlock's
+# signature short-rest economy in multi-encounter session sims; a
+# follow-on PR adds a pact-slot refresh to apply_short_rest.
+#
+# Pact Magic slot progression (slots all at the listed level):
+#   L1: 1 @ 1st   L2: 2 @ 1st   L3-4: 2 @ 2nd   L5-6: 2 @ 3rd
+#   L7-8: 2 @ 4th L9-10: 2 @ 5th  L11+: 3 @ 5th  L17+: 4 @ 5th
+#
+# Spellcasting ability: Charisma (save DC + attack mod). The two v1
+# spells don't roll save DCs (Hex = attack rider, AoA = no save), so
+# the DC formula is forward-looking for future Warlock spells.
+#
+# Deferred (each a documented follow-on):
+#   - Pact Magic SHORT-REST slot recovery (the signature mechanic)
+#   - Eldritch Blast (iconic at-will cantrip + beam scaling)
+#   - Eldritch Invocations
+#   - Pact Boons (Blade / Chain / Tome)
+#   - Patron subclasses (Fiend / Archfey / Great Old One / Celestial)
+#   - Mystic Arcanum (6th-9th level once-per-day casts)
+
+id: c_warlock
+name: Warlock
+source: srd_5.2.1
+
+core_traits:
+  primary_abilities: [charisma]
+  hit_die: d8
+  save_proficiencies: [wisdom, charisma]
+  skill_proficiencies:
+    choose: 2
+    from: [arcana, deception, history, intimidation, investigation,
+            nature, religion]
+  weapon_proficiencies: [simple]
+  armor_training: [light]
+  tool_proficiencies: []
+
+multiclass_entry:
+  traits_gained: [light_armor, simple_weapons]
+  features_gained: [f_pact_magic]
+  multiclass_slot_contribution: pact_magic   # Pact Magic slots are
+                                              # tracked separately from
+                                              # the standard multiclass
+                                              # spell-slot table (RAW)
+
+spellcasting:
+  enabled: true
+  ability: charisma
+  save_dc_formula: "8 + actor.cha_mod + actor.proficiency_bonus"
+  attack_mod_formula: "actor.cha_mod + actor.proficiency_bonus"
+  focus_types: [arcane_focus]
+  preparation_model: spells_known_fixed   # Warlock learns a fixed set
+  slots_progression: pact_magic
+
+level_table:
+  - level: 1
+    proficiency_bonus: 2
+    features: [f_pact_magic, f_hex, f_armor_of_agathys]
+    class_resources:
+      spell_slots: { 1: 1 }
+  - level: 2
+    proficiency_bonus: 2
+    features: []
+    class_resources:
+      spell_slots: { 1: 2 }
+  - level: 3
+    proficiency_bonus: 2
+    features: [grant_subclass]
+    class_resources:
+      spell_slots: { 2: 2 }
+  - level: 4
+    proficiency_bonus: 2
+    features: [grant_asi_or_feat]
+    class_resources:
+      spell_slots: { 2: 2 }
+  - level: 5
+    proficiency_bonus: 3
+    features: []
+    class_resources:
+      spell_slots: { 3: 2 }
+  - level: 6
+    proficiency_bonus: 3
+    features: []
+    class_resources:
+      spell_slots: { 3: 2 }
+  - level: 7
+    proficiency_bonus: 3
+    features: []
+    class_resources:
+      spell_slots: { 4: 2 }
+  - level: 9
+    proficiency_bonus: 4
+    features: []
+    class_resources:
+      spell_slots: { 5: 2 }
+  - level: 11
+    proficiency_bonus: 4
+    features: []
+    class_resources:
+      spell_slots: { 5: 3 }
+  - level: 17
+    proficiency_bonus: 6
+    features: []
+    class_resources:
+      spell_slots: { 5: 4 }
+
+subclass_grant_level: 3
