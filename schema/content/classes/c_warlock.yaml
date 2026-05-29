@@ -69,7 +69,7 @@ spellcasting:
 level_table:
   - level: 1
     proficiency_bonus: 2
-    features: [f_pact_magic, f_hex, f_armor_of_agathys]
+    features: [f_pact_magic, f_eldritch_blast, f_hex, f_armor_of_agathys]
     class_resources:
       spell_slots: { 1: 1 }
   - level: 2

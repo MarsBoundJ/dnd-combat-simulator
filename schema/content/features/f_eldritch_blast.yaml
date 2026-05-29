@@ -1,0 +1,43 @@
+# f_eldritch_blast — Eldritch Blast (Warlock signature cantrip)
+# Source: SRD CC v5.2.1 / PHB 2024
+#
+# The iconic Warlock at-will. Ranged spell attack, 120 ft, 1d10 force
+# per beam. Beam count scales with CHARACTER level (NOT slot level):
+# 1 at L1-4, 2 at L5-10, 3 at L11-16, 4 at L17+. Each beam is a
+# separate attack roll (can split across targets RAW; v1 focus-fires
+# the multiattack on one target).
+#
+# Marker feature (no action_template) — the action(s) are built in
+# pc_schema._build_eldritch_blast_actions because both the spell
+# attack bonus (CHA mod + proficiency) AND the beam count depend on
+# the PC's stats + level. Mirrors the Fighter Extra Attack pattern:
+#   - a_eldritch_blast        — single beam (always present)
+#   - a_eldritch_blast_beams  — multiattack of N beams (L5+)
+# Both are candidates; the AI picks the higher-scoring multi.
+#
+# spell_slot_level 0 = cantrip (consumes no Pact Magic slot — EB is
+# the Warlock's at-will, the reason they can fight all day without
+# burning their 2 precious slots).
+#
+# Deferred:
+#   - Agonizing Blast invocation (+CHA mod damage per beam) — biggest
+#     EB damage boost; needs the invocations system
+#   - Repelling Blast / other beam-modifying invocations
+#   - Per-beam target splitting (v1 focus-fires)
+
+id: f_eldritch_blast
+name: Eldritch Blast
+source: srd_5.2.1
+granted_by:
+  class: c_warlock
+  level: 1
+type: active
+
+contract:
+  reads: [actor.abilities.cha, actor.proficiency_bonus, actor.levels]
+  writes: [combat.attack_roll, combat.damage_total]
+  event: actor_turn_action
+  scope: at_will
+
+# No effect_primitives / action_template — pc_schema generates the
+# beam + multiattack actions from the PC's CHA + character level.
