@@ -38,13 +38,13 @@
 #   - Favored Enemy free-cast pool (Ranger-specific; needs a
 #     feature_use counter alongside the spell's slot consumption)
 #
-# **Class wiring note:** Hunter's Mark requires Ranger spell slots,
-# which aren't yet wired in c_ranger.yaml (minimal class per PR #64).
-# Ships forward-compat with `granted_by: {class: c_ranger, level: 2}`
-# but NOT added to the L2 features list yet. When Ranger spellcasting
-# lands (alongside the half-caster slot progression mirroring
-# Paladin's), add f_hunters_mark to L1 or L2 features and the
-# existing auto-attach pass (PR #82) wires the action.
+# **Class wiring note:** Hunter's Mark requires Ranger spell slots.
+# As of PR #107, c_ranger.yaml wires half-caster spellcasting (WIS,
+# slots from L2 mirroring the Paladin convention) AND lists
+# f_hunters_mark in the L2 features, so the auto-attach pass (PR #82)
+# generates the a_hunters_mark action and slot consumption works.
+# (Originally shipped forward-compat in PR #91 with granted_by but no
+# L-table entry, before Ranger spellcasting existed.)
 
 id: f_hunters_mark
 name: Hunter's Mark
