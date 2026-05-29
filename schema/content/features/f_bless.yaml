@@ -18,12 +18,13 @@
 #   - named_effect: "bless" → cross-caster dedup (PR #36) prevents
 #     two Paladins double-Blessing the same ally
 #
+# Multi-target (PR #98): `max_targets: 3` engages the candidate-
+# grouping infra (built for Aid, PR #97). The candidate generator
+# emits ONE Bless candidate covering up to 3 allies; scoring sums
+# the per-ally buff value; execute() applies the buff pipeline to
+# each. Closes the long-standing single-target deferral.
+#
 # Deferred RAW bits:
-#   - Multi-target up to 3 creatures (RAW: pick 3 targets per cast).
-#     v1 emits single-ally candidates only — the AI picks the
-#     highest-value ally; the actual cast applies to that one. A
-#     follow-up PR would emit a multi-target candidate shape and
-#     score the sum.
 #   - Upcast scaling: +1 ally per slot level above 1st (no
 #     upcast_scaling block — non-dice scaling requires a schema
 #     extension; tracked as PR #77 residue)
@@ -54,6 +55,7 @@ action_template:
   concentration: true
   named_effect: bless
   range_ft: 30
+  max_targets: 3              # PR #98: multi-target candidate grouping
   pipeline:
     # +1d4 to attack rolls (modeled as flat +2 average). Gated by
     # `when: attacker_is_self` so the modifier only fires when the

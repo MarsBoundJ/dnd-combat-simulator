@@ -1389,6 +1389,12 @@ def score_candidate(candidate: dict, state: CombatState) -> float:
                                     direction=tuple(direction) if direction
                                                 else None)
     if kind == "offensive_buff" or action.get("type") == "offensive_buff":
+        # PR #98: multi-target Bless sums offensive-buff value across
+        # the group. Single-target candidates score just `target`.
+        targets = candidate.get("targets")
+        if targets and len(targets) > 1:
+            return sum(offensive_ehp_buff_ally(actor, t, action, state)
+                         for t in targets if t and t.is_alive())
         return offensive_ehp_buff_ally(actor, target, action, state)
     if kind == "help" or action.get("type") == "help":
         return offensive_ehp_help(actor, target, action, state)

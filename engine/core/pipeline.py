@@ -234,15 +234,38 @@ def generate_candidates(actor: Actor, state: CombatState,
             # themselves to raise their own hit chance in v1 — the AI
             # would need to weigh "buff self vs swing weapon" which
             # gets pulled in by the spell-slot opportunity cost PR).
-            for ally in allies:
-                if ally.id == actor.id:
-                    continue
-                candidates.append({
-                    "kind": "offensive_buff",
-                    "action": action,
-                    "target": ally,
-                    "actor": actor,
-                })
+            buff_allies = [a for a in allies if a.id != actor.id]
+            if int(action.get("max_targets", 1)) > 1:
+                # PR #98: multi-target Bless. Reuses the candidate-
+                # grouping infra from PR #97 (Aid). Picks the best
+                # up-to-N allies and emits ONE candidate; scoring sums
+                # offensive-buff value across the group. Unlike Aid
+                # (heal/defensive_buff), the most-wounded-first
+                # ordering in _select_multi_target_group is a poor fit
+                # for an attack-buff — but for Bless the value is flat
+                # per ally (all get +attack/+save), so subset choice
+                # only matters when the party exceeds max_targets. v1
+                # accepts the most-wounded ordering; a future
+                # "prefer highest-DPR ally" ordering is a scoring
+                # refinement, not a correctness issue.
+                group = _select_multi_target_group(
+                    action, buff_allies, actor, state)
+                if group:
+                    candidates.append({
+                        "kind": "offensive_buff",
+                        "action": action,
+                        "target": group[0],
+                        "targets": group,
+                        "actor": actor,
+                    })
+            else:
+                for ally in buff_allies:
+                    candidates.append({
+                        "kind": "offensive_buff",
+                        "action": action,
+                        "target": ally,
+                        "actor": actor,
+                    })
         elif action_type == "help":
             # Help: pick an adjacent ally; grant advantage on their next
             # attack. RAW gates:
