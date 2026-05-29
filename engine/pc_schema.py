@@ -245,6 +245,14 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
     # `weapon_actions` is passed so Extra Attack can reference the
     # weapon ids in its sub_actions list (PR #39).
     features_known = _features_known_at_level(class_def, level)
+    # PR #103: Eldritch Invocations — player-chosen Warlock features
+    # (like fighting_style). Validated against the known-invocation
+    # registry + prerequisites, then merged into features_known so
+    # downstream builders (Eldritch Blast's Agonizing Blast damage
+    # bump) + the features_known template stamp pick them up.
+    invocations = _validate_invocations(
+        pc_spec.get("invocations"), features_known, class_id, level)
+    features_known = set(features_known) | set(invocations)
     actions += _build_feature_actions(features_known, level, class_id,
                                          weapon_actions=weapon_actions,
                                          ability_scores=ability_scores,
@@ -932,7 +940,8 @@ def _build_feature_actions(features_known: set[str], level: int,
     # at L5+ referencing the beam N times.
     if "f_eldritch_blast" in features_known and ability_scores is not None:
         actions.extend(_build_eldritch_blast_actions(
-            level, ability_scores, proficiency_bonus))
+            level, ability_scores, proficiency_bonus,
+            agonizing="f_agonizing_blast" in features_known))
     return actions
 
 
@@ -946,6 +955,50 @@ def _extra_attack_count(features_known: set[str]) -> int:
     if "f_extra_attack" in features_known:
         return 2        # L5
     return 1
+
+
+# PR #103: Eldritch Invocation registry. Each entry: the prerequisite
+# check (returns None if OK, else an error string). Minimal v1 ships
+# Agonizing Blast only; future invocations add entries here.
+_KNOWN_INVOCATIONS: frozenset[str] = frozenset({
+    "f_agonizing_blast",
+})
+
+
+def _validate_invocations(raw, features_known: set[str],
+                             class_id: str, level: int) -> list[str]:
+    """Validate a pc_spec `invocations` list (PR #103).
+
+    Rules:
+      - Only c_warlock may take invocations (RAW: Warlock-only).
+      - Each id must be in _KNOWN_INVOCATIONS.
+      - Prerequisite check: f_agonizing_blast requires the Warlock to
+        know Eldritch Blast (f_eldritch_blast in features_known).
+      - Duplicates are de-duped.
+
+    Returns the validated list (possibly empty). Raises ValueError on
+    a non-Warlock taking invocations, an unknown id, or a failed
+    prerequisite — these are authoring errors, surfaced loudly.
+    """
+    if not raw:
+        return []
+    if class_id != "c_warlock":
+        raise ValueError(
+            f"invocations are Warlock-only; {class_id!r} can't take them")
+    if not isinstance(raw, list):
+        raise ValueError("pc_spec.invocations must be a list of ids")
+    validated: list[str] = []
+    for inv in raw:
+        if inv in validated:
+            continue
+        if inv not in _KNOWN_INVOCATIONS:
+            raise ValueError(f"unknown invocation: {inv!r}")
+        if inv == "f_agonizing_blast" \
+                and "f_eldritch_blast" not in features_known:
+            raise ValueError(
+                "f_agonizing_blast requires knowing Eldritch Blast")
+        validated.append(inv)
+    return validated
 
 
 def _eldritch_blast_beams_at_level(level: int) -> int:
@@ -962,8 +1015,10 @@ def _eldritch_blast_beams_at_level(level: int) -> int:
 
 
 def _build_eldritch_blast_actions(level: int, ability_scores: dict,
-                                     proficiency_bonus: int) -> list[dict]:
-    """Build the Eldritch Blast action(s) (PR #102).
+                                     proficiency_bonus: int,
+                                     agonizing: bool = False) -> list[dict]:
+    """Build the Eldritch Blast action(s) (PR #102, Agonizing Blast
+    PR #103).
 
     Always returns the single-beam `a_eldritch_blast` (ranged spell
     attack, 1d10 force, spell_slot_level 0 = cantrip, attack bonus =
@@ -974,15 +1029,22 @@ def _build_eldritch_blast_actions(level: int, ability_scores: dict,
 
     The spell attack bonus is computed here from the Warlock's CHA
     (the spellcasting ability per c_warlock.yaml's spellcasting
-    block) + proficiency bonus. Damage is flat 1d10 force, no ability
-    mod added (RAW: EB has no damage modifier without the Agonizing
-    Blast invocation, which is deferred).
+    block) + proficiency bonus.
+
+    Damage: base 1d10 force, no ability mod. When `agonizing=True`
+    (the Warlock has the Agonizing Blast invocation, PR #103), each
+    beam adds the CHA modifier to its damage — RAW the single biggest
+    EB damage boost. Applied per-beam (it rides the single-beam
+    action, so the multiattack's N beams each get it).
     """
     cha_mod = ability_modifier(ability_scores["cha"]["score"])
     attack_bonus = cha_mod + proficiency_bonus
+    # PR #103: Agonizing Blast adds CHA mod to EACH beam's damage.
+    damage_mod = cha_mod if agonizing else 0
     beam = {
         "id": "a_eldritch_blast",
-        "name": "Eldritch Blast",
+        "name": ("Eldritch Blast (Agonizing)"
+                   if agonizing else "Eldritch Blast"),
         "type": "weapon_attack",
         "slot": "action",
         "spell_slot_level": 0,        # cantrip — consumes no slot
@@ -991,7 +1053,7 @@ def _build_eldritch_blast_actions(level: int, ability_scores: dict,
               "params": {"kind": "ranged", "ability": "cha",
                           "bonus": attack_bonus, "range_ft": 120}},
             {"primitive": "damage",
-              "params": {"dice": "1d10", "modifier": 0,
+              "params": {"dice": "1d10", "modifier": damage_mod,
                           "type": "force"},
               "when": {"condition": "combat.attack_state == hit"}},
         ],
