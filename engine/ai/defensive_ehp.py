@@ -1076,16 +1076,21 @@ def _resolve_dc_for_action(action_intent: dict, caster: Actor) -> int:
 
     Mirrors primitives._resolve_dc but works at scoring-time (no
     state.current_attack populated yet).
+
+    PR #113: the `caster_spell_save_dc` branch is now ability-aware —
+    it delegates to `_caster_spell_dc`, which reads
+    template.spellcasting_ability (CHA Paladin / WIS Ranger·Cleric,
+    INT fallback). Previously it hardcoded INT, silently
+    under-/over-estimating the save DC for every non-INT caster — the
+    scoring-side twin of the execution-side bug fixed in PR #104/#110.
+    This makes hard-control scoring (Compelled Duel etc.) use the same
+    DC the rider will actually roll.
     """
     if action_intent.get("save_dc_fixed") is not None:
         return int(action_intent["save_dc_fixed"])
     dc_source = action_intent.get("save_dc_source") or ""
     if dc_source == "caster_spell_save_dc":
-        int_mod = ability_modifier(
-            (caster.abilities.get("int") or {}).get("score", 10)
-        )
-        pb = (caster.template.get("cr") or {}).get("proficiency_bonus", 2)
-        return 8 + int_mod + pb
+        return _caster_spell_dc(caster)
     if dc_source.startswith("fixed:"):
         try:
             return int(dc_source[len("fixed:"):])
