@@ -948,7 +948,8 @@ def _build_feature_actions(features_known: set[str], level: int,
     if "f_eldritch_blast" in features_known and ability_scores is not None:
         actions.extend(_build_eldritch_blast_actions(
             level, ability_scores, proficiency_bonus,
-            agonizing="f_agonizing_blast" in features_known))
+            agonizing="f_agonizing_blast" in features_known,
+            repelling="f_repelling_blast" in features_known))
     return actions
 
 
@@ -969,6 +970,7 @@ def _extra_attack_count(features_known: set[str]) -> int:
 # Agonizing Blast only; future invocations add entries here.
 _KNOWN_INVOCATIONS: frozenset[str] = frozenset({
     "f_agonizing_blast",
+    "f_repelling_blast",
 })
 
 
@@ -979,8 +981,9 @@ def _validate_invocations(raw, features_known: set[str],
     Rules:
       - Only c_warlock may take invocations (RAW: Warlock-only).
       - Each id must be in _KNOWN_INVOCATIONS.
-      - Prerequisite check: f_agonizing_blast requires the Warlock to
-        know Eldritch Blast (f_eldritch_blast in features_known).
+      - Prerequisite check: both f_agonizing_blast and
+        f_repelling_blast require the Warlock to know Eldritch Blast
+        (f_eldritch_blast in features_known).
       - Duplicates are de-duped.
 
     Returns the validated list (possibly empty). Raises ValueError on
@@ -1000,10 +1003,10 @@ def _validate_invocations(raw, features_known: set[str],
             continue
         if inv not in _KNOWN_INVOCATIONS:
             raise ValueError(f"unknown invocation: {inv!r}")
-        if inv == "f_agonizing_blast" \
+        if inv in ("f_agonizing_blast", "f_repelling_blast") \
                 and "f_eldritch_blast" not in features_known:
             raise ValueError(
-                "f_agonizing_blast requires knowing Eldritch Blast")
+                f"{inv} requires knowing Eldritch Blast")
         validated.append(inv)
     return validated
 
@@ -1023,9 +1026,10 @@ def _eldritch_blast_beams_at_level(level: int) -> int:
 
 def _build_eldritch_blast_actions(level: int, ability_scores: dict,
                                      proficiency_bonus: int,
-                                     agonizing: bool = False) -> list[dict]:
+                                     agonizing: bool = False,
+                                     repelling: bool = False) -> list[dict]:
     """Build the Eldritch Blast action(s) (PR #102, Agonizing Blast
-    PR #103).
+    PR #103, Repelling Blast PR #106).
 
     Always returns the single-beam `a_eldritch_blast` (ranged spell
     attack, 1d10 force, spell_slot_level 0 = cantrip, attack bonus =
@@ -1043,27 +1047,48 @@ def _build_eldritch_blast_actions(level: int, ability_scores: dict,
     beam adds the CHA modifier to its damage — RAW the single biggest
     EB damage boost. Applied per-beam (it rides the single-beam
     action, so the multiattack's N beams each get it).
+
+    When `repelling=True` (the Repelling Blast invocation, PR #106),
+    each beam that hits pushes the target up to 10 ft straight away
+    via the forced_movement primitive, gated on hit. Like Agonizing,
+    it rides the single-beam action so every beam of the multiattack
+    wrapper gets it. Both invocations compose: a Warlock with both
+    deals CHA-boosted damage AND knockback per beam.
     """
     cha_mod = ability_modifier(ability_scores["cha"]["score"])
     attack_bonus = cha_mod + proficiency_bonus
     # PR #103: Agonizing Blast adds CHA mod to EACH beam's damage.
     damage_mod = cha_mod if agonizing else 0
+    suffixes = []
+    if agonizing:
+        suffixes.append("Agonizing")
+    if repelling:
+        suffixes.append("Repelling")
+    name = ("Eldritch Blast ({})".format(", ".join(suffixes))
+              if suffixes else "Eldritch Blast")
+    pipeline_steps = [
+        {"primitive": "attack_roll",
+          "params": {"kind": "ranged", "ability": "cha",
+                      "bonus": attack_bonus, "range_ft": 120}},
+        {"primitive": "damage",
+          "params": {"dice": "1d10", "modifier": damage_mod,
+                      "type": "force"},
+          "when": {"condition": "combat.attack_state == hit"}},
+    ]
+    if repelling:
+        # PR #106: push the target 10 ft away on a hit. Each beam can
+        # push independently (RAW per-beam interpretation).
+        pipeline_steps.append(
+            {"primitive": "forced_movement",
+              "params": {"distance_ft": 10},
+              "when": {"condition": "combat.attack_state == hit"}})
     beam = {
         "id": "a_eldritch_blast",
-        "name": ("Eldritch Blast (Agonizing)"
-                   if agonizing else "Eldritch Blast"),
+        "name": name,
         "type": "weapon_attack",
         "slot": "action",
         "spell_slot_level": 0,        # cantrip — consumes no slot
-        "pipeline": [
-            {"primitive": "attack_roll",
-              "params": {"kind": "ranged", "ability": "cha",
-                          "bonus": attack_bonus, "range_ft": 120}},
-            {"primitive": "damage",
-              "params": {"dice": "1d10", "modifier": damage_mod,
-                          "type": "force"},
-              "when": {"condition": "combat.attack_state == hit"}},
-        ],
+        "pipeline": pipeline_steps,
     }
     out = [beam]
     beams = _eldritch_blast_beams_at_level(level)

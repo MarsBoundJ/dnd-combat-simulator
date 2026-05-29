@@ -1,0 +1,59 @@
+# f_repelling_blast — Repelling Blast (Eldritch Invocation)
+# Source: SRD CC v5.2.1 / PHB 2024
+#
+# RAW: when you hit a creature with Eldritch Blast, you can push the
+# creature up to 10 feet away from you in a straight line. The classic
+# control invocation — pairs with Agonizing Blast (damage) for the
+# iconic "blast them off a cliff / kite them forever" Warlock pattern.
+#
+# **Eldritch Invocation model (v1, PR #103; second invocation PR #106):**
+# invocations are player-CHOSEN Warlock features (not auto-granted). A
+# pc_spec declares them via an `invocations: [...]` list, validated by
+# pc_schema._validate_invocations against the _KNOWN_INVOCATIONS
+# registry + prerequisites. Chosen invocations merge into
+# features_known. Repelling Blast's effect is applied in
+# pc_schema._build_eldritch_blast_actions (a forced_movement pipeline
+# step, gated on hit, is appended to each beam when f_repelling_blast
+# is known) rather than via this feature's own pipeline, since it
+# modifies a dynamically-built action.
+#
+# The push uses the forced_movement primitive (PR #106), which wraps
+# engine.core.geometry.push_creature — snapping to the 8-direction
+# vector and moving the target in 5-ft steps. Per-beam push: each beam
+# of the multi-beam EB (L5+) can push 10 ft independently (RAW reading).
+# RAW size gate applies (Large-or-smaller; shared with Push mastery).
+#
+# Prerequisite: knowing Eldritch Blast (f_eldritch_blast). Enforced
+# in _validate_invocations alongside Agonizing Blast.
+#
+# Composes with Agonizing Blast: a Warlock with both deals CHA-boosted
+# damage AND 10-ft knockback per beam.
+
+id: f_repelling_blast
+name: Repelling Blast
+source: srd_5.2.1
+granted_by:
+  class: c_warlock
+  level: 1                   # invocations start at L1 (PHB 2024)
+type: passive
+
+# No effect_primitives / action_template — the on-hit push is baked
+# into the Eldritch Blast beam(s) at PC-build time by pc_schema when
+# f_repelling_blast is in the chosen invocations.
+
+contract:
+  reads: [combat.attack_state, actor.position, target.position]
+  writes: [target.position]
+  event: passive
+  scope: modifies_eldritch_blast
+
+# Deferred:
+#   - "Up to" 10 ft: RAW the Warlock CHOOSES how far (0-10) to push;
+#     v1 always pushes the full 10 (push is rarely unwanted, and the
+#     AI doesn't yet model positional downsides like pushing a foe
+#     out of an ally's reach). Revisit with positional tactics.
+#   - Collision / map-edge handling (inherited from push_creature v1:
+#     open-battlefield assumption, always moves the full distance).
+#   - AI scoring uplift for knockback value (kiting, breaking enemy
+#     reach, off-ledge plays) — v1 EB scoring is damage-only, so the
+#     push is a free mechanical bonus the AI doesn't yet value.
