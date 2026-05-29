@@ -246,7 +246,9 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
     # weapon ids in its sub_actions list (PR #39).
     features_known = _features_known_at_level(class_def, level)
     actions += _build_feature_actions(features_known, level, class_id,
-                                         weapon_actions=weapon_actions)
+                                         weapon_actions=weapon_actions,
+                                         ability_scores=ability_scores,
+                                         proficiency_bonus=proficiency_bonus)
     # PR #82: auto-attach spell action_templates from features that
     # declare one. This covers Paladin Bless / Shield of Faith and
     # any future spell-shaped features whose YAML carries an
@@ -872,7 +874,9 @@ def _class_resources_at_level(class_def: dict, level: int) -> dict:
 
 def _build_feature_actions(features_known: set[str], level: int,
                              class_id: str,
-                             weapon_actions: list[dict] | None = None
+                             weapon_actions: list[dict] | None = None,
+                             ability_scores: dict | None = None,
+                             proficiency_bonus: int = 2
                              ) -> list[dict]:
     """Generate action dicts for the feature IDs the PC has at this
     level. v1 + PR #39: Second Wind + Extra Attack (count scales by
@@ -921,6 +925,14 @@ def _build_feature_actions(features_known: set[str], level: int,
         count = _extra_attack_count(features_known)
         if count > 1 and weapon_actions:
             actions.append(_build_extra_attack_action(count, weapon_actions))
+    # PR #102: Warlock Eldritch Blast — iconic at-will cantrip. Ranged
+    # spell attack, 1d10 force, beams scale with CHARACTER level
+    # (1/2/3/4 at L1/L5/L11/L17). Mirrors the Extra Attack pattern: a
+    # single-beam action always present, plus a multiattack wrapper
+    # at L5+ referencing the beam N times.
+    if "f_eldritch_blast" in features_known and ability_scores is not None:
+        actions.extend(_build_eldritch_blast_actions(
+            level, ability_scores, proficiency_bonus))
     return actions
 
 
@@ -934,6 +946,68 @@ def _extra_attack_count(features_known: set[str]) -> int:
     if "f_extra_attack" in features_known:
         return 2        # L5
     return 1
+
+
+def _eldritch_blast_beams_at_level(level: int) -> int:
+    """Eldritch Blast beam count by CHARACTER level (RAW PHB 2024):
+    1 at L1-4, 2 at L5-10, 3 at L11-16, 4 at L17+. For single-class
+    Warlocks character level == warlock level."""
+    if level >= 17:
+        return 4
+    if level >= 11:
+        return 3
+    if level >= 5:
+        return 2
+    return 1
+
+
+def _build_eldritch_blast_actions(level: int, ability_scores: dict,
+                                     proficiency_bonus: int) -> list[dict]:
+    """Build the Eldritch Blast action(s) (PR #102).
+
+    Always returns the single-beam `a_eldritch_blast` (ranged spell
+    attack, 1d10 force, spell_slot_level 0 = cantrip, attack bonus =
+    CHA mod + PB). At character level 5+, ALSO returns a multiattack
+    wrapper `a_eldritch_blast_beams` firing N beams — mirroring the
+    Fighter Extra Attack pattern (both the single + the multi are
+    candidates; the AI picks the higher-scoring multi).
+
+    The spell attack bonus is computed here from the Warlock's CHA
+    (the spellcasting ability per c_warlock.yaml's spellcasting
+    block) + proficiency bonus. Damage is flat 1d10 force, no ability
+    mod added (RAW: EB has no damage modifier without the Agonizing
+    Blast invocation, which is deferred).
+    """
+    cha_mod = ability_modifier(ability_scores["cha"]["score"])
+    attack_bonus = cha_mod + proficiency_bonus
+    beam = {
+        "id": "a_eldritch_blast",
+        "name": "Eldritch Blast",
+        "type": "weapon_attack",
+        "slot": "action",
+        "spell_slot_level": 0,        # cantrip — consumes no slot
+        "pipeline": [
+            {"primitive": "attack_roll",
+              "params": {"kind": "ranged", "ability": "cha",
+                          "bonus": attack_bonus, "range_ft": 120}},
+            {"primitive": "damage",
+              "params": {"dice": "1d10", "modifier": 0,
+                          "type": "force"},
+              "when": {"condition": "combat.attack_state == hit"}},
+        ],
+    }
+    out = [beam]
+    beams = _eldritch_blast_beams_at_level(level)
+    if beams > 1:
+        out.append({
+            "id": "a_eldritch_blast_beams",
+            "name": f"Eldritch Blast ({beams} beams)",
+            "type": "multiattack",
+            "spell_slot_level": 0,
+            "count": beams,
+            "sub_actions": ["a_eldritch_blast"] * beams,
+        })
+    return out
 
 
 def _build_extra_attack_action(count: int,
