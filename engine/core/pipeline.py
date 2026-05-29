@@ -464,21 +464,33 @@ def _select_multi_target_group(action: dict, allies: list,
                                   actor: Actor,
                                   state: CombatState) -> list:
     """Pick the best up-to-N allies for a multi-target buff/heal
-    (PR #97). RAW spells like Aid name up to `max_targets` creatures
-    within range; the AI picks the highest-value subset.
+    (PR #97, ordering refined in PR #105). RAW spells like Aid / Bless
+    name up to `max_targets` creatures within range; the AI picks the
+    highest-value subset.
 
-    Selection heuristic:
-      - Filter to allies within `range_ft` of the caster (default
-        generous range if unset).
-      - Prefer the most-wounded allies first (lowest current-HP
-        fraction) — for Aid the current-HP bump heals them, and the
-        max-HP bump benefits everyone equally, so wounded allies get
-        strictly more value from the same cast.
-      - Take up to `max_targets`.
+    Filter: allies within `range_ft` of the caster (default generous
+    range if unset). Self IS eligible (Aid / Bless can target the
+    caster — though the offensive_buff candidate branch excludes self
+    before calling here).
 
-    Self IS eligible (Aid can target the caster). Returns the chosen
-    ally list (possibly fewer than max_targets if the party is small),
-    or [] if no eligible allies.
+    **Ordering depends on the buff's flavor (PR #105):**
+      - `offensive_buff` (Bless-shape attack buffs) → **highest-DPR
+        allies first**. An attack buff's value scales with how much
+        the recipient attacks, so the party's heavy hitters (raging
+        Barbarian, Extra-Attack Fighter) should be picked over a
+        near-dead back-line caster. Allies who can't attack (DPR 0)
+        sort last and are only picked to fill otherwise-empty slots.
+      - everything else (heal / temp-HP / max-HP / defensive_buff) →
+        **most-wounded-first** (lowest current-HP fraction). Aid's
+        current-HP bump heals the hurt; a defensive buff matters most
+        on whoever's closest to dropping.
+
+    The most-wounded ordering was the v1 default from PR #97 (built
+    for Aid, a heal); PR #98's multi-target Bless inherited it, which
+    was the documented rough edge this PR closes.
+
+    Returns the chosen ally list (fewer than max_targets if the party
+    is small), or [] if no eligible allies.
     """
     from engine.core.geometry import distance_ft
     max_targets = int(action.get("max_targets", 1))
@@ -487,12 +499,18 @@ def _select_multi_target_group(action: dict, allies: list,
                   if distance_ft(actor, a) <= range_ft]
     if not eligible:
         return []
-    # Most-wounded-first: sort by current-HP fraction ascending.
-    def _hp_fraction(a: Actor) -> float:
-        if a.hp_max <= 0:
-            return 1.0
-        return a.hp_current / a.hp_max
-    eligible.sort(key=_hp_fraction)
+    if action.get("type") == "offensive_buff":
+        # Highest-DPR-first: an attack buff is worth most on the
+        # ally who swings hardest / most often.
+        from engine.ai.defensive_ehp import estimate_dpr
+        eligible.sort(key=estimate_dpr, reverse=True)
+    else:
+        # Most-wounded-first: sort by current-HP fraction ascending.
+        def _hp_fraction(a: Actor) -> float:
+            if a.hp_max <= 0:
+                return 1.0
+            return a.hp_current / a.hp_max
+        eligible.sort(key=_hp_fraction)
     return eligible[:max_targets]
 
 
