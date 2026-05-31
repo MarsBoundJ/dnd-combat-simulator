@@ -88,6 +88,10 @@ def expected_healing(action: dict, caster: Actor) -> float:
         params = step.get("params") or {}
         total += dice_mean(params.get("dice"))
         total += float(params.get("fixed", 0))
+        # PR #118: flat `modifier` key (pre-resolved ability mod baked
+        # in at build time — Cure Wounds / Healing Word). Mirror the
+        # _heal primitive so scoring matches executed healing.
+        total += float(params.get("modifier", 0))
         mod_source = params.get("modifier_source")
         if mod_source:
             total += _resolve_caster_modifier(mod_source, caster)

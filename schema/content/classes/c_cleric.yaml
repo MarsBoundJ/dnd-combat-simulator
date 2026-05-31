@@ -71,8 +71,8 @@ spellcasting:
 level_table:
   - level: 1
     proficiency_bonus: 2
-    features: [f_sacred_flame, f_toll_the_dead,
-                f_bless, f_shield_of_faith, f_cure_wounds]
+    features: [f_sacred_flame, f_toll_the_dead, f_bless,
+                f_shield_of_faith, f_cure_wounds, f_healing_word]
     class_resources:
       spell_slots: { 1: 2 }
   - level: 2

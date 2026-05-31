@@ -777,6 +777,12 @@ def _heal(params: dict, state: CombatState, bus: EventBus) -> dict:
         # modifier_source like 'actor.wis_mod' refers to the CASTER, not
         # the heal target — Cure Wounds is "+ your spellcasting ability mod".
         amount += _resolve_modifier(modifier_source, actor)
+    # PR #118: flat `modifier` key — the pre-resolved ability mod baked
+    # in at PC-build time (Cure Wounds / Healing Word builders compute
+    # the caster's WIS mod and pass it as `modifier`). Was dropped
+    # silently, so those heals lost their + ability mod (latent since
+    # PR #116 — Cure Wounds healed dice-only).
+    amount += int(params.get("modifier", 0))
 
     target.hp_current = min(target.hp_max, target.hp_current + amount)
     state.event_log.append({"event": "healed", "target": target.id,
