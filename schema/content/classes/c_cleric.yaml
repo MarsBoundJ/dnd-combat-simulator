@@ -31,8 +31,8 @@
 #   - Sear Undead, Blessed Strikes, Divine Intervention
 #   - More cantrips (Guidance — utility/ability-check, no combat eHP
 #     model; Sacred Flame + Toll the Dead shipped in PR #115)
-#   - More prepared spells (Cure Wounds / Healing Word / Spirit
-#     Guardians — Spirit Guardians' aura infra exists from PR #43)
+#   - More prepared spells (Healing Word, etc.). Cure Wounds shipped
+#     PR #116; Spirit Guardians wired PR #117 (L5, 3rd-level slot).
 #   - Subclasses (Life / Light / Trickery / War domains)
 
 id: c_cleric
@@ -92,7 +92,7 @@ level_table:
       spell_slots: { 1: 4, 2: 3 }
   - level: 5
     proficiency_bonus: 3
-    features: []
+    features: [f_spirit_guardians]   # 3rd-level slots arrive at L5
     class_resources:
       spell_slots: { 1: 4, 2: 3, 3: 2 }
   - level: 6
