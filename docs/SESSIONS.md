@@ -5,6 +5,126 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-05-30 — 7 PRs (PRs #112–#118): the Cleric build-out + 2 latent fixes
+
+**Participants:** Phil, Claude (Opus 4.8)
+
+Test suite 1763 → **1817** passed + 1 skipped, zero regressions. Seven
+PRs. Theme: **stood up the Cleric into a full three-pillar class**
+(buff / heal / control) by reusing dormant content + builder patterns,
+plus a refactor and two latent-bug fixes. The Cleric now spans Bless /
+Shield of Faith (buff), Cure Wounds / Healing Word (heal), Spirit
+Guardians (control), Sacred Flame / Toll the Dead (cantrips).
+
+### Headline: Cleric 0 → three-pillar in 5 content PRs
+
+c_cleric (#114) → cantrips (#115) → Cure Wounds (#116) → Spirit
+Guardians (#117) → Healing Word (#118). Three of these "lit up dormant
+content" (Bless/SoF/Aid via #114, Spirit Guardians via #117) the same
+way Warlock→Hex and Ranger→Hunter's Mark did.
+
+### PR #112 — Smite-rider generalization (refactor)
+
+Collapsed Searing Smite + Ensnaring Strike's duplicated
+arm/find/clear/followup into one `engine/core/smite_rider.py` driven by
+a `SmiteRiderSpec` dataclass. The two spell modules became thin
+adapters re-exporting their original public API unchanged — every
+caller + both test suites kept working with zero edits. ~200 lines of
+dup → one parameterized core. A synthetic `_TEST_SPEC` proves the core
+is content-agnostic. Suite 1763.
+
+### PR #113 — Scoring-side spell-save-DC fix (latent bug)
+
+`_resolve_dc_for_action` hardcoded INT for `caster_spell_save_dc` —
+the scoring-side twin of the exec-side bug fixed in #104/#110. Now
+delegates to the ability-aware `_caster_spell_dc`. All three DC
+resolution sites are now consistent (exec `_resolve_dc`, scoring
+`_caster_spell_dc`, scoring `_resolve_dc_for_action`). Suite 1770.
+
+### PR #114 — c_cleric (WIS full-caster)
+
+First WIS full-caster. Activates dormant Bless + Shield of Faith
+(built for Paladin #82) + Aid (#97) via the #82 auto-attach pass
+(keys off features_known, not granted_by). Full-caster slot table;
+spellcasting_ability=wisdom stamp. Suite 1779.
+- **Scope:** shared spells keep single-class granted_by (doc-only;
+  list-valued multi-class granted_by deferred). Divine Order, Channel
+  Divinity, domains deferred.
+
+### PR #115 — Cleric cantrips (Sacred Flame + Toll the Dead)
+
+First single-target **save_attack** action type: no attack roll, target
+saves vs spell DC or takes Nd8 (char-level scaling). New candidate-gen
+branch + `offensive_ehp_save_attack` scorer (P(fail)×mean_dmg). Two
+cantrips prove the shape generalizes across save ability (DEX/WIS) +
+damage type (radiant/necrotic). Suite 1797.
+- **Process note:** initial PR opened red (batched commit/push/PR
+  before verifying tests; two edits had silently failed). Fixed
+  forward. Also surfaced an `extract_damage_components` forced_save
+  latent bug (reads `sub.get("dice")` not `sub["params"]`) — cantrip
+  scorer sidesteps it (reads on_fail itself); **shared-helper fix
+  still DEFERRED.**
+
+### PR #116 — Cure Wounds (first leveled heal)
+
+Engine's first leveled heal action (Lay on Hands is a Paladin pool).
+2d8 + WIS mod, built by pc_schema (`_build_cure_wounds_action` +
+`_SPELL_ABILITY_BY_CLASS`). Rode the existing heal path with no engine
+changes. Suite 1805. **(Shipped with the heal-modifier bug — see #118.)**
+
+### PR #117 — Spirit Guardians (caster-anchored control aura)
+
+New 3rd-level persistent_aura: caster-anchored, enemies-only, WIS save,
+3d8 radiant, 15-ft sphere, BA, concentration. First use of the
+persistent_aura `anchor:caster` + `affected:enemies` defaults (the case
+it was built for). Wired to c_cleric L5. Suite 1813.
+- **Process note:** I initially built on a HALLUCINATED file read
+  (assumed f_spirit_guardians existed — it didn't; registry KeyError).
+  Caught via tests, authored the real content, corrected the PR. Net:
+  clean new-content PR.
+
+### PR #118 — Healing Word + heal-modifier fix (latent bug)
+
+Bonus-action ranged heal (2d4 + WIS, 60 ft), Cure Wounds's builder
+pattern. **Latent fix:** `_heal` read `dice`/`fixed`/`modifier_source`
+but NOT the flat `modifier` key — so Cure Wounds (#116) AND Healing
+Word were silently healing **dice-only**, dropping the ability mod.
+Fixed `_heal` + `expected_healing` (scoring side). The end-to-end test
+caught it. Suite 1817.
+
+### Infra / fixes shipped this block
+
+| Item | PR | Note |
+|---|---|---|
+| `smite_rider` core + `SmiteRiderSpec` | #112 | future smites = spec + 2 lines |
+| ability-aware scoring DC | #113 | all 3 DC sites now consistent |
+| WIS full-caster (c_cleric) | #114 | template for future full-casters |
+| **`save_attack` action type** | #115 | save-for-damage; future save spells |
+| `_build_cure_wounds_action` + `_SPELL_ABILITY_BY_CLASS` | #116 | ability-dependent built heals |
+| caster-anchored enemies-only aura | #117 | first of its kind |
+| **`_heal` reads flat `modifier`** | #118 | fixed Cure Wounds under-heal too |
+
+### Open items (carried)
+
+`extract_damage_components` forced_save latent bug (reads top-level
+`dice` not `params`) — DEFERRED, only AoE-save-damage scoring affected.
+Multi-class `granted_by` (shared-spell metadata accuracy). Cleric:
+Channel Divinity, Divine Order, domains, more cantrips (Guidance),
+upcast on heals/cantrips. Other: race traits, kiting/off-ledge
+knockback, more Ranger spells, c_druid/c_sorcerer/c_bard.
+
+### Process retrospective (this session was rough)
+
+Recurring trouble with **batched commit/push/PR before test-verify**
+(slipped 2-3×) and **edits silently failing to apply** (string
+mismatches, worsened by laggy tool-output rendering). One **hallucinated
+file read** (#117). Mitigations that worked: capturing test results to
+files and reading those; verifying `grep -c` on intended edits before
+trusting them. **Discipline to carry forward: verify tests green BEFORE
+push/PR — treat it as a hard gate, not a preference.**
+
+---
+
 ## Session: 2026-05-29 — 7 PRs (PRs #105–#111): AI tactical depth + Ranger caster
 
 **Participants:** Phil, Claude (Opus 4.8)
