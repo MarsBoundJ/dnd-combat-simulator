@@ -1,0 +1,47 @@
+# f_healing_word — Healing Word (1st-level Cleric spell, SRD CC v5.2.1)
+#
+# RAW summary: Bonus Action, 60-foot range, one creature. The target
+# regains 2d4 + your spellcasting ability modifier hit points (2024
+# PHB; 2014 was 1d4). At Higher Levels: +2d4 per slot above 1st. No
+# effect on undead/constructs.
+#
+# Engine modeling (PR #118): the bonus-action ranged companion to Cure
+# Wounds (PR #116) — the emergency "pick an ally up from across the
+# field" heal. Same heal-action shape; differs only in slot
+# (bonus_action) and range (60 ft).
+#   - type: heal, built by pc_schema._build_healing_word_action when
+#     f_healing_word is in features_known. Built (not auto-attached)
+#     because the +mod depends on the caster's spellcasting ability.
+#     Heals 2d4 + WIS mod (Cleric, RAW 2024) via the `heal` primitive.
+#   - The candidate generator enumerates `heal` actions per ally (self
+#     included); defensive_ehp_healing scores each (min(heal,
+#     missing_hp) × desperation). Because it's a bonus action, the
+#     Cleric can heal AND still take its action (attack / cast).
+#
+# Marker feature (no action_template) — pc_schema builds the
+# ability-dependent action, mirroring f_cure_wounds.
+#
+# Deferred RAW bits:
+#   - Upcast +2d4 per slot above 1st (v1 base cast only).
+#   - No-effect-on-undead/constructs target restriction.
+
+id: f_healing_word
+name: Healing Word
+source: srd_5.2.1
+granted_by:
+  class: c_cleric
+  level: 1
+type: passive
+spell:
+  class: c_cleric
+  level: 1
+
+description: |
+  A creature within 60 ft regains 2d4 + your spellcasting modifier HP.
+  Bonus action. (v1: base cast; upcast +2d4/slot deferred.)
+
+contract:
+  reads: [actor.spell_ability_mod, target.hp_current, target.hp_max]
+  writes: [target.hp_current]
+  event: passive
+  scope: builds_heal_action

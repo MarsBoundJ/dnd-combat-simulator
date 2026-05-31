@@ -965,6 +965,12 @@ def _build_feature_actions(features_known: set[str], level: int,
     if "f_cure_wounds" in features_known and ability_scores is not None:
         actions.append(_build_cure_wounds_action(
             level, ability_scores, class_id))
+    # PR #118: Healing Word — bonus-action ranged heal (1d4 + mod).
+    # Same builder pattern as Cure Wounds; the BA slot + 60-ft range
+    # make it the "pick an ally up from across the field" heal.
+    if "f_healing_word" in features_known and ability_scores is not None:
+        actions.append(_build_healing_word_action(
+            level, ability_scores, class_id))
     return actions
 
 
@@ -1004,6 +1010,36 @@ def _build_cure_wounds_action(level: int, ability_scores: dict,
             {"primitive": "heal",
               "params": {"target": "current_target",
                           "dice": "2d8", "modifier": mod}},
+        ],
+    }
+
+
+def _build_healing_word_action(level: int, ability_scores: dict,
+                                  class_id: str) -> dict:
+    """Healing Word (PR #118): a 1st-level BONUS-action ranged heal,
+    2d4 + the caster's spellcasting-ability modifier, 60 ft (RAW 2024).
+    Same `heal`-type shape as Cure Wounds (enumerated per ally, scored
+    by defensive_ehp_healing) — the differences are the bonus-action
+    slot and the 60-ft range, which make it the emergency "heal an ally
+    across the field without spending your action" option.
+
+    Deferred: upcast (+2d4 per slot above 1st) — base cast only in v1,
+    matching Cure Wounds.
+    """
+    abbr = _SPELL_ABILITY_BY_CLASS.get(class_id, "wis")
+    score = (ability_scores.get(abbr) or {}).get("score", 10)
+    mod = max(0, ability_modifier(score))
+    return {
+        "id": "a_healing_word",
+        "name": "Healing Word",
+        "type": "heal",
+        "slot": "bonus_action",
+        "spell_slot_level": 1,
+        "range_ft": 60,
+        "pipeline": [
+            {"primitive": "heal",
+              "params": {"target": "current_target",
+                          "dice": "2d4", "modifier": mod}},
         ],
     }
 
