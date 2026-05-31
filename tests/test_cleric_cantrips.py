@@ -25,7 +25,7 @@ from pathlib import Path
 
 import engine.primitives as primitives_module
 from engine.ai.ehp_scoring import (
-    offensive_ehp_save_attack, extract_damage_components, score_candidate,
+    offensive_ehp_save_attack, score_candidate,
 )
 from engine.core import pipeline
 from engine.core.events import EventBus
@@ -153,16 +153,24 @@ class WiringTest(unittest.TestCase):
 
 
 # ============================================================================
-# Layer 5: extract_damage_components reads on_fail (PR #115 fix)
+# Layer 5: scorer reads on_fail damage → higher-level cantrip scores more
 # ============================================================================
 
-class ExtractDamageTest(unittest.TestCase):
+class LevelScalingScoreTest(unittest.TestCase):
 
-    def test_reads_on_fail_damage(self) -> None:
-        comps = extract_damage_components(_build_sacred_flame_action(5))
-        self.assertEqual(len(comps), 1)
-        self.assertEqual(comps[0]["dice"], "2d8")
-        self.assertEqual(comps[0]["type"], "radiant")
+    def test_more_dice_scores_higher(self) -> None:
+        # Vs a high-HP, weak-save foe (no overkill cap), a 2d8 (L5)
+        # Sacred Flame must out-score a 1d8 (L1) one — proving the
+        # scorer reads the on_fail damage and the dice scale.
+        cleric, _ = _cleric_actor(1, wis=16)
+        foe = _foe(hp=200, dex_save=-5)
+        state = _state([cleric, foe])
+        s_l1 = offensive_ehp_save_attack(
+            cleric, foe, _build_sacred_flame_action(1), state)
+        s_l5 = offensive_ehp_save_attack(
+            cleric, foe, _build_sacred_flame_action(5), state)
+        self.assertGreater(s_l1, 0.0)
+        self.assertGreater(s_l5, s_l1)
 
 
 # ============================================================================

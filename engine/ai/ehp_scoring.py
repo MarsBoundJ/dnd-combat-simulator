@@ -282,8 +282,18 @@ def offensive_ehp_save_attack(actor: Actor, target: Actor, action: dict,
     # those, resolving caster_spell_save_dc ability-aware (PR #113).
     dc = _resolve_dc_for_action(action, actor)
     p_fail = save_fail_probability(target, save_ability, dc, state)
-    mean_dmg = sum(dice_mean(c["dice"]) + c["modifier"]
-                     for c in extract_damage_components(action))
+    # Read the on-fail damage directly from the forced_save pipeline
+    # (self-contained; doesn't depend on extract_damage_components,
+    # whose forced_save branch has a separate latent bug — see the
+    # deferred note in the PR).
+    mean_dmg = 0.0
+    for step in (action.get("pipeline") or []):
+        if step.get("primitive") != "forced_save":
+            continue
+        for sub in ((step.get("params") or {}).get("on_fail") or []):
+            if sub.get("primitive") == "damage":
+                p = sub.get("params") or {}
+                mean_dmg += dice_mean(p.get("dice")) + int(p.get("modifier", 0))
     success_dmg = mean_dmg * 0.5 if action.get("half_on_success") else 0.0
     expected = p_fail * mean_dmg + (1.0 - p_fail) * success_dmg
     return min(expected, float(max(0, target.hp_current)))
