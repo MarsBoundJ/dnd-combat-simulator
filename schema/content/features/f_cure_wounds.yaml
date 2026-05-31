@@ -1,0 +1,47 @@
+# f_cure_wounds — Cure Wounds (1st-level Cleric spell, SRD CC v5.2.1)
+#
+# RAW summary: Touch, one creature. The target regains 2d8 + your
+# spellcasting ability modifier hit points. At Higher Levels: +2d8 per
+# slot above 1st. No effect on undead/constructs.
+#
+# Engine modeling (PR #116): the Cleric's iconic heal — the first
+# leveled heal spell (Lay on Hands, PR #83, is a Paladin pool, not a
+# generic heal action).
+#   - type: heal, built by pc_schema._build_cure_wounds_action when
+#     f_cure_wounds is in features_known. Built (not auto-attached)
+#     because the +mod depends on the caster's spellcasting ability —
+#     same reason Eldritch Blast / the cantrips are built at PC-build
+#     time. Heals 2d8 + WIS mod (Cleric) via the `heal` primitive.
+#   - The candidate generator enumerates `heal` actions per ally (self
+#     included); defensive_ehp_healing scores each (min(heal,
+#     missing_hp) × desperation), so the AI heals whoever is most hurt
+#     and skips full-HP allies.
+#
+# Marker feature (no action_template) — pc_schema builds the
+# ability-dependent action, mirroring f_eldritch_blast / f_sacred_flame.
+#
+# Deferred RAW bits:
+#   - Upcast +2d8 per slot above 1st (v1 base cast only).
+#   - Touch-range gating (heal candidates use generous ally range).
+#   - No-effect-on-undead/constructs target restriction.
+
+id: f_cure_wounds
+name: Cure Wounds
+source: srd_5.2.1
+granted_by:
+  class: c_cleric
+  level: 1
+type: passive
+spell:
+  class: c_cleric
+  level: 1
+
+description: |
+  A touched ally regains 2d8 + your spellcasting modifier HP.
+  (v1: base cast; upcast +2d8/slot deferred.)
+
+contract:
+  reads: [actor.spell_ability_mod, target.hp_current, target.hp_max]
+  writes: [target.hp_current]
+  event: passive
+  scope: builds_heal_action
