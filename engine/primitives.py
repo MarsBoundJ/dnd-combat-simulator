@@ -419,6 +419,24 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
             _es.try_apply_ensnaring_strike_followup(
                 actor, target, state, attack_params, rng,
                 is_crit=(sa_state == "crit"))
+        # Blinding Smite rider (Paladin, 3rd-level). Melee-only;
+        # 3d8 radiant bonus (+1d8/upcast), CON save -> co_blinded.
+        if is_weapon_attack and (attack_params or {}).get(
+                "kind", "melee") == "melee":
+            from engine.core import blinding_smite as _bs
+            bs_damage = _bs.try_apply_blinding_smite_followup(
+                actor, target, state, attack_params, rng,
+                is_crit=(sa_state == "crit"))
+            total += bs_damage
+        # Wrathful Smite rider (Paladin, 1st-level). Melee-only;
+        # 1d6 psychic bonus (+1d6/upcast), WIS save -> co_frightened.
+        if is_weapon_attack and (attack_params or {}).get(
+                "kind", "melee") == "melee":
+            from engine.core import wrathful_smite as _ws
+            ws_damage = _ws.try_apply_wrathful_smite_followup(
+                actor, target, state, attack_params, rng,
+                is_crit=(sa_state == "crit"))
+            total += ws_damage
 
     # Resistance / vulnerability / immunity (template-level)
     template = target.template or {}
@@ -2231,6 +2249,54 @@ def _ensnaring_strike_arm(params: dict, state: CombatState,
                      state=state)
 
 
+def _blinding_smite_arm(params: dict, state: CombatState,
+                           bus: EventBus) -> None:
+    """Arm the caster with Blinding Smite's one-shot rider.
+
+    Called from f_blinding_smite's cast pipeline. 3rd-level spell;
+    reads cast slot level from state.current_attack.chosen_slot_level
+    and the caster's CHA-based spell save DC. Mirrors _searing_smite_arm.
+    """
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        raise ValueError("blinding_smite_arm requires a current actor")
+    slot_level = int((state.current_attack or {}).get(
+        "chosen_slot_level") or 3)
+    if "dc" in params:
+        dc = int(params["dc"])
+    else:
+        dc = _caster_spell_save_dc(actor)
+    action = (state.current_attack or {}).get("action") or {}
+    action_id = action.get("id", "a_blinding_smite")
+    from engine.core.blinding_smite import register_armed
+    register_armed(actor, slot_level=slot_level, spell_save_dc=dc,
+                     action_id=action_id, state=state)
+
+
+def _wrathful_smite_arm(params: dict, state: CombatState,
+                           bus: EventBus) -> None:
+    """Arm the caster with Wrathful Smite's one-shot rider.
+
+    Called from f_wrathful_smite's cast pipeline. 1st-level spell;
+    reads cast slot level from state.current_attack.chosen_slot_level
+    and the caster's CHA-based spell save DC. Mirrors _searing_smite_arm.
+    """
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        raise ValueError("wrathful_smite_arm requires a current actor")
+    slot_level = int((state.current_attack or {}).get(
+        "chosen_slot_level") or 1)
+    if "dc" in params:
+        dc = int(params["dc"])
+    else:
+        dc = _caster_spell_save_dc(actor)
+    action = (state.current_attack or {}).get("action") or {}
+    action_id = action.get("id", "a_wrathful_smite")
+    from engine.core.wrathful_smite import register_armed
+    register_armed(actor, slot_level=slot_level, spell_save_dc=dc,
+                     action_id=action_id, state=state)
+
+
 def _caster_spell_save_dc(actor: Actor) -> int:
     """Compute the actor's spell save DC: 8 + proficiency_bonus +
     spellcasting_ability_modifier.
@@ -2535,6 +2601,16 @@ def _all_primitives() -> list[Primitive]:
         # engine.core.ensnaring_strike.try_apply_ensnaring_strike_followup
         # (STR save → on fail co_ensnared). No bonus damage.
         Primitive("ensnaring_strike_arm", _ensnaring_strike_arm,
+                    implemented=True),
+        # Blinding Smite arming primitive (Paladin, 3rd-level). Same
+        # pattern as searing_smite_arm: registers a one-shot marker;
+        # _damage fires the rider (3d8 radiant + CON save -> Blinded).
+        Primitive("blinding_smite_arm", _blinding_smite_arm,
+                    implemented=True),
+        # Wrathful Smite arming primitive (Paladin, 1st-level). Same
+        # pattern: registers a one-shot marker; _damage fires the
+        # rider (1d6 psychic + WIS save -> Frightened).
+        Primitive("wrathful_smite_arm", _wrathful_smite_arm,
                     implemented=True),
         # PR #90 — Hex curse primitive. Registers a target-specific
         # weapon_damage_bonus modifier on the caster gated via
