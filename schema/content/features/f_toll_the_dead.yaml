@@ -1,0 +1,43 @@
+# f_toll_the_dead — Toll the Dead (Cleric cantrip, SRD CC v5.2.1)
+#
+# RAW summary: 60 ft, one creature you can see. The target makes a
+# Wisdom saving throw or takes 1d8 necrotic damage — or 1d12 necrotic
+# if it is missing any of its hit points. Cantrip — the die count
+# scales 1/2/3/4 at character levels 1/5/11/17.
+#
+# Engine modeling (PR #115): a second save_attack cantrip, shipped
+# alongside Sacred Flame to exercise the shared save-for-damage infra
+# across a different save ability (WIS) + damage type (necrotic).
+#   - type: save_attack, built by pc_schema._build_toll_the_dead_action
+#     when f_toll_the_dead is in features_known. WIS save vs the
+#     caster's spell save DC; Nd8 necrotic via _cantrip_dice_count.
+#   - Scored by offensive_ehp_save_attack (P(fail) × mean_dmg).
+#
+# Deferred RAW bits:
+#   - The d12 upgrade when the target is missing HP. v1 always rolls
+#     d8 (a documented flat-die simplification, consistent with the
+#     other v1 damage approximations). Modeling the conditional die
+#     needs runtime target-HP inspection at action-build OR execution
+#     time; tracked for a follow-on.
+
+id: f_toll_the_dead
+name: Toll the Dead
+source: srd_5.2.1
+granted_by:
+  class: c_cleric
+  level: 1
+type: passive
+spell:
+  class: c_cleric
+  level: 0
+
+description: |
+  Cantrip. A creature within 60 ft makes a WIS save or takes Nd8
+  necrotic damage (N scales 1/2/3/4 at character level 1/5/11/17;
+  RAW d12-if-wounded deferred to v2).
+
+contract:
+  reads: [target.saves.wisdom, actor.spell_save_dc]
+  writes: [combat.damage_total]
+  event: passive
+  scope: builds_save_attack_action

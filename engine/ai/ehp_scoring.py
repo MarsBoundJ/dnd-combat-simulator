@@ -256,6 +256,34 @@ def offensive_ehp_single_attack(actor: Actor, target: Actor, action: dict,
     return min(raw_ehp, float(max(0, target.hp_current)))
 
 
+def offensive_ehp_save_attack(actor: Actor, target: Actor, action: dict,
+                                state: CombatState) -> float:
+    """Expected HP removed by a single-target save-for-damage cantrip
+    (Sacred Flame, Toll the Dead — PR #115).
+
+      eHP = P(fail) × mean_dmg + P(success) × success_dmg,
+            capped at the target's current HP
+
+    No attack roll: the target makes a save (DEX for Sacred Flame, WIS
+    for Toll the Dead) against the caster's spell save DC. Sacred Flame
+    deals nothing on a success (`half_on_success` defaults False); a
+    save-for-half cantrip would set it True. The damage dice already
+    encode character-level scaling (built by pc_schema), so this scorer
+    is level-agnostic.
+    """
+    if target is None or not target.is_alive():
+        return 0.0
+    from engine.ai.defensive_ehp import save_fail_probability
+    save_ability = action.get("save_ability", "dexterity")
+    dc = _resolve_save_dc(action, actor)
+    p_fail = save_fail_probability(target, save_ability, dc, state)
+    mean_dmg = sum(dice_mean(c["dice"]) + c["modifier"]
+                     for c in extract_damage_components(action))
+    success_dmg = mean_dmg * 0.5 if action.get("half_on_success") else 0.0
+    expected = p_fail * mean_dmg + (1.0 - p_fail) * success_dmg
+    return min(expected, float(max(0, target.hp_current)))
+
+
 # ============================================================================
 # Offensive buff for allies (Bless shape)
 # ============================================================================
@@ -1487,6 +1515,8 @@ def score_candidate(candidate: dict, state: CombatState) -> float:
     if kind == "weapon_attack" or action.get("type") == "weapon_attack":
         return (offensive_ehp_single_attack(actor, target, action, state)
                 + knockback_ehp(actor, target, action, state))
+    if kind == "save_attack" or action.get("type") == "save_attack":
+        return offensive_ehp_save_attack(actor, target, action, state)
     if kind == "aoe_attack" or action.get("type") == "aoe_attack":
         origin = candidate.get("origin_point")
         if origin is None:

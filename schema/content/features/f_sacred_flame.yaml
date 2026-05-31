@@ -1,0 +1,48 @@
+# f_sacred_flame — Sacred Flame (Cleric cantrip, SRD CC v5.2.1)
+#
+# RAW summary: 60 ft, one creature you can see. The target makes a
+# Dexterity saving throw or takes 1d8 radiant damage. The target gets
+# no benefit from cover for this save. Cantrip — damage increases to
+# 2d8 / 3d8 / 4d8 at character levels 5 / 11 / 17.
+#
+# Engine modeling (PR #115): the iconic save-for-damage cantrip — the
+# first single-target save_attack in the engine.
+#   - type: save_attack (no attack roll; the target saves or takes
+#     damage). Built by pc_schema._build_sacred_flame_action when
+#     f_sacred_flame is in features_known — like Eldritch Blast, the
+#     action is constructed at PC-build time so the Nd8 scaling tracks
+#     CHARACTER level (_cantrip_dice_count: 1/2/3/4 at L1/5/11/17).
+#   - Pipeline: a forced_save (DEX vs the Cleric's WIS-based spell save
+#     DC) whose on_fail deals Nd8 radiant. Runs via _execute_single
+#     (no special execution path). spell_slot_level 0 → no slot.
+#   - Scored by ehp_scoring.offensive_ehp_save_attack:
+#     P(fail) × mean_dmg, capped at target HP (no half on success).
+#
+# This is a marker feature (no action_template / effect_primitives) —
+# pc_schema builds the dynamically-scaling action, mirroring how
+# f_eldritch_blast / f_agonizing_blast drive Eldritch Blast.
+#
+# Deferred RAW bits:
+#   - "No benefit from cover" — cover modeling on save_attack is not
+#     yet wired (v1 treats it as a normal targeted save).
+
+id: f_sacred_flame
+name: Sacred Flame
+source: srd_5.2.1
+granted_by:
+  class: c_cleric
+  level: 1
+type: passive
+spell:
+  class: c_cleric
+  level: 0
+
+description: |
+  Cantrip. A creature within 60 ft makes a DEX save or takes Nd8
+  radiant damage (N scales 1/2/3/4 at character level 1/5/11/17).
+
+contract:
+  reads: [target.saves.dexterity, actor.spell_save_dc]
+  writes: [combat.damage_total]
+  event: passive
+  scope: builds_save_attack_action

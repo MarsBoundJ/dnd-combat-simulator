@@ -29,7 +29,8 @@
 #     cantrip + bonus)
 #   - Channel Divinity (L2: Turn Undead / Divine Spark)
 #   - Sear Undead, Blessed Strikes, Divine Intervention
-#   - Cleric cantrips (Sacred Flame / Guidance) — need cantrip content
+#   - More cantrips (Guidance — utility/ability-check, no combat eHP
+#     model; Sacred Flame + Toll the Dead shipped in PR #115)
 #   - More prepared spells (Cure Wounds / Healing Word / Spirit
 #     Guardians — Spirit Guardians' aura infra exists from PR #43)
 #   - Subclasses (Life / Light / Trickery / War domains)
@@ -70,7 +71,8 @@ spellcasting:
 level_table:
   - level: 1
     proficiency_bonus: 2
-    features: [f_bless, f_shield_of_faith]
+    features: [f_sacred_flame, f_toll_the_dead,
+                f_bless, f_shield_of_faith]
     class_resources:
       spell_slots: { 1: 2 }
   - level: 2
