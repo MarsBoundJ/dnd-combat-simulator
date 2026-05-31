@@ -420,7 +420,7 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
                 actor, target, state, attack_params, rng,
                 is_crit=(sa_state == "crit"))
         # Blinding Smite rider (Paladin, 3rd-level). Melee-only;
-        # 3d8 radiant bonus (+1d8/upcast), CON save -> co_blinded.
+        # 3d8 radiant bonus (+1d8/upcast), Blinded auto-applied on hit.
         if is_weapon_attack and (attack_params or {}).get(
                 "kind", "melee") == "melee":
             from engine.core import blinding_smite as _bs
@@ -429,7 +429,7 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
                 is_crit=(sa_state == "crit"))
             total += bs_damage
         # Wrathful Smite rider (Paladin, 1st-level). Melee-only;
-        # 1d6 psychic bonus (+1d6/upcast), WIS save -> co_frightened.
+        # 1d6 necrotic bonus (+1d6/upcast), WIS save -> co_frightened.
         if is_weapon_attack and (attack_params or {}).get(
                 "kind", "melee") == "melee":
             from engine.core import wrathful_smite as _ws

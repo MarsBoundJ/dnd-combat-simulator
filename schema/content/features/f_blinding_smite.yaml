@@ -2,13 +2,14 @@
 #
 # RAW summary (PHB 2024): Bonus Action, V, Self, Concentration up to
 # 1 minute. The next time you hit a creature with a melee weapon
-# attack during the spell's duration, the attack deals an extra 3d8
-# radiant damage. The target must succeed on a Constitution saving
-# throw or be Blinded until the spell ends.
+# attack, the attack deals an extra 3d8 radiant damage, and the target
+# has the Blinded condition until the spell ends. At the end of each
+# of its turns, the Blinded target makes a CON save, ending the spell
+# on itself on a success.
 # At Higher Levels: damage increases by 1d8 per slot above 3rd.
 #
-# Engine modeling: structural twin of Searing Smite — "arm a one-shot
-# rider on the next melee weapon hit" via smite_rider core.
+# Engine modeling: uses smite_rider core with has_initial_save=False —
+# Blinded applies automatically on hit (no initial save).
 #   - type: defensive_buff (self-targeted; the Paladin arms themselves)
 #   - 1 Bonus Action cast time
 #   - Concentration — competes with Bless / Shield of Faith / Searing
@@ -16,15 +17,15 @@
 #   - Pipeline: `blinding_smite_arm` primitive registers a one-shot
 #     marker modifier on the caster. The _damage primitive checks the
 #     marker on the caster's next melee weapon hit, rolls 3d8 radiant
-#     (+1d8 per upcast level above 3rd, doubled on crit), fires a CON
-#     forced_save on the target, and on fail applies co_blinded.
+#     (+1d8 per upcast level above 3rd, doubled on crit), and directly
+#     applies co_blinded (no forced_save).
 #   - named_effect: "blinding_smite"
 #
 # source: user_authored
 #
 # Deferred RAW bits:
-#   - Target's action to repeat the CON save to end the spell.
-#     v1 ends Blinded only when the caster drops concentration.
+#   - End-of-turn CON save to end the spell. v1 ends Blinded only
+#     when the caster drops concentration.
 
 id: f_blinding_smite
 name: Blinding Smite
@@ -39,8 +40,8 @@ spell:
 
 description: |
   Self-buff. The Paladin's next melee weapon hit deals +3d8 radiant
-  damage; target makes a CON save or is Blinded until concentration
-  ends. Concentration, 1 minute. BA cast.
+  damage and the target is Blinded until the spell ends (no initial
+  save). Concentration, 1 minute. BA cast.
 
 action_template:
   id: a_blinding_smite

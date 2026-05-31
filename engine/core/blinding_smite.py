@@ -8,18 +8,20 @@ tests) resolve here.
 RAW (PHB 2024):
   Bonus Action, V, Self, Concentration up to 1 minute. The next
   time you hit a creature with a melee weapon attack, the attack
-  deals an extra 3d8 radiant damage. The target must succeed on a
-  Constitution saving throw or be Blinded until the spell ends.
+  deals an extra 3d8 radiant damage, and the target has the Blinded
+  condition until the spell ends. At the end of each of its turns,
+  the Blinded target makes a CON save, ending the spell on a success.
   At Higher Levels: +1d8 per slot above 3rd.
 
 Spec specifics: melee-only; 3d8 radiant bonus damage at base slot 3
 (SmiteRiderSpec formula: dice_count = 1 + (slot_level - 1) = 3 at
-slot 3, scaling +1 per upcast); CON save -> co_blinded.
+slot 3, scaling +1 per upcast); NO initial save — Blinded applies
+automatically on hit; CON save is end-of-turn only (deferred).
 
 source: user_authored
 
-Deferred: target's action to repeat the CON save to end the spell
-(same pattern as Searing Smite's deferred action-to-save).
+Deferred: end-of-turn CON save to end the spell (target repeats
+the save at end of each of its turns).
 """
 from __future__ import annotations
 
@@ -36,11 +38,12 @@ BLINDING_SMITE_SPEC = SmiteRiderSpec(
     marker_primitive=BLINDING_SMITE_ARMED_PRIMITIVE,
     named_effect="blinding_smite",
     default_action_id="a_blinding_smite",
-    save_ability="constitution",
+    save_ability="constitution",      # end-of-turn save (deferred)
     on_fail_condition="co_blinded",
     melee_only=True,
-    bonus_damage_die=8,             # d8 radiant per die
-    bonus_scales_with_upcast=True,  # +1d8 per slot above 1st
+    bonus_damage_die=8,               # d8 radiant per die
+    bonus_scales_with_upcast=True,    # +1d8 per slot above 1st
+    has_initial_save=False,           # Blinded applies automatically on hit
 )
 
 
@@ -64,8 +67,8 @@ def try_apply_blinding_smite_followup(
         attack_params: dict | None, rng: random.Random,
         is_crit: bool) -> int:
     """Fire Blinding Smite's rider on a qualifying melee hit: 3d8
-    radiant (+1d8/upcast, doubled on crit), CON save -> co_blinded.
-    Returns the bonus damage to add to the attack total."""
+    radiant (+1d8/upcast, doubled on crit), Blinded applied
+    automatically (no initial save). Returns the bonus damage."""
     return smite_rider.try_apply_followup(
         attacker, target, state, attack_params, rng, is_crit,
         BLINDING_SMITE_SPEC)

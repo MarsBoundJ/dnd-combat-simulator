@@ -8,11 +8,11 @@ tests) resolve here.
 RAW (PHB 2024):
   Bonus Action, V, Self, Concentration up to 1 minute. The next
   time you hit with a melee weapon attack, the attack deals an
-  extra 1d6 psychic damage. The target must succeed on a Wisdom
+  extra 1d6 necrotic damage. The target must succeed on a Wisdom
   saving throw or be Frightened of you until the spell ends.
   At Higher Levels: +1d6 per slot above 1st.
 
-Spec specifics: melee-only; 1d6 psychic bonus damage (scales with
+Spec specifics: melee-only; 1d6 necrotic bonus damage (scales with
 upcast); WIS save -> co_frightened.
 
 source: user_authored
@@ -38,7 +38,7 @@ WRATHFUL_SMITE_SPEC = SmiteRiderSpec(
     save_ability="wisdom",
     on_fail_condition="co_frightened",
     melee_only=True,
-    bonus_damage_die=6,             # 1d6 psychic on the empowering hit
+    bonus_damage_die=6,             # 1d6 necrotic on the empowering hit
     bonus_scales_with_upcast=True,
 )
 
@@ -63,7 +63,7 @@ def try_apply_wrathful_smite_followup(
         attack_params: dict | None, rng: random.Random,
         is_crit: bool) -> int:
     """Fire Wrathful Smite's rider on a qualifying melee hit: 1d6
-    psychic (+1d6/upcast, doubled on crit), WIS save -> co_frightened.
+    necrotic (+1d6/upcast, doubled on crit), WIS save -> co_frightened.
     Returns the bonus damage to add to the attack total."""
     return smite_rider.try_apply_followup(
         attacker, target, state, attack_params, rng, is_crit,

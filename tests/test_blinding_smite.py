@@ -2,15 +2,16 @@
 
 RAW (PHB 2024, 3rd-level Paladin spell):
   BA cast, concentration up to 1 minute. Next melee weapon hit deals
-  +3d8 radiant (+1d8 per slot above 3rd, doubled on crit). Target
-  makes CON save or is Blinded until the spell ends.
+  +3d8 radiant (+1d8 per slot above 3rd, doubled on crit) and target
+  is Blinded automatically (no initial save). End-of-turn CON save to
+  end the spell (deferred).
 
 Layers:
   1. f_blinding_smite YAML loads with correct shape
   2. Paladin L9 lists f_blinding_smite; pc_schema attaches the action
   3. register_armed / find_armed / clear_armed
   4. followup gating: only melee, only when armed
-  5. followup applies 3d8 radiant bonus damage + CON save -> co_blinded
+  5. followup applies 3d8 radiant bonus damage + auto-applies co_blinded
   6. upcast scales damage (+1d8 per slot above 3rd)
   7. crit doubles dice
   8. ranged attack does not trigger
@@ -224,12 +225,12 @@ class FollowupTest(unittest.TestCase):
         self.assertLessEqual(damage, 24)
         self.assertIsNone(bs.find_armed_entry(paladin))
 
-    def test_on_fail_applies_blinded(self) -> None:
-        # DC 30 -> target auto-fails CON save -> Blinded applies.
+    def test_blinded_applies_automatically_on_hit(self) -> None:
+        # RAW: no initial save — Blinded applies on hit regardless of DC.
         paladin = _make_actor("paladin")
         target = _make_actor("goblin", side="enemy", hp=100, ac=10)
         state = _make_state([paladin, target])
-        bs.register_armed(paladin, slot_level=3, spell_save_dc=30,
+        bs.register_armed(paladin, slot_level=3, spell_save_dc=15,
                             action_id="a_blinding_smite", state=state)
         state.current_attack = {
             "actor": paladin, "target": target,
@@ -242,8 +243,8 @@ class FollowupTest(unittest.TestCase):
                      if c.get("condition_id") == "co_blinded"]
         self.assertEqual(len(blinded), 1)
 
-    def test_on_success_no_condition(self) -> None:
-        # DC 1 -> target auto-succeeds -> no Blinded.
+    def test_blinded_applies_even_with_low_dc(self) -> None:
+        # No initial save means DC is irrelevant — Blinded always applies.
         paladin = _make_actor("paladin")
         target = _make_actor("goblin", side="enemy", hp=100, ac=10)
         state = _make_state([paladin, target])
@@ -256,9 +257,8 @@ class FollowupTest(unittest.TestCase):
         bs.try_apply_blinding_smite_followup(
             paladin, target, state, {"kind": "melee"}, random.Random(1),
             is_crit=False)
-        self.assertFalse(any(c.get("condition_id") == "co_blinded"
-                               for c in target.applied_conditions))
-        # Marker still consumed
+        self.assertTrue(any(c.get("condition_id") == "co_blinded"
+                              for c in target.applied_conditions))
         self.assertIsNone(bs.find_armed_entry(paladin))
 
 
@@ -329,7 +329,7 @@ class EndToEndTest(unittest.TestCase):
         paladin = _make_actor("paladin", actions=[_melee_weapon()])
         target = _make_actor("goblin", side="enemy", hp=100, ac=10)
         state = _make_state([paladin, target])
-        bs.register_armed(paladin, slot_level=3, spell_save_dc=30,
+        bs.register_armed(paladin, slot_level=3, spell_save_dc=15,
                             action_id="a_blinding_smite", state=state)
         weapon = paladin.template["actions"][0]
         state.current_attack = {
@@ -344,7 +344,7 @@ class EndToEndTest(unittest.TestCase):
         # 1d8 (1-8) + 3 mod + 3d8 (3-24) Blinding Smite = 7-35
         self.assertGreaterEqual(damage_dealt, 7)
         self.assertIsNone(bs.find_armed_entry(paladin))
-        # DC 30 -> Blinded applied
+        # Blinded auto-applied (no initial save)
         self.assertTrue(any(c.get("condition_id") == "co_blinded"
                               for c in target.applied_conditions))
 

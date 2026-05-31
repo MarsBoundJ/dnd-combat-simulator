@@ -2,7 +2,7 @@
 #
 # RAW summary (PHB 2024): Bonus Action, V, Self, Concentration up to
 # 1 minute. The next time you hit with a melee weapon attack during
-# the spell's duration, the attack deals an extra 1d6 psychic damage.
+# the spell's duration, the attack deals an extra 1d6 necrotic damage.
 # The target must succeed on a Wisdom saving throw or be Frightened of
 # you until the spell ends.
 # At Higher Levels: damage increases by 1d6 per slot above 1st.
@@ -15,7 +15,7 @@
 #     Smite / etc. for the Paladin's single concentration slot.
 #   - Pipeline: `wrathful_smite_arm` primitive registers a one-shot
 #     marker modifier on the caster. The _damage primitive checks the
-#     marker on the caster's next melee weapon hit, rolls 1d6 psychic
+#     marker on the caster's next melee weapon hit, rolls 1d6 necrotic
 #     (+1d6 per upcast level, doubled on crit), fires a WIS forced_save
 #     on the target, and on fail applies co_frightened.
 #   - named_effect: "wrathful_smite"
@@ -41,7 +41,7 @@ spell:
   level: 1
 
 description: |
-  Self-buff. The Paladin's next melee weapon hit deals +1d6 psychic
+  Self-buff. The Paladin's next melee weapon hit deals +1d6 necrotic
   damage; target makes a WIS save or is Frightened until concentration
   ends. Concentration, 1 minute. BA cast.
 

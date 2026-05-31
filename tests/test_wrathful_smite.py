@@ -2,7 +2,7 @@
 
 RAW (PHB 2024, 1st-level Paladin spell):
   BA cast, concentration up to 1 minute. Next melee weapon hit deals
-  +1d6 psychic (+1d6 per slot above 1st, doubled on crit). Target
+  +1d6 necrotic (+1d6 per slot above 1st, doubled on crit). Target
   makes WIS save or is Frightened until the spell ends.
 
 Layers:
@@ -10,7 +10,7 @@ Layers:
   2. Paladin L2 lists f_wrathful_smite; pc_schema attaches the action
   3. register_armed / find_armed / clear_armed
   4. followup gating: only melee, only when armed
-  5. followup applies 1d6 psychic bonus damage + WIS save -> co_frightened
+  5. followup applies 1d6 necrotic bonus damage + WIS save -> co_frightened
   6. upcast scales damage (+1d6 per slot above 1st)
   7. crit doubles dice
   8. ranged attack does not trigger
