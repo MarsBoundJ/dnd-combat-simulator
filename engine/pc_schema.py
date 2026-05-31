@@ -950,7 +950,93 @@ def _build_feature_actions(features_known: set[str], level: int,
             level, ability_scores, proficiency_bonus,
             agonizing="f_agonizing_blast" in features_known,
             repelling="f_repelling_blast" in features_known))
+    # PR #115: Cleric save-for-damage cantrips. Single-target, no attack
+    # roll — target saves vs the caster's spell save DC or takes Nd8
+    # damage, where N scales with CHARACTER level (1/2/3/4 at
+    # L1/5/11/17). Built as `save_attack` actions whose forced_save
+    # pipeline runs via _execute_single.
+    if "f_sacred_flame" in features_known:
+        actions.append(_build_sacred_flame_action(level))
+    if "f_toll_the_dead" in features_known:
+        actions.append(_build_toll_the_dead_action(level))
     return actions
+
+
+def _cantrip_dice_count(character_level: int) -> int:
+    """Cantrip damage-die count by CHARACTER level (RAW PHB 2024):
+    1 at L1-4, 2 at L5-10, 3 at L11-16, 4 at L17+. Shared by all
+    level-scaling damage cantrips."""
+    if character_level >= 17:
+        return 4
+    if character_level >= 11:
+        return 3
+    if character_level >= 5:
+        return 2
+    return 1
+
+
+def _build_save_cantrip_action(action_id: str, name: str, level: int, *,
+                                  save_ability: str, damage_type: str,
+                                  die: int, range_ft: int) -> dict:
+    """Build a single-target save-for-damage cantrip action (PR #115).
+
+    Shape: type `save_attack`, spell_slot_level 0 (cantrip, no slot),
+    pipeline = one forced_save (save_ability vs caster_spell_save_dc)
+    whose on_fail deals `<N>d<die>` of `damage_type`, N from
+    `_cantrip_dice_count`. No half-on-success (these cantrips deal
+    nothing on a successful save). save_ability is mirrored onto the
+    top-level action so the scorer (offensive_ehp_save_attack) can read
+    it without walking the pipeline.
+    """
+    n = _cantrip_dice_count(level)
+    dice = f"{n}d{die}"
+    return {
+        "id": action_id,
+        "name": name,
+        "type": "save_attack",
+        "slot": "action",
+        "spell_slot_level": 0,            # cantrip — consumes no slot
+        "save_ability": save_ability,
+        "save_dc_source": "caster_spell_save_dc",
+        "half_on_success": False,
+        "range_ft": range_ft,
+        "pipeline": [
+            {"primitive": "forced_save",
+              "params": {
+                  "ability": save_ability,
+                  "dc_source": "caster_spell_save_dc",
+                  "affected": "current_target",
+                  "on_fail": [
+                      {"primitive": "damage",
+                        "params": {"dice": dice, "modifier": 0,
+                                     "type": damage_type}},
+                  ],
+                  "on_success": [],
+              }},
+        ],
+    }
+
+
+def _build_sacred_flame_action(level: int) -> dict:
+    """Sacred Flame (PR #115): 60 ft, DEX save or Nd8 radiant. Ignores
+    cover RAW — cover modeling on save_attack is deferred (v1 treats it
+    as a normal targeted save)."""
+    return _build_save_cantrip_action(
+        "a_sacred_flame", "Sacred Flame", level,
+        save_ability="dexterity", damage_type="radiant", die=8,
+        range_ft=60)
+
+
+def _build_toll_the_dead_action(level: int) -> dict:
+    """Toll the Dead (PR #115): 60 ft, WIS save or Nd8 necrotic.
+    Proves the save_attack infra generalizes across save ability +
+    damage type. RAW the die is d12 if the target is missing HP — the
+    conditional upgrade is deferred (v1 always d8), a documented
+    simplification alongside the other v1 flat-die choices."""
+    return _build_save_cantrip_action(
+        "a_toll_the_dead", "Toll the Dead", level,
+        save_ability="wisdom", damage_type="necrotic", die=8,
+        range_ft=60)
 
 
 def _extra_attack_count(features_known: set[str]) -> int:

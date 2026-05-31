@@ -160,6 +160,22 @@ def generate_candidates(actor: Actor, state: CombatState,
                     "target": enemy,
                     "actor": actor,
                 })
+        elif action_type == "save_attack":
+            # PR #115: single-target save-for-damage cantrip (Sacred
+            # Flame / Toll the Dead). One candidate per targetable enemy
+            # in range; runs its forced_save pipeline via _execute_single.
+            # Total-cover enemies excluded (a targeted spell, like
+            # weapon_attack / hard_control).
+            reach = int(action.get("range_ft", 60))
+            for enemy in targetable_enemies:
+                if not is_within_ft(actor, enemy, reach):
+                    continue
+                candidates.append({
+                    "kind": "save_attack",
+                    "action": action,
+                    "target": enemy,
+                    "actor": actor,
+                })
         elif action_type == "multiattack":
             # Multiattack picks its own targets per sub-attack inside
             # _execute_multiattack. Generate one candidate, scored as a
