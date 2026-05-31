@@ -1,0 +1,82 @@
+# f_spirit_guardians — Spirit Guardians (3rd-level Cleric spell, SRD CC v5.2.1)
+#
+# RAW summary: Bonus Action, Self (15-foot radius), Concentration up to
+# 10 minutes. Protective spirits flit around you. The first time a
+# creature you choose enters the aura on a turn or starts its turn
+# there, it makes a Wisdom saving throw, taking 3d8 radiant (or
+# necrotic) on a fail, half on a success. Hostile creatures treat the
+# area as difficult terrain (speed halved). At Higher Levels: +1d8 per
+# slot above 3rd.
+#
+# Engine application (PR #117): the Cleric's signature battlefield-
+# control aura — the first CASTER-ANCHORED, enemies-only persistent_
+# aura, the case the persistent_aura primitive was built around
+# (anchor: caster, affected: enemies defaults). Rides the PR #43/#44
+# aura infra (candidate emission, offensive_ehp_persistent_aura
+# scoring, runner turn-start tick) end-to-end.
+#   - type: persistent_aura, sphere radius_ft 15.
+#   - anchor: caster — the aura follows the Cleric as they move (unlike
+#     the point-anchored Moonbeam / Cloudkill / Darkness).
+#   - affected: enemies — RAW lets the caster exclude allies; the
+#     enemies filter models that (no friendly fire), unlike the
+#     all_creatures clouds.
+#   - WIS save vs dc 15 (fixture-overridable); 3d8 radiant on fail,
+#     half on success. Trigger: turn-start in area.
+#   - named_effect: spirit_guardians.
+#
+# **Class wiring:** granted to c_cleric at L5 (3rd-level slots arrive
+# there). The PR #82 auto-attach pass wires a_spirit_guardians from
+# the level table.
+#
+# Deferred RAW bits (shared with the other v1 auras):
+#   - Speed-halving / difficult-terrain control component (v1 is
+#     damage-only; movement-aware control deferred).
+#   - Radiant/necrotic damage-type choice (v1 radiant).
+#   - Upcast +1d8 per slot above 3rd (v1 base 3d8).
+#   - Entry-on-move trigger (v1 turn-start only, per PR #43).
+#   - Aura DC tracks a fixed 15 rather than the caster's WIS spell save
+#     DC (shared gap across all persistent_aura content).
+
+id: f_spirit_guardians
+name: Spirit Guardians
+source: srd_5.2.1
+granted_by:
+  class: c_cleric
+  level: 5                   # Clerics gain 3rd-level slots at L5
+type: active
+spell:
+  class: c_cleric
+  level: 3
+
+description: |
+  A 15-ft radius of protective spirits centered on you (moves with
+  you). WIS save vs spell DC at each enemy's turn-start in the area:
+  3d8 radiant on fail, half on success. Concentration, 10 min. BA cast.
+
+action_template:
+  id: a_spirit_guardians
+  name: Spirit Guardians
+  type: persistent_aura
+  spell_slot_level: 3
+  slot: bonus_action
+  concentration: true
+  named_effect: spirit_guardians
+  area:
+    shape: sphere
+    radius_ft: 15
+  pipeline:
+    - primitive: persistent_aura
+      params:
+        shape: sphere
+        radius_ft: 15
+        anchor: caster          # follows the caster (Spirit Guardians)
+        trigger_event: target_turn_start_in_area
+        affected: enemies       # RAW: caster excludes allies — no friendly fire
+        ability: wisdom
+        dc: 15                  # caster's spell save DC; fixture-overridable
+        on_fail:
+          - primitive: damage
+            params: { dice: "3d8", type: radiant }
+        on_success:
+          - primitive: damage
+            params: { dice: "3d8", type: radiant, multiplier: 0.5 }
