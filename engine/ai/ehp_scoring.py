@@ -273,9 +273,14 @@ def offensive_ehp_save_attack(actor: Actor, target: Actor, action: dict,
     """
     if target is None or not target.is_alive():
         return 0.0
-    from engine.ai.defensive_ehp import save_fail_probability
+    from engine.ai.defensive_ehp import (
+        save_fail_probability, _resolve_dc_for_action,
+    )
     save_ability = action.get("save_ability", "dexterity")
-    dc = _resolve_save_dc(action, actor)
+    # The action carries save_dc_source / save_dc_fixed at the top
+    # level (set by the cantrip builder); _resolve_dc_for_action reads
+    # those, resolving caster_spell_save_dc ability-aware (PR #113).
+    dc = _resolve_dc_for_action(action, actor)
     p_fail = save_fail_probability(target, save_ability, dc, state)
     mean_dmg = sum(dice_mean(c["dice"]) + c["modifier"]
                      for c in extract_damage_components(action))
