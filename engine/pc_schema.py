@@ -959,7 +959,53 @@ def _build_feature_actions(features_known: set[str], level: int,
         actions.append(_build_sacred_flame_action(level))
     if "f_toll_the_dead" in features_known:
         actions.append(_build_toll_the_dead_action(level))
+    # PR #116: Cure Wounds — direct heal (2d8 + spellcasting-ability
+    # mod). Built here (not auto-attached) because the +mod depends on
+    # the caster's ability, like Eldritch Blast / the cantrips.
+    if "f_cure_wounds" in features_known and ability_scores is not None:
+        actions.append(_build_cure_wounds_action(
+            level, ability_scores, class_id))
     return actions
+
+
+# Spellcasting ability per class — the heal/save bonus on ability-
+# dependent built actions reads this. Mirrors each class YAML's
+# spellcasting.ability (duplicated here because _build_feature_actions
+# doesn't carry the class_def; kept small + covering only spell classes).
+_SPELL_ABILITY_BY_CLASS = {
+    "c_cleric": "wis", "c_paladin": "cha", "c_ranger": "wis",
+    "c_wizard": "int", "c_warlock": "cha",
+}
+
+
+def _build_cure_wounds_action(level: int, ability_scores: dict,
+                                 class_id: str) -> dict:
+    """Cure Wounds (PR #116): a 1st-level touch heal, 2d8 + the
+    caster's spellcasting-ability modifier (WIS for Cleric). type
+    `heal` → the candidate generator enumerates it per ally and
+    defensive_ehp_healing scores it (capped at missing HP ×
+    desperation, so the AI heals whoever's most hurt).
+
+    Deferred: upcast (+2d8 per slot above 1st) — base cast only in v1,
+    same simplification as other non-damage spells; touch-range gating
+    (heal candidates use generous ally range today).
+    """
+    abbr = _SPELL_ABILITY_BY_CLASS.get(class_id, "wis")
+    score = (ability_scores.get(abbr) or {}).get("score", 10)
+    mod = max(0, ability_modifier(score))
+    return {
+        "id": "a_cure_wounds",
+        "name": "Cure Wounds",
+        "type": "heal",
+        "slot": "action",
+        "spell_slot_level": 1,
+        "range_ft": 5,               # touch (range gating deferred)
+        "pipeline": [
+            {"primitive": "heal",
+              "params": {"target": "current_target",
+                          "dice": "2d8", "modifier": mod}},
+        ],
+    }
 
 
 def _cantrip_dice_count(character_level: int) -> int:
