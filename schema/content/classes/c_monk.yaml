@@ -67,7 +67,7 @@ level_table:
       focus_points: 4
   - level: 5
     proficiency_bonus: 3
-    features: [f_monk_extra_attack]
+    features: [f_monk_extra_attack, f_stunning_strike]
     class_resources:
       martial_arts: "1d8"
       focus_points: 5

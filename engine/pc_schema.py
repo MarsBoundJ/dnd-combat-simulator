@@ -378,6 +378,11 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
         # pc_spec.metamagic). engine.core.metamagic.knows() reads this.
         "metamagic_known": (list(pc_spec.get("metamagic") or [])
                               if "f_metamagic" in features_known else []),
+        # Monk on-hit rider eligibility (read by engine.core.monk_strikes
+        # from _damage). Stunning Strike (L5) + Open Hand Technique
+        # (Warrior of the Open Hand L3).
+        "has_stunning_strike": "f_stunning_strike" in features_known,
+        "has_open_hand": "f_open_hand_technique" in features_known,
         # Per-class level table (read by primitives via
         # `template.levels.<class_short_name>`). Single-class PCs from
         # pc_schema get exactly one entry; multiclass support will

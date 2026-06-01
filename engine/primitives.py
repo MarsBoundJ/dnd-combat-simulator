@@ -486,6 +486,15 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
                 actor, target, state, attack_params, rng,
                 is_crit=(sa_state == "crit"))
             total += ws_damage
+        # Monk on-hit strike riders (Stunning Strike + Open Hand Topple).
+        # Melee-only, once per turn each; no bonus damage (control only).
+        if is_weapon_attack and (attack_params or {}).get(
+                "kind", "melee") == "melee":
+            from engine.core import monk_strikes as _monk
+            _monk.try_apply_stunning_strike(
+                actor, target, state, attack_params, rng)
+            _monk.try_apply_open_hand(
+                actor, target, state, attack_params, rng)
 
     # Resistance / vulnerability / immunity (template-level)
     template = target.template or {}

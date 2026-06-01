@@ -1,0 +1,27 @@
+# f_open_hand_technique — Open Hand Technique (Warrior of the Open Hand L3)
+#
+# RAW (SRD 5.2.1): When you hit with an attack granted by Flurry of
+# Blows, impose one of: Addle (target can't make Opportunity Attacks),
+# Push (STR save or pushed 15 ft), or Topple (DEX save or Prone).
+#
+# Engine modeling: an on-hit rider (engine.core.monk_strikes) modeling
+# Topple — on a qualifying melee hit, once per turn, the target makes a
+# DEX save vs the Monk's save DC (8 + WIS + PB) or is knocked Prone.
+# Eligibility stamped as template.has_open_hand.
+#
+# v1 simplifications (documented):
+#   - Fires once per turn on ANY unarmed/Monk-weapon hit; RAW gates it
+#     to Flurry-granted attacks specifically (flurry-source detection
+#     through the multiattack path is deferred).
+#   - Models the Topple option only; Push (STR save + 15-ft forced move)
+#     and Addle (OA suppression) are deferred.
+#
+# source: srd_5.2.1
+
+id: f_open_hand_technique
+name: Open Hand Technique
+source: srd_5.2.1
+granted_by:
+  subclass: sc_warrior_of_the_open_hand
+  level: 3
+type: passive

@@ -1,0 +1,27 @@
+# f_stunning_strike — Stunning Strike (Monk L5)
+#
+# RAW (SRD 5.2.1): Once per turn when you hit a creature with a Monk
+# weapon or Unarmed Strike, you can expend 1 Focus Point; the target
+# makes a CON save (DC 8 + WIS + PB) or has the Stunned condition until
+# the start of your next turn. On a success, its Speed is halved until
+# then and the next attack against it has Advantage.
+#
+# Engine modeling: an on-hit rider (engine.core.monk_strikes). On a
+# qualifying melee hit, if the Monk has Focus Points and hasn't used it
+# this turn, spend 1 and force the CON save; on a fail apply co_stunned,
+# registered as a source-timed condition that the runner auto-expires at
+# the Monk's next turn-start. Eligibility stamped as
+# template.has_stunning_strike.
+#
+# Deferred RAW bits: the on-SUCCESS speed-halve + advantage-vs-target
+# rider (the stun is the load-bearing effect).
+#
+# source: srd_5.2.1
+
+id: f_stunning_strike
+name: Stunning Strike
+source: srd_5.2.1
+granted_by:
+  class: c_monk
+  level: 5
+type: passive

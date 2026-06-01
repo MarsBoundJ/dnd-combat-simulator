@@ -351,6 +351,13 @@ class Actor:
         # but defensive).
         if hasattr(self, "_divine_smite_used_this_turn"):
             self._divine_smite_used_this_turn = False
+        # Monk once-per-turn on-hit riders: Stunning Strike (Focus Point,
+        # CON save → Stunned) and Open Hand Technique (Flurry → Topple,
+        # DEX save → Prone). Both reset at the start of the Monk's turn.
+        if hasattr(self, "_stunning_strike_used_this_turn"):
+            self._stunning_strike_used_this_turn = False
+        if hasattr(self, "_open_hand_used_this_turn"):
+            self._open_hand_used_this_turn = False
         # PR #86: Ready Action discard at start of own next turn.
         # RAW: "The reaction is discarded if you don't take it before
         # the start of your next turn." Logged for telemetry so callers
@@ -479,6 +486,12 @@ class CombatState:
     # up by engine.core.concentration.end_concentration when the caster
     # drops concentration.
     persistent_auras: list = field(default_factory=list)
+
+    # Conditions that auto-expire at the SOURCE actor's next turn-start
+    # (e.g., Monk Stunning Strike's Stunned — "until the start of your
+    # next turn"). Each entry: {target_id, condition_id, source_id}.
+    # The runner scrubs matching entries at the source's turn_start.
+    timed_conditions: list = field(default_factory=list)
 
     # Used by the spell-slot opportunity-cost formula (see
     # engine/core/spell_slots.py). Default 3 = mid-adventuring-day baseline
