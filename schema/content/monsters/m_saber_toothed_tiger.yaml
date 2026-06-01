@@ -1,0 +1,56 @@
+# m_saber_toothed_tiger — Saber-Toothed Tiger
+# Source: SRD CC v5.2.1 p357
+# Triage: GREEN — Multiattack of Rend; Running Leap declarative; Nimble
+# Escape bonus action.
+id: m_saber_toothed_tiger
+name: Saber-Toothed Tiger
+source: srd_5.2.1
+size: large
+creature_type: beast
+alignment: unaligned
+combat:
+  armor_class: 13
+  hit_points: { average: 52, dice: "7d10", con_contribution: 14 }
+  speed: { walk: 40 }
+  initiative: { modifier: 3, score: 13 }
+abilities:
+  str: { score: 18, save: 6 }
+  dex: { score: 17, save: 5 }
+  con: { score: 15, save: 2 }
+  int: { score: 3, save: -4 }
+  wis: { score: 12, save: 1 }
+  cha: { score: 8, save: -1 }
+skills: { perception: 5, stealth: 7 }
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: []
+condition_immunities: []
+senses: { passive_perception: 15, special: { darkvision: 60 } }
+languages: []
+cr: { value: 2, xp: 450, proficiency_bonus: 2 }
+traits: []
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 2
+    sub_actions: [a_rend]
+  - id: a_rend
+    name: Rend
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 6, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "2d6", modifier: 4, type: slashing, average: 11 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+bonus_actions:
+  - id: ba_nimble_escape
+    name: Nimble Escape
+    type: choose_action
+    options:
+      - granted_action: disengage
+      - granted_action: hide
+behavior_profile:
+  archetype: apex_predator
+  presets: { retreat: ftd, ability_selection: default, targeting: weakest_target, action_economy: casual }
