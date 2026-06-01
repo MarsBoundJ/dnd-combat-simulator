@@ -108,6 +108,14 @@
         "options": { "type": "array", "items": { "$ref": "#/$defs/ability_entry" } }
       }
     },
+    "legendary_resistance": {
+      "description": "Legendary Resistance (N/Day): when the creature fails a saving throw, it may spend a use to succeed instead. Consumed by engine.core.legendary_resistance via _forced_save.",
+      "type": "object",
+      "properties": {
+        "uses": { "type": "integer", "minimum": 1 }
+      },
+      "required": ["uses"]
+    },
 
     "behavior_profile": {
       "description": "Inline BehaviorProfile per pillars-reconciliation.md §3. See that document for the full schema.",

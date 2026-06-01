@@ -191,6 +191,17 @@ def _build_actor(actor_spec: dict, registry) -> Actor:
     resources = dict(derived_pc_resources)
     resources.update(dict(actor_spec.get("resources") or {}))
 
+    # Legendary Resistance (monster stat block `legendary_resistance:
+    # { uses: N }`). Seed the per-day charge as a resource so the save
+    # path (engine.core.legendary_resistance, consulted by _forced_save)
+    # can spend it to turn a failed save into a success. Explicit
+    # `resources:` / actor_spec wins on conflict (lets a fixture force
+    # "0 charges left" edge cases). See engine/core/legendary_resistance.py.
+    lr = template.get("legendary_resistance") or {}
+    lr_uses = lr.get("uses")
+    if lr_uses is not None and "legendary_resistance_remaining" not in resources:
+        resources["legendary_resistance_remaining"] = int(lr_uses)
+
     # PR #48 + PR #76: optional per-actor cover state ('none' |
     # 'half' | 'three_quarters' | 'total'). Defaults to 'none'.
     # Fixture authors set this to model a creature behind a wall,
