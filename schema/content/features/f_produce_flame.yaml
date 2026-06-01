@@ -1,0 +1,40 @@
+# f_produce_flame — Produce Flame (Conjuration cantrip, SRD CC v5.2.1)
+#
+# RAW (SRD 5.2.1): Bonus Action to conjure the flame (light source);
+# then a Magic action to hurl it — a ranged spell attack within 60 ft,
+# Nd8 Fire on a hit (N scales 1/2/3/4 at character level 1/5/11/17).
+#
+# Engine modeling: the combat-relevant hurl is modeled as a ranged
+# spell-attack cantrip (pc_builder attack_cantrip, 1d8 fire, range 60).
+# The light-source utility half is out of combat scope.
+#
+# granted_by points to c_druid (Druid cantrip); the class isn't shipped
+# yet, so the pc_builder dispatch only fires once c_druid lands.
+# _SPELL_ABILITY_BY_CLASS maps c_druid → WIS for the attack bonus.
+#
+# source: srd_5.2.1
+
+id: f_produce_flame
+name: Produce Flame
+source: srd_5.2.1
+granted_by:
+  class: c_druid
+  level: 1
+type: passive
+spell:
+  class: c_druid
+  level: 0
+
+pc_builder:
+  kind: attack_cantrip
+  action_id: a_produce_flame
+  name: Produce Flame
+  params:
+    damage_type: fire
+    die: 8
+    range_ft: 60
+
+description: |
+  Cantrip. Ranged spell attack at 60 ft; on a hit deals Nd8 fire
+  (N scales 1/2/3/4 at character level 1/5/11/17). Light-source half
+  out of combat scope.

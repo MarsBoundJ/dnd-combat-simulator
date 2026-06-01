@@ -1,0 +1,48 @@
+# f_sorcerous_burst — Sorcerous Burst (Evocation cantrip, SRD CC v5.2.1)
+#
+# RAW (SRD 5.2.1): Action, 120 ft. Make a ranged spell attack; on a hit,
+# Nd8 damage of a type you choose (Acid/Cold/Fire/Lightning/Poison/
+# Psychic/Thunder), N scaling 1/2/3/4 at character level 1/5/11/17. If
+# you roll an 8 on any d8, you may roll another d8 and add it, up to your
+# spellcasting modifier extra dice.
+#
+# Engine modeling: a ranged spell-attack cantrip (pc_builder
+# attack_cantrip, 1d8, range 120). Damage type fixed to fire in v1 (the
+# chooseable type is cosmetic for the sim; a cast-time type option isn't
+# modeled).
+#
+# granted_by points to c_sorcerer (Sorcerer cantrip); the class isn't
+# shipped yet, so the dispatch only fires once c_sorcerer lands.
+# _SPELL_ABILITY_BY_CLASS maps c_sorcerer → CHA for the attack bonus.
+#
+# Deferred RAW bits:
+#   - Exploding d8s (reroll on 8, up to CHA-mod extra dice) — needs a
+#     reroll-and-accumulate damage mode; v1 rolls flat Nd8.
+#   - Type choice (v1 fixes fire — cosmetic for the sim).
+#
+# source: srd_5.2.1
+
+id: f_sorcerous_burst
+name: Sorcerous Burst
+source: srd_5.2.1
+granted_by:
+  class: c_sorcerer
+  level: 1
+type: passive
+spell:
+  class: c_sorcerer
+  level: 0
+
+pc_builder:
+  kind: attack_cantrip
+  action_id: a_sorcerous_burst
+  name: Sorcerous Burst
+  params:
+    damage_type: fire
+    die: 8
+    range_ft: 120
+
+description: |
+  Cantrip. Ranged spell attack at 120 ft; on a hit deals Nd8
+  (N scales 1/2/3/4 at character level 1/5/11/17). Exploding-d8 +
+  type-choice deferred (v1 flat Nd8 fire).

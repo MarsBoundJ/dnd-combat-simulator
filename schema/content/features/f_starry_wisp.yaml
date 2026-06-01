@@ -1,0 +1,40 @@
+# f_starry_wisp — Starry Wisp (Evocation cantrip, SRD CC v5.2.1)
+#
+# RAW (SRD 5.2.1): Action, 60 ft. Make a ranged spell attack; on a hit,
+# Nd8 Radiant (N scales 1/2/3/4 at character level 1/5/11/17) and until
+# the end of your next turn the target sheds Dim Light (10 ft) and can't
+# benefit from the Invisible condition.
+#
+# Engine modeling: a ranged spell-attack cantrip, built data-driven from
+# the pc_builder block (attack_cantrip kind, 1d8 radiant, range 60).
+#
+# Deferred RAW bits:
+#   - Dim-light + anti-Invisible rider — no light-emission / invis-deny
+#     flag in v1; the radiant damage is load-bearing.
+#
+# source: srd_5.2.1
+
+id: f_starry_wisp
+name: Starry Wisp
+source: srd_5.2.1
+granted_by:
+  class: c_bard
+  level: 1
+type: passive
+spell:
+  class: c_bard
+  level: 0
+
+pc_builder:
+  kind: attack_cantrip
+  action_id: a_starry_wisp
+  name: Starry Wisp
+  params:
+    damage_type: radiant
+    die: 8
+    range_ft: 60
+
+description: |
+  Cantrip. Ranged spell attack at 60 ft; on a hit deals Nd8 radiant
+  (N scales 1/2/3/4 at character level 1/5/11/17). Light/anti-invis
+  rider deferred.

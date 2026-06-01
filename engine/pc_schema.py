@@ -1312,14 +1312,25 @@ def _spell_attack_bonus(ability_scores: dict, proficiency_bonus: int,
 def _build_attack_cantrip_action(action_id: str, name: str, level: int,
                                     ability_scores: dict, proficiency_bonus: int,
                                     class_id: str, *, damage_type: str,
-                                    die: int, range_ft: int) -> dict:
-    """Generic ranged-spell-attack cantrip (Ray of Frost shape; Fire Bolt
+                                    die: int, range_ft: int,
+                                    attack_kind: str = "ranged") -> dict:
+    """Generic spell-attack cantrip (Ray of Frost shape; Fire Bolt
     predates this helper). Attack bonus = spell mod + PB; damage = Nd<die>
     of `damage_type` with N from _cantrip_dice_count, gated on hit. No
-    ability modifier on the damage (cantrip RAW). spell_slot_level 0."""
+    ability modifier on the damage (cantrip RAW). spell_slot_level 0.
+
+    attack_kind: "ranged" (default) → `range_ft`; "melee" (touch cantrips
+    like Chill Touch / Shocking Grasp) → `reach_ft` instead, with
+    range_ft taken as the reach (5 for touch)."""
     attack_bonus, abbr = _spell_attack_bonus(
         ability_scores, proficiency_bonus, class_id)
     n = _cantrip_dice_count(level)
+    if attack_kind == "melee":
+        attack_params = {"kind": "melee", "ability": abbr,
+                          "bonus": attack_bonus, "reach_ft": range_ft}
+    else:
+        attack_params = {"kind": "ranged", "ability": abbr,
+                          "bonus": attack_bonus, "range_ft": range_ft}
     return {
         "id": action_id,
         "name": name,
@@ -1327,9 +1338,7 @@ def _build_attack_cantrip_action(action_id: str, name: str, level: int,
         "slot": "action",
         "spell_slot_level": 0,
         "pipeline": [
-            {"primitive": "attack_roll",
-              "params": {"kind": "ranged", "ability": abbr,
-                          "bonus": attack_bonus, "range_ft": range_ft}},
+            {"primitive": "attack_roll", "params": attack_params},
             {"primitive": "damage",
               "params": {"dice": f"{n}d{die}", "modifier": 0,
                           "type": damage_type},
@@ -1452,7 +1461,8 @@ def _dispatch_pc_builder(feature_def: dict, level: int,
         return _build_attack_cantrip_action(
             aid, name, level, ability_scores, proficiency_bonus, class_id,
             damage_type=p["damage_type"], die=int(p["die"]),
-            range_ft=int(p["range_ft"]))
+            range_ft=int(p["range_ft"]),
+            attack_kind=p.get("attack_kind", "ranged"))
     if kind == "save_cantrip":
         return _build_save_cantrip_action(
             aid, name, level, save_ability=p["save_ability"],

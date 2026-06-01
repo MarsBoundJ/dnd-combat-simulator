@@ -290,26 +290,21 @@ first, then the spell rides it.
   a broad, cross-cutting engine feature.
 
 ## Needs pc_schema builder (desktop lane)
-These compose from existing primitives, but their attack bonus and/or
-damage dice key off the caster's stats + level, so they need a
-`_build_*_action` + dispatch line in pc_schema.py — which the desktop
-lane now owns (Bard done; Sorcerer/Monk/Druid in progress). Deferred to
-avoid pc_schema collisions; build once the class build-out settles. All
-are ranged/melee SPELL ATTACKS (the attack_roll primitive takes a fixed
-bonus, so the bonus must be baked at PC-build time, exactly like Fire
-Bolt / Eldritch Blast / Guiding Bolt / Scorching Ray already are).
-- **Chill Touch** (cantrip, P3) — ranged spell attack, 1d10 Necrotic,
-  target can't regain HP until your next turn (rider deferrable).
-- **Produce Flame** (cantrip, P3) — ranged spell attack, 1d8 Fire.
-- **Shocking Grasp** (cantrip, P3) — melee spell attack, 1d8 Lightning,
-  advantage vs metal-armored, target can't take Reactions.
-- **Sorcerous Burst** (cantrip, P3) — ranged spell attack, 1d8 (choose
-  type), explodes on a max die (rider deferrable).
-- **Starry Wisp** (cantrip, P3) — ranged spell attack, 1d8 Radiant,
-  reveals Invisible targets.
-- **Ice Knife** (L1, P3) — ranged spell attack 1d10 Piercing PLUS a
-  DEX-save 2d6 Cold burst around the target (the attack half needs the
-  builder; the burst half is a normal forced_save).
+RESOLVED for simple spell attacks: the `pc_builder` YAML system (data-
+driven dispatch in pc_schema) now builds attack cantrips, save cantrips,
+ranged spell attacks, and heals from a YAML block — no per-spell engine
+edit. Chill Touch, Produce Flame, Shocking Grasp, Sorcerous Burst, and
+Starry Wisp were built this way (the `attack_cantrip` kind, with
+`attack_kind: melee` for the touch cantrips). New simple spell-attacks
+should use `pc_builder` (see PARALLEL_BUILD_GUIDE) — they do NOT belong
+here.
+
+Still deferred — COMPOSITE shapes that no single pc_builder kind covers:
+- **Ice Knife** (L1) — a ranged spell attack (1d10 Piercing) PLUS a
+  DEX-save 2d6 Cold burst (5-ft radius around the target) that fires
+  hit-or-miss, +1d6/slot upcast. Needs a composite "attack + forced-save
+  AoE in one action" builder (or a new pc_builder kind that chains an
+  attack pipeline with a forced_save burst). Not a single existing kind.
 
 ## HP-threshold conditional effects
 - **Power Word Stun** (L8, P3) — no save; if the target has ≤150 HP it is

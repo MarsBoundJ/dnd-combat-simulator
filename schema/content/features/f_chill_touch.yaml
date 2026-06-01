@@ -1,0 +1,40 @@
+# f_chill_touch — Chill Touch (Necromancy cantrip, SRD CC v5.2.1)
+#
+# RAW (SRD 5.2.1): Action, Touch. Make a MELEE spell attack; on a hit,
+# Nd10 Necrotic (N scales 1/2/3/4 at character level 1/5/11/17) and the
+# target can't regain HP until the end of your next turn.
+#
+# Engine modeling: a MELEE spell-attack cantrip, built data-driven from
+# the pc_builder block below (attack_cantrip kind with attack_kind:
+# melee → reach 5). Attack bonus = caster spell mod + PB.
+#
+# Deferred RAW bits:
+#   - "can't regain HP until end of your next turn" rider — no
+#     heal-suppression flag in v1; the necrotic damage is load-bearing.
+#
+# source: srd_5.2.1
+
+id: f_chill_touch
+name: Chill Touch
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 1
+type: passive
+spell:
+  class: c_wizard
+  level: 0
+
+pc_builder:
+  kind: attack_cantrip
+  action_id: a_chill_touch
+  name: Chill Touch
+  params:
+    attack_kind: melee
+    damage_type: necrotic
+    die: 10
+    range_ft: 5
+
+description: |
+  Cantrip. Melee spell attack (reach 5); on a hit deals Nd10 necrotic
+  (N scales 1/2/3/4 at character level 1/5/11/17). No-heal rider deferred.
