@@ -23,6 +23,7 @@ from dataclasses import dataclass
 from engine.core.state import CombatState, Actor, ability_modifier
 from engine.core.events import EventBus
 from engine.core import modifiers as _modifiers
+from engine.core import legendary_resistance as _legendary_resistance
 
 
 # ============================================================================
@@ -1121,6 +1122,15 @@ def _forced_save(params: dict, state: CombatState, bus: EventBus) -> dict:
                       + save_mods.save_bonus_modifier
                       + cover_save_bonus)
             outcome = "success" if total >= dc else "fail"
+
+        # Legendary Resistance: a legendary creature that just failed a
+        # save may spend a per-day charge to succeed instead. Applies to
+        # every fail path above (rolled OR auto_fail override). The natural
+        # d20/total stay on the log line; maybe_use emits its own
+        # legendary_resistance_used event so the swap is traceable.
+        if outcome == "fail" and _legendary_resistance.maybe_use(
+                target, state, ability=ability, dc=dc):
+            outcome = "success"
 
         rolls.append({"target_id": target.id, "outcome": outcome,
                        "d20": d20, "total": total, "dc": dc,
