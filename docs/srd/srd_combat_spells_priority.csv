@@ -1,0 +1,230 @@
+Name,Level,Combat Rating (1-5)
+Acid Arrow,2,2
+Acid SplASh,0,2
+Aid,2,4
+Animal Shapes,8,3
+Animate Dead,3,4
+Animate Objects,5,5
+Antilife Shell,5,4
+Antimagic Field,8,4
+Antipathy/Sympathy,8,3
+Arcane Hand,5,4
+Arcane Sword,7,2
+Aura of Life,4,2
+Bane,1,3
+Banishment,4,5
+Barkskin,2,2
+Beacon of Hope,3,2
+Befuddlement,8,4
+Bestow Curse,3,3
+Black Tentacles,4,4
+Blade Barrier,6,3
+Bless,1,5
+Blight,4,3
+Blindness/Deafness,2,4
+Blink,3,3
+Blur,2,3
+Burning Hands,1,3
+Call Lightning,3,4
+Calm Emotions,2,2
+Chain Lightning,6,4
+Charm Monster,4,3
+Charm Person,1,3
+Chill Touch,0,3
+Chromatic Orb,1,4
+Circle of Death,6,2
+Cloudkill,5,3
+Color Spray,1,2
+Command,1,4
+Compulsion,4,2
+Cone of Cold,5,3
+Confusion,4,3
+Conjure Animals,3,5
+Conjure Celestial,7,3
+Conjure Elemental,5,4
+Conjure Fey,6,3
+Conjure Minor Elementals,4,4
+Conjure Minor Elementals,4,4
+Contagion,5,2
+Contingency,6,4
+Counterspell,3,5
+Create Undead,6,3
+Cure Wounds,1,5
+Darkness,2,4
+Death Ward,4,4
+Delayed Blast Fireball,7,3
+Dimension Door,4,5
+Disintegrate,6,4
+Dispel Evil and Good,5,3
+Dispel Magic,3,5
+Dissonant Whispers,1,4
+Divine Favor,1,3
+Divine Smite,1,5
+Divine Word,7,3
+Dominate Beast,4,2
+Dominate Monster,8,4
+Dominate Person,5,4
+Dragon’s Breath,2,4
+Earthquake,8,3
+Eldritch Blast,0,5
+Enlarge/Reduce,2,3
+Ensnaring Strike,1,3
+Entangle,1,4
+Enthrall,2,1
+Etherealness,7,2
+Expeditious Retreat,1,3
+Eyebite,6,3
+Faerie Fire,1,4
+Faithful Hound,4,2
+False Life,1,3
+Fear,3,4
+Feather Fall,1,3
+Find Steed,2,3
+Finger of Death,7,3
+Fireball,3,5
+Fire Bolt,0,5
+Fire Shield,4,3
+Fire Storm,7,3
+Flame Blade,2,2
+Flame Strike,5,3
+Flaming Sphere,2,4
+Flesh to Stone,6,2
+Fly,3,5
+Fog Cloud,2,4
+Forbiddance,6,3
+Forcecage,7,5
+Foresight,9,5
+Freedom of Movement,4,4
+Freezing Sphere,6,2
+Gaseous Form,3,2
+Gate,9,4
+Giant Insect,4,3
+Globe of Invulnerability,6,3
+Glyph of Warding,3,3
+Goodberry,1,4
+Grease,1,3
+Greater Invisibility,4,5
+Greater Restoration,5,4
+Guardian of Faith,4,2
+Guiding Bolt,1,4
+Gust of Wind,2,2
+Harm,6,3
+Haste,3,5
+Heal,6,5
+Healing Word,1,5
+Heat Metal,2,4
+Hellish Rebuke,1,4
+Heroism,1,3
+Hex,1,5
+Hideous Laughter,1,4
+Hold Monster,5,4
+Hold Person,2,5
+Holy Aura,8,4
+Hunter’s Mark,1,5
+Hypnotic Pattern,3,5
+Ice Knife,1,3
+Ice Storm,4,3
+Imprisonment,9,2
+Incendiary Cloud,8,3
+Inflict Wounds,1,4
+Insect Plague,5,3
+Irresistible Dance,6,4
+Invisibility,2,4
+Jump,1,2
+Lesser Restoration,2,4
+Levitate,2,4
+Lightning Bolt,3,4
+Longstrider,1,3
+Mage Armor,1,5
+Magic Circle,3,2
+Magic Jar,6,3
+Magic Missile,1,5
+Magic Weapon,2,3
+Mass Cure Wounds,5,4
+Mass Heal,9,5
+Mass Healing Word,3,4
+Mass Suggestion,6,5
+Maze,8,4
+Meteor Swarm,9,5
+Mind Blank,8,4
+Mind Spike,2,2
+Mirror Image,2,4
+Mislead,5,2
+Misty Step,2,5
+Moonbeam,2,4
+Phantasmal Force,2,4
+Phantasmal Killer,4,2
+Phantom Steed,3,3
+Plane Shift,7,4
+Plant Growth,3,4
+Poison Spray,0,2
+Polymorph,4,5
+Power Word Heal,9,4
+Power Word Kill,9,3
+Power Word Stun,8,3
+Prismatic Spray,7,3
+Prismatic Wall,9,5
+Produce Flame,0,3
+Protection from Energy,3,3
+Protection from Evil and Good,1,4
+Protection from Poison,2,2
+Ray of Enfeeblement,2,2
+Ray of Frost,0,4
+Regenerate,7,3
+Ray of Sickness,1,2
+Resilient Sphere,4,4
+Resistance,0,2
+Reverse Gravity,7,4
+Revivify,3,5
+Sacred Flame,0,4
+Sanctuary,1,3
+Scorching Ray,2,4
+Searing Smite,1,3
+"Secret Chest
+",4,2
+Shapechange,9,5
+Shatter,2,4
+Shield,1,5
+Shield of Faith,1,4
+Shillelagh,0,4
+Shining Smite,2,2
+Shocking Grasp,0,3
+Silence,2,4
+Sleep,1,4
+Sleet Storm,3,4
+Slow,3,5
+Sorcerous Burst,0,3
+Spare the Dying,0,3
+Spider Climb,2,3
+Spike Growth,2,5
+Spirit Guardians,3,5
+Spiritual Weapon,2,5
+Starry Wisp,0,3
+Stinking Cloud,3,3
+Stoneskin,4,3
+Storm of Vengeance,9,2
+Suggestion,2,5
+Summon Dragon,5,4
+Sunbeam,6,4
+Sunburst,8,3
+Symbol,7,3
+Telekinesis,5,4
+Teleport,7,3
+Thunderwave,1,4
+Time Stop,9,4
+Tree Stride,5,2
+True Polymorph,9,5
+Tsunami,8,3
+Vampiric Touch,3,2
+Vicious Mockery,0,4
+Vitriolic Sphere,4,3
+Wall of Fire,4,5
+Wall of Force,5,5
+Wall of Ice,6,3
+Wall of Thorns,6,3
+Warding Bond,2,3
+Web,2,5
+Weird,9,1
+Wind Wall,3,3
+Wish,9,5
+Word of Recall,6,2
