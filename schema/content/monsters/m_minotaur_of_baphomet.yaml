@@ -1,0 +1,77 @@
+# m_minotaur_of_baphomet — Minotaur of Baphomet
+# Source: SRD CC v5.2.1 p307
+# Triage: GREEN (core) — Abyssal Glaive weapon attack (+ necrotic). Built
+# WITHOUT "Gore (Recharge 5–6)" — a Recharge ability logged in
+# MONSTERS_NEED_ENGINE_WORK.md under "Recharge abilities".
+
+id: m_minotaur_of_baphomet
+name: Minotaur of Baphomet
+source: srd_5.2.1
+
+size: large
+creature_type: monstrosity
+alignment: chaotic_evil
+
+combat:
+  armor_class: 14
+  hit_points:
+    average: 85
+    dice: "10d10"
+    con_contribution: 30
+  speed:
+    walk: 40
+  initiative:
+    modifier: 0
+    score: 10
+
+abilities:
+  str: { score: 18, save: 4 }
+  dex: { score: 11, save: 0 }
+  con: { score: 16, save: 3 }
+  int: { score: 6, save: -2 }
+  wis: { score: 16, save: 3 }
+  cha: { score: 9, save: -1 }
+
+skills:
+  perception: 7
+  survival: 7
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: []
+condition_immunities: []
+
+senses:
+  passive_perception: 17
+  special:
+    darkvision: 60
+
+languages: [abyssal]
+
+cr:
+  value: 3
+  xp: 700
+  proficiency_bonus: 2
+
+traits: []
+
+actions:
+  - id: a_abyssal_glaive
+    name: Abyssal Glaive
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 6, reach_ft: 10 }
+      - primitive: damage
+        params: { dice: "1d12", modifier: 4, type: slashing, average: 10 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: damage
+        params: { dice: "3d6", modifier: 0, type: necrotic, average: 10 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: berserker_fanatic
+  presets:
+    retreat: ftd
+    ability_selection: default
+    targeting: closest_enemy
+    action_economy: casual

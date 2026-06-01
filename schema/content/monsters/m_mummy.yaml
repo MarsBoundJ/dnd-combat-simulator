@@ -1,0 +1,83 @@
+# m_mummy — Mummy
+# Source: SRD CC v5.2.1 p311
+# Triage: GREEN (core) — Multiattack of Rotting Fist + Dreadful Glare
+# (WIS save DC 11 → existing co_frightened). Built WITHOUT the Rotting
+# Fist "curse" rider (can't-regain-HP + HP-max decay) — needs a new
+# condition, logged under "On-death / triggered effects".
+
+id: m_mummy
+name: Mummy
+source: srd_5.2.1
+
+size: medium
+creature_type: undead
+alignment: lawful_evil
+
+combat:
+  armor_class: 11
+  hit_points: { average: 58, dice: "9d8", con_contribution: 18 }
+  speed: { walk: 20 }
+  initiative: { modifier: -1, score: 9 }
+
+abilities:
+  str: { score: 16, save: 3 }
+  dex: { score: 8, save: -1 }
+  con: { score: 15, save: 2 }
+  int: { score: 6, save: -2 }
+  wis: { score: 12, save: 3 }
+  cha: { score: 12, save: 1 }
+
+skills: {}
+damage_resistances: []
+damage_vulnerabilities: [fire]
+damage_immunities: [necrotic, poison]
+condition_immunities: [co_charmed, co_exhaustion, co_frightened, co_paralyzed, co_poisoned]
+
+senses: { passive_perception: 11, special: { darkvision: 60 } }
+languages: [common]
+
+cr: { value: 3, xp: 700, proficiency_bonus: 2 }
+
+traits: []
+
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 2
+    sub_actions: [a_rotting_fist]
+
+  - id: a_rotting_fist
+    name: Rotting Fist
+    type: weapon_attack
+    # Curse rider (can't regain HP / HP-max decay) deferred — needs a new
+    # condition; the 1d10+3 + 3d6 necrotic is the load-bearing effect.
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 5, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d10", modifier: 3, type: bludgeoning, average: 8 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: damage
+        params: { dice: "3d6", modifier: 0, type: necrotic, average: 10 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  - id: a_dreadful_glare
+    name: Dreadful Glare
+    type: save_effect
+    # WIS save DC 11, one creature within 60 ft; on a fail it is
+    # Frightened until the end of the mummy's next turn.
+    pipeline:
+      - primitive: forced_save
+        params:
+          ability: wisdom
+          dc: 11
+          affected: current_target
+          on_fail:
+            - primitive: apply_condition
+              params: { condition_id: co_frightened, duration: until_actor_next_turn_start }
+          on_success: []
+
+behavior_profile:
+  archetype: mindless_aggressor
+  presets: { retreat: ftd, ability_selection: default, targeting: closest_enemy, action_economy: casual }

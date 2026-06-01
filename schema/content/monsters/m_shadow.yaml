@@ -1,0 +1,66 @@
+# m_shadow — Shadow
+# Source: SRD CC v5.2.1 p323
+# Triage: GREEN (core) — Draining Swipe weapon attack. Built WITHOUT the
+# Strength-score drain rider (1d4 STR decrease) — an ability-score-drain
+# mechanic with no primitive, logged under "On-death / triggered
+# effects". Amorphous / Sunlight Weakness are declarative traits.
+
+id: m_shadow
+name: Shadow
+source: srd_5.2.1
+
+size: medium
+creature_type: undead
+alignment: chaotic_evil
+
+combat:
+  armor_class: 12
+  hit_points: { average: 27, dice: "5d8", con_contribution: 5 }
+  speed: { walk: 40 }
+  initiative: { modifier: 2, score: 12 }
+
+abilities:
+  str: { score: 6, save: -2 }
+  dex: { score: 14, save: 2 }
+  con: { score: 13, save: 1 }
+  int: { score: 6, save: -2 }
+  wis: { score: 10, save: 0 }
+  cha: { score: 8, save: -1 }
+
+skills: { stealth: 6 }
+damage_resistances: [acid, cold, fire, lightning, thunder]
+damage_vulnerabilities: [radiant]
+damage_immunities: [necrotic, poison]
+condition_immunities: [co_exhaustion, co_frightened, co_grappled, co_paralyzed, co_petrified, co_poisoned, co_prone, co_restrained, co_unconscious]
+
+senses: { passive_perception: 10, special: { darkvision: 60 } }
+languages: []
+
+cr: { value: 0.5, xp: 100, proficiency_bonus: 2 }
+
+traits:
+  - id: t_amorphous
+    name: Amorphous
+    type: trait_passive
+    # Declarative: can move through a 1-inch space without extra movement.
+  - id: t_sunlight_weakness
+    name: Sunlight Weakness
+    type: trait_passive
+    # Declarative: Disadvantage on D20 Tests while in sunlight. Not enforced.
+
+actions:
+  - id: a_draining_swipe
+    name: Draining Swipe
+    type: weapon_attack
+    # STR-score drain rider deferred (ability-drain has no primitive);
+    # the 1d6+2 necrotic is the load-bearing effect.
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 4, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d6", modifier: 2, type: necrotic, average: 5 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: pack_hunter
+  presets: { retreat: ftd, ability_selection: default, targeting: weakest_target, action_economy: casual }

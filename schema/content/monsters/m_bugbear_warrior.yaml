@@ -1,0 +1,97 @@
+# m_bugbear_warrior — Bugbear Warrior
+# Source: SRD CC v5.2.1 p272
+# Triage: GREEN — weapon attacks; Grab applies the existing co_grappled on
+# a hit. Abduct is a declarative grappling-movement trait. The Light
+# Hammer's "Advantage if target Grappled" rider is noted but not enforced.
+
+id: m_bugbear_warrior
+name: Bugbear Warrior
+source: srd_5.2.1
+
+size: medium
+creature_type: fey
+type_tags: [goblinoid]
+alignment: chaotic_evil
+
+combat:
+  armor_class: 14
+  hit_points:
+    average: 33
+    dice: "6d8"
+    con_contribution: 6
+  speed:
+    walk: 30
+  initiative:
+    modifier: 2
+    score: 12
+
+abilities:
+  str: { score: 15, save: 2 }
+  dex: { score: 14, save: 2 }
+  con: { score: 13, save: 1 }
+  int: { score: 8, save: -1 }
+  wis: { score: 11, save: 0 }
+  cha: { score: 9, save: -1 }
+
+skills:
+  stealth: 6
+  survival: 2
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: []
+condition_immunities: []
+
+gear: [hide_armor, light_hammer]
+
+senses:
+  passive_perception: 10
+  special:
+    darkvision: 60
+
+languages: [common, goblin]
+
+cr:
+  value: 1
+  xp: 200
+  proficiency_bonus: 2
+
+traits:
+  - id: t_abduct
+    name: Abduct
+    type: trait_passive
+    # Declarative: the bugbear needn't spend extra movement to move a
+    # creature it is grappling.
+
+actions:
+  - id: a_grab
+    name: Grab
+    type: weapon_attack
+    # On a hit vs a Medium-or-smaller creature, it has the Grappled
+    # condition (escape DC 12). Size gate noted, not enforced.
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 4, reach_ft: 10 }
+      - primitive: damage
+        params: { dice: "2d6", modifier: 2, type: bludgeoning, average: 9 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: apply_condition
+        params: { condition_id: co_grappled, duration: until_removed }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  - id: a_light_hammer
+    name: Light Hammer
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 4, reach_ft: 10, range: [20, 60] }
+      - primitive: damage
+        params: { dice: "3d4", modifier: 2, type: bludgeoning, average: 9 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: cunning_tactician
+  presets:
+    retreat: ftd
+    ability_selection: default
+    targeting: weakest_target
+    action_economy: casual

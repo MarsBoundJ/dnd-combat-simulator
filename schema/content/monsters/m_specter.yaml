@@ -1,0 +1,65 @@
+# m_specter — Specter
+# Source: SRD CC v5.2.1 p328
+# Triage: GREEN (core) — Life Drain weapon attack. Built WITHOUT the
+# Hit-Point-maximum-reduction rider (no HP-max-debuff primitive), logged
+# under "On-death / triggered effects". Incorporeal Movement / Sunlight
+# Sensitivity are declarative traits. Fly 50 hover omitted (walk stand-in).
+
+id: m_specter
+name: Specter
+source: srd_5.2.1
+
+size: medium
+creature_type: undead
+alignment: chaotic_evil
+
+combat:
+  armor_class: 12
+  hit_points: { average: 22, dice: "5d8", con_contribution: 0 }
+  speed: { walk: 30 }
+  initiative: { modifier: 2, score: 12 }
+
+abilities:
+  str: { score: 1, save: -5 }
+  dex: { score: 14, save: 2 }
+  con: { score: 11, save: 0 }
+  int: { score: 10, save: 0 }
+  wis: { score: 10, save: 0 }
+  cha: { score: 11, save: 0 }
+
+skills: {}
+damage_resistances: [acid, bludgeoning, cold, fire, lightning, piercing, slashing, thunder]
+damage_vulnerabilities: []
+damage_immunities: [necrotic, poison]
+condition_immunities: [co_charmed, co_exhaustion, co_grappled, co_paralyzed, co_petrified, co_poisoned, co_prone, co_restrained, co_unconscious]
+
+senses: { passive_perception: 10, special: { darkvision: 60 } }
+languages: [common]
+
+cr: { value: 1, xp: 200, proficiency_bonus: 2 }
+
+traits:
+  - id: t_incorporeal_movement
+    name: Incorporeal Movement
+    type: trait_passive
+    # Declarative: moves through creatures/objects as Difficult Terrain.
+  - id: t_sunlight_sensitivity
+    name: Sunlight Sensitivity
+    type: trait_passive
+    # Declarative: Disadvantage on attacks + checks in sunlight. Not enforced.
+
+actions:
+  - id: a_life_drain
+    name: Life Drain
+    type: weapon_attack
+    # HP-max-reduction rider deferred; the 2d6 necrotic is the core.
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 4, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "2d6", modifier: 0, type: necrotic, average: 7 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: pack_hunter
+  presets: { retreat: ftd, ability_selection: default, targeting: weakest_target, action_economy: casual }

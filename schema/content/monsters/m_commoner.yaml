@@ -1,0 +1,77 @@
+# m_commoner — Commoner
+# Source: SRD CC v5.2.1 p276
+# Triage: GREEN — single weapon attack. The "Training" trait (Advantage on
+# one GM-chosen skill) is a declarative, non-combat trait recorded as
+# trait_passive (no enforced modifier needed).
+
+id: m_commoner
+name: Commoner
+source: srd_5.2.1
+
+size: medium
+creature_type: humanoid
+alignment: neutral
+
+combat:
+  armor_class: 10
+  hit_points:
+    average: 4
+    dice: "1d8"
+    con_contribution: 0
+  speed:
+    walk: 30
+  initiative:
+    modifier: 0
+    score: 10
+
+abilities:
+  str: { score: 10, save: 0 }
+  dex: { score: 10, save: 0 }
+  con: { score: 10, save: 0 }
+  int: { score: 10, save: 0 }
+  wis: { score: 10, save: 0 }
+  cha: { score: 10, save: 0 }
+
+skills: {}
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: []
+condition_immunities: []
+
+gear: [club]
+
+senses:
+  passive_perception: 10
+
+languages: [common]
+
+cr:
+  value: 0
+  xp: 10
+  proficiency_bonus: 2
+
+traits:
+  - id: t_training
+    name: Training
+    type: trait_passive
+    # Declarative: Advantage on ability checks with one GM-chosen skill.
+    # Non-combat; recorded for completeness, not enforced.
+
+actions:
+  - id: a_club
+    name: Club
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 2, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d4", modifier: 0, type: bludgeoning, average: 2 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: cowardly_skirmisher
+  presets:
+    retreat: cowardly
+    ability_selection: default
+    targeting: closest_enemy
+    action_economy: casual

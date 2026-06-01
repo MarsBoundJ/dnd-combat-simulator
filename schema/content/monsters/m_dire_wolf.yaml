@@ -1,0 +1,83 @@
+# m_dire_wolf — Dire Wolf
+# Source: SRD CC v5.2.1 p347
+# Triage: GREEN — single weapon attack that knocks Prone (existing
+# co_prone) on a hit. Pack Tactics is a declarative trait (not enforced
+# in v1). Speed 50 is walk.
+
+id: m_dire_wolf
+name: Dire Wolf
+source: srd_5.2.1
+
+size: large
+creature_type: beast
+alignment: unaligned
+
+combat:
+  armor_class: 14
+  hit_points:
+    average: 22
+    dice: "3d10"
+    con_contribution: 6
+  speed:
+    walk: 50
+  initiative:
+    modifier: 2
+    score: 12
+
+abilities:
+  str: { score: 17, save: 3 }
+  dex: { score: 15, save: 2 }
+  con: { score: 15, save: 2 }
+  int: { score: 3, save: -4 }
+  wis: { score: 12, save: 1 }
+  cha: { score: 7, save: -2 }
+
+skills:
+  perception: 5
+  stealth: 4
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: []
+condition_immunities: []
+
+senses:
+  passive_perception: 15
+  special:
+    darkvision: 60
+
+languages: []
+
+cr:
+  value: 1
+  xp: 200
+  proficiency_bonus: 2
+
+traits:
+  - id: t_pack_tactics
+    name: Pack Tactics
+    type: trait_passive
+    # Declarative: Advantage on attacks vs a creature with an ally within
+    # 5 ft of it. Not enforced in v1 (no positional-advantage modifier).
+
+actions:
+  - id: a_bite
+    name: Bite
+    type: weapon_attack
+    # On a hit vs a Large-or-smaller creature, the target is knocked Prone.
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 5, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d10", modifier: 3, type: piercing, average: 8 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: apply_condition
+        params: { condition_id: co_prone, duration: until_removed }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: pack_hunter
+  presets:
+    retreat: ftd
+    ability_selection: default
+    targeting: weakest_target
+    action_economy: casual
