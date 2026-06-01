@@ -1,0 +1,48 @@
+# f_fire_bolt — Fire Bolt (Evocation cantrip, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p131): 120 ft, one creature or object. Make a
+# ranged spell attack; on a hit the target takes 1d10 Fire damage. A
+# flammable unattended object hit starts burning. Cantrip Upgrade — the
+# damage increases by 1d10 at character levels 5 (2d10), 11 (3d10), and
+# 17 (4d10).
+#
+# Engine modeling: the arcane mirror of Eldritch Blast — a ranged spell
+# attack cantrip whose attack bonus (spell ability mod + proficiency)
+# AND damage die count both depend on the PC, so it is a MARKER feature
+# built at PC-build time by pc_schema._build_fire_bolt_action when
+# f_fire_bolt is in features_known (same pattern as Eldritch Blast /
+# Sacred Flame / the Cleric heals). Unlike Eldritch Blast there is no
+# multiattack — Fire Bolt is always a single beam; the cantrip "upgrade"
+# scales the die count (Nd10), not the attack count, via
+# _cantrip_dice_count (1/2/3/4 at character level 1/5/11/17).
+#   - type: weapon_attack (attack_roll + damage gated on hit), like the
+#     Eldritch Blast beam. spell_slot_level 0 → consumes no slot.
+#   - Attack bonus = INT mod + PB (Wizard's spellcasting ability).
+#     Damage = Nd10 Fire, no ability modifier (cantrips add no mod to
+#     damage RAW, absent an invocation like Agonizing Blast).
+#
+# Deferred RAW bits:
+#   - "Flammable object starts burning" — no object/ignition modeling.
+#
+# source: srd_5.2.1
+
+id: f_fire_bolt
+name: Fire Bolt
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 1
+type: passive
+spell:
+  class: c_wizard
+  level: 0
+
+description: |
+  Cantrip. Ranged spell attack at 120 ft; on a hit deals Nd10 fire
+  damage (N scales 1/2/3/4 at character level 1/5/11/17).
+
+contract:
+  reads: [actor.spell_ability_mod, actor.proficiency_bonus, actor.levels]
+  writes: [combat.attack_roll, combat.damage_total]
+  event: passive
+  scope: builds_attack_cantrip_action

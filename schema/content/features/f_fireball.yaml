@@ -1,0 +1,71 @@
+# f_fireball — Fireball (Level 3 Evocation, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p130): a streak flashes to a point within
+# 150 ft and blossoms into fire. Each creature in a 20-foot-radius
+# Sphere centered on that point makes a Dexterity saving throw, taking
+# 8d6 Fire damage on a failed save or half as much on a success.
+# Unattended flammable objects in the area ignite. Using a Higher-Level
+# Spell Slot: the damage increases by 1d6 per slot level above 3.
+#
+# Engine modeling: the canonical instantaneous AoE save-burst, the
+# sibling of the persistent-aura zone spells (Moonbeam / Cloud of
+# Daggers) but resolved once at cast time rather than per turn.
+#   - type: aoe_attack with a sphere `area` block (radius 20, cast
+#     range 150). The candidate generator places the origin on a chosen
+#     enemy's square; _execute_single threads area_origin into
+#     state.current_attack so forced_save's `all_creatures_in_area`
+#     resolver filters every living creature inside the sphere
+#     (friendly fire is RAW — smart casters avoid catching allies).
+#   - forced_save: DEX vs the caster's spell save DC. on_fail deals
+#     8d6 fire; on_success deals the same 8d6 at multiplier 0.5
+#     (half-on-success), mirroring Moonbeam's two-branch shape.
+#   - upcast_scaling: +1d6 fire per slot level above 3, applied by the
+#     damage primitive's _resolve_upcast_extra_dice on both branches
+#     (the half-on-success multiplier scales the upcast dice too).
+#
+# Deferred RAW bits:
+#   - Object ignition (no object/flammability modeling in v1).
+#
+# source: srd_5.2.1
+
+id: f_fireball
+name: Fireball
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 5             # Wizards gain 3rd-level slots at L5
+type: active
+spell:
+  class: c_wizard
+  level: 3
+
+description: |
+  20-ft radius sphere within 150 ft. DEX save vs spell DC: 8d6 fire on
+  a fail, half on a success. +1d6 per slot level above 3.
+
+action_template:
+  id: a_fireball
+  name: Fireball
+  type: aoe_attack
+  spell_slot_level: 3
+  named_effect: fireball
+  range_ft: 150
+  area:
+    shape: sphere
+    radius_ft: 20
+    range_ft: 150
+  upcast_scaling:
+    extra_dice_per_level: "1d6"
+    damage_type: fire
+  pipeline:
+    - primitive: forced_save
+      params:
+        ability: dexterity
+        dc_source: caster_spell_save_dc
+        affected: all_creatures_in_area
+        on_fail:
+          - primitive: damage
+            params: { dice: "8d6", modifier: 0, type: fire }
+        on_success:
+          - primitive: damage
+            params: { dice: "8d6", modifier: 0, type: fire, multiplier: 0.5 }

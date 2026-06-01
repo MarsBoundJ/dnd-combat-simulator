@@ -959,6 +959,15 @@ def _build_feature_actions(features_known: set[str], level: int,
         actions.append(_build_sacred_flame_action(level))
     if "f_toll_the_dead" in features_known:
         actions.append(_build_toll_the_dead_action(level))
+    # Fire Bolt — the arcane ranged-spell-attack cantrip. Mirrors the
+    # Eldritch Blast single-beam path (attack bonus = spell ability mod
+    # + PB, damage gated on hit), but the cantrip upgrade scales the
+    # DIE count (Nd10 fire) rather than the beam count, so there is no
+    # multiattack wrapper. Built here because both the attack bonus and
+    # the die count depend on the PC's ability + character level.
+    if "f_fire_bolt" in features_known and ability_scores is not None:
+        actions.append(_build_fire_bolt_action(
+            level, ability_scores, proficiency_bonus, class_id))
     # PR #116: Cure Wounds — direct heal (2d8 + spellcasting-ability
     # mod). Built here (not auto-attached) because the +mod depends on
     # the caster's ability, like Eldritch Blast / the cantrips.
@@ -1107,6 +1116,40 @@ def _build_sacred_flame_action(level: int) -> dict:
         "a_sacred_flame", "Sacred Flame", level,
         save_ability="dexterity", damage_type="radiant", die=8,
         range_ft=60)
+
+
+def _build_fire_bolt_action(level: int, ability_scores: dict,
+                              proficiency_bonus: int,
+                              class_id: str) -> dict:
+    """Fire Bolt: 120-ft ranged spell attack, Nd10 fire on a hit.
+
+    Attack bonus = the caster's spellcasting-ability modifier (INT for
+    Wizard, per _SPELL_ABILITY_BY_CLASS) + proficiency bonus, exactly
+    like the Eldritch Blast beam. Damage = Nd10 fire with N from
+    _cantrip_dice_count (1/2/3/4 at character level 1/5/11/17) and NO
+    ability modifier (cantrips add none RAW). spell_slot_level 0 →
+    consumes no slot. Single beam — the cantrip upgrade scales the die
+    count, not the attack count, so there is no multiattack wrapper.
+    """
+    abbr = _SPELL_ABILITY_BY_CLASS.get(class_id, "int")
+    score = (ability_scores.get(abbr) or {}).get("score", 10)
+    attack_bonus = ability_modifier(score) + proficiency_bonus
+    n = _cantrip_dice_count(level)
+    return {
+        "id": "a_fire_bolt",
+        "name": "Fire Bolt",
+        "type": "weapon_attack",
+        "slot": "action",
+        "spell_slot_level": 0,            # cantrip — consumes no slot
+        "pipeline": [
+            {"primitive": "attack_roll",
+              "params": {"kind": "ranged", "ability": abbr,
+                          "bonus": attack_bonus, "range_ft": 120}},
+            {"primitive": "damage",
+              "params": {"dice": f"{n}d10", "modifier": 0, "type": "fire"},
+              "when": {"condition": "combat.attack_state == hit"}},
+        ],
+    }
 
 
 def _build_toll_the_dead_action(level: int) -> dict:
