@@ -373,6 +373,43 @@ Bolt / Eldritch Blast / Guiding Bolt / Scorching Ray already are).
   suppression field." Fire Shield additionally needs a retaliation-on-hit
   rider.
 
+## Priority-2 deferrals (batch 4)
+New-system spells from the P2 tier. Most map to buckets above; the
+genuinely-new gaps are called out here.
+- **Ray of Enfeeblement** (L2) — on a failed CON save the target subtracts
+  1d8 from its damage rolls (and has STR-test Disadvantage). Needs a
+  damage-roll penalty primitive (`damage_modifier` is stubbed); the
+  attack/save-modifier path can't reduce damage dealt.
+- **Calm Emotions** (L2) — CHA save to either suppress Charmed/Frightened
+  (needs the cleanse primitive) or make the target Indifferent (a
+  won't-attack-chosen-creatures pacify state with no clean condition —
+  co_charmed only covers "won't harm the caster"). Deferred as a unit.
+- **Flame Blade** (L2) — a conjured fiery blade you make melee spell
+  attacks with each turn for the duration. The wield-each-turn economy is
+  the recurring-caster-action / pseudo-summon bucket (Spiritual Weapon);
+  a one-shot attack would lose the spell's identity.
+- **Barkskin** (L2) — sets the target's AC floor to 17. Needs a
+  set-minimum-AC primitive (ac_modifier only adds).
+- **Resistance** (cantrip) — a one-shot +1d4 to a single save (reaction-
+  timed). Needs a one-shot triggered save-bonus (the Bless modifier path
+  is continuous, not single-use on a chosen save).
+- **Shining Smite** (L2) — a smite rider (next weapon hit deals +radiant
+  and sheds light granting attackers advantage). The built smites
+  (Searing/Blinding/Wrathful) each use a bespoke engine `*_smite_arm`
+  primitive; Shining Smite needs its own arm primitive (desktop/engine).
+- **Acid Splash** (cantrip) — NOT present in the SRD 5.2.1 PDF's spell
+  descriptions (only referenced in the spell-list index), so it can't be
+  sourced from the open document. Skipped pending a sourceable text.
+- Map to existing buckets (no new entry needed): **Beacon of Hope** /
+  **Aura of Life** (ally-buffing emanation + death-prevention),
+  **Protection from Poison** (cleanse + resistance grant), **Compulsion**
+  (forced movement), **Dominate** family done; **Mislead** (decoy/illusion),
+  **Magic Circle** / **Faithful Hound** / **Arcane Sword** (summon/trap),
+  **Gaseous Form** / **Etherealness** / **Tree Stride** / **Word of
+  Recall** / **Jump** (positional/teleport/vertical), **Flesh-to-Stone
+  petrify escalation** + **Imprisonment** / **Storm of Vengeance** /
+  **Contagion 3-save counter** (multi-stage / failure-counter saves).
+
 ## Meta / Special
 - **Wish** (L9, P5) — can duplicate any 8th-level-or-lower spell + freeform
 - **Mass Suggestion** (L6, P5) — multi-target charm control (12 creatures)

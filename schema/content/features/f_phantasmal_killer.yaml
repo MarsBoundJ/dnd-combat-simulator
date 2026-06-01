@@ -1,0 +1,72 @@
+# f_phantasmal_killer — Phantasmal Killer (Level 4 Illusion, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p151): 120 ft, one creature. It makes a Wisdom
+# saving throw. On a fail it takes 4d10 Psychic damage and has
+# Disadvantage on ability checks and attack rolls for the duration; on a
+# success it takes half damage and the spell ends. At the end of each of
+# its turns it re-saves (taking 4d10 again on a fail, ending on a
+# success). Concentration, up to 1 minute. (Bard/Wizard.)
+#
+# Engine modeling: a single-target save-for-half psychic nuke plus a
+# debuff. type save_attack; forced_save WIS vs the caster's spell save
+# DC; on a fail 4d10 psychic + co_cursed (Disadvantage on its attack
+# rolls) + a turn-end WIS re-save; on a success half damage.
+# Concentration.
+#
+# Deferred RAW bits:
+#   - The per-failed-re-save 4d10 recurring damage (recurring_save ends
+#     the condition on success but deals no damage on failure); v1
+#     delivers the initial 4d10 + the lingering attack-Disadvantage.
+#   - The ability-check Disadvantage half of the debuff (co_cursed models
+#     the attack-roll Disadvantage).
+#
+# source: srd_5.2.1
+
+id: f_phantasmal_killer
+name: Phantasmal Killer
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 7             # Wizards gain 4th-level slots at L7
+type: active
+spell:
+  class: c_wizard
+  level: 4
+
+description: |
+  One creature within 120 ft makes a WIS save: 4d10 psychic + Cursed
+  (attack Disadvantage) on a fail, half on a success; re-saves at
+  turn-end. Concentration, 1 minute.
+
+action_template:
+  id: a_phantasmal_killer
+  name: Phantasmal Killer
+  type: save_attack
+  spell_slot_level: 4
+  concentration: true
+  named_effect: phantasmal_killer
+  range_ft: 120
+  save_ability: wisdom
+  save_dc_source: caster_spell_save_dc
+  half_on_success: true
+  pipeline:
+    - primitive: forced_save
+      params:
+        ability: wisdom
+        dc_source: caster_spell_save_dc
+        affected: current_target
+        on_fail:
+          - primitive: damage
+            params: { dice: "4d10", modifier: 0, type: psychic }
+          - primitive: apply_condition
+            params: { condition_id: co_cursed, duration: until_spell_ends }
+          - primitive: recurring_save
+            params:
+              ability: wisdom
+              dc_source: caster_spell_save_dc
+              trigger_event: target_turn_end
+              on_success: end_spell_on_target
+              condition_id: co_cursed
+        on_success:
+          - primitive: damage
+            params: { dice: "4d10", modifier: 0, type: psychic, multiplier: 0.5 }
