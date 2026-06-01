@@ -336,6 +336,11 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
         # the subclass's features are already merged into features_known
         # below, so runtime code reads those, not this id.
         "subclass": (subclass_def.get("id") if subclass_def else None),
+        # Bardic Inspiration die size at this level (d6→d12), read by the
+        # grant + Cutting Words primitives. Only present for Bards.
+        "bardic_die": (
+            _class_resources_at_level(class_def, level).get("bardic_die")
+            if "f_bardic_inspiration" in features_known else None),
         # Per-class level table (read by primitives via
         # `template.levels.<class_short_name>`). Single-class PCs from
         # pc_schema get exactly one entry; multiclass support will
@@ -502,6 +507,19 @@ def derive_pc_resources(pc_spec: dict, content_registry: Any) -> dict:
         if uses > 0:
             resources["rage_uses_remaining"] = uses
             resources["rage_uses_max"] = uses
+
+    # ---- Bardic Inspiration (Bard L1+) ----
+    # Uses = Charisma modifier (minimum 1) — the first CHA-mod-derived
+    # resource (others read fixed values off the class table). Regained
+    # on a long rest (short+long at L5 via Font of Inspiration, deferred).
+    # Consumed by the f_bardic_inspiration grant action AND by Cutting
+    # Words (College of Lore) via their feature_use gates.
+    if "f_bardic_inspiration" in features_known:
+        cha_score = _resolve_ability_scores(
+            pc_spec.get("ability_scores") or {})["cha"]["score"]
+        uses = max(1, ability_modifier(cha_score))
+        resources["bardic_inspiration_uses_remaining"] = uses
+        resources["bardic_inspiration_uses_max"] = uses
 
     # ---- Lay on Hands (Paladin L1+) — PR #83 ----
     # Pool = 5 × paladin_level HP. Refreshes on long rest. The

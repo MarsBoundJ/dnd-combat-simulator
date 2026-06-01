@@ -1,0 +1,192 @@
+# c_bard — Bard (CHA full-caster)
+# Source: SRD CC v5.2.1 (PHB 2024)
+#
+# Fourth full-caster in the engine (after Wizard/INT, Cleric/WIS, and
+# the half-casters). CHA full-caster: pc_schema stamps
+# template.spellcasting_ability = charisma so save-based Bard spells
+# resolve their DC with CHA. Slots come from the per-row
+# class_resources.spell_slots full-caster table (same mechanism
+# Cleric uses; the top-level slots_progression is descriptive).
+#
+# **Signature mechanic — Bardic Inspiration (L1):** grant an ally a
+# Bardic Inspiration die (d6→d8→d10→d12 by level) they can add to a
+# failed d20 Test. Uses = CHA modifier (min 1), regained on long rest
+# (short+long at L5 via Font of Inspiration). The die mechanic +
+# CHA-mod-derived resource are wired in engine.core.bardic_inspiration
+# + pc_schema; the die size per level lives in class_resources.bardic_die.
+#
+# **Spells wired (v1):** the already-built Bard-list spells —
+# Cure Wounds / Healing Word / Heroism (L1), Hold Person / Aid /
+# Suggestion (L2, available once 2nd-level slots arrive at L3). The
+# auto-attach pass (PR #82) keys off features_known + action_template,
+# NOT granted_by, so listing these in the Bard table wires their
+# actions even though their YAML carries a different granted_by class.
+# Coverage expands as the spell lane lands more Bard-list spells
+# (Vicious Mockery, Dissonant Whispers, Faerie Fire, etc.).
+#
+# Deferred class features (each a follow-on):
+#   - Expertise (L2/L9), Jack of All Trades (L2) — skill-check only,
+#     no combat eHP model.
+#   - Font of Inspiration (L5: short-rest recharge + slot→use conversion)
+#   - Countercharm (L7: reaction reroll vs Charmed/Frightened) —
+#     rides the reaction system; follow-on.
+#   - Magical Secrets (L10), Superior Inspiration (L18),
+#     Words of Creation (L20) — spell-list / economy features.
+#   - Subclasses beyond College of Lore (Dance / Glamour / etc.)
+
+id: c_bard
+name: Bard
+source: srd_5.2.1
+
+core_traits:
+  primary_abilities: [charisma]
+  hit_die: d8
+  save_proficiencies: [dexterity, charisma]
+  skill_proficiencies:
+    choose: 3
+    from: [acrobatics, animal_handling, arcana, athletics, deception,
+            history, insight, intimidation, investigation, medicine,
+            nature, perception, performance, persuasion, religion,
+            sleight_of_hand, stealth, survival]
+  weapon_proficiencies: [simple]
+  armor_training: [light]
+  tool_proficiencies: [musical_instrument]
+
+multiclass_entry:
+  traits_gained: [light_armor, simple_weapons]
+  features_gained: []
+  multiclass_slot_contribution: full_caster
+
+spellcasting:
+  enabled: true
+  ability: charisma
+  save_dc_formula: "8 + actor.cha_mod + actor.proficiency_bonus"
+  attack_mod_formula: "actor.cha_mod + actor.proficiency_bonus"
+  preparation_model: prepared_from_class_list
+  preparation_change_trigger: long_rest
+  slots_progression: full_caster
+
+level_table:
+  - level: 1
+    proficiency_bonus: 2
+    features: [f_bardic_inspiration, f_cure_wounds, f_healing_word,
+                f_heroism]
+    class_resources:
+      bardic_die: d6
+      spell_slots: { 1: 2 }
+  - level: 2
+    proficiency_bonus: 2
+    features: []
+    class_resources:
+      bardic_die: d6
+      spell_slots: { 1: 3 }
+  - level: 3
+    proficiency_bonus: 2
+    features: [grant_subclass, f_hold_person, f_aid, f_suggestion]
+    class_resources:
+      bardic_die: d6
+      spell_slots: { 1: 4, 2: 2 }
+  - level: 4
+    proficiency_bonus: 2
+    features: [grant_asi_or_feat]
+    class_resources:
+      bardic_die: d6
+      spell_slots: { 1: 4, 2: 3 }
+  - level: 5
+    proficiency_bonus: 3
+    features: []
+    class_resources:
+      bardic_die: d8
+      spell_slots: { 1: 4, 2: 3, 3: 2 }
+  - level: 6
+    proficiency_bonus: 3
+    features: []
+    class_resources:
+      bardic_die: d8
+      spell_slots: { 1: 4, 2: 3, 3: 3 }
+  - level: 7
+    proficiency_bonus: 3
+    features: []
+    class_resources:
+      bardic_die: d8
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 1 }
+  - level: 8
+    proficiency_bonus: 3
+    features: [grant_asi_or_feat]
+    class_resources:
+      bardic_die: d8
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 2 }
+  - level: 9
+    proficiency_bonus: 4
+    features: []
+    class_resources:
+      bardic_die: d8
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 1 }
+  - level: 10
+    proficiency_bonus: 4
+    features: []
+    class_resources:
+      bardic_die: d10
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2 }
+  - level: 11
+    proficiency_bonus: 4
+    features: []
+    class_resources:
+      bardic_die: d10
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1 }
+  - level: 12
+    proficiency_bonus: 4
+    features: [grant_asi_or_feat]
+    class_resources:
+      bardic_die: d10
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1 }
+  - level: 13
+    proficiency_bonus: 5
+    features: []
+    class_resources:
+      bardic_die: d10
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1, 7: 1 }
+  - level: 14
+    proficiency_bonus: 5
+    features: []
+    class_resources:
+      bardic_die: d10
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1, 7: 1 }
+  - level: 15
+    proficiency_bonus: 5
+    features: []
+    class_resources:
+      bardic_die: d12
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1, 7: 1, 8: 1 }
+  - level: 16
+    proficiency_bonus: 5
+    features: [grant_asi_or_feat]
+    class_resources:
+      bardic_die: d12
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1, 7: 1, 8: 1 }
+  - level: 17
+    proficiency_bonus: 6
+    features: []
+    class_resources:
+      bardic_die: d12
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1, 7: 1, 8: 1, 9: 1 }
+  - level: 18
+    proficiency_bonus: 6
+    features: []
+    class_resources:
+      bardic_die: d12
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 3, 6: 1, 7: 1, 8: 1, 9: 1 }
+  - level: 19
+    proficiency_bonus: 6
+    features: [grant_asi_or_feat]
+    class_resources:
+      bardic_die: d12
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 3, 6: 2, 7: 1, 8: 1, 9: 1 }
+  - level: 20
+    proficiency_bonus: 6
+    features: []
+    class_resources:
+      bardic_die: d12
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 3, 6: 2, 7: 2, 8: 1, 9: 1 }
+
+subclass_grant_level: 3

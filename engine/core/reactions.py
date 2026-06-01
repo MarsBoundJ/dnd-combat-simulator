@@ -521,6 +521,39 @@ def _reaction_condition_satisfied(cond: str | None, reactor: Actor,
         # should be the attacker for retaliation reactions.
         event_data["_reaction_target_is_attacker"] = True
         return True
+    if cond == "cutting_words_would_help":
+        # College of Lore Cutting Words trigger. Conditions:
+        #   - the attacker (event actor) is an enemy of the reactor Bard
+        #   - the defender (event target) is the Bard or an ally
+        #   - the attack was going to hit (no point cutting a miss)
+        #   - attacker within 60 ft of the Bard (RAW range)
+        #   - the Bard can see the attacker (RAW "creature you can see")
+        #   - the Bardic die could plausibly turn the hit into a miss
+        #     (total - max_die < current_ac); avoids burning a use on an
+        #     attack the die can't save against.
+        attacker = event_data.get("actor")
+        defender = event_data.get("target")
+        if attacker is None or defender is None:
+            return False
+        if attacker.side == reactor.side:
+            return False
+        if defender.side != reactor.side:
+            return False
+        if not event_data.get("was_going_to_hit"):
+            return False
+        if distance_ft(reactor.position, attacker.position) > 60:
+            return False
+        from engine.core.vision import can_actor_see
+        if not can_actor_see(reactor, attacker, state):
+            return False
+        from engine.core.bardic_inspiration import die_max
+        die = str((reactor.template or {}).get("bardic_die", "d6"))
+        total = int(event_data.get("total", 0))
+        current_ac = int(event_data.get("current_ac", 0))
+        # Could the max die roll drop the total below AC? (turn hit→miss)
+        if total - die_max(die) >= current_ac:
+            return False
+        return True
     if cond == "enemy_casting_spell_within_60_ft":
         # Counterspell trigger (PR #46): an enemy is casting a spell.
         # Conditions:
