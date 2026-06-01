@@ -1,0 +1,56 @@
+# f_color_spray — Color Spray (Level 1 Illusion, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p115): a 15-ft Cone from you. Each creature in
+# it must succeed on a Constitution saving throw or have the Blinded
+# condition until the end of your next turn. (Bard/Sorcerer/Wizard.) NOT
+# Concentration.
+#
+# Engine modeling: a cone save-or-blind. type aoe_attack with a `cone`
+# area (length 15); forced_save CON vs the caster's spell save DC,
+# all_creatures_in_area; on a fail the creature is Blinded for one round
+# (co_blinded, until its next turn-start — the short self-expiring
+# duration, so no recurring save is needed). Not Concentration.
+#
+# Deferred RAW bits:
+#   - "Blinded until the end of YOUR next turn" approximated as
+#     until_actor_next_turn_start on the blinded creature.
+#
+# source: srd_5.2.1
+
+id: f_color_spray
+name: Color Spray
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 1
+type: active
+spell:
+  class: c_wizard
+  level: 1
+
+description: |
+  15-ft cone from the caster. CON save vs spell DC or Blinded until the
+  start of its next turn. Not Concentration.
+
+action_template:
+  id: a_color_spray
+  name: Color Spray
+  type: aoe_attack
+  spell_slot_level: 1
+  named_effect: color_spray
+  range_ft: 15
+  area:
+    shape: cone
+    length_ft: 15
+  pipeline:
+    - primitive: forced_save
+      params:
+        ability: constitution
+        dc_source: caster_spell_save_dc
+        affected: all_creatures_in_area
+        on_fail:
+          - primitive: apply_condition
+            params:
+              condition_id: co_blinded
+              duration: until_actor_next_turn_start
+        on_success: []
