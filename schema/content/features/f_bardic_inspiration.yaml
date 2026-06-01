@@ -1,0 +1,50 @@
+# f_bardic_inspiration — Bardic Inspiration (Bard L1 signature feature)
+#
+# RAW (SRD 5.2.1 / PHB 2024): As a Bonus Action, inspire a creature
+# within 60 ft who can see or hear you. It gains one Bardic Inspiration
+# die (d6 → d8 at L5 → d10 at L10 → d12 at L15). A creature can hold
+# only one at a time. Once within the next hour, when it fails a D20
+# Test, it can roll the die and add it, potentially turning the failure
+# into a success. Uses = Charisma modifier (min 1), regained on a Long
+# Rest (Short + Long at L5 via Font of Inspiration).
+#
+# Engine modeling:
+#   - Bonus Action that targets an ally; the grant_bardic_inspiration
+#     primitive registers a held-die marker on the ally
+#     (engine.core.bardic_inspiration.register_inspiration_die). The die
+#     size is read from the Bard's template.bardic_die (stamped by
+#     pc_schema from the class table).
+#   - feature_use: bardic_inspiration_uses_remaining — pc_schema derives
+#     the count as max(1, CHA mod); the action's feature_use gate
+#     consumes one per grant.
+#   - The holder's post-roll add lives in engine.core.bardic_inspiration
+#     .maybe_add_to_attack, hooked into _attack_roll: on a would-be miss
+#     the holder may spend the die to try to turn it into a hit.
+#
+# v1 scope: the holder's add is modeled on ATTACK ROLLS (the most common
+# combat d20 Test). RAW also covers saving throws + ability checks —
+# documented follow-ons. AI proactive-granting (when the Bard chooses to
+# inspire, and which ally) is an AI-lane follow-on; the mechanic is
+# correct + tested via direct invocation.
+#
+# source: srd_5.2.1
+
+id: f_bardic_inspiration
+name: Bardic Inspiration
+source: srd_5.2.1
+granted_by:
+  class: c_bard
+  level: 1
+type: active
+
+action_template:
+  id: a_bardic_inspiration
+  name: Bardic Inspiration
+  type: offensive_buff          # buffs an ally (current_attack.target)
+  slot: bonus_action
+  feature_use: bardic_inspiration_uses_remaining
+  named_effect: bardic_inspiration
+  range_ft: 60
+  pipeline:
+    - primitive: grant_bardic_inspiration
+      params: {}

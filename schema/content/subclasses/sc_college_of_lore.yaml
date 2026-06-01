@@ -1,0 +1,29 @@
+# sc_college_of_lore — College of Lore (Bard subclass)
+# Source: SRD CC v5.2.1 (PHB 2024)
+#
+# The SRD Bard subclass. Combat-relevant feature is Cutting Words (L3):
+# a reaction that spends a Bardic Inspiration use to subtract the Bard's
+# die from an enemy's attack roll, modeled as an AC bump on the defender
+# (rides the attack_roll_pending reaction hook — see f_cutting_words).
+#
+# Features by level:
+#   - L3: Bonus Proficiencies (3 skills — non-combat stub),
+#         Cutting Words (the key combat feature)
+#   - L6: Magical Discoveries (spell-list expansion) — deferred
+#   - L14: Peerless Skill (self add to own failed check/attack) —
+#          deferred; rides the same inspiration-die mechanic but on the
+#          Bard's own roll using its own use.
+
+id: sc_college_of_lore
+name: College of Lore
+source: srd_5.2.1
+parent_class: c_bard
+
+archetype_tags:
+  behavior_archetype: cunning_tactician
+  role: controller                # INTERNAL-EVAL-ONLY per vocabulary firewall
+  flavor_tags: [scholarly, witty, versatile]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_bonus_proficiencies, f_cutting_words]

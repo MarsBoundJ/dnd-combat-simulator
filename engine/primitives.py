@@ -226,6 +226,15 @@ def _attack_roll(params: dict, state: CombatState, bus: EventBus) -> dict:
     # in v1, not modifiable mid-attack).
     post_attack_mods = _modifiers.query_attack_modifiers(actor, target, state)
     effective_ac = target.ac + post_attack_mods.ac_modifier + cover_ac_bonus
+    # Bardic Inspiration self-add: an attacker holding a granted die may
+    # spend it post-roll to try to turn a miss into a hit (RAW: add the
+    # die after seeing the result). Uses the FINAL effective_ac so it
+    # accounts for any Shield / Cutting Words AC bump applied by the
+    # attack_roll_pending reactions above. No-op if the attacker holds
+    # no die or the die can't close the gap.
+    from engine.core import bardic_inspiration as _bardic
+    total = _bardic.maybe_add_to_attack(
+        actor, total, effective_ac, is_crit, state, rng)
     is_hit = is_crit or (total >= effective_ac)
     # Forced crit (e.g., Paralyzed target within 5ft): only fires if hit
     if is_hit and crit_mods.force_crit_if_hit:
@@ -2280,6 +2289,63 @@ def _wrathful_smite_arm(params: dict, state: CombatState,
                      action_id=action_id, state=state)
 
 
+def _grant_bardic_inspiration(params: dict, state: CombatState,
+                                bus: EventBus) -> None:
+    """Grant a Bardic Inspiration die to an ally (current_attack.target).
+
+    The die size comes from the granting Bard's template.bardic_die
+    (d6→d12 by level; default d6). The Bardic Inspiration use is consumed
+    by the action's feature_use gate (feature_use:
+    bardic_inspiration_uses_remaining) at execution time, not here — this
+    primitive just registers the held-die marker on the recipient."""
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    target = (state.current_attack or {}).get("target")
+    if actor is None or target is None:
+        raise ValueError("grant_bardic_inspiration needs an actor + target")
+    die = str((actor.template or {}).get("bardic_die", "d6"))
+    from engine.core.bardic_inspiration import register_inspiration_die
+    register_inspiration_die(target, die, actor.id, state)
+
+
+def _cutting_words_resolve(params: dict, state: CombatState,
+                             bus: EventBus) -> dict:
+    """College of Lore Cutting Words (reaction). The Bard spends a Bardic
+    Inspiration use (consumed by the reaction's feature_use gate) to roll
+    their Bardic die and subtract it from an enemy's attack.
+
+    Modeled — like Shield — as an AC bump on the defender, registered
+    during the attack_roll_pending reaction so _attack_roll's
+    post-reaction AC re-query can turn the hit into a miss. The bump uses
+    `per_single_attack` lifetime, so it affects ONLY the triggering
+    attack and is cleared at attack_complete (unlike Shield's
+    until-next-turn +5).
+
+    v1 scope: attack rolls only. RAW Cutting Words also subtracts from
+    a target's ability checks and damage rolls — documented follow-ons."""
+    rng = _get_rng(state, bus)
+    bard = (state.current_attack or {}).get("actor")
+    defender = (state.current_attack or {}).get("target")
+    if bard is None or defender is None:
+        return {"applied": 0}
+    die = str((bard.template or {}).get("bardic_die", "d6"))
+    from engine.core.bardic_inspiration import die_max
+    roll = rng.randint(1, die_max(die))
+    defender.active_modifiers.append({
+        "primitive": "attack_modifier",
+        "params": {"modifier": "ac_modifier", "value": roll},
+        "lifetime": "per_single_attack",
+        "source": {"type": "feature", "id": "f_cutting_words",
+                     "named_effect": "cutting_words", "caster_id": bard.id},
+        "applied_at_round": state.round,
+        "owner_id": defender.id,
+    })
+    state.event_log.append({
+        "event": "cutting_words_resolved", "bard": bard.id,
+        "defender": defender.id, "die": die, "roll": roll,
+    })
+    return {"applied": roll}
+
+
 def _caster_spell_save_dc(actor: Actor) -> int:
     """Compute the actor's spell save DC: 8 + proficiency_bonus +
     spellcasting_ability_modifier.
@@ -2517,6 +2583,8 @@ def _populate_handler_table() -> None:
         "recurring_temp_hp": _recurring_temp_hp,
         "armor_of_agathys_arm": _armor_of_agathys_arm,
         "hp_max_grant": _hp_max_grant,
+        "grant_bardic_inspiration": _grant_bardic_inspiration,
+        "cutting_words_resolve": _cutting_words_resolve,
     }
 
 
@@ -2594,6 +2662,16 @@ def _all_primitives() -> list[Primitive]:
         # pattern: registers a one-shot marker; _damage fires the
         # rider (1d6 psychic + WIS save -> Frightened).
         Primitive("wrathful_smite_arm", _wrathful_smite_arm,
+                    implemented=True),
+        # Bardic Inspiration — grant a held die to an ally. The holder's
+        # post-roll self-add lives in engine.core.bardic_inspiration
+        # (hooked in _attack_roll), not a primitive.
+        Primitive("grant_bardic_inspiration", _grant_bardic_inspiration,
+                    implemented=True),
+        # College of Lore Cutting Words — reaction that rolls the Bard's
+        # die and bumps the defender's AC (per_single_attack) to negate
+        # an enemy hit. Rides the attack_roll_pending reaction hook.
+        Primitive("cutting_words_resolve", _cutting_words_resolve,
                     implemented=True),
         # PR #90 — Hex curse primitive. Registers a target-specific
         # weapon_damage_bonus modifier on the caster gated via

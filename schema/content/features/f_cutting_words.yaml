@@ -1,0 +1,47 @@
+# f_cutting_words — Cutting Words (College of Lore L3)
+#
+# RAW (SRD 5.2.1 / PHB 2024): When a creature you can see within 60 ft
+# makes a damage roll or succeeds on an ability check or attack roll,
+# you can take a Reaction to expend one use of Bardic Inspiration; roll
+# your Bardic Inspiration die and subtract the number from the
+# creature's roll, reducing the damage or potentially turning the
+# success into a failure.
+#
+# Engine modeling: rides the existing attack_roll_pending reaction hook
+# (the same one Shield uses). The cutting_words_resolve primitive rolls
+# the Bard's die and registers a per_single_attack AC bump on the
+# defender — _attack_roll's post-reaction AC re-query then turns the hit
+# into a miss if the roll closes the gap. The reaction's feature_use
+# gate consumes one Bardic Inspiration use.
+#
+# Condition `cutting_words_would_help` gates firing: attacker is an
+# enemy within 60 ft, defender is the Bard or an ally, the attack was
+# going to hit, and the die could plausibly negate it.
+#
+# v1 scope: ATTACK ROLLS only (turn an enemy hit into a miss). RAW also
+# subtracts from a target's ability checks and damage rolls — documented
+# follow-ons.
+#
+# source: srd_5.2.1
+
+id: f_cutting_words
+name: Cutting Words
+source: srd_5.2.1
+granted_by:
+  subclass: sc_college_of_lore
+  level: 3
+type: triggered
+
+action_template:
+  id: a_cutting_words
+  name: Cutting Words
+  type: defensive_buff           # reactive defense of self/ally
+  slot: reaction
+  trigger: attack_roll_pending
+  condition: cutting_words_would_help
+  feature_use: bardic_inspiration_uses_remaining
+  named_effect: cutting_words
+  signature_reaction: true       # always fire when eligible (no slot to pace)
+  pipeline:
+    - primitive: cutting_words_resolve
+      params: {}
