@@ -120,8 +120,14 @@ def generate_candidates(actor: Actor, state: CombatState,
     # (a precise V-component check is deferred — no action declares
     # its components today).
     if _actor_in_silence_zone(actor, state):
+        # Metamagic Subtle Spell bypasses the Verbal-component gate
+        # (an action flagged `subtle` by the metamagic transform casts
+        # normally inside Silence). Without Subtle, level-1+ spells are
+        # filtered. (Subtle is applied by the AI at cast time, so this
+        # honor is latent until metamagic AI selection lands.)
         actions = [a for a in actions
-                    if int(a.get("spell_slot_level", 0)) <= 0]
+                    if int(a.get("spell_slot_level", 0)) <= 0
+                    or a.get("subtle")]
     # PR #80: requires-no-movement gate. Actions that declare
     # `requires_no_movement: true` (Steady Aim today; future Stand
     # Still / Aim-shape actions reuse) are filtered out when the

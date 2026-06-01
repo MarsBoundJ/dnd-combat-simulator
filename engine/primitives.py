@@ -97,6 +97,27 @@ def _roll_dice_expr_with_floor(expr: str, floor: int,
     return sum(max(rng.randint(1, sides), floor) for _ in range(count))
 
 
+def _roll_dice_empowered(expr: str, floor: int, reroll_n: int,
+                           rng: _random_module.Random) -> int:
+    """Roll `expr` individually, then reroll the lowest `reroll_n` dice
+    keeping the new results (Metamagic Empowered Spell). floor clamps
+    each die as in _roll_dice_expr_with_floor. Falls back to the floor
+    roller for non-NdM expressions or reroll_n <= 0."""
+    if reroll_n <= 0:
+        return _roll_dice_expr_with_floor(expr, floor, rng)
+    m = _DICE_PATTERN.fullmatch(expr.strip())
+    if not m:
+        return _roll_dice_expr_with_floor(expr, floor, rng)
+    count, sides = int(m.group(1)), int(m.group(2))
+    fl = floor if floor > 1 else 1
+    rolls = [max(rng.randint(1, sides), fl) for _ in range(count)]
+    # Reroll the lowest reroll_n dice (RAW: "you must use the new rolls").
+    lowest = sorted(range(count), key=lambda i: rolls[i])[:min(reroll_n, count)]
+    for i in lowest:
+        rolls[i] = max(rng.randint(1, sides), fl)
+    return sum(rolls)
+
+
 # ============================================================================
 # IMPLEMENTED — Attack pipeline (v0 + v1 modifier consultation)
 # ============================================================================
@@ -236,6 +257,21 @@ def _attack_roll(params: dict, state: CombatState, bus: EventBus) -> dict:
     total = _bardic.maybe_add_to_attack(
         actor, total, effective_ac, is_crit, state, rng)
     is_hit = is_crit or (total >= effective_ac)
+    # Metamagic Seeking Spell: if a spell attack misses, reroll the d20
+    # once and use the new roll (set on the action by the metamagic
+    # transform). Consumed so a multi-step action doesn't reroll twice.
+    _mm_action = (state.current_attack or {}).get("action") or {}
+    if (not is_hit and _mm_action.get("metamagic_seeking")):
+        _mm_action["metamagic_seeking"] = False
+        new_d20 = rng.randint(1, 20)
+        if new_d20 > d20:
+            d20 = new_d20
+            total = d20 + effective_bonus
+        is_crit = (d20 >= crit_mods.crit_threshold)
+        is_hit = is_crit or (total >= effective_ac)
+        state.event_log.append({
+            "event": "metamagic_seeking_reroll", "actor": actor.id,
+            "new_d20": new_d20, "total": total, "hit": is_hit})
     # Forced crit (e.g., Paralyzed target within 5ft): only fires if hit
     if is_hit and crit_mods.force_crit_if_hit:
         is_crit = True
@@ -316,10 +352,14 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
     # 2024's "treat any 1 or 2 as a 3" exactly.
     floor = int(params.get("damage_die_floor", 0))
 
+    # Metamagic Empowered Spell: reroll the lowest N damage dice (N =
+    # caster CHA mod), set on the damage step's params by the metamagic
+    # transform. 0 → normal roll.
+    empowered_n = int(params.get("empowered_reroll", 0) or 0)
     if dice:
-        rolled = _roll_dice_expr_with_floor(dice, floor, rng)
+        rolled = _roll_dice_empowered(dice, floor, empowered_n, rng)
         if is_crit:
-            rolled += _roll_dice_expr_with_floor(dice, floor, rng)
+            rolled += _roll_dice_empowered(dice, floor, empowered_n, rng)
     else:
         rolled = 0
 
@@ -985,9 +1025,36 @@ def _forced_save(params: dict, state: CombatState, bus: EventBus) -> dict:
     saved_save_context = state.current_save_context
     state.current_save_context = build_save_context(params)
 
+    # Metamagic honors (set by engine.core.metamagic transforms):
+    #   - careful_allies: N caster-allies auto-succeed + take no damage
+    #     (Careful Spell). Exhausted in target order.
+    #   - heightened: the first rolling target makes its save at
+    #     disadvantage (Heightened Spell — RAW "one target").
+    careful_allies = int(params.get("careful_allies", 0) or 0)
+    careful_used = 0
+    heightened = bool(params.get("heightened"))
+    heightened_applied = False
+    mm_caster = (state.current_attack or {}).get("actor")
+
     targets = _resolve_save_targets(params, state)
     rolls = []
     for target in targets:
+        # Careful Spell: a chosen caster-ally automatically succeeds and
+        # takes no damage (skip rolling + skip on_success/on_fail).
+        if (careful_allies and mm_caster is not None
+                and target.side == mm_caster.side
+                and careful_used < careful_allies):
+            careful_used += 1
+            rolls.append({"target_id": target.id, "outcome": "success",
+                           "d20": None, "total": None, "dc": dc,
+                           "ability": ability, "careful": True})
+            state.current_save = {"target": target, "outcome": "success",
+                                   "ability": ability, "dc": dc}
+            state.event_log.append({
+                "event": "forced_save", "target": target.id,
+                "ability": ability, "dc": dc, "d20": None, "total": None,
+                "outcome": "success", "metamagic_careful": True})
+            continue
         # Query save modifiers
         save_mods = _modifiers.query_save_modifiers(target, ability, state)
         override = save_mods.net_outcome_override()
@@ -1003,6 +1070,11 @@ def _forced_save(params: dict, state: CombatState, bus: EventBus) -> dict:
         else:
             save_bonus = target.abilities.get(_short_ability(ability), {}).get("save", 0)
             adv_state = save_mods.net_advantage()
+            # Heightened Spell: force disadvantage on the first rolling
+            # target (overrides any pre-existing advantage state).
+            if heightened and not heightened_applied:
+                adv_state = "disadvantage"
+                heightened_applied = True
             if adv_state == "advantage":
                 d20 = max(rng.randint(1, 20), rng.randint(1, 20))
             elif adv_state == "disadvantage":

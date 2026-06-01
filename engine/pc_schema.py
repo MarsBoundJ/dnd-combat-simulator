@@ -351,6 +351,10 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
         "bardic_die": (
             _class_resources_at_level(class_def, level).get("bardic_die")
             if "f_bardic_inspiration" in features_known else None),
+        # Metamagic options this Sorcerer knows (chosen at build time via
+        # pc_spec.metamagic). engine.core.metamagic.knows() reads this.
+        "metamagic_known": (list(pc_spec.get("metamagic") or [])
+                              if "f_metamagic" in features_known else []),
         # Per-class level table (read by primitives via
         # `template.levels.<class_short_name>`). Single-class PCs from
         # pc_schema get exactly one entry; multiclass support will
