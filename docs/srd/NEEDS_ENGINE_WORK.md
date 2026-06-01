@@ -104,6 +104,26 @@ first, then the spell rides it.
   mean dice, capped at target HP) so the AI will select it. Until then
   Magic Missile is correct under direct execution but not auto-cast.
 
+## Engine refinements (built spells work, but lean on a workaround)
+- **apply_condition should stamp `source_action_id`.** end_concentration
+  scrubs an actor's modifiers/auras tied to a caster's spell, but only
+  removes applied_conditions whose `source_action_id` matches — and
+  apply_condition records only `source_id` (the caster), never the
+  action id. So a plain forced_save + apply_condition control spell does
+  NOT release its condition when the caster's concentration ends (or the
+  caster dies). The save-or-lose spells built so far (Hold Person,
+  Suggestion, Hypnotic Pattern; Slow / Banishment in 1d) work around this
+  by registering a turn-end recurring_save as the escape — SRD-accurate
+  for Hold Person and Slow, but a documented simplification for the
+  others (RAW they end on damage / concentration-loss). Fix: have
+  apply_condition stamp the in-flight `state.current_attack.action.id`
+  onto the application so end_concentration scrubs it; then the
+  no-RAW-recurring-save spells can drop the proxy save.
+- **Charmed partial-denial weight.** co_charmed isn't in the AI's
+  HARD/PARTIAL control sets, so Suggestion (and any Charmed-applying
+  spell) scores 0 in defensive_ehp_hard_control. Charmed denies only
+  attacks against the charmer — assign it a small partial-denial weight.
+
 ## Meta / Special
 - **Wish** (L9, P5) — can duplicate any 8th-level-or-lower spell + freeform
 - **Mass Suggestion** (L6, P5) — multi-target charm control (12 creatures)

@@ -1,0 +1,82 @@
+# f_hypnotic_pattern — Hypnotic Pattern (Level 3 Illusion, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p140): you create a twisting pattern of colors
+# in a 30-foot Cube within 120 ft. Each creature in the area who can see
+# the pattern must succeed on a Wisdom saving throw or have the Charmed
+# condition for the duration; while Charmed this way it also has the
+# Incapacitated condition and a Speed of 0. The spell ends for an
+# affected creature if it takes any damage or if someone else uses an
+# action to shake it out of its stupor. No Verbal component (S, M only).
+# Concentration, up to 1 minute.
+#
+# Engine modeling: an AoE crowd-control burst (no damage).
+#   - type: aoe_attack with a cube `area` (30 ft within 120 ft). The
+#     forced_save resolver fills the cube via `all_creatures_in_area`.
+#   - forced_save: WIS vs the caster's spell save DC. on_fail applies
+#     co_incapacitated (the load-bearing "can't take actions" effect that
+#     RAW's Incapacitated + Speed 0 collapses to) for the duration, plus
+#     a per-creature recurring WIS save at turn-end as the v1 escape.
+#   - offensive_ehp_aoe scores it via the AoE control path (Incapacitated
+#     = full denial 1.0 per affected enemy, friendly fire subtracts).
+#   - Concentration.
+#
+# Deferred RAW bits:
+#   - The full Charmed + Speed-0 stack — v1 applies Incapacitated only
+#     (the action-denial is the load-bearing combat effect).
+#   - "Ends if it takes damage / someone shakes it" — v1 substitutes a
+#     turn-end WIS save as the escape (which also guarantees the
+#     condition lifts even though apply_condition isn't scrubbed on the
+#     caster's concentration end yet — see NEEDS_ENGINE_WORK).
+#   - "Who can see the pattern" — no line-of-sight gate on the save in v1.
+#   - Cube geometry: forced_save's AoE resolver supports sphere/cone/line
+#     (not cube), so the 30-ft Cube is approximated as a 15-ft-radius
+#     Sphere — the same approximation the existing Hypnotic Pattern test
+#     fixture uses, and consistent with Moonbeam's cylinder→sphere.
+#
+# source: srd_5.2.1
+
+id: f_hypnotic_pattern
+name: Hypnotic Pattern
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 5             # Wizards gain 3rd-level slots at L5
+type: active
+spell:
+  class: c_wizard
+  level: 3
+
+description: |
+  30-ft cube within 120 ft. Each creature makes a WIS save or is
+  Incapacitated; re-saves at its turn-end to break free.
+  Concentration, 1 minute.
+
+action_template:
+  id: a_hypnotic_pattern
+  name: Hypnotic Pattern
+  type: aoe_attack
+  spell_slot_level: 3
+  concentration: true
+  named_effect: hypnotic_pattern
+  range_ft: 120
+  area:
+    shape: sphere       # 30-ft Cube approximated as a 15-ft-radius Sphere
+    radius_ft: 15
+    range_ft: 120
+  pipeline:
+    - primitive: forced_save
+      params:
+        ability: wisdom
+        dc_source: caster_spell_save_dc
+        affected: all_creatures_in_area
+        on_fail:
+          - primitive: apply_condition
+            params: { condition_id: co_incapacitated, duration: until_spell_ends }
+          - primitive: recurring_save
+            params:
+              ability: wisdom
+              dc_source: caster_spell_save_dc
+              trigger_event: target_turn_end
+              on_success: end_spell_on_target
+              condition_id: co_incapacitated
+        on_success: []
