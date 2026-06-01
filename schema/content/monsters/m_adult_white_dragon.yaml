@@ -1,0 +1,104 @@
+# m_adult_white_dragon — Adult White Dragon
+# Source: SRD CC v5.2.1 p339
+# Triage: GREEN for core kit — Multiattack of Rend (+ cold rider),
+# recharge Cold Breath (CON-save cone), Legendary Resistance (3/Day),
+# and Legendary Actions (Freezing Burst save + Pounce Rend).
+# DEFERRED (see MONSTERS_NEED_ENGINE_WORK.md): the Frightful Presence
+# legendary action (casts Fear). Freezing Burst's Speed-0 rider is omitted
+# (no engine hook); cold damage modeled. Fly/Burrow/Swim and the Ice Walk
+# trait's terrain effect omitted (walk stand-in). Pounce's half-Speed move
+# omitted; modeled as one Rend.
+id: m_adult_white_dragon
+name: Adult White Dragon
+source: srd_5.2.1
+size: huge
+creature_type: dragon
+type_tags: [chromatic]
+alignment: chaotic_evil
+combat:
+  armor_class: 18
+  hit_points: { average: 200, dice: "16d12", con_contribution: 96 }
+  speed: { walk: 40 }
+  initiative: { modifier: 10, score: 20 }
+abilities:
+  str: { score: 22, save: 6 }
+  dex: { score: 10, save: 5 }
+  con: { score: 22, save: 6 }
+  int: { score: 8, save: -1 }
+  wis: { score: 12, save: 6 }
+  cha: { score: 12, save: 1 }
+skills: { perception: 11, stealth: 5 }
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: [cold]
+condition_immunities: []
+senses: { passive_perception: 21, special: { blindsight: 60, darkvision: 120 } }
+languages: [common, draconic]
+cr: { value: 13, xp: 10000, proficiency_bonus: 5 }
+legendary_resistance: { uses: 3 }
+traits:
+  - id: t_ice_walk
+    name: Ice Walk
+    type: trait_passive
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 3
+    sub_actions: [a_rend]
+  - id: a_rend
+    name: Rend
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 11, reach_ft: 10 }
+      - primitive: damage
+        params: { dice: "2d6", modifier: 6, type: slashing, average: 13 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: damage
+        params: { dice: "1d8", modifier: 0, type: cold, average: 4 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+  - id: a_cold_breath
+    name: Cold Breath
+    type: aoe_attack
+    recharge: "5-6"
+    area: { shape: cone, length_ft: 60 }
+    pipeline:
+      - primitive: forced_save
+        params:
+          ability: constitution
+          dc: 19
+          affected: all_creatures_in_area
+          on_fail:
+            - primitive: damage
+              params: { dice: "12d8", modifier: 0, type: cold, average: 54 }
+          on_success:
+            - primitive: damage
+              params: { dice: "12d8", modifier: 0, type: cold, average: 54, multiplier: 0.5 }
+legendary_actions:
+  uses_per_round: 3
+  options:
+    - id: la_freezing_burst
+      name: Freezing Burst
+      type: aoe_attack
+      # CON save DC 14, 30-ft-radius Sphere within 120 ft. The Speed-0 rider
+      # is omitted (no engine hook); cold damage modeled.
+      area: { shape: sphere, radius_ft: 30, range_ft: 120 }
+      pipeline:
+        - primitive: forced_save
+          params:
+            ability: constitution
+            dc: 14
+            affected: all_creatures_in_area
+            on_fail:
+              - primitive: damage
+                params: { dice: "2d6", modifier: 0, type: cold, average: 7 }
+            on_success: []
+    - id: la_pounce
+      name: Pounce
+      type: multiattack
+      count: 1
+      sub_actions: [a_rend]
+behavior_profile:
+  archetype: apex_predator
+  presets: { retreat: ftd, ability_selection: default, targeting: weakest_target, action_economy: skilled }

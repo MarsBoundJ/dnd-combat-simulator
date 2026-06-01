@@ -1,0 +1,84 @@
+# m_adult_blue_dragon — Adult Blue Dragon
+# Source: SRD CC v5.2.1 p266
+# Triage: GREEN for core kit — Multiattack of Rend (+ lightning rider),
+# recharge Lightning Breath (DEX-save line), Legendary Resistance (3/Day),
+# and Legendary Actions (Tail Swipe Rend).
+# DEFERRED (see MONSTERS_NEED_ENGINE_WORK.md): innate Spellcasting and the
+# "replace one attack with Spellcasting" Multiattack option; the Cloaked
+# Flight and Sonic Boom legendary actions (both cast spells via Spellcasting).
+# Fly/Burrow omitted (walk stand-in).
+id: m_adult_blue_dragon
+name: Adult Blue Dragon
+source: srd_5.2.1
+size: huge
+creature_type: dragon
+type_tags: [chromatic]
+alignment: lawful_evil
+combat:
+  armor_class: 19
+  hit_points: { average: 212, dice: "17d12", con_contribution: 102 }
+  speed: { walk: 40 }
+  initiative: { modifier: 10, score: 20 }
+abilities:
+  str: { score: 25, save: 7 }
+  dex: { score: 10, save: 5 }
+  con: { score: 23, save: 6 }
+  int: { score: 16, save: 3 }
+  wis: { score: 15, save: 7 }
+  cha: { score: 20, save: 5 }
+skills: { perception: 12, stealth: 5 }
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: [lightning]
+condition_immunities: []
+senses: { passive_perception: 22, special: { blindsight: 60, darkvision: 120 } }
+languages: [common, draconic]
+cr: { value: 16, xp: 15000, proficiency_bonus: 5 }
+legendary_resistance: { uses: 3 }
+traits: []
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 3
+    sub_actions: [a_rend]
+  - id: a_rend
+    name: Rend
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 12, reach_ft: 10 }
+      - primitive: damage
+        params: { dice: "2d8", modifier: 7, type: slashing, average: 16 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: damage
+        params: { dice: "1d10", modifier: 0, type: lightning, average: 5 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+  - id: a_lightning_breath
+    name: Lightning Breath
+    type: aoe_attack
+    recharge: "5-6"
+    area: { shape: line, length_ft: 90, width_ft: 5 }
+    pipeline:
+      - primitive: forced_save
+        params:
+          ability: dexterity
+          dc: 19
+          affected: all_creatures_in_area
+          on_fail:
+            - primitive: damage
+              params: { dice: "11d10", modifier: 0, type: lightning, average: 60 }
+          on_success:
+            - primitive: damage
+              params: { dice: "11d10", modifier: 0, type: lightning, average: 60, multiplier: 0.5 }
+legendary_actions:
+  uses_per_round: 3
+  options:
+    - id: la_tail_swipe
+      name: Tail Swipe
+      type: multiattack
+      count: 1
+      sub_actions: [a_rend]
+behavior_profile:
+  archetype: apex_predator
+  presets: { retreat: ftd, ability_selection: default, targeting: weakest_target, action_economy: skilled }
