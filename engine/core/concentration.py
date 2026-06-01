@@ -186,6 +186,18 @@ def end_concentration(caster: Actor, state: CombatState,
         if env_dirty:
             state.encounter.environment = env
 
+    # Form system: revert any active form sustained by THIS concentration
+    # (e.g. Polymorph ends → the target returns to its true form). Scans
+    # every actor for a top form layer whose source matches this spell.
+    from engine.core import forms
+    for target in state.encounter.actors:
+        if not target.form_stack:
+            continue
+        src = (target.form_stack[-1].get("source") or {})
+        if (src.get("caster_id") == caster_id
+                and src.get("action_id") == action_id):
+            forms.revert_form(target, state, reason="concentration_ended")
+
     caster.concentration_on = None
     state.event_log.append({
         "event": "concentration_ended",

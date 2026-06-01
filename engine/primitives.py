@@ -557,11 +557,17 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
     # checks (concentration save, creature_dropped, rage damage
     # tracker) see the FULL damage amount — temp HP is a defensive
     # buffer, not a damage reduction.
+    # Form system: when transformed, hp_current IS the active form's pool;
+    # `_form_overflow` records damage beyond it so a carry_overflow policy
+    # (Polymorph) can pass excess to the restored true HP on revert.
+    _hp_before = target.hp_current
+    _dmg_to_hp = 0
     if total > 0 and target.temp_hp > 0:
         absorbed = min(total, target.temp_hp)
         target.temp_hp -= absorbed
         overflow = total - absorbed
         if overflow > 0:
+            _dmg_to_hp = overflow
             target.hp_current = max(0, target.hp_current - overflow)
         state.event_log.append({
             "event": "temp_hp_absorbed",
@@ -571,7 +577,9 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
             "temp_hp_remaining": target.temp_hp,
         })
     else:
+        _dmg_to_hp = total
         target.hp_current = max(0, target.hp_current - total)
+    _form_overflow = max(0, _dmg_to_hp - _hp_before)
 
     # PR #96: fire AoA reflective cold damage to the attacker now
     # that the target's damage has resolved. The reflection runs
@@ -635,11 +643,21 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
         attempt_concentration_save(target, total, state, rng)
 
     if target.hp_current == 0:
-        target.is_dead = True
-        # Death ends any concentration the deceased was maintaining
-        if target.concentration_on is not None:
-            from engine.core.concentration import end_concentration
-            end_concentration(target, state, reason="caster_died")
+        # Form system: a transformed creature dropping to 0 in its form
+        # REVERTS instead of dying (Wild Shape: back to the druid;
+        # Polymorph: back to true form with overflow carried). revert_form
+        # restores true-form HP and only marks death if the overflow
+        # itself zeroes the true form.
+        from engine.core import forms
+        if forms.is_transformed(target):
+            forms.revert_form(target, state, reason="hp_zero",
+                                overflow=_form_overflow)
+        else:
+            target.is_dead = True
+            # Death ends any concentration the deceased was maintaining
+            if target.concentration_on is not None:
+                from engine.core.concentration import end_concentration
+                end_concentration(target, state, reason="caster_died")
         bus.emit("creature_dropped", {"creature": target})
         state.event_log.append({"event": "creature_dropped", "creature": target.id})
     elif target.is_bloodied():
