@@ -125,6 +125,16 @@
         "attack_bonus": { "type": "integer" }
       }
     },
+    "regeneration": {
+      "description": "Regeneration: regain `amount` HP at the start of each of the creature's turns. `suppressed_by` damage types switch it off for the creature's next turn (Troll: acid/fire). `revives_from_zero` true models the Troll rule (the creature isn't dead at 0 HP — it regenerates back unless suppressed, and dies only if it starts its turn at 0 while suppressed); false models the 'if it has at least 1 HP' gate (no revival from 0). Consumed by engine.core.regeneration.",
+      "type": "object",
+      "properties": {
+        "amount": { "type": "integer", "minimum": 1 },
+        "suppressed_by": { "type": "array", "items": { "type": "string" } },
+        "revives_from_zero": { "type": "boolean" }
+      },
+      "required": ["amount"]
+    },
 
     "behavior_profile": {
       "description": "Inline BehaviorProfile per pillars-reconciliation.md §3. See that document for the full schema.",

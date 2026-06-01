@@ -629,6 +629,12 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
     # "took damage this turn" branch of the rule.
     _rage.mark_damaged_while_raging(target, total)
 
+    # Regeneration: a suppressing damage type (Troll: acid/fire) switches
+    # the trait off for the creature's next turn. No-op for non-regenerators.
+    if total > 0:
+        from engine.core import regeneration as _regeneration
+        _regeneration.note_damage(target, dmg_type)
+
     bus.emit("damage_dealt", {"actor": actor, "target": target,
                                 "amount": total, "type": dmg_type})
     state.event_log.append({"event": "damage_dealt", "actor": actor.id,
@@ -650,9 +656,18 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
         # restores true-form HP and only marks death if the overflow
         # itself zeroes the true form.
         from engine.core import forms
+        from engine.core import regeneration as _regeneration
         if forms.is_transformed(target):
             forms.revert_form(target, state, reason="hp_zero",
                                 overflow=_form_overflow)
+        elif _regeneration.revives_from_zero(target):
+            # Troll rule: 0 HP is NOT death. The creature is downed and
+            # regenerates back at its next turn start — unless it took
+            # acid/fire (regen_suppressed), in which case the turn-start
+            # resolution kills it. Leave is_dead False here.
+            state.event_log.append({
+                "event": "downed_pending_regeneration", "actor": target.id,
+            })
         else:
             target.is_dead = True
             # Death ends any concentration the deceased was maintaining
