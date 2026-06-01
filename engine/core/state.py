@@ -222,6 +222,22 @@ class Actor:
     # Holy Weapon damage type gating, type-based spell immunities.
     creature_type: str = "humanoid"
 
+    # --- Form / identity system (Agent Identity & Lifecycle, Phase 1) ---
+    # While transformed (Wild Shape / Polymorph / Change Shape), the
+    # Actor's LIVE combat fields (hp_current/max, ac, speed, abilities,
+    # size, creature_type, template) hold the ACTIVE form's stats, and
+    # the true-form values are saved in `base_form_snapshot`. This lets
+    # every existing stat/damage/death path operate unchanged — the
+    # current form IS the live Actor. See docs/architecture/
+    # form-identity-system.md and engine.core.forms.
+    #
+    # `base_form_snapshot`: dict of saved true-form fields (taken when the
+    # FIRST form is assumed; None ⇒ in true form).
+    base_form_snapshot: dict | None = None
+    # `form_stack`: active form layers, innermost first; [] ⇒ true form.
+    # Each entry: {form_id, policy, source, reversion}. Top = current.
+    form_stack: list = field(default_factory=list)
+
     # Racial trait ids (PR #75). Loaded from PC race spec via
     # pc_schema → cli — e.g. `["t_lucky", "t_brave"]` for a Halfling.
     # Read at runtime by query_save_modifiers (Brave / Fey Ancestry /
