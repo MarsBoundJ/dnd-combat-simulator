@@ -1,0 +1,60 @@
+# f_magic_missile — Magic Missile (Level 1 Evocation, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p145): you create three glowing darts of
+# magical force. Each dart automatically strikes a creature you can see
+# within 120 ft — there is NO attack roll and NO saving throw — dealing
+# 1d4 + 1 Force damage. The darts strike simultaneously and may be split
+# across creatures or focused on one. Using a Higher-Level Spell Slot:
+# one additional dart per slot level above 1.
+#
+# Engine modeling: the guaranteed-hit force-damage spell. Because there
+# is no attack roll and no save, it rides the bare `damage` primitive
+# directly — _execute_single runs the pipeline against
+# state.current_attack.target with no attack_roll/forced_save gating
+# (the same "no-roll damage" path Cloud of Daggers uses inside its
+# aura). v1 focus-fires all three darts on one target (the EB v1
+# convention), so the three 1d4+1 darts collapse to a single damage
+# step of "3d4" + 3 Force — an identical distribution to 3×(1d4+1).
+#   - upcast_scaling: +1d4 Force per slot level above 1 (one extra dart).
+#
+# Deferred RAW bits:
+#   - Dart splitting across multiple targets (v1 focus-fires).
+#   - Upcast adds the per-dart "+1" modifier too (RAW +1d4+1 per dart);
+#     the engine's dice-only upcast adds +1d4 per level, dropping the +1.
+#   - AI candidate-generation / scoring: an auto-hit, no-save damage
+#     spell has no offensive scoring archetype yet (offensive_ehp_aoe
+#     and the attack/save scorers all assume a roll). Until the desktop
+#     lane adds an `auto_hit` damage archetype, Magic Missile loads and
+#     executes correctly but isn't auto-selected by the AI. Tracked in
+#     docs/srd/NEEDS_ENGINE_WORK.md.
+#
+# source: srd_5.2.1
+
+id: f_magic_missile
+name: Magic Missile
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 1
+type: active
+spell:
+  class: c_wizard
+  level: 1
+
+description: |
+  Three force darts auto-hit (no roll, no save) for 1d4+1 each. v1
+  focus-fires one target as 3d4+3 force. +1 dart per slot above 1st.
+
+action_template:
+  id: a_magic_missile
+  name: Magic Missile
+  type: auto_attack
+  spell_slot_level: 1
+  named_effect: magic_missile
+  range_ft: 120
+  upcast_scaling:
+    extra_dice_per_level: "1d4"
+    damage_type: force
+  pipeline:
+    - primitive: damage
+      params: { dice: "3d4", modifier: 3, type: force }

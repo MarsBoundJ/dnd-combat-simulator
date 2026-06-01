@@ -1,0 +1,55 @@
+# f_mage_armor — Mage Armor (Level 1 Abjuration, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p144): you touch a willing creature who isn't
+# wearing armor. Until the spell ends (8 hours), the target's base AC
+# becomes 13 + its Dexterity modifier. The spell ends early if the
+# target dons armor. NOT Concentration in the 2024 rules.
+#
+# Engine modeling: a self/ally defensive buff. RAW sets base AC to
+# 13 + DEX, which (for an unarmored caster, whose base is 10 + DEX) is
+# exactly a flat +3 AC — so it rides the `attack_modifier` primitive as
+# an ac_modifier of +3, the same shape as Shield of Faith's +2 but
+# self-targeted, non-Concentration, and lasting the adventuring day
+# (until_long_rest). named_effect "mage_armor" gives cross-/same-caster
+# dedup so re-casting doesn't stack.
+#
+# Deferred RAW bits:
+#   - The +3 assumes the unarmored caster RAW already requires (the
+#     spell only works on an unarmored target and ends if armor is
+#     donned). v1 doesn't re-derive AC from a "base 13 + DEX" rule, so
+#     a target who is somehow armored would incorrectly gain +3; in
+#     practice only unarmored casters take it.
+#   - "Ends early if the target dons armor" — no mid-combat armor
+#     swapping is modeled.
+#
+# source: srd_5.2.1
+
+id: f_mage_armor
+name: Mage Armor
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 1
+type: active
+spell:
+  class: c_wizard
+  level: 1
+
+description: |
+  Target's base AC becomes 13 + DEX (a flat +3 for an unarmored
+  caster). 8 hours, not Concentration.
+
+action_template:
+  id: a_mage_armor
+  name: Mage Armor
+  type: defensive_buff
+  spell_slot_level: 1
+  named_effect: mage_armor
+  range_ft: 5             # touch
+  pipeline:
+    - primitive: attack_modifier
+      params:
+        target: self
+        modifier: ac_modifier
+        value: 3
+        lifetime: until_long_rest

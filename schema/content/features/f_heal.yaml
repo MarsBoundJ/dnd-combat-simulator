@@ -1,0 +1,48 @@
+# f_heal — Heal (Level 6 Abjuration, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p138): choose a creature within 60 ft.
+# Positive energy restores 70 Hit Points and ends the Blinded,
+# Deafened, and Poisoned conditions on the target. Using a Higher-Level
+# Spell Slot: the healing increases by 10 per slot level above 6.
+#
+# Engine modeling: a flat, large single-target heal. Unlike Cure Wounds
+# / Healing Word, Heal restores a FIXED amount with no spellcasting
+# modifier, so it needs no PC-build-time construction — it ships as a
+# static `heal` action_template (auto-attached from this feature) using
+# the heal primitive's `fixed` param. The candidate generator enumerates
+# it per ally and defensive_ehp_healing scores it (capped at the target's
+# missing HP, so the AI uses it on the most-wounded ally).
+#
+# Deferred RAW bits:
+#   - Ends Blinded / Deafened / Poisoned — no condition-cleanse primitive
+#     exists; the 70-HP restore is the load-bearing effect.
+#   - Upcast +10 per slot above 6th — the heal primitive's upcast path
+#     scales dice, not a flat amount; v1 ships the base 70.
+#
+# source: srd_5.2.1
+
+id: f_heal
+name: Heal
+source: srd_5.2.1
+granted_by:
+  class: c_cleric
+  level: 11            # Clerics gain 6th-level slots at L11
+type: active
+spell:
+  class: c_cleric
+  level: 6
+
+description: |
+  A creature within 60 ft regains 70 HP (and is cured of Blinded /
+  Deafened / Poisoned — cleanse deferred).
+
+action_template:
+  id: a_heal
+  name: Heal
+  type: heal
+  spell_slot_level: 6
+  named_effect: heal
+  range_ft: 60
+  pipeline:
+    - primitive: heal
+      params: { target: current_target, fixed: 70 }
