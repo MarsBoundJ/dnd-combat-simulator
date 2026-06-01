@@ -1,0 +1,81 @@
+# m_ghast — Ghast
+# Source: SRD CC v5.2.1 p287
+# Triage: GREEN (core) — Bite + Claw; the Claw's paralysis is a
+# forced_save (CON DC 10) applying the existing co_paralyzed. Built
+# WITHOUT the "Stench" aura trait (5-ft emanation CON save → Poisoned) —
+# logged under "Aura traits".
+
+id: m_ghast
+name: Ghast
+source: srd_5.2.1
+
+size: medium
+creature_type: undead
+alignment: chaotic_evil
+
+combat:
+  armor_class: 13
+  hit_points: { average: 36, dice: "8d8", con_contribution: 0 }
+  speed: { walk: 30 }
+  initiative: { modifier: 3, score: 13 }
+
+abilities:
+  str: { score: 16, save: 3 }
+  dex: { score: 17, save: 3 }
+  con: { score: 10, save: 0 }
+  int: { score: 11, save: 0 }
+  wis: { score: 10, save: 2 }
+  cha: { score: 8, save: -1 }
+
+skills: {}
+damage_resistances: [necrotic]
+damage_vulnerabilities: []
+damage_immunities: [poison]
+condition_immunities: [co_charmed, co_exhaustion, co_poisoned]
+
+senses: { passive_perception: 10, special: { darkvision: 60 } }
+languages: [common]
+
+cr: { value: 2, xp: 450, proficiency_bonus: 2 }
+
+traits: []
+
+actions:
+  - id: a_bite
+    name: Bite
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 5, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d8", modifier: 3, type: piercing, average: 7 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: damage
+        params: { dice: "2d8", modifier: 0, type: necrotic, average: 9 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  - id: a_claw
+    name: Claw
+    type: weapon_attack
+    # On a hit vs a non-Undead creature, CON save DC 10 or Paralyzed until
+    # the end of its next turn. Creature-type gate noted, not enforced.
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 5, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "2d6", modifier: 3, type: slashing, average: 10 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: forced_save
+        params:
+          ability: constitution
+          dc: 10
+          affected: current_target
+          on_fail:
+            - primitive: apply_condition
+              params: { condition_id: co_paralyzed, duration: until_actor_next_turn_start }
+          on_success: []
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: pack_hunter
+  presets: { retreat: ftd, ability_selection: default, targeting: weakest_target, action_economy: casual }

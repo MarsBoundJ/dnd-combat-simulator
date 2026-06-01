@@ -1,0 +1,64 @@
+# m_wraith — Wraith
+# Source: SRD CC v5.2.1 p342
+# Triage: GREEN (core) — Life Drain weapon attack. Built WITHOUT the
+# HP-max-reduction rider (no primitive → "On-death / triggered effects")
+# and WITHOUT "Create Specter" (raises a Specter from a corpse → "Summon
+# / call adds"). Incorporeal Movement / Sunlight Sensitivity declarative.
+# Fly 60 hover omitted (walk stand-in).
+
+id: m_wraith
+name: Wraith
+source: srd_5.2.1
+
+size: medium
+creature_type: undead
+alignment: neutral_evil
+
+combat:
+  armor_class: 13
+  hit_points: { average: 67, dice: "9d8", con_contribution: 27 }
+  speed: { walk: 30 }
+  initiative: { modifier: 3, score: 13 }
+
+abilities:
+  str: { score: 6, save: -2 }
+  dex: { score: 16, save: 3 }
+  con: { score: 16, save: 3 }
+  int: { score: 12, save: 1 }
+  wis: { score: 14, save: 2 }
+  cha: { score: 15, save: 2 }
+
+skills: {}
+damage_resistances: [acid, bludgeoning, cold, fire, piercing, slashing]
+damage_vulnerabilities: []
+damage_immunities: [necrotic, poison]
+condition_immunities: [co_charmed, co_exhaustion, co_grappled, co_paralyzed, co_petrified, co_poisoned, co_prone, co_restrained, co_unconscious]
+
+senses: { passive_perception: 12, special: { darkvision: 60 } }
+languages: [common]
+
+cr: { value: 5, xp: 1800, proficiency_bonus: 3 }
+
+traits:
+  - id: t_incorporeal_movement
+    name: Incorporeal Movement
+    type: trait_passive
+  - id: t_sunlight_sensitivity
+    name: Sunlight Sensitivity
+    type: trait_passive
+
+actions:
+  - id: a_life_drain
+    name: Life Drain
+    type: weapon_attack
+    # HP-max-reduction rider deferred; the 4d8+3 necrotic is the core.
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 6, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "4d8", modifier: 3, type: necrotic, average: 21 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: apex_predator
+  presets: { retreat: ftd, ability_selection: default, targeting: weakest_target, action_economy: casual }

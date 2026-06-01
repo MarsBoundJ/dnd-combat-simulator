@@ -1,0 +1,71 @@
+# m_scout — Scout
+# Source: SRD CC v5.2.1 p322
+# Triage: GREEN — Multiattack of weapon attacks; no defer-trigger keywords.
+
+id: m_scout
+name: Scout
+source: srd_5.2.1
+
+size: medium
+creature_type: humanoid
+alignment: neutral
+
+combat:
+  armor_class: 13
+  hit_points: { average: 16, dice: "3d8", con_contribution: 3 }
+  speed: { walk: 30 }
+  initiative: { modifier: 2, score: 12 }
+
+abilities:
+  str: { score: 11, save: 0 }
+  dex: { score: 14, save: 2 }
+  con: { score: 12, save: 1 }
+  int: { score: 11, save: 0 }
+  wis: { score: 13, save: 1 }
+  cha: { score: 11, save: 0 }
+
+skills: { nature: 4, perception: 5, stealth: 6, survival: 5 }
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: []
+condition_immunities: []
+
+gear: [leather_armor, longbow, shortsword]
+
+senses: { passive_perception: 15 }
+languages: [common]
+
+cr: { value: 0.5, xp: 100, proficiency_bonus: 2 }
+
+traits: []
+
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 2
+    sub_actions: [a_shortsword, a_longbow]
+
+  - id: a_shortsword
+    name: Shortsword
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 4, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d6", modifier: 2, type: piercing, average: 5 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  - id: a_longbow
+    name: Longbow
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: ranged, bonus: 4, range: [150, 600] }
+      - primitive: damage
+        params: { dice: "1d8", modifier: 2, type: piercing, average: 6 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: cowardly_skirmisher
+  presets: { retreat: cowardly, ability_selection: default, targeting: weakest_target, action_economy: skilled }

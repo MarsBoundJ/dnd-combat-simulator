@@ -1,0 +1,93 @@
+# m_vampire_spawn — Vampire Spawn
+# Source: SRD CC v5.2.1 p335
+# Triage: GREEN (core) — Multiattack of Claw (grapples, existing
+# co_grappled) + Bite (CON save DC 14 → necrotic). Built WITHOUT the
+# Bite's HP-max-reduction + self-heal rider (no HP-max/lifesteal
+# primitive), logged under "On-death / triggered effects". Spider Climb /
+# Vampire Weakness are declarative traits.
+
+id: m_vampire_spawn
+name: Vampire Spawn
+source: srd_5.2.1
+
+size: medium
+creature_type: undead
+alignment: neutral_evil
+
+combat:
+  armor_class: 16
+  hit_points: { average: 90, dice: "12d8", con_contribution: 36 }
+  speed: { walk: 30 }
+  initiative: { modifier: 3, score: 13 }
+
+abilities:
+  str: { score: 16, save: 3 }
+  dex: { score: 16, save: 6 }
+  con: { score: 16, save: 3 }
+  int: { score: 11, save: 0 }
+  wis: { score: 10, save: 3 }
+  cha: { score: 12, save: 1 }
+
+skills: { perception: 3, stealth: 6 }
+damage_resistances: [necrotic]
+damage_vulnerabilities: []
+damage_immunities: []
+condition_immunities: []
+
+senses: { passive_perception: 13, special: { darkvision: 60 } }
+languages: [common]
+
+cr: { value: 5, xp: 1800, proficiency_bonus: 3 }
+
+traits:
+  - id: t_spider_climb
+    name: Spider Climb
+    type: trait_passive
+  - id: t_vampire_weakness
+    name: Vampire Weakness
+    type: trait_passive
+    # Declarative: Forbiddance / Running Water / Stake to the Heart.
+
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 2
+    sub_actions: [a_claw]
+
+  - id: a_claw
+    name: Claw
+    type: weapon_attack
+    # On a hit vs a Medium-or-smaller creature, it is Grappled (escape DC 13).
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 6, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "2d4", modifier: 3, type: slashing, average: 8 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: apply_condition
+        params: { condition_id: co_grappled, duration: until_removed }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  - id: a_bite
+    name: Bite
+    type: save_effect
+    # CON save DC 14, one creature within 5 ft (willing or Grappled /
+    # Incapacitated / Restrained — gate noted, not enforced). On a fail,
+    # 1d4+3 piercing + 3d6 necrotic. (HP-max drain + self-heal deferred.)
+    pipeline:
+      - primitive: forced_save
+        params:
+          ability: constitution
+          dc: 14
+          affected: current_target
+          on_fail:
+            - primitive: damage
+              params: { dice: "1d4", modifier: 3, type: piercing, average: 5 }
+            - primitive: damage
+              params: { dice: "3d6", modifier: 0, type: necrotic, average: 10 }
+          on_success: []
+
+behavior_profile:
+  archetype: apex_predator
+  presets: { retreat: ftd, ability_selection: default, targeting: weakest_target, action_economy: skilled }

@@ -1,0 +1,65 @@
+# m_gargoyle — Gargoyle
+# Source: SRD CC v5.2.1 p287
+# Triage: GREEN — Multiattack of Claw attacks; Flyby is a declarative
+# trait; Poison immunity + condition immunities are declarative. Fly 60
+# omitted (walk stand-in).
+
+id: m_gargoyle
+name: Gargoyle
+source: srd_5.2.1
+
+size: medium
+creature_type: elemental
+alignment: chaotic_evil
+
+combat:
+  armor_class: 15
+  hit_points: { average: 67, dice: "9d8", con_contribution: 27 }
+  speed: { walk: 30 }
+  initiative: { modifier: 2, score: 12 }
+
+abilities:
+  str: { score: 15, save: 2 }
+  dex: { score: 11, save: 0 }
+  con: { score: 16, save: 3 }
+  int: { score: 6, save: -2 }
+  wis: { score: 11, save: 0 }
+  cha: { score: 7, save: -2 }
+
+skills: { stealth: 4 }
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: [poison]
+condition_immunities: [co_exhaustion, co_petrified, co_poisoned]
+
+senses: { passive_perception: 10, special: { darkvision: 60 } }
+languages: [primordial]
+
+cr: { value: 2, xp: 450, proficiency_bonus: 2 }
+
+traits:
+  - id: t_flyby
+    name: Flyby
+    type: trait_passive
+    # Declarative: no Opportunity Attack when flying out of reach.
+
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 2
+    sub_actions: [a_claw]
+
+  - id: a_claw
+    name: Claw
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 4, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "2d4", modifier: 2, type: slashing, average: 7 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: apex_predator
+  presets: { retreat: ftd, ability_selection: default, targeting: weakest_target, action_economy: casual }

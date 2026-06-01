@@ -1,0 +1,82 @@
+# m_spy — Spy
+# Source: SRD CC v5.2.1 p329
+# Triage: GREEN — weapon attacks (+ poison damage); Cunning Action bonus
+# action reuses the choose_action shape. Climb 30 omitted (walk stand-in).
+
+id: m_spy
+name: Spy
+source: srd_5.2.1
+
+size: medium
+creature_type: humanoid
+alignment: neutral
+
+combat:
+  armor_class: 12
+  hit_points: { average: 27, dice: "6d8", con_contribution: 0 }
+  speed: { walk: 30 }
+  initiative: { modifier: 4, score: 14 }
+
+abilities:
+  str: { score: 10, save: 0 }
+  dex: { score: 15, save: 2 }
+  con: { score: 10, save: 0 }
+  int: { score: 12, save: 1 }
+  wis: { score: 14, save: 2 }
+  cha: { score: 16, save: 3 }
+
+skills: { deception: 5, insight: 4, investigation: 5, perception: 6, stealth: 6 }
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: []
+condition_immunities: []
+
+gear: [hand_crossbow, shortsword]
+
+senses: { passive_perception: 16 }
+languages: [common]
+
+cr: { value: 1, xp: 200, proficiency_bonus: 2 }
+
+traits: []
+
+actions:
+  - id: a_shortsword
+    name: Shortsword
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 4, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d6", modifier: 2, type: piercing, average: 5 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: damage
+        params: { dice: "2d6", modifier: 0, type: poison, average: 7 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  - id: a_hand_crossbow
+    name: Hand Crossbow
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: ranged, bonus: 4, range: [30, 120] }
+      - primitive: damage
+        params: { dice: "1d6", modifier: 2, type: piercing, average: 5 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: damage
+        params: { dice: "2d6", modifier: 0, type: poison, average: 7 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+bonus_actions:
+  - id: ba_cunning_action
+    name: Cunning Action
+    type: choose_action
+    is_signature: true
+    options:
+      - granted_action: dash
+      - granted_action: disengage
+      - granted_action: hide
+
+behavior_profile:
+  archetype: cowardly_skirmisher
+  presets: { retreat: cowardly, ability_selection: default, targeting: weakest_target, action_economy: skilled }
