@@ -1,0 +1,66 @@
+# m_tough_boss — Tough Boss
+# Source: SRD CC v5.2.1 p333
+# Triage: GREEN — Multiattack of Warhammer / Heavy Crossbow; Warhammer
+# pushes the target 10 ft (forced_movement on a hit). Pack Tactics declarative.
+id: m_tough_boss
+name: Tough Boss
+source: srd_5.2.1
+size: medium
+creature_type: humanoid
+alignment: neutral
+combat:
+  armor_class: 16
+  hit_points: { average: 82, dice: "11d8", con_contribution: 33 }
+  speed: { walk: 30 }
+  initiative: { modifier: 2, score: 12 }
+abilities:
+  str: { score: 17, save: 5 }
+  dex: { score: 14, save: 2 }
+  con: { score: 16, save: 5 }
+  int: { score: 11, save: 0 }
+  wis: { score: 10, save: 0 }
+  cha: { score: 11, save: 2 }
+skills: {}
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: []
+condition_immunities: []
+gear: [chain_mail, heavy_crossbow, warhammer]
+senses: { passive_perception: 10 }
+languages: [common]
+cr: { value: 4, xp: 1100, proficiency_bonus: 2 }
+traits:
+  - id: t_pack_tactics
+    name: Pack Tactics
+    type: trait_passive
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 2
+    sub_actions: [a_warhammer, a_heavy_crossbow]
+  - id: a_warhammer
+    name: Warhammer
+    type: weapon_attack
+    # On a hit vs a Large-or-smaller creature, push it up to 10 ft away.
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 5, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "2d8", modifier: 3, type: bludgeoning, average: 12 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: forced_movement
+        params: { distance_ft: 10 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+  - id: a_heavy_crossbow
+    name: Heavy Crossbow
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: ranged, bonus: 4, range: [100, 400] }
+      - primitive: damage
+        params: { dice: "2d10", modifier: 2, type: piercing, average: 13 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+behavior_profile:
+  archetype: cunning_tactician
+  presets: { retreat: ftd, ability_selection: default, targeting: weakest_target, action_economy: skilled }

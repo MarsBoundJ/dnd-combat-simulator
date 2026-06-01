@@ -1,0 +1,48 @@
+# m_swarm_of_bats — Swarm of Bats
+# Source: SRD CC v5.2.1 p332
+# Triage: GREEN — single Bites; Swarm declarative; the Bloodied-half
+# clause is noted, not modeled. Fly 30 omitted (walk stand-in).
+id: m_swarm_of_bats
+name: Swarm of Bats
+source: srd_5.2.1
+size: large
+creature_type: beast
+type_tags: [swarm]
+alignment: unaligned
+combat:
+  armor_class: 12
+  hit_points: { average: 11, dice: "2d10", con_contribution: 0 }
+  speed: { walk: 5, fly: 30 }
+  initiative: { modifier: 2, score: 12 }
+abilities:
+  str: { score: 5, save: -3 }
+  dex: { score: 15, save: 2 }
+  con: { score: 10, save: 0 }
+  int: { score: 2, save: -4 }
+  wis: { score: 12, save: 1 }
+  cha: { score: 4, save: -3 }
+skills: {}
+damage_resistances: [bludgeoning, piercing, slashing]
+damage_vulnerabilities: []
+damage_immunities: []
+condition_immunities: [co_charmed, co_frightened, co_grappled, co_paralyzed, co_petrified, co_prone, co_restrained, co_stunned]
+senses: { passive_perception: 11, special: { blindsight: 60 } }
+languages: []
+cr: { value: 0.25, xp: 50, proficiency_bonus: 2 }
+traits:
+  - id: t_swarm
+    name: Swarm
+    type: trait_passive
+actions:
+  - id: a_bites
+    name: Bites
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 4, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "2d4", modifier: 0, type: piercing, average: 5 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+behavior_profile:
+  archetype: mindless_aggressor
+  presets: { retreat: ftd, ability_selection: default, targeting: closest_enemy, action_economy: casual }

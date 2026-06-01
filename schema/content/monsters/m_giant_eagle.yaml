@@ -1,0 +1,52 @@
+# m_giant_eagle — Giant Eagle
+# Source: SRD CC v5.2.1 p351
+# Triage: GREEN — Multiattack of Rend (+ radiant); Necrotic/Radiant
+# resistances declarative. Fly 80 omitted (walk stand-in).
+id: m_giant_eagle
+name: Giant Eagle
+source: srd_5.2.1
+size: large
+creature_type: celestial
+alignment: neutral_good
+combat:
+  armor_class: 13
+  hit_points: { average: 26, dice: "4d10", con_contribution: 4 }
+  speed: { walk: 10, fly: 80 }
+  initiative: { modifier: 3, score: 13 }
+abilities:
+  str: { score: 16, save: 3 }
+  dex: { score: 17, save: 3 }
+  con: { score: 13, save: 1 }
+  int: { score: 8, save: -1 }
+  wis: { score: 14, save: 2 }
+  cha: { score: 10, save: 0 }
+skills: { perception: 6 }
+damage_resistances: [necrotic, radiant]
+damage_vulnerabilities: []
+damage_immunities: []
+condition_immunities: []
+senses: { passive_perception: 16 }
+languages: [celestial]
+cr: { value: 1, xp: 200, proficiency_bonus: 2 }
+traits: []
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 2
+    sub_actions: [a_rend]
+  - id: a_rend
+    name: Rend
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 5, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d4", modifier: 3, type: slashing, average: 5 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: damage
+        params: { dice: "1d6", modifier: 0, type: radiant, average: 3 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+behavior_profile:
+  archetype: pack_hunter
+  presets: { retreat: cowardly, ability_selection: default, targeting: weakest_target, action_economy: casual }

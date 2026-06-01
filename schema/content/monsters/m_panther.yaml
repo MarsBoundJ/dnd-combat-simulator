@@ -1,0 +1,50 @@
+# m_panther — Panther
+# Source: SRD CC v5.2.1 p357
+# Triage: GREEN — single Rend; Nimble Escape bonus action. Climb 40 omitted.
+id: m_panther
+name: Panther
+source: srd_5.2.1
+size: medium
+creature_type: beast
+alignment: unaligned
+combat:
+  armor_class: 13
+  hit_points: { average: 13, dice: "3d8", con_contribution: 0 }
+  speed: { walk: 50 }
+  initiative: { modifier: 3, score: 13 }
+abilities:
+  str: { score: 14, save: 2 }
+  dex: { score: 16, save: 3 }
+  con: { score: 10, save: 0 }
+  int: { score: 3, save: -4 }
+  wis: { score: 14, save: 2 }
+  cha: { score: 7, save: -2 }
+skills: { perception: 4, stealth: 7 }
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: []
+condition_immunities: []
+senses: { passive_perception: 14, special: { darkvision: 60 } }
+languages: []
+cr: { value: 0.25, xp: 50, proficiency_bonus: 2 }
+traits: []
+actions:
+  - id: a_rend
+    name: Rend
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 5, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d6", modifier: 3, type: slashing, average: 6 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+bonus_actions:
+  - id: ba_nimble_escape
+    name: Nimble Escape
+    type: choose_action
+    options:
+      - granted_action: disengage
+      - granted_action: hide
+behavior_profile:
+  archetype: pack_hunter
+  presets: { retreat: cowardly, ability_selection: default, targeting: weakest_target, action_economy: casual }

@@ -1,0 +1,44 @@
+# m_ogre_zombie — Ogre Zombie
+# Source: SRD CC v5.2.1 p344
+# Triage: GREEN (core) — single Slam. Built WITHOUT "Undead Fortitude"
+# (drop-to-1-HP save) — logged under "On-death / triggered effects".
+id: m_ogre_zombie
+name: Ogre Zombie
+source: srd_5.2.1
+size: large
+creature_type: undead
+alignment: neutral_evil
+combat:
+  armor_class: 8
+  hit_points: { average: 85, dice: "9d10", con_contribution: 36 }
+  speed: { walk: 30 }
+  initiative: { modifier: -2, score: 8 }
+abilities:
+  str: { score: 19, save: 4 }
+  dex: { score: 6, save: -2 }
+  con: { score: 18, save: 4 }
+  int: { score: 3, save: -4 }
+  wis: { score: 6, save: 0 }
+  cha: { score: 5, save: -3 }
+skills: {}
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: [poison]
+condition_immunities: [co_exhaustion, co_poisoned]
+senses: { passive_perception: 8, special: { darkvision: 60 } }
+languages: []
+cr: { value: 2, xp: 450, proficiency_bonus: 2 }
+traits: []
+actions:
+  - id: a_slam
+    name: Slam
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 6, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "2d8", modifier: 4, type: bludgeoning, average: 13 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+behavior_profile:
+  archetype: mindless_aggressor
+  presets: { retreat: ftd, ability_selection: default, targeting: closest_enemy, action_economy: casual }

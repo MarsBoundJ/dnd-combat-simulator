@@ -1,0 +1,50 @@
+# m_giant_shark — Giant Shark
+# Source: SRD CC v5.2.1 p353
+# Triage: GREEN — Multiattack of Bite. Water Breathing declarative; the
+# "Advantage vs damaged target" rider on Bite is noted, not enforced.
+# Swim omitted (walk stand-in).
+id: m_giant_shark
+name: Giant Shark
+source: srd_5.2.1
+size: huge
+creature_type: beast
+alignment: unaligned
+combat:
+  armor_class: 13
+  hit_points: { average: 92, dice: "8d12", con_contribution: 40 }
+  speed: { walk: 5, swim: 60 }
+  initiative: { modifier: 3, score: 13 }
+abilities:
+  str: { score: 23, save: 6 }
+  dex: { score: 11, save: 0 }
+  con: { score: 21, save: 5 }
+  int: { score: 1, save: -5 }
+  wis: { score: 10, save: 0 }
+  cha: { score: 5, save: -3 }
+skills: { perception: 3 }
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: []
+condition_immunities: []
+senses: { passive_perception: 13, special: { blindsight: 60 } }
+languages: []
+cr: { value: 5, xp: 1800, proficiency_bonus: 3 }
+traits: []
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 2
+    sub_actions: [a_bite]
+  - id: a_bite
+    name: Bite
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 9, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "3d10", modifier: 6, type: piercing, average: 22 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+behavior_profile:
+  archetype: apex_predator
+  presets: { retreat: ftd, ability_selection: default, targeting: weakest_target, action_economy: casual }

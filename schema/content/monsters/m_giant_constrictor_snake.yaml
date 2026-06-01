@@ -1,0 +1,64 @@
+# m_giant_constrictor_snake — Giant Constrictor Snake
+# Source: SRD CC v5.2.1 p351
+# Triage: GREEN — Multiattack (Bite + Constrict); Constrict is a STR save
+# (DC 14) applying the existing co_grappled (+ damage). Swim omitted.
+id: m_giant_constrictor_snake
+name: Giant Constrictor Snake
+source: srd_5.2.1
+size: huge
+creature_type: beast
+alignment: unaligned
+combat:
+  armor_class: 12
+  hit_points: { average: 60, dice: "8d12", con_contribution: 8 }
+  speed: { walk: 30 }
+  initiative: { modifier: 2, score: 12 }
+abilities:
+  str: { score: 19, save: 4 }
+  dex: { score: 14, save: 2 }
+  con: { score: 12, save: 1 }
+  int: { score: 1, save: -5 }
+  wis: { score: 10, save: 0 }
+  cha: { score: 3, save: -4 }
+skills: { perception: 2 }
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: []
+condition_immunities: []
+senses: { passive_perception: 12, special: { blindsight: 10 } }
+languages: []
+cr: { value: 2, xp: 450, proficiency_bonus: 2 }
+traits: []
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 2
+    sub_actions: [a_bite, a_constrict]
+  - id: a_bite
+    name: Bite
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 6, reach_ft: 10 }
+      - primitive: damage
+        params: { dice: "2d6", modifier: 4, type: piercing, average: 11 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+  - id: a_constrict
+    name: Constrict
+    type: save_effect
+    pipeline:
+      - primitive: forced_save
+        params:
+          ability: strength
+          dc: 14
+          affected: current_target
+          on_fail:
+            - primitive: damage
+              params: { dice: "2d8", modifier: 4, type: bludgeoning, average: 13 }
+            - primitive: apply_condition
+              params: { condition_id: co_grappled, duration: until_removed }
+          on_success: []
+behavior_profile:
+  archetype: apex_predator
+  presets: { retreat: ftd, ability_selection: default, targeting: weakest_target, action_economy: casual }

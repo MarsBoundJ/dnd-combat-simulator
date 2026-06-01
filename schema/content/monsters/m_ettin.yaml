@@ -1,0 +1,63 @@
+# m_ettin — Ettin
+# Source: SRD CC v5.2.1 p286
+# Triage: GREEN — Multiattack (Battleaxe + Morningstar); Battleaxe knocks
+# Prone (co_prone). Condition immunities declarative. Morningstar's
+# disadvantage-on-next-attack rider noted, not enforced.
+id: m_ettin
+name: Ettin
+source: srd_5.2.1
+size: large
+creature_type: giant
+alignment: chaotic_evil
+combat:
+  armor_class: 12
+  hit_points: { average: 85, dice: "10d10", con_contribution: 30 }
+  speed: { walk: 40 }
+  initiative: { modifier: -1, score: 9 }
+abilities:
+  str: { score: 21, save: 5 }
+  dex: { score: 8, save: -1 }
+  con: { score: 17, save: 3 }
+  int: { score: 6, save: -2 }
+  wis: { score: 10, save: 0 }
+  cha: { score: 8, save: -1 }
+skills: { perception: 4 }
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: []
+condition_immunities: [co_blinded, co_charmed, co_deafened, co_frightened, co_stunned, co_unconscious]
+gear: [battleaxe, morningstar]
+senses: { passive_perception: 14, special: { darkvision: 60 } }
+languages: [giant]
+cr: { value: 4, xp: 1100, proficiency_bonus: 2 }
+traits: []
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 2
+    sub_actions: [a_battleaxe, a_morningstar]
+  - id: a_battleaxe
+    name: Battleaxe
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 7, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "2d8", modifier: 5, type: slashing, average: 14 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: apply_condition
+        params: { condition_id: co_prone, duration: until_removed }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+  - id: a_morningstar
+    name: Morningstar
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 7, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "2d8", modifier: 5, type: piercing, average: 14 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+behavior_profile:
+  archetype: mindless_aggressor
+  presets: { retreat: ftd, ability_selection: default, targeting: closest_enemy, action_economy: casual }

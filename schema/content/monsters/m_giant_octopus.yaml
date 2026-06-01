@@ -1,0 +1,48 @@
+# m_giant_octopus — Giant Octopus
+# Source: SRD CC v5.2.1 p352
+# Triage: GREEN — Tentacles grapple (existing co_grappled) a Medium-or-
+# smaller target. Water Breathing declarative. (Ink Cloud is a swim/
+# escape utility, omitted.) Swim omitted (walk stand-in).
+id: m_giant_octopus
+name: Giant Octopus
+source: srd_5.2.1
+size: large
+creature_type: beast
+alignment: unaligned
+combat:
+  armor_class: 11
+  hit_points: { average: 45, dice: "7d10", con_contribution: 7 }
+  speed: { walk: 10, swim: 60 }
+  initiative: { modifier: 1, score: 11 }
+abilities:
+  str: { score: 17, save: 3 }
+  dex: { score: 13, save: 1 }
+  con: { score: 13, save: 1 }
+  int: { score: 5, save: -3 }
+  wis: { score: 10, save: 0 }
+  cha: { score: 4, save: -3 }
+skills: { perception: 4, stealth: 5 }
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: []
+condition_immunities: []
+senses: { passive_perception: 14, special: { darkvision: 60 } }
+languages: []
+cr: { value: 1, xp: 200, proficiency_bonus: 2 }
+traits: []
+actions:
+  - id: a_tentacles
+    name: Tentacles
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 5, reach_ft: 10 }
+      - primitive: damage
+        params: { dice: "2d6", modifier: 3, type: bludgeoning, average: 10 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: apply_condition
+        params: { condition_id: co_grappled, duration: until_removed }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+behavior_profile:
+  archetype: apex_predator
+  presets: { retreat: cowardly, ability_selection: default, targeting: weakest_target, action_economy: casual }
