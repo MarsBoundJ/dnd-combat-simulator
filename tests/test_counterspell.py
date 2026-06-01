@@ -1,22 +1,21 @@
-"""Counterspell tests (PR #46).
+"""Counterspell tests (SRD 5.2.1 / PHB 2024 rewrite).
+
+RAW (2024): Target caster makes a CON save vs counterspeller's
+spell save DC. On fail: spell dissipates, slot NOT expended. On
+success: spell goes through.
 
 Layers:
   1. spell_cast_initiated event fires for spell-slot actions (not for
      free actions / cantrips)
-  2. cast_cancelled flag → pipeline.execute skips the pipeline but
-     still consumes the slot (RAW 2024)
+  2. cast_cancelled flag → pipeline.execute skips the pipeline AND
+     refunds the target's slot (SRD 5.2.1: "slot isn't expended")
   3. Counterspell condition: enemy_casting_spell_within_60_ft —
      allies don't counter allies, distance gate, self exclusion
-  4. counterspell_resolve primitive: auto-cancel for level ≤ 3,
-     ability check for level ≥ 4 (success cancels, fail doesn't)
-  5. End-to-end via runner: wizard casts Hypnotic Pattern, opposing
-     wizard counterspells, spell fizzles, both slots consumed
-  6. Counterspell of Counterspell (level-3 Counterspell can be
-     countered by another Counterspell, auto-cancel; the first
-     Counterspell's slot still consumed) — RAW edge case verified
-
-Run via:
-    python -m unittest tests.test_counterspell
+  4. counterspell_resolve primitive: target makes CON save vs
+     counterspeller's spell save DC (no level comparison)
+  5. End-to-end via pipeline: wizard casts spell, opposing wizard
+     counterspells (target fails CON save), spell fizzles, target's
+     slot refunded, counterspeller's slot consumed
 """
 from __future__ import annotations
 
@@ -33,12 +32,13 @@ from engine.core.reactions import _reaction_condition_satisfied
 # ============================================================================
 
 def _make_actor(actor_id, side="pc", hp=30, ac=14, position=(0, 0),
-                int_score=10, actions=None, spell_slots=None,
-                proficiency_bonus=2):
+                int_score=10, con_score=10, con_save=0,
+                actions=None, spell_slots=None,
+                proficiency_bonus=2, spellcasting_ability=None):
     abilities = {
         "str": {"score": 10, "save": 0},
         "dex": {"score": 10, "save": 0},
-        "con": {"score": 10, "save": 0},
+        "con": {"score": con_score, "save": con_save},
         "int": {"score": int_score, "save": 0},
         "wis": {"score": 10, "save": 0},
         "cha": {"score": 10, "save": 0},
@@ -55,6 +55,8 @@ def _make_actor(actor_id, side="pc", hp=30, ac=14, position=(0, 0),
                     "initiative": {"modifier": 0, "score": 10},
                 },
                 "actions": actions or []}
+    if spellcasting_ability:
+        template["spellcasting_ability"] = spellcasting_ability
     return Actor(id=actor_id, name=actor_id, template=template, side=side,
                   hp_current=hp, hp_max=hp, ac=ac,
                   speed={"walk": 30}, position=position,
@@ -87,8 +89,6 @@ def _counterspell_action() -> dict:
 
 def _target_spell_action(slot_level: int = 3,
                             action_id: str = "a_hypnotic_pattern") -> dict:
-    """A simple target spell — uses a slot and would apply some effect
-    via a marker damage step. Used to verify pipeline skip on cancel."""
     return {
         "id": action_id,
         "name": "Target Spell",
@@ -134,7 +134,6 @@ class CounterspellConditionTest(unittest.TestCase):
             "enemy_casting_spell_within_60_ft", wizard, ed, state))
 
     def test_out_of_range_doesnt_fire(self) -> None:
-        """13 squares = 65 ft Chebyshev. Out of 60-ft Counterspell range."""
         counterspeller = _make_actor("cs", side="pc", position=(0, 0))
         enemy = _make_actor("enemy", side="enemy", position=(13, 13))
         state = _state_with([counterspeller, enemy])
@@ -145,7 +144,7 @@ class CounterspellConditionTest(unittest.TestCase):
 
 
 # ============================================================================
-# counterspell_resolve primitive
+# counterspell_resolve primitive — CON save mechanic
 # ============================================================================
 
 class CounterspellResolveTest(unittest.TestCase):
@@ -168,68 +167,70 @@ class CounterspellResolveTest(unittest.TestCase):
         }
         return _counterspell_resolve({}, state, EventBus()), state
 
-    def test_auto_cancel_for_level_3(self) -> None:
-        cs = _make_actor("cs", int_score=18, proficiency_bonus=3)
-        target = _make_actor("t", side="enemy")
-        result, state = self._run_resolve(cs, target, target_level=3)
-        self.assertEqual(result["outcome"], "auto_cancel")
+    def test_low_con_target_gets_countered(self) -> None:
+        # Counterspeller INT 18, PB 3 → DC = 8+4+3 = 15 (INT-based
+        # since no spellcasting_ability stamp → falls back to CHA...
+        # actually _caster_spell_save_dc falls back to CHA when unstamped).
+        # Let's stamp it explicitly.
+        cs = _make_actor("cs", int_score=18, proficiency_bonus=3,
+                           spellcasting_ability="intelligence")
+        # Target CON save +0, needs d20 ≥ 15. Seed 1 → d20 typically < 15.
+        target = _make_actor("t", side="enemy", con_save=0)
+        result, state = self._run_resolve(cs, target, target_level=3, seed=1)
+        self.assertEqual(result["outcome"], "countered")
         self.assertTrue(state.cast_cancelled)
-
-    def test_auto_cancel_for_level_1(self) -> None:
-        cs = _make_actor("cs", int_score=18, proficiency_bonus=3)
-        target = _make_actor("t", side="enemy")
-        result, state = self._run_resolve(cs, target, target_level=1)
-        self.assertEqual(result["outcome"], "auto_cancel")
-        self.assertTrue(state.cast_cancelled)
-
-    def test_check_required_for_level_4(self) -> None:
-        cs = _make_actor("cs", int_score=18, proficiency_bonus=3)
-        target = _make_actor("t", side="enemy")
-        result, state = self._run_resolve(cs, target, target_level=4)
-        # INT mod = +4, PB = +3, d20 with seed 1 = 5 → total 12 vs DC 14 → fail
-        self.assertEqual(result["outcome"], "check_fail")
-        self.assertFalse(state.cast_cancelled)
-        # Event log records check details
         ev = next(e for e in state.event_log
                     if e.get("event") == "counterspell_resolved")
-        self.assertEqual(ev["dc"], 14)        # 10 + 4
-        self.assertEqual(ev["int_mod"], 4)
-        self.assertEqual(ev["proficiency_bonus"], 3)
+        self.assertEqual(ev["dc"], 15)
 
-    def test_check_succeeds_with_high_roll(self) -> None:
-        """Force a high d20 via a different seed so the check succeeds."""
-        cs = _make_actor("cs", int_score=18, proficiency_bonus=3)
-        target = _make_actor("t", side="enemy")
-        # Find a seed that produces a high d20 for a level-4 check
-        # DC = 14, mod = +7 → need d20 >= 7. Most seeds work.
-        result, state = self._run_resolve(cs, target, target_level=4, seed=3)
-        # Seed 3's first d20 is typically high
-        # If the test setup gives d20 >= 7, success
-        if result["outcome"] == "check_success":
-            self.assertTrue(state.cast_cancelled)
-        else:
-            self.skipTest("Seed didn't produce a successful check")
+    def test_high_con_target_resists(self) -> None:
+        # Counterspeller with low spell DC
+        cs = _make_actor("cs", proficiency_bonus=2)
+        # Target CON save +10 → total ≥ 11 vs DC 10 (8+0+2). Always passes.
+        target = _make_actor("t", side="enemy", con_save=10)
+        result, state = self._run_resolve(cs, target, target_level=5)
+        self.assertEqual(result["outcome"], "resisted")
+        self.assertFalse(state.cast_cancelled)
+
+    def test_works_regardless_of_spell_level(self) -> None:
+        # 2024: no auto-cancel for low-level spells. A level-1 spell
+        # still requires the target to fail the save.
+        cs = _make_actor("cs", proficiency_bonus=2)
+        # Target CON save +10 → always passes DC 10.
+        target = _make_actor("t", side="enemy", con_save=10)
+        result, state = self._run_resolve(cs, target, target_level=1)
+        self.assertEqual(result["outcome"], "resisted")
+        self.assertFalse(state.cast_cancelled)
+
+    def test_event_log_records_con_save_details(self) -> None:
+        cs = _make_actor("cs", int_score=16, proficiency_bonus=4,
+                           spellcasting_ability="intelligence")
+        target = _make_actor("t", side="enemy", con_save=2)
+        result, state = self._run_resolve(cs, target, target_level=4)
+        ev = next(e for e in state.event_log
+                    if e.get("event") == "counterspell_resolved")
+        self.assertEqual(ev["dc"], 15)  # 8 + 3(INT 16) + 4(PB)
+        self.assertIn("con_save_bonus", ev)
+        self.assertIn("d20", ev)
+        self.assertIn("total", ev)
 
 
 # ============================================================================
-# Pipeline execute: cast_cancelled skips pipeline + still consumes slot
+# Pipeline: cast_cancelled skips pipeline + refunds slot (2024 RAW)
 # ============================================================================
 
 class PipelineCancelFlowTest(unittest.TestCase):
 
-    def test_cast_cancelled_skips_pipeline_but_consumes_slot(self) -> None:
-        """Set state.cast_cancelled = True via a no-op reaction setup;
-        verify the target spell's pipeline doesn't fire but the slot
-        is still consumed."""
+    def test_cast_cancelled_skips_pipeline_and_refunds_slot(self) -> None:
         from engine.core.pipeline import execute as pipeline_execute
         from engine.primitives import PrimitiveRegistry
         import engine.primitives as primitives_module
 
         wizard = _make_actor("wiz", side="pc", spell_slots={3: 1})
-        # Attach a reaction-shaped action on a counter-wizard that just
-        # cancels — simulates "Counterspell always succeeds" for test
         counter_wiz = _make_actor("cw", side="enemy", position=(5, 0),
                                       spell_slots={3: 1},
+                                      spellcasting_ability="intelligence",
+                                      int_score=20, proficiency_bonus=4,
                                       actions=[_counterspell_action()])
         target_spell = _target_spell_action(slot_level=3)
         state = _state_with([wizard, counter_wiz])
@@ -238,32 +239,25 @@ class PipelineCancelFlowTest(unittest.TestCase):
                   "target": counter_wiz, "action": target_spell}
         pipeline_execute(chosen, state, EventBus(),
                           PrimitiveRegistry.with_defaults())
-        # Target spell pipeline was skipped (no damage_dealt event)
         damage_events = [e for e in state.event_log
                           if e.get("event") == "damage_dealt"]
-        self.assertEqual(len(damage_events), 0,
-                          "Counter-cancelled spell shouldn't have run its "
-                          "damage step")
-        # spell_cancelled event logged
+        self.assertEqual(len(damage_events), 0)
         cancel_events = [e for e in state.event_log
                           if e.get("event") == "spell_cancelled"]
         self.assertEqual(len(cancel_events), 1)
-        # Target wizard's 3rd-level slot consumed
-        self.assertEqual(wizard.spell_slots[3], 0)
-        # Counter-wizard's 3rd-level slot also consumed (Counterspell
-        # itself is a 3rd-level cast)
+        # Target wizard's slot REFUNDED (2024 RAW)
+        self.assertEqual(wizard.spell_slots[3], 1)
+        # Counter-wizard's slot consumed (Counterspell itself costs a slot)
         self.assertEqual(counter_wiz.spell_slots[3], 0)
 
 
 # ============================================================================
-# End-to-end via runner — wizard mirror match
+# End-to-end — wizard mirror match
 # ============================================================================
 
 class WizardMirrorMatchTest(unittest.TestCase):
 
     def test_counterspell_fizzles_hypnotic_pattern(self) -> None:
-        """Wizard A casts a 3rd-level spell; Wizard B counterspells;
-        target spell doesn't apply effects; both slots consumed."""
         from engine.core.pipeline import execute as pipeline_execute
         from engine.primitives import PrimitiveRegistry
         import engine.primitives as primitives_module
@@ -290,8 +284,10 @@ class WizardMirrorMatchTest(unittest.TestCase):
         wiz_a = _make_actor("wiz_a", side="pc", position=(0, 0),
                               spell_slots={3: 1},
                               actions=[target_spell])
+        # Counter-wizard: INT 20, PB 4 → DC 8+5+4 = 17. Target CON +0.
         wiz_b = _make_actor("wiz_b", side="enemy", position=(10, 0),
-                              int_score=18, proficiency_bonus=3,
+                              int_score=20, proficiency_bonus=4,
+                              spellcasting_ability="intelligence",
                               spell_slots={3: 1},
                               actions=[_counterspell_action()])
         state = _state_with([wiz_a, wiz_b])
@@ -301,29 +297,24 @@ class WizardMirrorMatchTest(unittest.TestCase):
                   "origin_point": (5, 0)}
         pipeline_execute(chosen, state, EventBus(),
                           PrimitiveRegistry.with_defaults())
-        # Counterspell fired
         cs_fires = [e for e in state.event_log
                      if e.get("event") == "reaction_fired"
                      and e.get("action") == "a_counterspell"]
         self.assertEqual(len(cs_fires), 1)
-        # Counterspell resolved as auto_cancel (target is level 3)
         cs_resolved = [e for e in state.event_log
                         if e.get("event") == "counterspell_resolved"]
         self.assertEqual(len(cs_resolved), 1)
-        self.assertEqual(cs_resolved[0]["outcome"], "auto_cancel")
-        # Original spell was cancelled
+        self.assertEqual(cs_resolved[0]["outcome"], "countered")
         cancel_events = [e for e in state.event_log
                           if e.get("event") == "spell_cancelled"]
         self.assertEqual(len(cancel_events), 1)
-        # Original spell's pipeline did NOT execute (no forced_save event)
         forced_save = [e for e in state.event_log
                         if e.get("event") == "forced_save"]
         self.assertEqual(len(forced_save), 0)
-        # Both slots consumed
-        self.assertEqual(wiz_a.spell_slots[3], 0)
+        # Wiz A's slot REFUNDED (2024)
+        self.assertEqual(wiz_a.spell_slots[3], 1)
+        # Wiz B's Counterspell slot consumed
         self.assertEqual(wiz_b.spell_slots[3], 0)
-        # Wizard A's concentration NOT engaged (cancelled before
-        # concentration would apply)
         self.assertIsNone(wiz_a.concentration_on)
 
 
@@ -334,8 +325,6 @@ class WizardMirrorMatchTest(unittest.TestCase):
 class NoTriggerForCantripsTest(unittest.TestCase):
 
     def test_cantrip_no_slot_no_event(self) -> None:
-        """Free actions (no spell_slot_level) shouldn't fire the
-        spell_cast_initiated event."""
         from engine.core.pipeline import execute as pipeline_execute
         from engine.primitives import PrimitiveRegistry
         import engine.primitives as primitives_module
@@ -344,7 +333,6 @@ class NoTriggerForCantripsTest(unittest.TestCase):
         counter_wiz = _make_actor("cw", side="enemy", position=(5, 0),
                                       spell_slots={3: 1},
                                       actions=[_counterspell_action()])
-        # An action without spell_slot_level (cantrip / free action)
         cantrip = {
             "id": "a_fire_bolt", "name": "Fire Bolt",
             "type": "weapon_attack",
@@ -362,9 +350,7 @@ class NoTriggerForCantripsTest(unittest.TestCase):
         cs_fires = [e for e in state.event_log
                      if e.get("event") == "reaction_fired"
                      and e.get("action") == "a_counterspell"]
-        self.assertEqual(len(cs_fires), 0,
-                          "Counterspell shouldn't fire on cantrip / free "
-                          "action (no spell_slot_level)")
+        self.assertEqual(len(cs_fires), 0)
 
 
 if __name__ == "__main__":

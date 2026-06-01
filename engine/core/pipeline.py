@@ -936,8 +936,8 @@ def execute(chosen: dict, state: CombatState, event_bus, primitives) -> None:
         _ra.on_spell_cast_initiated(actor, state, event_bus, primitives)
 
     if cast_was_cancelled:
-        # Spell countered. Skip the pipeline, but still consume the
-        # slot below (RAW 2024). Log the cancellation for visibility.
+        # Spell countered. Skip the pipeline; slot is NOT consumed
+        # (SRD 5.2.1: "the slot isn't expended"). Log for visibility.
         state.event_log.append({
             "event": "spell_cancelled",
             "actor": actor.id,
@@ -1004,11 +1004,13 @@ def execute(chosen: dict, state: CombatState, event_bus, primitives) -> None:
         apply_concentration(actor, action, state)
 
     # Spell slot consumption — only fires for actions with
-    # `spell_slot_level >= 1`. Free actions and cantrips skip. Slot
-    # is consumed EVEN IF the spell was countered (RAW 2024).
+    # `spell_slot_level >= 1`. Free actions and cantrips skip.
+    # SRD 5.2.1 / PHB 2024: slot is NOT expended if the spell was
+    # countered ("If that spell was cast with a spell slot, the slot
+    # isn't expended").
     # PR #77: consume the chosen slot level (= base level for non-
     # upcastable actions; possibly higher for upcastable ones).
-    if chosen_slot_level > 0:
+    if chosen_slot_level > 0 and not cast_was_cancelled:
         consume_slot(actor, chosen_slot_level, state,
                        action_id=action.get("id"))
 

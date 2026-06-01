@@ -142,29 +142,23 @@ class InitiativeLuckyTest(unittest.TestCase):
 # ============================================================================
 
 class CounterspellLuckyTest(unittest.TestCase):
+    """2024 Counterspell: TARGET caster makes CON save vs counterspeller's
+    spell DC. Lucky fires on the target's d20 (not the counterspeller's)."""
 
     def _resolve_counterspell(self, counterspeller, target_caster,
                                  target_level, rng_values):
-        # Direct invocation of the L4+ ability-check branch of
-        # _counterspell_resolve via mock RNG. Mimics the call site
-        # from the reactions system after a 4th-level+ enemy spell
-        # is cast and the counterspeller decides to roll the check.
         from engine.primitives import _counterspell_resolve
         state = _make_state([counterspeller, target_caster])
         state.current_attack = {
             "actor": counterspeller, "target": target_caster,
             "action": {"id": "a_counterspell"},
         }
-        # Set up the in-flight cast context the primitive reads
         state.cast_cancelled = False
-        # Stash counterspell context on state.current_attack
         state.current_attack["reaction_event_data"] = {
             "caster": target_caster,
             "action": {"id": "a_fireball"},
             "spell_slot_level": target_level,
         }
-        # Counterspell at L3 (auto-cancels up to L3 spells)
-        # For L4+ the INT check fires; force target_level=4 to hit it
         from engine.core.events import EventBus
         import engine.primitives as primitives_module
         old_rng = primitives_module._rng
@@ -175,31 +169,30 @@ class CounterspellLuckyTest(unittest.TestCase):
             primitives_module._rng = old_rng
         return state
 
-    def test_halfling_rerolls_nat_1_counterspell(self) -> None:
-        # L3 Counterspeller casting at level 3 vs L4 target spell.
-        # First roll = 1, reroll = 20. INT mod +2 + PB +2 = +4
-        # Final = 20 + 4 = 24, DC = 10 + 4 = 14 → success
-        halfling = _make_actor("h", is_halfling=True,
-                                  abilities={"int": {"score": 14}})
-        wizard = _make_actor("wiz", side="enemy")
-        state = self._resolve_counterspell(halfling, wizard, 4,
+    def test_halfling_target_rerolls_nat_1_con_save(self) -> None:
+        # Counterspeller DC = 8 + 2(INT mod) + 2(PB) = 12.
+        # Halfling target CON save +2, rolls nat 1 → reroll 20.
+        # Total = 20 + 2 = 22 ≥ 12 → save succeeds → spell resisted.
+        wizard = _make_actor("wiz", side="pc")
+        halfling_target = _make_actor("h", side="enemy",
+                                         is_halfling=True)
+        state = self._resolve_counterspell(wizard, halfling_target, 4,
                                               [1, 20])
-        # Counterspell should have succeeded (reroll high)
         events = [e for e in state.event_log
                     if e.get("event") == "counterspell_resolved"]
-        self.assertEqual(events[-1]["outcome"], "check_success")
+        self.assertEqual(events[-1]["outcome"], "resisted")
 
-    def test_non_halfling_keeps_nat_1_counterspell(self) -> None:
-        # Same setup but non-Halfling — keeps the 1, total = 5,
-        # fails DC 14
-        human = _make_actor("h", is_halfling=False,
-                               abilities={"int": {"score": 14}})
-        wizard = _make_actor("wiz", side="enemy")
-        state = self._resolve_counterspell(human, wizard, 4,
+    def test_non_halfling_target_keeps_nat_1_con_save(self) -> None:
+        # Same setup but non-Halfling target — keeps the 1.
+        # Total = 1 + 2 = 3 < 12 → save fails → spell countered.
+        wizard = _make_actor("wiz", side="pc")
+        human_target = _make_actor("h", side="enemy",
+                                      is_halfling=False)
+        state = self._resolve_counterspell(wizard, human_target, 4,
                                               [1, 20])
         events = [e for e in state.event_log
                     if e.get("event") == "counterspell_resolved"]
-        self.assertEqual(events[-1]["outcome"], "check_fail")
+        self.assertEqual(events[-1]["outcome"], "countered")
 
 
 # ============================================================================

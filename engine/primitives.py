@@ -1590,26 +1590,18 @@ def _persistent_aura(params: dict, state: CombatState, bus: EventBus) -> None:
 
 def _counterspell_resolve(params: dict, state: CombatState,
                               bus: EventBus) -> dict:
-    """Resolve a Counterspell attempt. Reads the triggering spell info
-    from state.current_attack.reaction_event_data; performs RAW 2024
-    Counterspell mechanics:
+    """Resolve a Counterspell attempt (SRD 5.2.1 / PHB 2024).
 
-      - If target spell is level ≤ 3: auto-cancel (no check needed).
-      - If level ≥ 4: counterspeller rolls Intelligence (Spellcasting)
-        ability check vs DC = 10 + target spell's level.
-        Spellcasting ability is the caster's INT (Counterspell is on
-        the wizard list; v1 hard-codes INT for the check). Modifier =
-        INT_mod + proficiency_bonus (every spellcaster is automatically
-        proficient with their spellcasting ability for casting purposes).
-        On success: cancel. On fail: spell goes through.
+    The TARGET CASTER makes a Constitution saving throw against the
+    counterspeller's spell save DC. On a failed save, the spell
+    dissipates (state.cast_cancelled = True; pipeline.execute skips
+    the pipeline and refunds the slot). On a successful save, the
+    spell goes through.
 
-    Side effects on cancel:
-      - Sets state.cast_cancelled = True (pipeline.execute checks this
-        flag after the spell_cast_initiated event resolves; if True,
-        skips the target spell's pipeline but still consumes its slot).
-      - Logs counterspell_resolved event with outcome + check details.
+    No level comparison, no auto-success, no caster ability check —
+    the 2024 version simplified to a flat CON save.
 
-    Returns {"outcome": "auto_cancel" | "check_success" | "check_fail"}.
+    Returns {"outcome": "countered" | "resisted"}.
     """
     rng = _get_rng(state, bus)
     counterspeller = state.current_attack.get("actor")
@@ -1620,48 +1612,35 @@ def _counterspell_resolve(params: dict, state: CombatState,
     target_action = event_data.get("action") or {}
     target_level = int(event_data.get("spell_slot_level", 0))
 
-    if target_level <= 3:
-        state.cast_cancelled = True
-        state.event_log.append({
-            "event": "counterspell_resolved",
-            "counterspeller": counterspeller.id,
-            "target_caster": target_caster.id if target_caster else None,
-            "target_spell": target_action.get("id"),
-            "target_level": target_level,
-            "outcome": "auto_cancel",
-        })
-        return {"outcome": "auto_cancel"}
+    dc = _caster_spell_save_dc(counterspeller)
 
-    # Level ≥ 4: ability check
-    int_score = (counterspeller.abilities.get("int") or {}).get("score", 10)
-    int_mod = ability_modifier(int_score)
-    pb = int((counterspeller.template.get("cr") or {})
-                .get("proficiency_bonus", 2))
-    dc = 10 + target_level
+    con_score = ((target_caster.abilities.get("con") or {}).get("score", 10)
+                   if target_caster else 10)
+    con_save_bonus = ((target_caster.abilities.get("con") or {}).get("save", 0)
+                        if target_caster else 0)
     d20 = rng.randint(1, 20)
-    # PR #95: Halfling Lucky applies to Counterspell's INT ability
-    # check (RAW: Lucky fires on "an attack roll, an ability check,
-    # or a saving throw"). No-op for non-Halflings.
     from engine.core.racial_traits import lucky_d20
-    d20, _rerolled = lucky_d20(rng, d20, counterspeller)
-    total = d20 + int_mod + pb
-    success = total >= dc
-    if success:
+    if target_caster:
+        d20, _rerolled = lucky_d20(rng, d20, target_caster)
+    total = d20 + con_save_bonus
+    save_failed = total < dc
+
+    if save_failed:
         state.cast_cancelled = True
+
     state.event_log.append({
         "event": "counterspell_resolved",
         "counterspeller": counterspeller.id,
         "target_caster": target_caster.id if target_caster else None,
         "target_spell": target_action.get("id"),
         "target_level": target_level,
-        "outcome": "check_success" if success else "check_fail",
+        "outcome": "countered" if save_failed else "resisted",
         "d20": d20,
-        "int_mod": int_mod,
-        "proficiency_bonus": pb,
+        "con_save_bonus": con_save_bonus,
         "total": total,
         "dc": dc,
     })
-    return {"outcome": "check_success" if success else "check_fail"}
+    return {"outcome": "countered" if save_failed else "resisted"}
 
 
 # ============================================================================
