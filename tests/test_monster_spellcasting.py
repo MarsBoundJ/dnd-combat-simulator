@@ -199,5 +199,77 @@ class EndToEndTest(unittest.TestCase):
         self.assertEqual(saves[0]["ability"], "dexterity")
 
 
+# ---------------------------------------------------------------------------
+# v2: spell-ATTACK casts, fail-fast, and casts in legendary_actions.options
+# ---------------------------------------------------------------------------
+
+class SpellAttackCastTest(unittest.TestCase):
+    """A `casts` to a spell-ATTACK marker (pc_builder, no action_template)
+    now builds a runnable ranged attack at the monster's spell bonus."""
+
+    def _mage(self, *, attack_bonus=None, action):
+        tpl = {"id": "m_caster", "name": "Caster", "abilities": _abil(18),
+                "size": "medium", "creature_type": "humanoid",
+                "cr": {"proficiency_bonus": 4},
+                "spellcasting": {"ability": "intelligence", "save_dc": 16},
+                "actions": [action]}
+        if attack_bonus is not None:
+            tpl["spellcasting"]["attack_bonus"] = attack_bonus
+        ms.expand_template(tpl, _registry())
+        return tpl
+
+    def test_scorching_ray_expands_to_multi_ray_attack(self):
+        tpl = self._mage(attack_bonus=8, action={
+            "id": "a_sr", "name": "Scorching Ray", "casts": "f_scorching_ray"})
+        a = tpl["actions"][0]
+        self.assertEqual(a["type"], "weapon_attack")
+        rolls = [s for s in a["pipeline"] if s["primitive"] == "attack_roll"]
+        self.assertEqual(len(rolls), 3)                 # three rays
+        self.assertTrue(all(r["params"]["bonus"] == 8 for r in rolls))
+        self.assertNotIn("spell_slot_level", a)
+
+    def test_attack_bonus_falls_back_to_ability_plus_pb(self):
+        # No explicit attack_bonus: INT 18 (+4) + PB 4 = +8.
+        tpl = self._mage(action={
+            "id": "a_gb", "name": "Guiding Bolt", "casts": "f_guiding_bolt"})
+        roll = tpl["actions"][0]["pipeline"][0]
+        self.assertEqual(roll["params"]["bonus"], 8)
+
+    def test_unexpandable_feature_fails_fast(self):
+        # A feature with neither action_template nor a buildable pc_builder.
+        feature = {"id": "f_bogus", "name": "Bogus"}
+        with self.assertRaises(ValueError):
+            ms._expand_action({"id": "a", "name": "A", "casts": "f_bogus"},
+                              feature, attack_bonus=5)
+
+
+class LegendaryAndBonusCastTest(unittest.TestCase):
+
+    def test_casts_in_legendary_options_expands(self):
+        tpl = {"id": "m_dragon", "name": "Dragon", "abilities": _abil(18),
+                "cr": {"proficiency_bonus": 5},
+                "spellcasting": {"ability": "charisma", "save_dc": 18},
+                "actions": [],
+                "legendary_actions": {"uses_per_round": 3, "options": [
+                    {"id": "la_cast", "name": "Cast Fireball",
+                      "casts": "f_fireball", "cost": 1}]}}
+        ms.expand_template(tpl, _registry())
+        opt = tpl["legendary_actions"]["options"][0]
+        self.assertEqual(opt["type"], "aoe_attack")     # expanded
+        self.assertTrue(opt.get("pipeline"))
+        self.assertEqual(opt["cost"], 1)                # option fields kept
+
+    def test_casts_in_bonus_actions_expands(self):
+        tpl = {"id": "m_b", "name": "B", "abilities": _abil(18),
+                "cr": {"proficiency_bonus": 3},
+                "spellcasting": {"ability": "intelligence", "save_dc": 15},
+                "actions": [],
+                "bonus_actions": [
+                    {"id": "ba_cast", "name": "Misty Fireball",
+                      "casts": "f_fireball"}]}
+        ms.expand_template(tpl, _registry())
+        self.assertEqual(tpl["bonus_actions"][0]["type"], "aoe_attack")
+
+
 if __name__ == "__main__":
     unittest.main()
