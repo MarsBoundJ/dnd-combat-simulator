@@ -1,0 +1,48 @@
+# f_wild_shape — Wild Shape (Druid L2)
+#
+# RAW (SRD 5.2.1): As a Bonus Action, shape-shift into a known Beast form
+# (CR <= 1/4, no fly speed at L2; the cap rises with level). Stay for
+# hours = half your Druid level, or until you reuse it, become
+# Incapacitated, die, or leave early (Bonus Action). Uses: 2, regaining
+# one on a Short Rest and all on a Long Rest.
+#
+# Engine modeling: the first consumer of the form system (Agent Identity
+# & Lifecycle). The wild_shape_transform primitive calls
+# forms.assume_form(actor, <beast template>, "wild_shape", ...) — the
+# druid's live stats become the beast's (physical replaced, mental kept),
+# HP becomes the beast's pool, and damage to 0 reverts to the druid's
+# prior HP (no overflow). The Wild Shape use is consumed by the action's
+# feature_use gate. A revert action (a_wild_shape_revert) leaves early.
+#
+# Beast forms reference the monster bestiary by id (default m_wolf;
+# CR <= 1/4 beasts: m_wolf, m_panther, m_giant_badger, m_constrictor_
+# snake, etc.). AI form-selection + the known-forms list are deferred to
+# the AI lane; v1 transforms into a concrete default form.
+#
+# Deferred RAW bits: per-level use-count scaling beyond the class table's
+# values; CR/fly-speed gating of the chosen form (trusts the form param);
+# incapacitation-triggered revert (the form layer records the trigger but
+# only hp_zero + concentration-end reversion are wired in Phase 1).
+#
+# source: srd_5.2.1
+
+id: f_wild_shape
+name: Wild Shape
+source: srd_5.2.1
+granted_by:
+  class: c_druid
+  level: 2
+type: active
+
+action_template:
+  id: a_wild_shape
+  name: Wild Shape
+  type: defensive_buff
+  slot: bonus_action
+  feature_use: wild_shape_uses_remaining
+  named_effect: wild_shape
+  range_ft: 0
+  pipeline:
+    - primitive: wild_shape_transform
+      params:
+        form: m_wolf

@@ -1,0 +1,31 @@
+# f_wild_shape_revert — leave Wild Shape early (Druid L2)
+#
+# RAW (SRD 5.2.1): a Druid can revert from a Wild Shape form as a Bonus
+# Action ("you can leave the form early as a Bonus Action"). Reverting
+# costs no Wild Shape use — only assuming a form does.
+#
+# Engine modeling: a BA action whose pipeline calls the wild_shape_revert
+# primitive, which delegates to forms.revert_form when the actor is
+# transformed (no-op otherwise). No feature_use gate. The form layer
+# already auto-reverts on hp_zero (damage routing) and when a sustaining
+# concentration spell ends; this action is the voluntary path.
+#
+# source: srd_5.2.1
+
+id: f_wild_shape_revert
+name: Revert Wild Shape
+source: srd_5.2.1
+granted_by:
+  class: c_druid
+  level: 2
+type: active
+
+action_template:
+  id: a_wild_shape_revert
+  name: Revert Wild Shape
+  type: defensive_buff
+  slot: bonus_action
+  range_ft: 0
+  pipeline:
+    - primitive: wild_shape_revert
+      params: {}

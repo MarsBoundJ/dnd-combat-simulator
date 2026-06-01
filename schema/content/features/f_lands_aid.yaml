@@ -1,0 +1,65 @@
+# f_lands_aid — Land's Aid (Circle of the Land, Druid L3)
+#
+# RAW (SRD 5.2.1, Circle of the Land): as a Magic action, expend a use of
+# Wild Shape and choose a point within 60 ft. In a 10-ft-radius Sphere on
+# that point, each creature of your choice makes a CON save vs your spell
+# save DC, taking 2d6 Necrotic on a failed save or half on a success. In
+# addition, one creature of your choice in the area regains 2d6 Hit
+# Points. Damage and healing rise by 1d6 at Druid levels 10 (3d6) and
+# 14 (4d6).
+#
+# Engine modeling: the subclass's load-bearing combat feature — an AoE
+# save-burst that spends a Wild Shape use rather than a spell slot
+# (feature_use: wild_shape_uses_remaining, the same resource the
+# transform action consumes). Modeled as an aoe_attack (sibling of
+# Burning Hands / Fireball): forced_save CON vs the caster's spell save
+# DC against `enemies` in a 10-ft sphere — "each creature of your choice"
+# is the no-friendly-fire reading — 2d6 necrotic, half on success.
+#
+# Deferred RAW bits:
+#   - The 2d6 ally heal rider: a single action that BOTH damages an enemy
+#     set AND heals one chosen ally needs a dual-target-set action shape
+#     the candidate generator does not have in v1. The AoE damage is the
+#     load-bearing effect; the heal is documented for a later dual-target
+#     pass (see Circle of the Land notes in the subclass file).
+#   - Character-level damage scaling (3d6 @ L10, 4d6 @ L14): v1 ships the
+#     base 2d6, matching the base-cast-only precedent of f_moonbeam/f_heal.
+#
+# source: srd_5.2.1
+
+id: f_lands_aid
+name: Land's Aid
+source: srd_5.2.1
+granted_by:
+  class: c_druid
+  subclass: sc_circle_of_the_land
+  level: 3
+type: active
+
+description: |
+  Spend a Wild Shape use: each enemy in a 10-ft sphere within 60 ft
+  makes a CON save vs your spell DC — 2d6 necrotic, half on success.
+  (v1: ally-heal rider + L10/L14 scaling deferred.)
+
+action_template:
+  id: a_lands_aid
+  name: Land's Aid
+  type: aoe_attack
+  feature_use: wild_shape_uses_remaining
+  named_effect: lands_aid
+  range_ft: 60
+  area:
+    shape: sphere
+    radius_ft: 10
+  pipeline:
+    - primitive: forced_save
+      params:
+        ability: constitution
+        dc_source: caster_spell_save_dc
+        affected: enemies
+        on_fail:
+          - primitive: damage
+            params: { dice: "2d6", modifier: 0, type: necrotic }
+        on_success:
+          - primitive: damage
+            params: { dice: "2d6", modifier: 0, type: necrotic, multiplier: 0.5 }
