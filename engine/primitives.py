@@ -674,6 +674,9 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
             if target.concentration_on is not None:
                 from engine.core.concentration import end_concentration
                 end_concentration(target, state, reason="caster_died")
+            # A dying swallower frees whatever it had swallowed.
+            from engine.core import swallow as _swallow
+            _swallow.release_victims_of(target, state, reason="swallower_died")
         bus.emit("creature_dropped", {"creature": target})
         state.event_log.append({"event": "creature_dropped", "creature": target.id})
     elif target.is_bloodied():
@@ -2489,6 +2492,22 @@ def _shape_shift_revert(params: dict, state: CombatState,
         forms.revert_form(actor, state, reason="voluntary")
 
 
+def _swallow_apply(params: dict, state: CombatState, bus: EventBus) -> None:
+    """Swallow the current_attack target (Behir / Purple Worm / cube).
+
+    Runs in the `on_fail` of a Swallow action's DEX forced_save (after the
+    Blinded/Restrained apply_condition steps). Sets Total Cover + records
+    the swallow (swallower id + ongoing-acid spec) on the target via
+    engine.core.swallow. Params: acid_dice (default '6d6'), acid_type
+    (default 'acid')."""
+    swallower = (state.current_attack or {}).get("actor")
+    target = (state.current_attack or {}).get("target")
+    if swallower is None or target is None:
+        raise ValueError("swallow_apply needs a current actor + target")
+    from engine.core import swallow
+    swallow.apply(swallower, target, params, state)
+
+
 def _grant_bardic_inspiration(params: dict, state: CombatState,
                                 bus: EventBus) -> None:
     """Grant a Bardic Inspiration die to an ally (current_attack.target).
@@ -2798,6 +2817,7 @@ def _populate_handler_table() -> None:
         "wild_shape_revert": _wild_shape_revert,
         "shape_shift": _shape_shift,
         "shape_shift_revert": _shape_shift_revert,
+        "swallow_apply": _swallow_apply,
     }
 
 
@@ -2890,6 +2910,9 @@ def _all_primitives() -> list[Primitive]:
         Primitive("shape_shift", _shape_shift, implemented=True),
         Primitive("shape_shift_revert", _shape_shift_revert,
                     implemented=True),
+        # Swallow / Engulf — internalize the target (Total Cover +
+        # ongoing acid) via engine.core.swallow.
+        Primitive("swallow_apply", _swallow_apply, implemented=True),
         Primitive("grant_bardic_inspiration", _grant_bardic_inspiration,
                     implemented=True),
         # College of Lore Cutting Words — reaction that rolls the Bard's
