@@ -1,0 +1,70 @@
+# m_red_dragon_wyrmling — Red Dragon Wyrmling
+# Source: SRD CC v5.2.1 p269
+# Triage: GREEN — Multiattack of Rend (+ fire rider) + recharge Fire
+# Breath (DEX-save cone). Fire immunity declarative. Climb/Fly omitted.
+id: m_red_dragon_wyrmling
+name: Red Dragon Wyrmling
+source: srd_5.2.1
+size: medium
+creature_type: dragon
+type_tags: [chromatic]
+alignment: chaotic_evil
+combat:
+  armor_class: 17
+  hit_points: { average: 75, dice: "10d8", con_contribution: 30 }
+  speed: { walk: 30 }
+  initiative: { modifier: 2, score: 12 }
+abilities:
+  str: { score: 19, save: 4 }
+  dex: { score: 10, save: 2 }
+  con: { score: 17, save: 3 }
+  int: { score: 12, save: 1 }
+  wis: { score: 11, save: 2 }
+  cha: { score: 15, save: 2 }
+skills: { perception: 4, stealth: 2 }
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: [fire]
+condition_immunities: []
+senses: { passive_perception: 14, special: { blindsight: 10, darkvision: 60 } }
+languages: [draconic]
+cr: { value: 4, xp: 1100, proficiency_bonus: 2 }
+traits: []
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 2
+    sub_actions: [a_rend]
+  - id: a_rend
+    name: Rend
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 6, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d10", modifier: 4, type: slashing, average: 9 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: damage
+        params: { dice: "1d6", modifier: 0, type: fire, average: 3 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+  - id: a_fire_breath
+    name: Fire Breath
+    type: aoe_attack
+    recharge: "5-6"
+    area: { shape: cone, length_ft: 15 }
+    pipeline:
+      - primitive: forced_save
+        params:
+          ability: dexterity
+          dc: 13
+          affected: all_creatures_in_area
+          on_fail:
+            - primitive: damage
+              params: { dice: "7d6", modifier: 0, type: fire, average: 24 }
+          on_success:
+            - primitive: damage
+              params: { dice: "7d6", modifier: 0, type: fire, average: 24, multiplier: 0.5 }
+behavior_profile:
+  archetype: apex_predator
+  presets: { retreat: ftd, ability_selection: default, targeting: weakest_target, action_economy: skilled }

@@ -1,0 +1,74 @@
+# m_white_dragon_wyrmling — White Dragon Wyrmling
+# Source: SRD CC v5.2.1 p340
+# Triage: GREEN — Multiattack of Rend (+ cold rider) + recharge Cold
+# Breath (CON-save cone). Cold immunity + Ice Walk declarative.
+# Burrow/Fly/Swim omitted.
+id: m_white_dragon_wyrmling
+name: White Dragon Wyrmling
+source: srd_5.2.1
+size: medium
+creature_type: dragon
+type_tags: [chromatic]
+alignment: chaotic_evil
+combat:
+  armor_class: 16
+  hit_points: { average: 32, dice: "5d8", con_contribution: 10 }
+  speed: { walk: 30 }
+  initiative: { modifier: 2, score: 12 }
+abilities:
+  str: { score: 14, save: 2 }
+  dex: { score: 10, save: 2 }
+  con: { score: 14, save: 2 }
+  int: { score: 5, save: -3 }
+  wis: { score: 10, save: 2 }
+  cha: { score: 11, save: 0 }
+skills: { perception: 4, stealth: 2 }
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: [cold]
+condition_immunities: []
+senses: { passive_perception: 14, special: { blindsight: 10, darkvision: 60 } }
+languages: [draconic]
+cr: { value: 2, xp: 450, proficiency_bonus: 2 }
+traits:
+  - id: t_ice_walk
+    name: Ice Walk
+    type: trait_passive
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 2
+    sub_actions: [a_rend]
+  - id: a_rend
+    name: Rend
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 4, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d8", modifier: 2, type: slashing, average: 6 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: damage
+        params: { dice: "1d4", modifier: 0, type: cold, average: 2 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+  - id: a_cold_breath
+    name: Cold Breath
+    type: aoe_attack
+    recharge: "5-6"
+    area: { shape: cone, length_ft: 15 }
+    pipeline:
+      - primitive: forced_save
+        params:
+          ability: constitution
+          dc: 12
+          affected: all_creatures_in_area
+          on_fail:
+            - primitive: damage
+              params: { dice: "5d8", modifier: 0, type: cold, average: 22 }
+          on_success:
+            - primitive: damage
+              params: { dice: "5d8", modifier: 0, type: cold, average: 22, multiplier: 0.5 }
+behavior_profile:
+  archetype: apex_predator
+  presets: { retreat: ftd, ability_selection: default, targeting: weakest_target, action_economy: skilled }

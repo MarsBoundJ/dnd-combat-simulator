@@ -1,0 +1,70 @@
+# m_gold_dragon_wyrmling — Gold Dragon Wyrmling
+# Source: SRD CC v5.2.1 p291
+# Triage: GREEN (core) — Multiattack of Rend + recharge Fire Breath
+# (DEX-save cone). Fire immunity + Amphibious declarative. Built WITHOUT
+# the at-will "Weakening Breath" (STR-save: Disadvantage on STR tests +
+# -1d4 damage) — a damage-roll/ability-check penalty with no primitive;
+# logged in the queue. Fly/Swim omitted.
+id: m_gold_dragon_wyrmling
+name: Gold Dragon Wyrmling
+source: srd_5.2.1
+size: medium
+creature_type: dragon
+type_tags: [metallic]
+alignment: lawful_good
+combat:
+  armor_class: 17
+  hit_points: { average: 60, dice: "8d8", con_contribution: 24 }
+  speed: { walk: 30 }
+  initiative: { modifier: 4, score: 14 }
+abilities:
+  str: { score: 19, save: 4 }
+  dex: { score: 14, save: 4 }
+  con: { score: 17, save: 3 }
+  int: { score: 14, save: 2 }
+  wis: { score: 11, save: 2 }
+  cha: { score: 16, save: 3 }
+skills: { perception: 4, stealth: 4 }
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: [fire]
+condition_immunities: []
+senses: { passive_perception: 14, special: { blindsight: 10, darkvision: 60 } }
+languages: [draconic]
+cr: { value: 3, xp: 700, proficiency_bonus: 2 }
+traits: []
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 2
+    sub_actions: [a_rend]
+  - id: a_rend
+    name: Rend
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 6, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d10", modifier: 4, type: slashing, average: 9 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+  - id: a_fire_breath
+    name: Fire Breath
+    type: aoe_attack
+    recharge: "5-6"
+    area: { shape: cone, length_ft: 15 }
+    pipeline:
+      - primitive: forced_save
+        params:
+          ability: dexterity
+          dc: 13
+          affected: all_creatures_in_area
+          on_fail:
+            - primitive: damage
+              params: { dice: "4d10", modifier: 0, type: fire, average: 22 }
+          on_success:
+            - primitive: damage
+              params: { dice: "4d10", modifier: 0, type: fire, average: 22, multiplier: 0.5 }
+behavior_profile:
+  archetype: apex_predator
+  presets: { retreat: ftd, ability_selection: default, targeting: weakest_target, action_economy: skilled }
