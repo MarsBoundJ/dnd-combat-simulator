@@ -634,6 +634,10 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
     if total > 0:
         from engine.core import regeneration as _regeneration
         _regeneration.note_damage(target, dmg_type)
+        # Swallow regurgitate: accumulate damage a swallowed creature deals
+        # to its swallower this turn (feeds the end-of-turn check).
+        from engine.core import swallow as _swallow_mod
+        _swallow_mod.note_damage_to_swallower(actor, target, total)
 
     bus.emit("damage_dealt", {"actor": actor, "target": target,
                                 "amount": total, "type": dmg_type})

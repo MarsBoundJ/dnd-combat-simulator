@@ -257,12 +257,14 @@ deals that acid at the swallower's turn start; the swallower's death frees
 the victim. **Swallow is now buildable** for Behir / Remorhaz / Purple
 Worm / Giant Frog/Toad (and Gelatinous Cube's Engulf uses the same
 save→swallow_apply shape).
-- v1 DEFERS (documented): the **regurgitate** counterplay (Behir: 30+
-  damage in a turn from the swallowed creature → CON save or expel +
-  Prone — needs per-turn damage-from-inside tracking); **Engulf-on-move**
-  entry + **multi-capacity** (cube holds 4 Medium); the **grapple-first**
-  precondition (Behir). Until regurgitate lands, the victim is freed by
-  killing the swallower.
+- **✅ Regurgitate counterplay built (v2).** A Swallow action's
+  `swallow_apply` can carry `regurgitate_threshold` / `regurgitate_dc` /
+  `regurgitate_save`: damage the victim deals to the swallower is tracked
+  per turn, and at the victim's turn end a threshold breach makes the
+  swallower save (via forced_save, so Legendary Resistance applies) or
+  expel the victim (freed + Prone). Behir: threshold 30, CON DC 14.
+- Still DEFERRED: **Engulf-on-move** entry + **multi-capacity** (cube
+  holds 4 Medium); the **grapple-first** precondition (Behir).
 - Still deferred on OTHER systems: **Black Pudding / Ochre Jelly**
   (CR 4 / 2) — split-on-hit (On-death / triggered bucket); **Roper**
   (CR 5) — also Reel/Grapple-line mechanics.
