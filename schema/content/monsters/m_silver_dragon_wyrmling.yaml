@@ -1,0 +1,83 @@
+# m_silver_dragon_wyrmling — Silver Dragon Wyrmling
+# Source: SRD CC v5.2.1 p361
+# Triage: GREEN — Multiattack of Rend + recharge Cold Breath (CON-save
+# cone) + at-will Paralyzing Breath (CON-save cone → Incapacitated). Cold
+# immunity declarative; the Paralyzing Breath's escalation to Paralyzed on
+# a repeated failure is deferred (first failure = Incapacitated). Fly omitted.
+id: m_silver_dragon_wyrmling
+name: Silver Dragon Wyrmling
+source: srd_5.2.1
+size: medium
+creature_type: dragon
+type_tags: [metallic]
+alignment: lawful_good
+combat:
+  armor_class: 17
+  hit_points: { average: 45, dice: "6d8", con_contribution: 18 }
+  speed: { walk: 30 }
+  initiative: { modifier: 2, score: 12 }
+abilities:
+  str: { score: 19, save: 4 }
+  dex: { score: 10, save: 2 }
+  con: { score: 17, save: 3 }
+  int: { score: 12, save: 1 }
+  wis: { score: 11, save: 2 }
+  cha: { score: 15, save: 2 }
+skills: { perception: 4, stealth: 2 }
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: [cold]
+condition_immunities: []
+senses: { passive_perception: 14, special: { blindsight: 10, darkvision: 60 } }
+languages: [draconic]
+cr: { value: 2, xp: 450, proficiency_bonus: 2 }
+traits: []
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 2
+    sub_actions: [a_rend]
+  - id: a_rend
+    name: Rend
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 6, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d10", modifier: 4, type: piercing, average: 9 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+  - id: a_cold_breath
+    name: Cold Breath
+    type: aoe_attack
+    recharge: "5-6"
+    area: { shape: cone, length_ft: 15 }
+    pipeline:
+      - primitive: forced_save
+        params:
+          ability: constitution
+          dc: 13
+          affected: all_creatures_in_area
+          on_fail:
+            - primitive: damage
+              params: { dice: "4d8", modifier: 0, type: cold, average: 18 }
+          on_success:
+            - primitive: damage
+              params: { dice: "4d8", modifier: 0, type: cold, average: 18, multiplier: 0.5 }
+  - id: a_paralyzing_breath
+    name: Paralyzing Breath
+    type: aoe_attack
+    area: { shape: cone, length_ft: 15 }
+    pipeline:
+      - primitive: forced_save
+        params:
+          ability: constitution
+          dc: 13
+          affected: all_creatures_in_area
+          on_fail:
+            - primitive: apply_condition
+              params: { condition_id: co_incapacitated, duration: until_actor_next_turn_start }
+          on_success: []
+behavior_profile:
+  archetype: apex_predator
+  presets: { retreat: ftd, ability_selection: default, targeting: weakest_target, action_economy: skilled }

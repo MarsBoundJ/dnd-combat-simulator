@@ -33,16 +33,19 @@ Legendary / Spellcasting), not by recharge itself:
 - **Adult Black / Blue / Green / Red Dragon, Ancient Red Dragon, Young
   Red Dragon** (CR 10–24, rating 5) — Breath Weapon (Recharge 5–6) is now
   buildable, but these stay deferred on Legendary Actions/Resistance.
-- rating 3 (breath/recharge now unblocked, but most also need other
-  systems): all chromatic & metallic **Dragon Wyrmlings** (CR 2–4) and
-  **Young** dragons (CR 6–9) — breath is recharge-ready (Wyrmlings have
-  no Legendary, so they're now fully buildable once a batch picks them
-  up); **Gorgon** (CR 5, Petrifying Breath); **Half-Dragon** (CR 5);
+- **✅ BUILT (batch M6): all ten Dragon Wyrmlings** — Black/Blue/Green/
+  Red/White (chromatic) + Brass/Bronze/Copper/Gold/Silver (metallic),
+  each with Rend (+ chromatic elemental rider) and a Recharge 5–6 breath
+  (DEX-save line/cone, or CON-save cone for poison/cold). Metallic
+  secondary breaths built too where they map to existing primitives
+  (Brass Sleep / Silver Paralyzing → Incapacitated; Copper Slowing →
+  co_slowed; Bronze Repulsion → push + Prone). See the Gold note below
+  for the one omitted secondary breath.
+- Still recharge-ready but blocked on OTHER systems: **Young** dragons
+  (CR 6–9, breath ready — most also fine but check per color); **Gorgon**
+  (CR 5, Petrifying Breath → petrify escalation); **Half-Dragon** (CR 5);
   **Ankheg** (CR 2, Acid Spray); **Ettercap** (CR 2, Web); **Adult
-  Brass/Bronze/Copper Dragon, Ancient Silver/White Dragon** (also
-  Legendary).
-- rating 2: **Brass / Bronze / Copper Dragon Wyrmling** (CR 1–2) — breath
-  is recharge-ready; some also need Spellcasting.
+  Brass/Bronze/Copper Dragon, Ancient Silver/White Dragon** (Legendary).
 ## Legendary Actions & Legendary Resistance
 - Legendary Actions: extra actions taken between other creatures' turns.
 - Legendary Resistance: "N/Day, auto-succeed a failed save."
@@ -128,6 +131,11 @@ without the rider** (its base damage is the core):
   the Nine Hells). **Built** with it recorded as a declarative trait.
 - rating 2 full defers: **Dust Mephit** (CR 1/2), **Magmin** (CR 1/2) —
   Death Burst (explode on death) + breath.
+- **Gold Dragon Wyrmling** (CR 3) — Weakening Breath (STR save: Disadvantage on
+  STR-based D20 Tests + a -1d4 damage-roll penalty). **Built without this
+  secondary breath** (a damage-roll/ability-check debuff has no primitive);
+  its Fire Breath + Rend are the core.
+
 ## Form change
 "Change Shape" / "Shapechanger" — the polymorph/form-replacement family.
 - **Mimic** (CR 2, rating 5) — Shape-Shift (object/creature form toggle).
