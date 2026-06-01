@@ -31,6 +31,17 @@ spell:
   class: c_wizard
   level: 1
 
+pc_builder:
+  kind: spell_attack
+  action_id: a_chromatic_orb
+  name: Chromatic Orb
+  params:
+    slot_level: 1
+    range_ft: 90
+    damage_dice: "3d8"
+    damage_type: fire
+    upcast_dice: "1d8"
+
 description: |
   Ranged spell attack at 90 ft; on a hit deals 3d8 (Fire in v1;
   element choice + leap deferred). +1d8/slot above 1st.

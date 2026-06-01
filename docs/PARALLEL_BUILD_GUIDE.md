@@ -36,13 +36,55 @@ These are owned by the desktop lane to avoid merge conflicts:
 - `engine/core/divine_smite.py` — divine smite
 - `engine/core/sneak_attack.py` — sneak attack
 - `engine/ai/` — all AI scoring
+- `engine/pc_schema.py` — **NOW OFF-LIMITS** (desktop lane owns it for the
+  class build-out). You no longer need to edit it: attack/heal spells that
+  used to require a pc_schema builder are now declared **entirely in YAML**
+  via a `pc_builder` block (see below).
 - `schema/content/classes/` — class YAML files (desktop wires new spells)
+- `schema/content/subclasses/` — subclass YAML files
 - Any existing test file you didn't create
 
 **If a spell needs a new primitive or engine change, DON'T build it.**
 Instead, add it to `docs/srd/NEEDS_ENGINE_WORK.md` with: spell name,
 what it needs, and why existing primitives can't handle it. Desktop lane
 will build the primitive, then you build the spell.
+
+## `pc_builder` — attack/heal spells in pure YAML (no pc_schema edit)
+
+Spells whose action must be computed at PC-build time — ranged spell
+attacks (bonus = caster ability mod + PB), attack/save cantrips (die
+count scales with character level), and heals (+ caster ability mod) —
+declare a `pc_builder` block in the feature YAML. `pc_schema` dispatches
+it automatically; you do NOT edit `pc_schema.py`.
+
+The feature is a marker (`type: passive`, no `action_template`) plus:
+
+```yaml
+pc_builder:
+  kind: attack_cantrip | save_cantrip | spell_attack | heal
+  action_id: a_<spell>
+  name: <Spell Name>
+  params: { ...kind-specific... }
+```
+
+Kind-specific `params`:
+- **attack_cantrip** (ranged spell attack, Nd<die> on hit, die scales by
+  level, no slot): `damage_type`, `die`, `range_ft`
+- **save_cantrip** (target saves vs caster DC or takes Nd<die>, scales by
+  level, no slot): `save_ability`, `damage_type`, `die`, `range_ft`
+- **spell_attack** (leveled ranged spell attack): `slot_level`,
+  `range_ft`, `damage_dice`, `damage_type`, optional `ray_count` (N
+  attack+damage pairs), optional `upcast_dice` (single-ray only)
+- **heal** (+ caster ability mod): `slot` (action|bonus_action),
+  `slot_level`, `range_ft`, `dice`, optional `max_targets` (>1 = mass
+  heal, routes through multi-target grouping)
+
+Examples in the repo: `f_ray_of_frost` (attack_cantrip),
+`f_vicious_mockery` (save_cantrip), `f_guiding_bolt` /
+`f_scorching_ray` (spell_attack), `f_mass_cure_wounds` (heal + max_targets).
+
+If a spell needs a builder shape NOT covered by these four kinds, flag it
+in `NEEDS_ENGINE_WORK.md` under "Needs pc_schema builder (desktop lane)".
 
 ## Branching
 

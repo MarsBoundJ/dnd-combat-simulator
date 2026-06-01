@@ -29,6 +29,17 @@ spell:
   class: c_cleric
   level: 1
 
+pc_builder:
+  kind: spell_attack
+  action_id: a_guiding_bolt
+  name: Guiding Bolt
+  params:
+    slot_level: 1
+    range_ft: 120
+    damage_dice: "4d6"
+    damage_type: radiant
+    upcast_dice: "1d6"
+
 description: |
   Ranged spell attack at 120 ft; on a hit deals 4d6 radiant
   (+1d6/slot above 1st). Advantage-on-next-attack rider deferred.
