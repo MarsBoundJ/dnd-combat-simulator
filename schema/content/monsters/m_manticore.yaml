@@ -1,0 +1,70 @@
+# m_manticore — Manticore
+# Source: SRD CC v5.2.1 p306
+# Triage: GREEN — Multiattack of Rend / Tail Spike weapon attacks; no
+# defer-trigger keywords. Fly 50 omitted (walk stand-in).
+
+id: m_manticore
+name: Manticore
+source: srd_5.2.1
+
+size: large
+creature_type: monstrosity
+alignment: lawful_evil
+
+combat:
+  armor_class: 14
+  hit_points: { average: 68, dice: "8d10", con_contribution: 24 }
+  speed: { walk: 30 }
+  initiative: { modifier: 3, score: 13 }
+
+abilities:
+  str: { score: 17, save: 3 }
+  dex: { score: 16, save: 3 }
+  con: { score: 17, save: 3 }
+  int: { score: 7, save: -2 }
+  wis: { score: 12, save: 1 }
+  cha: { score: 8, save: -1 }
+
+skills: {}
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: []
+condition_immunities: []
+
+senses: { passive_perception: 11, special: { darkvision: 60 } }
+languages: [common]
+
+cr: { value: 3, xp: 700, proficiency_bonus: 2 }
+
+traits: []
+
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 3
+    sub_actions: [a_rend, a_tail_spike]
+
+  - id: a_rend
+    name: Rend
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 5, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d8", modifier: 3, type: slashing, average: 7 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  - id: a_tail_spike
+    name: Tail Spike
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: ranged, bonus: 5, range: [100, 200] }
+      - primitive: damage
+        params: { dice: "1d8", modifier: 3, type: piercing, average: 7 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: apex_predator
+  presets: { retreat: ftd, ability_selection: default, targeting: weakest_target, action_economy: casual }

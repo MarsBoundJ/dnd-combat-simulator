@@ -1,0 +1,62 @@
+# m_giant_ape — Giant Ape
+# Source: SRD CC v5.2.1 p294
+# Triage: GREEN (core) — Multiattack of Fist attacks. Built WITHOUT
+# "Boulder Toss (Recharge 6)" — a Recharge ability logged under "Recharge
+# abilities". Leap bonus action is declarative movement (omitted). Climb
+# 40 omitted (walk stand-in).
+
+id: m_giant_ape
+name: Giant Ape
+source: srd_5.2.1
+
+size: huge
+creature_type: beast
+alignment: unaligned
+
+combat:
+  armor_class: 12
+  hit_points: { average: 168, dice: "16d12", con_contribution: 64 }
+  speed: { walk: 40 }
+  initiative: { modifier: 5, score: 15 }
+
+abilities:
+  str: { score: 23, save: 6 }
+  dex: { score: 14, save: 2 }
+  con: { score: 18, save: 4 }
+  int: { score: 5, save: -3 }
+  wis: { score: 12, save: 1 }
+  cha: { score: 7, save: -2 }
+
+skills: { athletics: 9, perception: 4, survival: 4 }
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: []
+condition_immunities: []
+
+senses: { passive_perception: 14 }
+languages: []
+
+cr: { value: 7, xp: 2900, proficiency_bonus: 3 }
+
+traits: []
+
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 2
+    sub_actions: [a_fist]
+
+  - id: a_fist
+    name: Fist
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 9, reach_ft: 10 }
+      - primitive: damage
+        params: { dice: "3d10", modifier: 6, type: bludgeoning, average: 22 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: apex_predator
+  presets: { retreat: ftd, ability_selection: default, targeting: closest_enemy, action_economy: casual }

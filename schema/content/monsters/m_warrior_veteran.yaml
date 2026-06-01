@@ -1,0 +1,72 @@
+# m_warrior_veteran — Warrior Veteran
+# Source: SRD CC v5.2.1 p340
+# Triage: GREEN (core) — Multiattack of weapon attacks. Built WITHOUT the
+# "Parry" reaction (+2 AC) — logged under "Reaction abilities".
+
+id: m_warrior_veteran
+name: Warrior Veteran
+source: srd_5.2.1
+
+size: medium
+creature_type: humanoid
+alignment: neutral
+
+combat:
+  armor_class: 17
+  hit_points: { average: 65, dice: "10d8", con_contribution: 20 }
+  speed: { walk: 30 }
+  initiative: { modifier: 3, score: 13 }
+
+abilities:
+  str: { score: 16, save: 3 }
+  dex: { score: 13, save: 1 }
+  con: { score: 14, save: 2 }
+  int: { score: 10, save: 0 }
+  wis: { score: 11, save: 0 }
+  cha: { score: 10, save: 0 }
+
+skills: { athletics: 5, perception: 2 }
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: []
+condition_immunities: []
+
+gear: [greatsword, heavy_crossbow, splint_armor]
+
+senses: { passive_perception: 12 }
+languages: [common]
+
+cr: { value: 3, xp: 700, proficiency_bonus: 2 }
+
+traits: []
+
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 2
+    sub_actions: [a_greatsword, a_heavy_crossbow]
+
+  - id: a_greatsword
+    name: Greatsword
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 5, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "2d6", modifier: 3, type: slashing, average: 10 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  - id: a_heavy_crossbow
+    name: Heavy Crossbow
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: ranged, bonus: 3, range: [100, 400] }
+      - primitive: damage
+        params: { dice: "2d10", modifier: 1, type: piercing, average: 12 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: cunning_tactician
+  presets: { retreat: ftd, ability_selection: default, targeting: weakest_target, action_economy: skilled }

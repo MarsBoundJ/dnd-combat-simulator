@@ -1,0 +1,63 @@
+# m_stirge — Stirge
+# Source: SRD CC v5.2.1 p330
+# Triage: GREEN (core) — Proboscis weapon attack that attaches (modeled
+# as the existing co_grappled). Built WITHOUT the attach blood-drain
+# (2d4 necrotic at the start of each of the stirge's turns) — a
+# recurring-while-attached effect needing a new condition, logged under
+# "On-death / triggered effects". Fly 40 omitted (walk stand-in).
+
+id: m_stirge
+name: Stirge
+source: srd_5.2.1
+
+size: tiny
+creature_type: monstrosity
+alignment: unaligned
+
+combat:
+  armor_class: 13
+  hit_points: { average: 5, dice: "2d4", con_contribution: 0 }
+  speed: { walk: 10 }
+  initiative: { modifier: 3, score: 13 }
+
+abilities:
+  str: { score: 4, save: -3 }
+  dex: { score: 16, save: 3 }
+  con: { score: 11, save: 0 }
+  int: { score: 2, save: -4 }
+  wis: { score: 8, save: -1 }
+  cha: { score: 6, save: -2 }
+
+skills: {}
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: []
+condition_immunities: []
+
+senses: { passive_perception: 9, special: { darkvision: 60 } }
+languages: []
+
+cr: { value: 0.125, xp: 25, proficiency_bonus: 2 }
+
+traits: []
+
+actions:
+  - id: a_proboscis
+    name: Proboscis
+    type: weapon_attack
+    # On a hit, 1d6+3 piercing and the stirge attaches (modeled as
+    # Grappled). The ongoing blood-drain is deferred (needs a new
+    # attach-drain condition).
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 5, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d6", modifier: 3, type: piercing, average: 6 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: apply_condition
+        params: { condition_id: co_grappled, duration: until_removed }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: pack_hunter
+  presets: { retreat: cowardly, ability_selection: default, targeting: weakest_target, action_economy: casual }

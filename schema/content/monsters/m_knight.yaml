@@ -1,0 +1,79 @@
+# m_knight — Knight
+# Source: SRD CC v5.2.1 p301
+# Triage: GREEN (core) — Multiattack of weapon attacks; Frightened
+# condition immunity is declarative. Built WITHOUT the "Parry" reaction
+# (+2 AC vs a melee hit) — logged under "Reaction abilities".
+
+id: m_knight
+name: Knight
+source: srd_5.2.1
+
+size: medium
+creature_type: humanoid
+alignment: neutral
+
+combat:
+  armor_class: 18
+  hit_points: { average: 52, dice: "8d8", con_contribution: 16 }
+  speed: { walk: 30 }
+  initiative: { modifier: 0, score: 10 }
+
+abilities:
+  str: { score: 16, save: 3 }
+  dex: { score: 11, save: 0 }
+  con: { score: 14, save: 4 }
+  int: { score: 11, save: 0 }
+  wis: { score: 11, save: 2 }
+  cha: { score: 15, save: 2 }
+
+skills: {}
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: []
+condition_immunities: [co_frightened]
+
+gear: [greatsword, heavy_crossbow, plate_armor]
+
+senses: { passive_perception: 10 }
+languages: [common]
+
+cr: { value: 3, xp: 700, proficiency_bonus: 2 }
+
+traits: []
+
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 2
+    sub_actions: [a_greatsword, a_heavy_crossbow]
+
+  - id: a_greatsword
+    name: Greatsword
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 5, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "2d6", modifier: 3, type: slashing, average: 10 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: damage
+        params: { dice: "1d8", modifier: 0, type: radiant, average: 4 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  - id: a_heavy_crossbow
+    name: Heavy Crossbow
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: ranged, bonus: 2, range: [100, 400] }
+      - primitive: damage
+        params: { dice: "2d10", modifier: 0, type: piercing, average: 11 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: damage
+        params: { dice: "1d8", modifier: 0, type: radiant, average: 4 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: cunning_tactician
+  presets: { retreat: ftd, ability_selection: default, targeting: weakest_target, action_economy: skilled }
