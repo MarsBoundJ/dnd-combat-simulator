@@ -39,15 +39,24 @@ from engine.core.state import Actor, CombatState
 #   keep_features / can_cast: recorded for Phase 3+ (not enforced yet)
 MERGE_POLICIES: dict[str, dict] = {
     "wild_shape": {
-        "physical": "replace", "mental": "keep",
+        "physical": "replace", "mental": "keep", "hp": "replace",
         "carry_overflow": False, "keep_features": True, "can_cast": False,
     },
     "polymorph": {
-        "physical": "replace", "mental": "replace",
+        "physical": "replace", "mental": "replace", "hp": "replace",
         "carry_overflow": True, "keep_features": False, "can_cast": False,
     },
-    "change_shape": {   # dragon/doppelganger style: keep mental, same HP
-        "physical": "replace", "mental": "keep",
+    # 2024 "Shape-Shift" (Doppelganger / Werewolf / Succubus …): RAW says
+    # "its game statistics, OTHER THAN ITS SIZE, are the same in each
+    # form." So this policy KEEPS every combat stat — HP, AC, abilities,
+    # attacks, creature type — and changes only `size` (+ creature_type if
+    # the form declares one). `hp: keep` is the load-bearing flag: the
+    # live HP pool is never replaced, so revert must NOT restore a stale
+    # snapshot HP (that would resurrect a creature that died while shifted
+    # — see revert_form). A shifted creature dropped to 0 HP therefore
+    # dies and cosmetically reverts to its true size.
+    "change_shape": {
+        "physical": "keep", "mental": "keep", "hp": "keep",
         "carry_overflow": False, "keep_features": True, "can_cast": True,
     },
 }
@@ -73,6 +82,17 @@ def _snapshot(actor: Actor) -> dict:
 
 
 def _apply_form(actor: Actor, form_template: dict, policy: dict) -> None:
+    # Stat-preserving forms (Shape-Shift): change ONLY size (+ creature_type
+    # if the form declares one). HP / AC / speed / abilities / attacks are
+    # the creature's own in every form, so nothing else is touched and the
+    # live stat block (actor.template) is NOT swapped.
+    if policy.get("hp") == "keep":
+        if form_template.get("size"):
+            actor.size = form_template["size"]
+        if form_template.get("creature_type"):
+            actor.creature_type = form_template["creature_type"]
+        return
+
     combat = form_template.get("combat") or {}
     # HP: the form's average HP becomes the live pool (true HP is in snap).
     form_hp = int((combat.get("hit_points") or {}).get("average", actor.hp_max))
@@ -146,20 +166,31 @@ def revert_form(actor: Actor, state: CombatState, *, reason: str,
         })
         return
     snap = actor.base_form_snapshot or {}
-    for f in _SNAPSHOT_FIELDS:
-        if f in snap and f not in ("hp_current",):
-            setattr(actor, f, snap[f])
-    if "speed" in snap:
-        actor.speed = dict(snap["speed"])
-    if "abilities" in snap:
-        actor.abilities = copy.deepcopy(snap["abilities"])
-    if "template" in snap:
-        actor.template = snap["template"]
-    base_hp = int(snap.get("hp_current", actor.hp_current))
-    if policy.get("carry_overflow") and overflow > 0:
-        actor.hp_current = max(0, base_hp - overflow)
+    if policy.get("hp") == "keep":
+        # Stat-preserving form (Shape-Shift): only size/creature_type were
+        # changed, so restore only those. HP/AC/abilities/speed/template
+        # are the creature's own live values — leaving HP untouched is the
+        # resurrection guard: a creature dropped to 0 while shifted stays
+        # at 0 and dies via the hp==0 check below (reverting to true size
+        # as it falls), instead of restoring a stale full-HP snapshot.
+        for f in ("size", "creature_type"):
+            if f in snap:
+                setattr(actor, f, snap[f])
     else:
-        actor.hp_current = base_hp
+        for f in _SNAPSHOT_FIELDS:
+            if f in snap and f not in ("hp_current",):
+                setattr(actor, f, snap[f])
+        if "speed" in snap:
+            actor.speed = dict(snap["speed"])
+        if "abilities" in snap:
+            actor.abilities = copy.deepcopy(snap["abilities"])
+        if "template" in snap:
+            actor.template = snap["template"]
+        base_hp = int(snap.get("hp_current", actor.hp_current))
+        if policy.get("carry_overflow") and overflow > 0:
+            actor.hp_current = max(0, base_hp - overflow)
+        else:
+            actor.hp_current = base_hp
     actor.base_form_snapshot = None
     state.event_log.append({
         "event": "form_reverted", "actor": actor.id,
