@@ -116,6 +116,15 @@
       },
       "required": ["uses"]
     },
+    "spellcasting": {
+      "description": "Monster spellcasting profile. `ability` drives the spell save DC / attack mod for any action that casts a spell (via `casts`); `save_dc` is an explicit stat-block override used verbatim when present.",
+      "type": "object",
+      "properties": {
+        "ability": { "type": "string", "enum": ["strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma"] },
+        "save_dc": { "type": "integer" },
+        "attack_bonus": { "type": "integer" }
+      }
+    },
 
     "behavior_profile": {
       "description": "Inline BehaviorProfile per pillars-reconciliation.md §3. See that document for the full schema.",
@@ -158,6 +167,7 @@
         "attack": { "type": "object" },
         "hit_effect": { "type": "object" },
         "pipeline": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/effect_primitive" } },
+        "casts": { "type": "string", "description": "Feature id of a spell this action casts. The loader expands it into the referenced spell's effect (type/area/pipeline), with the casting monster as the source. Gate at-will (omit recharge) or per-day (recharge: 'daily:N')." },
         "recharge": { "type": "string", "pattern": "^[1-6]-[1-6]$|^short_rest$|^long_rest$|^daily:[1-9]$" },
         "options": { "type": "array" }
       }

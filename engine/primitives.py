@@ -2434,6 +2434,46 @@ def _wild_shape_revert(params: dict, state: CombatState,
         forms.revert_form(actor, state, reason="voluntary")
 
 
+def _shape_shift(params: dict, state: CombatState, bus: EventBus) -> None:
+    """Monster Shape-Shift (2024 'Change Shape') — rides the form core's
+    stat-preserving `change_shape` policy.
+
+    RAW: the creature's game statistics, OTHER THAN ITS SIZE, are the same
+    in each form. So this changes only `size` (+ `creature_type` if the
+    form declares one) and keeps HP / AC / abilities / attacks. Params:
+      - form_id: a label for the assumed form (e.g. 'wolf', 'humanoid')
+      - size: the form's size (e.g. 'large', 'medium')
+      - creature_type: optional new creature type
+    A minimal form_template is built from these (no combat block — the
+    `change_shape` policy ignores it). Reverting at 0 HP lets the creature
+    die in its true size rather than restoring a stale HP snapshot."""
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        raise ValueError("shape_shift requires a current actor")
+    form_id = params.get("form_id", "alternate_form")
+    form_template = {"id": form_id}
+    if params.get("size"):
+        form_template["size"] = params["size"]
+    if params.get("creature_type"):
+        form_template["creature_type"] = params["creature_type"]
+    from engine.core import forms
+    forms.assume_form(actor, form_template, "change_shape", {
+        "effect": "shape_shift", "caster_id": actor.id,
+        "reversion": ["hp_zero", "voluntary"],
+    }, state)
+
+
+def _shape_shift_revert(params: dict, state: CombatState,
+                          bus: EventBus) -> None:
+    """Return to true form (Shape-Shift) — restores true size, keeps HP."""
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        raise ValueError("shape_shift_revert requires a current actor")
+    from engine.core import forms
+    if forms.is_transformed(actor):
+        forms.revert_form(actor, state, reason="voluntary")
+
+
 def _grant_bardic_inspiration(params: dict, state: CombatState,
                                 bus: EventBus) -> None:
     """Grant a Bardic Inspiration die to an ally (current_attack.target).
@@ -2501,7 +2541,16 @@ def _caster_spell_save_dc(actor: Actor) -> int:
     ability per class. Falls back to CHA when unstamped, preserving the
     PR #89 Paladin behavior. The 3-letter abbreviation is just the
     first 3 chars of the full ability name (wisdom→wis, charisma→cha,
-    intelligence→int, etc. — all six map correctly)."""
+    intelligence→int, etc. — all six map correctly).
+
+    Monster override: a stat block may declare an explicit `spell_save_dc`
+    (from its `spellcasting.save_dc`, stamped at load by
+    monster_spellcasting). When present it's used verbatim — the 2024
+    monster format lists a fixed DC, and this avoids depending on the
+    monster's ability scores reproducing it via the formula."""
+    explicit = (actor.template or {}).get("spell_save_dc")
+    if explicit is not None:
+        return int(explicit)
     pb = int((actor.template.get("cr") or {}).get("proficiency_bonus", 2))
     ability = ((actor.template or {}).get("spellcasting_ability")
                  or "charisma")
@@ -2732,6 +2781,8 @@ def _populate_handler_table() -> None:
         "cutting_words_resolve": _cutting_words_resolve,
         "wild_shape_transform": _wild_shape_transform,
         "wild_shape_revert": _wild_shape_revert,
+        "shape_shift": _shape_shift,
+        "shape_shift_revert": _shape_shift_revert,
     }
 
 
@@ -2818,6 +2869,11 @@ def _all_primitives() -> list[Primitive]:
         Primitive("wild_shape_transform", _wild_shape_transform,
                     implemented=True),
         Primitive("wild_shape_revert", _wild_shape_revert,
+                    implemented=True),
+        # Monster Shape-Shift (2024 Change Shape) — stat-preserving form
+        # change (size only) via the change_shape policy.
+        Primitive("shape_shift", _shape_shift, implemented=True),
+        Primitive("shape_shift_revert", _shape_shift_revert,
                     implemented=True),
         Primitive("grant_bardic_inspiration", _grant_bardic_inspiration,
                     implemented=True),
