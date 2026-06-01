@@ -249,14 +249,25 @@ combat abilities, which are the real point:
   blockers are Charm / Draining Kiss / Etherealness (own buckets).
 ## Engulf / swallow
 "Swallow," "Engulf," restrain-and-internalize mechanics.
-- **Gelatinous Cube** (CR 2, rating 5) — Engulf (DEX save, pulled inside,
-  Restrained + ongoing acid). Full defer.
-- rating 4: **Behir** (CR 11) + **Remorhaz** (CR 11) + **Roper** (CR 5)
-  — Swallow; **Black Pudding / Ochre Jelly** (CR 4 / 2) — split-on-hit
-  (also "On-death / triggered"). Full defer.
-
-- **Giant Frog** (CR 1/4, rating 3), **Giant Toad** (CR 1, rating 3) —
-  Bite-then-Swallow. **Built without the Swallow** (Bite + Grapple core).
+**✅ SYSTEM BUILT (engine.core.swallow).** A Swallow action is a DEX
+`forced_save` whose `on_fail` applies Blinded + Restrained then the
+`swallow_apply` primitive: the target gets Total Cover, is pulled into the
+swallower's space, and is tagged with an ongoing-acid spec. The runner
+deals that acid at the swallower's turn start; the swallower's death frees
+the victim. **Swallow is now buildable** for Behir / Remorhaz / Purple
+Worm / Giant Frog/Toad (and Gelatinous Cube's Engulf uses the same
+save→swallow_apply shape).
+- v1 DEFERS (documented): the **regurgitate** counterplay (Behir: 30+
+  damage in a turn from the swallowed creature → CON save or expel +
+  Prone — needs per-turn damage-from-inside tracking); **Engulf-on-move**
+  entry + **multi-capacity** (cube holds 4 Medium); the **grapple-first**
+  precondition (Behir). Until regurgitate lands, the victim is freed by
+  killing the swallower.
+- Still deferred on OTHER systems: **Black Pudding / Ochre Jelly**
+  (CR 4 / 2) — split-on-hit (On-death / triggered bucket); **Roper**
+  (CR 5) — also Reel/Grapple-line mechanics.
+- **Giant Frog** (CR 1/4), **Giant Toad** (CR 1) — Swallow now buildable
+  (currently built with Bite + Grapple core; add the Swallow action).
 - rating 3 full defers: **Behir** (CR 11), **Remorhaz** (CR 11),
   **Roper** (CR 5) — Swallow.
 ## Reaction abilities

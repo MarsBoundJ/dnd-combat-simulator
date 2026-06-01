@@ -254,6 +254,15 @@ class Actor:
     # damaging hit until the next turn-start regen check.
     regen_suppressed: bool = False
 
+    # Swallow (Behir / Purple Worm / Gelatinous Cube). On the SWALLOWED
+    # creature: `swallowed_by` is the swallower's id, `swallow_damage` is
+    # the ongoing-acid spec {dice, type} dealt at the swallower's turn
+    # start. Cleared by engine.core.swallow.release (swallower death /
+    # regurgitate). A swallowed creature also has Blinded + Restrained
+    # (sourced to the swallower) and Total Cover. See engine/core/swallow.py.
+    swallowed_by: str | None = None
+    swallow_damage: dict | None = None
+
     # Racial trait ids (PR #75). Loaded from PC race spec via
     # pc_schema → cli — e.g. `["t_lucky", "t_brave"]` for a Halfling.
     # Read at runtime by query_save_modifiers (Brave / Fey Ancestry /
