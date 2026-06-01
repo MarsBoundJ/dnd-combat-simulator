@@ -577,6 +577,16 @@ def derive_pc_resources(pc_spec: dict, content_registry: Any) -> dict:
         resources["innate_sorcery_uses_remaining"] = 2
         resources["innate_sorcery_uses_max"] = 2
 
+    # ---- Wild Shape (Druid L2+) ----
+    # Uses from class_resources.wild_shape_uses; regain 1 on short rest,
+    # all on long. Consumed by the f_wild_shape BA action's feature_use
+    # gate; the wild_shape_transform primitive rides engine.core.forms.
+    if "f_wild_shape" in features_known:
+        ws = int(class_resources_at_level.get("wild_shape_uses", 0))
+        if ws > 0:
+            resources["wild_shape_uses_remaining"] = ws
+            resources["wild_shape_uses_max"] = ws
+
     # ---- Monk's Focus / Focus Points (Monk L2+) ----
     # Pool = Monk level, read off class_resources.focus_points. Fuels
     # Flurry of Blows (+ future Stunning Strike / Patient Defense).

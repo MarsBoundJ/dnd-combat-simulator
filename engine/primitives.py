@@ -2388,6 +2388,42 @@ def _wrathful_smite_arm(params: dict, state: CombatState,
                      action_id=action_id, state=state)
 
 
+def _wild_shape_transform(params: dict, state: CombatState,
+                            bus: EventBus) -> None:
+    """Druid Wild Shape — transform into a Beast form (form system).
+
+    Reads the target beast template id from `params.form` (a monster id
+    like 'm_wolf'; default 'm_wolf') from the content registry and calls
+    forms.assume_form with the wild_shape policy. The Wild Shape use is
+    consumed by the action's feature_use gate. AI form-selection (which
+    of the druid's known forms, and when) is deferred to the AI lane."""
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        raise ValueError("wild_shape_transform requires a current actor")
+    form_id = params.get("form", "m_wolf")
+    registry = state.content_registry
+    if registry is None:
+        raise ValueError("wild_shape_transform requires a content registry")
+    form_template = registry.get("monster", form_id)
+    from engine.core import forms
+    forms.assume_form(actor, form_template, "wild_shape", {
+        "effect": "wild_shape", "caster_id": actor.id,
+        "action_id": "a_wild_shape",
+        "reversion": ["hp_zero", "incapacitated", "voluntary"],
+    }, state)
+
+
+def _wild_shape_revert(params: dict, state: CombatState,
+                         bus: EventBus) -> None:
+    """Leave Wild Shape early (Bonus Action) — revert to true form."""
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        raise ValueError("wild_shape_revert requires a current actor")
+    from engine.core import forms
+    if forms.is_transformed(actor):
+        forms.revert_form(actor, state, reason="voluntary")
+
+
 def _grant_bardic_inspiration(params: dict, state: CombatState,
                                 bus: EventBus) -> None:
     """Grant a Bardic Inspiration die to an ally (current_attack.target).
@@ -2684,6 +2720,8 @@ def _populate_handler_table() -> None:
         "hp_max_grant": _hp_max_grant,
         "grant_bardic_inspiration": _grant_bardic_inspiration,
         "cutting_words_resolve": _cutting_words_resolve,
+        "wild_shape_transform": _wild_shape_transform,
+        "wild_shape_revert": _wild_shape_revert,
     }
 
 
@@ -2765,6 +2803,12 @@ def _all_primitives() -> list[Primitive]:
         # Bardic Inspiration — grant a held die to an ally. The holder's
         # post-roll self-add lives in engine.core.bardic_inspiration
         # (hooked in _attack_roll), not a primitive.
+        # Druid Wild Shape — transform into a Beast form (rides
+        # engine.core.forms). Revert leaves the form early.
+        Primitive("wild_shape_transform", _wild_shape_transform,
+                    implemented=True),
+        Primitive("wild_shape_revert", _wild_shape_revert,
+                    implemented=True),
         Primitive("grant_bardic_inspiration", _grant_bardic_inspiration,
                     implemented=True),
         # College of Lore Cutting Words — reaction that rolls the Bard's

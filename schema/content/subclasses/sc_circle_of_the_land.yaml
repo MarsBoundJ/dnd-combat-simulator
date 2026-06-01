@@ -1,0 +1,36 @@
+# sc_circle_of_the_land — Circle of the Land (Druid subclass)
+# Source: SRD CC v5.2.1 (PHB 2024)
+#
+# The SRD Druid subclass. Combat-relevant feature shipped in v1:
+#   - L3 Land's Aid (f_lands_aid): a Magic action that spends a Wild
+#     Shape use to deal 2d6 necrotic (CON save for half) to enemies in a
+#     10-ft sphere, plus heal one ally 2d6 (heal rider deferred — see
+#     f_lands_aid). The subclass's standout combat option and a second
+#     sink for the Wild Shape resource.
+#
+# Deferred subclass features (utility / economy / positional — out of
+# scope for the combat sim's eHP/DPR measurement in v1):
+#   - L3 Circle Spells: a land-type (arid/polar/temperate/tropical)
+#     always-prepared spell list. Needs a land-choice field + several
+#     spells not yet built (Fireball, Lightning Bolt, Cone of Cold, ...);
+#     wire once those exist and a pc_spec.land_choice is added.
+#   - L6 Natural Recovery: free Circle-spell cast 1/long rest + short-rest
+#     slot recovery. Pure resource economy; no combat-round effect.
+#   - L10 Nature's Ward: Poisoned immunity + Resistance to a land-keyed
+#     damage type. Modelable once land_choice exists (build-time grant).
+#   - L14 Nature's Sanctuary: a movable 15-ft Half-Cover/Resistance aura.
+#     Positional cover not modeled in v1.
+
+id: sc_circle_of_the_land
+name: Circle of the Land
+source: srd_5.2.1
+parent_class: c_druid
+
+archetype_tags:
+  behavior_archetype: primal_guardian
+  role: controller                  # INTERNAL-EVAL-ONLY per vocabulary firewall
+  flavor_tags: [primal, elemental, land, nature]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_lands_aid]
