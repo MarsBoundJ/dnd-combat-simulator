@@ -2501,7 +2501,16 @@ def _caster_spell_save_dc(actor: Actor) -> int:
     ability per class. Falls back to CHA when unstamped, preserving the
     PR #89 Paladin behavior. The 3-letter abbreviation is just the
     first 3 chars of the full ability name (wisdom→wis, charisma→cha,
-    intelligence→int, etc. — all six map correctly)."""
+    intelligence→int, etc. — all six map correctly).
+
+    Monster override: a stat block may declare an explicit `spell_save_dc`
+    (from its `spellcasting.save_dc`, stamped at load by
+    monster_spellcasting). When present it's used verbatim — the 2024
+    monster format lists a fixed DC, and this avoids depending on the
+    monster's ability scores reproducing it via the formula."""
+    explicit = (actor.template or {}).get("spell_save_dc")
+    if explicit is not None:
+        return int(explicit)
     pb = int((actor.template.get("cr") or {}).get("proficiency_bonus", 2))
     ability = ((actor.template or {}).get("spellcasting_ability")
                  or "charisma")

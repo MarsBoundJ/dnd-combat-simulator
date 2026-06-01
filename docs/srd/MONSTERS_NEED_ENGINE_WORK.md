@@ -88,8 +88,18 @@ per monster.
 Initiative-20 lair actions / area regional effects — no lair-timing system.
 
 ## Monster Spellcasting
-"Spellcasting" / "Innate Spellcasting" trait. Defer unless every listed
-spell is already built AND a monster-spellcasting action path exists.
+**✅ SYSTEM BUILT (engine.core.monster_spellcasting).** A monster action
+casts a built spell by reference: `casts: <feature_id>` (+ optional
+`recharge: "daily:1"` for 1/Day; omit for At-Will). A top-level
+`spellcasting: { ability, save_dc }` drives the DC. The loader expands
+each `casts` action into the referenced spell's full effect (type / area /
+pipeline), with the monster as caster, dropping the PC spell-slot level.
+
+Remaining blocker is now CONTENT, not engine: a caster is buildable once
+**every spell it casts is built**. Built & ready to reference today:
+Bless, Fireball, Healing Word, Mass Healing Word, Spirit Guardians (plus
+the rest of the spell library). A caster needing an unbuilt spell defers
+on THAT spell (build it first, or omit + note).
 - **Priest** (CR 2, rating 4) — Spellcasting (Light, Thaumaturgy, Spirit
   Guardians) + Divine Aid (Bless / Dispel Magic / Healing Word / Lesser
   Restoration). Full defer (its weapon attacks aren't the point).

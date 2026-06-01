@@ -112,6 +112,12 @@ def load_content(content_root: Path, validate: bool = True,
                     ) from e
             registry.add(etype, entity)
 
+    # Post-load: expand monster `casts` actions into full spell effects
+    # (needs all features present, so it runs after the load loop). See
+    # engine/core/monster_spellcasting.py.
+    from engine.core.monster_spellcasting import expand_registry
+    expand_registry(registry)
+
     return registry
 
 
