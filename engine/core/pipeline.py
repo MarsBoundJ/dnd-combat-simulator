@@ -112,6 +112,12 @@ def generate_candidates(actor: Actor, state: CombatState,
     )
     actions = [a for a in actions
                 if _has_feat(actor, _req_feat(a))]
+    # Filter out recharge-gated abilities (monster Breath Weapon, Web,
+    # Boulder Toss, …) that have been used and haven't recharged yet.
+    # Actions without a `recharge` field pass through unchanged.
+    from engine.core.recharge import is_available as _recharge_available
+    actions = [a for a in actions
+                if _recharge_available(actor, a)]
     # PR #79: Silence zone gate. RAW: actors within a silence_zone
     # can't cast spells with Verbal components. v1 simplification:
     # treat ALL spells as having a Verbal component (RAW: most do)
@@ -1031,6 +1037,12 @@ def execute(chosen: dict, state: CombatState, event_bus, primitives) -> None:
     feature_key = _req_feat(action)
     if feature_key is not None:
         _consume_feat(actor, feature_key, state, action_id=action.get("id"))
+
+    # Recharge consumption — a recharge-gated ability (Breath Weapon, Web,
+    # …) becomes unavailable on use until it recharges on the owner's
+    # turn-start d6 roll. No-op for actions without a `recharge` field.
+    from engine.core.recharge import mark_spent as _mark_recharge_spent
+    _mark_recharge_spent(actor, action, state)
 
 
 def _execute_single(chosen: dict, state: CombatState, event_bus, primitives) -> None:

@@ -167,6 +167,15 @@ class EncounterRunner:
         self.event_bus.emit("turn_start", {"actor": actor, "round": state.round})
         state.event_log.append({"event": "turn_start", "actor": actor.id, "round": state.round})
 
+        # Recharge abilities (monster Breath Weapon / Web / Boulder Toss).
+        # At the start of the creature's turn, roll a d6 for each spent
+        # die-based recharge ability; one whose roll lands in range becomes
+        # available again this turn. Fires right after turn_start so the
+        # ability is back in the candidate pool when the turn's actions are
+        # chosen below. See engine/core/recharge.py.
+        from engine.core import recharge as _recharge
+        _recharge.roll_recharges_at_turn_start(actor, state, self.rng)
+
         # PR #43: persistent aura triggers (Spirit Guardians-shape).
         # Fires AFTER turn_start so the event log shows turn_start first,
         # then any aura damage. Skip if the actor died from the aura

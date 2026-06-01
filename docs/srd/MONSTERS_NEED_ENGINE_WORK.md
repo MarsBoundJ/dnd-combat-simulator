@@ -14,33 +14,35 @@ Use the bucket names below verbatim so the desktop lane can batch by system.
 ## Recharge abilities
 Abilities usable again on a die roll at turn start ("Recharge 5–6",
 "Recharge 6", "Recharge after a Short/Long Rest") — most dragon/beast
-breath weapons. No recharge tracking exists. *(Unblocks the most
-rating-5 monsters; strong candidate for the desktop systems track.)*
-- **Giant Spider** (CR 1, rating 5) — Web (Recharge 5–6): DEX save or
-  Restrained. **Built without this ability** (Bite is the complete core).
-- **Minotaur of Baphomet** (CR 3, rating 5) — Gore (Recharge 5–6): a
-  charge attack with bonus damage + Prone. **Built without this ability**
-  (Abyssal Glaive is the complete core).
-- **Wolf** (CR 1/4, rating 5) — the *Winter* Wolf variant's Cold Breath
-  (Recharge 5–6); the plain Wolf was BUILT (no recharge).
-- **Adult Black / Blue / Green / Red Dragon, Ancient Red Dragon, Young
-  Red Dragon** (CR 10–24, rating 5) — Breath Weapon (Recharge 5–6). Also
-  blocked by Legendary Actions/Resistance (dragons) — see below.
-- **Giant Ape** (CR 7, rating 4) — Boulder Toss (Recharge 6): a ranged
-  DEX-save AoE + Prone. **Built without this ability** (Fist multiattack
-  is the complete core).
+breath weapons.
 
-- rating 3 full defers (breath / recharge): all chromatic & metallic
-  **Dragon Wyrmlings** (Black/Blue/Green/White/Red/Gold/Silver/Brass/
-  Bronze/Copper, CR 2–4) and **Young** dragons (CR 6–9); **Gorgon**
-  (CR 5, Petrifying Breath); **Half-Dragon** (CR 5, breath); **Ankheg**
-  (CR 2, Acid Spray); **Ettercap** (CR 2, Web); **Adult Brass/Bronze/
-  Copper Dragon, Ancient Silver/White Dragon** (also Legendary).
-- **Ape** (CR 1/2, rating 2) — Rock (Recharge 6). **Built without it**
-  (Fist multiattack is the complete core).
-- rating 2 full defers: **Brass / Bronze / Copper Dragon Wyrmling**
-  (CR 1–2) — Breath Weapon (Recharge); also blocked by Spellcasting on
-  some wyrmlings.
+**✅ SYSTEM BUILT (engine.core.recharge).** A `recharge` action field
+("5-6", "6-6", or rest/daily forms) is gated end-to-end: spent on use,
+rolled at the owner's turn-start, filtered from the candidate pool while
+unavailable. The following partial-defers are now COMPLETE: **Giant
+Spider** Web (5–6, save-or-Restrained), **Minotaur of Baphomet** Gore
+(5–6, base hit; charge rider deferred), **Giant Ape** Boulder Toss (6,
+DEX-save AoE + Prone — the breath-weapon-shape proof), and **Ape** Rock
+(6, ranged throw).
+
+Remaining recharge defers are blocked by *other* systems (mostly
+Legendary / Spellcasting), not by recharge itself:
+- **Wolf** (CR 1/4) — the *Winter* Wolf variant's Cold Breath (5–6) is a
+  NEW monster (not the built plain Wolf); recharge-ready, awaits a
+  monster batch.
+- **Adult Black / Blue / Green / Red Dragon, Ancient Red Dragon, Young
+  Red Dragon** (CR 10–24, rating 5) — Breath Weapon (Recharge 5–6) is now
+  buildable, but these stay deferred on Legendary Actions/Resistance.
+- rating 3 (breath/recharge now unblocked, but most also need other
+  systems): all chromatic & metallic **Dragon Wyrmlings** (CR 2–4) and
+  **Young** dragons (CR 6–9) — breath is recharge-ready (Wyrmlings have
+  no Legendary, so they're now fully buildable once a batch picks them
+  up); **Gorgon** (CR 5, Petrifying Breath); **Half-Dragon** (CR 5);
+  **Ankheg** (CR 2, Acid Spray); **Ettercap** (CR 2, Web); **Adult
+  Brass/Bronze/Copper Dragon, Ancient Silver/White Dragon** (also
+  Legendary).
+- rating 2: **Brass / Bronze / Copper Dragon Wyrmling** (CR 1–2) — breath
+  is recharge-ready; some also need Spellcasting.
 ## Legendary Actions & Legendary Resistance
 - Legendary Actions: extra actions taken between other creatures' turns.
 - Legendary Resistance: "N/Day, auto-succeed a failed save."
