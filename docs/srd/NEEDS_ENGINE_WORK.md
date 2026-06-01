@@ -124,6 +124,19 @@ first, then the spell rides it.
   spell) scores 0 in defensive_ehp_hard_control. Charmed denies only
   attacks against the charmer — assign it a small partial-denial weight.
 
+## Multi-target chained selection
+- **Chain Lightning** (L6, P4) — a primary bolt plus three (more at higher
+  levels) bolts that "leap" to other targets of the caster's choice within
+  30 ft of the first, each making its own DEX save for 10d8 lightning, and
+  a given creature can be hit by only one bolt. This is bounded
+  caster-chosen multi-target selection (pick up to N enemies near the
+  primary, no AoE geometry, no repeats), which no primitive expresses: a
+  30-ft sphere AoE would hit allies, ignore the 3-target cap, and re-hit
+  the primary. Needs a "chain to up to N nearest/chosen distinct targets
+  within R of the primary, save+damage each" targeting mode. (Chromatic
+  Orb's matching-d8 leap is the single-leap cousin, deferred for the same
+  reason.)
+
 ## Meta / Special
 - **Wish** (L9, P5) — can duplicate any 8th-level-or-lower spell + freeform
 - **Mass Suggestion** (L6, P5) — multi-target charm control (12 creatures)

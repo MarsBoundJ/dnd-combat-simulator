@@ -1,0 +1,45 @@
+# f_vicious_mockery — Vicious Mockery (Enchantment cantrip, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p171): 60 ft, one creature you can see or hear.
+# The target makes a Wisdom saving throw or takes 1d6 Psychic damage and
+# has Disadvantage on the next attack roll it makes before the end of
+# its next turn. Cantrip Upgrade: +1d6 at levels 5/11/17.
+#
+# Engine modeling: a save-for-damage cantrip — the WIS/psychic sibling
+# of Sacred Flame / Toll the Dead. MARKER feature built by
+# pc_schema._build_save_cantrip_action (WIS save vs the caster's spell
+# DC; Nd6 psychic on a fail, N scaling with character level).
+#
+# granted_by points to c_bard (Bard's signature cantrip); the class YAML
+# isn't shipped yet, so the pc_schema dispatch only fires once c_bard
+# lands. _SPELL_ABILITY_BY_CLASS already maps c_bard → CHA for the DC.
+#
+# Deferred RAW bits:
+#   - "Disadvantage on the target's next attack" rider — no clean
+#     one-shot disadvantage grant in v1; the psychic damage is the
+#     load-bearing effect (same posture as Toll the Dead's deferred
+#     d12-if-wounded upgrade).
+#
+# source: srd_5.2.1
+
+id: f_vicious_mockery
+name: Vicious Mockery
+source: srd_5.2.1
+granted_by:
+  class: c_bard
+  level: 1
+type: passive
+spell:
+  class: c_bard
+  level: 0
+
+description: |
+  Cantrip. A creature within 60 ft makes a WIS save or takes Nd6
+  psychic damage (N scales 1/2/3/4 at character level 1/5/11/17).
+  Disadvantage-on-next-attack rider deferred.
+
+contract:
+  reads: [target.saves.wisdom, actor.spell_save_dc]
+  writes: [combat.damage_total]
+  event: passive
+  scope: builds_save_attack_action

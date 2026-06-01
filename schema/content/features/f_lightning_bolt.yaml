@@ -1,0 +1,58 @@
+# f_lightning_bolt — Lightning Bolt (Level 3 Evocation, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p143): a 100-foot-long, 5-foot-wide Line
+# blasts from you in a chosen direction. Each creature in the Line makes
+# a Dexterity saving throw, taking 8d6 Lightning damage on a failed save
+# or half on a success. Using a Higher-Level Spell Slot: +1d6 per slot
+# above 3.
+#
+# Engine modeling: the line-shaped sibling of Fireball — a static
+# `aoe_attack` action_template with a `line` area. The candidate
+# generator sets origin = caster, direction = unit vector toward the
+# chosen enemy; forced_save's `all_creatures_in_area` resolves every
+# living creature in the line via actors_in_line. DEX save vs the spell
+# save DC: 8d6 lightning on a fail, half on a success. +1d6/slot upcast.
+#
+# source: srd_5.2.1
+
+id: f_lightning_bolt
+name: Lightning Bolt
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 5             # Wizards gain 3rd-level slots at L5
+type: active
+spell:
+  class: c_wizard
+  level: 3
+
+description: |
+  100-ft line (5 ft wide) from the caster. DEX save vs spell DC: 8d6
+  lightning on a fail, half on a success. +1d6 per slot above 3rd.
+
+action_template:
+  id: a_lightning_bolt
+  name: Lightning Bolt
+  type: aoe_attack
+  spell_slot_level: 3
+  named_effect: lightning_bolt
+  range_ft: 100
+  area:
+    shape: line
+    length_ft: 100
+    width_ft: 5
+  upcast_scaling:
+    extra_dice_per_level: "1d6"
+    damage_type: lightning
+  pipeline:
+    - primitive: forced_save
+      params:
+        ability: dexterity
+        dc_source: caster_spell_save_dc
+        affected: all_creatures_in_area
+        on_fail:
+          - primitive: damage
+            params: { dice: "8d6", modifier: 0, type: lightning }
+        on_success:
+          - primitive: damage
+            params: { dice: "8d6", modifier: 0, type: lightning, multiplier: 0.5 }

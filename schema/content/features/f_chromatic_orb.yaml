@@ -1,0 +1,42 @@
+# f_chromatic_orb — Chromatic Orb (Level 1 Evocation, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p114): 90 ft, M (a 50+ GP diamond). Choose
+# Acid/Cold/Fire/Lightning/Poison/Thunder, then make a ranged spell
+# attack; on a hit the target takes 3d8 damage of the chosen type. If
+# two or more of the d8s match, the orb leaps to a new target within
+# 30 ft (a second attack); it can keep leaping only if cast with a
+# level-2+ slot. Using a Higher-Level Spell Slot: +1d8 per slot above 1.
+#
+# Engine modeling: a ranged-spell-attack leveled spell — a MARKER
+# feature built by pc_schema._build_leveled_spell_attack_action (3d8 on
+# hit, +1d8/slot upcast). The element is fixed to Fire in v1 (the orb's
+# six elements are damage-type cosmetics; the chooseable element needs a
+# cast-time option the action schema doesn't model yet).
+#
+# Deferred RAW bits:
+#   - Element choice (v1 fixes Fire — the type is cosmetic for the sim).
+#   - The "matching d8s → leap to another target" mechanic (needs
+#     per-die inspection + a chained second attack).
+#
+# source: srd_5.2.1
+
+id: f_chromatic_orb
+name: Chromatic Orb
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 1
+type: passive
+spell:
+  class: c_wizard
+  level: 1
+
+description: |
+  Ranged spell attack at 90 ft; on a hit deals 3d8 (Fire in v1;
+  element choice + leap deferred). +1d8/slot above 1st.
+
+contract:
+  reads: [actor.spell_ability_mod, actor.proficiency_bonus]
+  writes: [combat.attack_roll, combat.damage_total]
+  event: passive
+  scope: builds_spell_attack_action

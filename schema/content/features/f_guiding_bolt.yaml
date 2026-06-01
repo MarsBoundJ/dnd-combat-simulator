@@ -1,0 +1,40 @@
+# f_guiding_bolt — Guiding Bolt (Level 1 Evocation, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p137): 120 ft. Make a ranged spell attack; on
+# a hit the target takes 4d6 Radiant damage and the next attack roll
+# against it before the end of your next turn has Advantage. Duration:
+# 1 round. Using a Higher-Level Spell Slot: +1d6 per slot above 1st.
+#
+# Engine modeling: a ranged-spell-attack leveled spell. Like Fire Bolt
+# the attack bonus (WIS mod + PB for the Cleric) must be baked at
+# PC-build time, so this is a MARKER feature built by
+# pc_schema._build_leveled_spell_attack_action when f_guiding_bolt is in
+# features_known (4d6 radiant on hit, +1d6/slot upcast).
+#
+# Deferred RAW bits:
+#   - "next attack against it has Advantage" rider — no clean
+#     until-end-of-caster's-next-turn grant-advantage lifetime exists in
+#     v1; the 4d6 radiant is the load-bearing effect.
+#
+# source: srd_5.2.1
+
+id: f_guiding_bolt
+name: Guiding Bolt
+source: srd_5.2.1
+granted_by:
+  class: c_cleric
+  level: 1
+type: passive
+spell:
+  class: c_cleric
+  level: 1
+
+description: |
+  Ranged spell attack at 120 ft; on a hit deals 4d6 radiant
+  (+1d6/slot above 1st). Advantage-on-next-attack rider deferred.
+
+contract:
+  reads: [actor.spell_ability_mod, actor.proficiency_bonus]
+  writes: [combat.attack_roll, combat.damage_total]
+  event: passive
+  scope: builds_spell_attack_action
