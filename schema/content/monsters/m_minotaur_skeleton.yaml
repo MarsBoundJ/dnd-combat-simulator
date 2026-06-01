@@ -1,0 +1,45 @@
+# m_minotaur_skeleton — Minotaur Skeleton
+# Source: SRD CC v5.2.1 p326
+# Triage: GREEN — single Gore; Bludgeoning vuln + Poison immunity + cond
+# immunities declarative. Charge bonus damage + Prone movement-conditional
+# (noted, not modeled).
+id: m_minotaur_skeleton
+name: Minotaur Skeleton
+source: srd_5.2.1
+size: large
+creature_type: undead
+alignment: lawful_evil
+combat:
+  armor_class: 12
+  hit_points: { average: 45, dice: "6d10", con_contribution: 12 }
+  speed: { walk: 40 }
+  initiative: { modifier: 0, score: 10 }
+abilities:
+  str: { score: 18, save: 4 }
+  dex: { score: 11, save: 0 }
+  con: { score: 15, save: 2 }
+  int: { score: 6, save: -2 }
+  wis: { score: 8, save: -1 }
+  cha: { score: 5, save: -3 }
+skills: {}
+damage_resistances: []
+damage_vulnerabilities: [bludgeoning]
+damage_immunities: [poison]
+condition_immunities: [co_exhaustion, co_poisoned]
+senses: { passive_perception: 9, special: { darkvision: 60 } }
+languages: []
+cr: { value: 2, xp: 450, proficiency_bonus: 2 }
+traits: []
+actions:
+  - id: a_gore
+    name: Gore
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 6, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "2d6", modifier: 4, type: piercing, average: 11 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+behavior_profile:
+  archetype: mindless_aggressor
+  presets: { retreat: ftd, ability_selection: default, targeting: closest_enemy, action_economy: casual }

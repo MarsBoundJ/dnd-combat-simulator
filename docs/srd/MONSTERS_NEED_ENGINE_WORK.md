@@ -30,6 +30,12 @@ rating-5 monsters; strong candidate for the desktop systems track.)*
   DEX-save AoE + Prone. **Built without this ability** (Fist multiattack
   is the complete core).
 
+- rating 3 full defers (breath / recharge): all chromatic & metallic
+  **Dragon Wyrmlings** (Black/Blue/Green/White/Red/Gold/Silver/Brass/
+  Bronze/Copper, CR 2–4) and **Young** dragons (CR 6–9); **Gorgon**
+  (CR 5, Petrifying Breath); **Half-Dragon** (CR 5, breath); **Ankheg**
+  (CR 2, Acid Spray); **Ettercap** (CR 2, Web); **Adult Brass/Bronze/
+  Copper Dragon, Ancient Silver/White Dragon** (also Legendary).
 ## Legendary Actions & Legendary Resistance
 - Legendary Actions: extra actions taken between other creatures' turns.
 - Legendary Resistance: "N/Day, auto-succeed a failed save."
@@ -68,6 +74,10 @@ spell is already built AND a monster-spellcasting action path exists.
 - **Cultist Fanatic** (CR 2, rating 5), **Drider** (CR 6, rating 5),
   **Medusa** (CR 6, rating 5) — Spellcasting (Medusa also Petrifying Gaze).
 
+- rating 3 full defers: **Guardian Naga / Spirit Naga** (CR 10 / 8),
+  **Sphinx of Lore / Valor / Wonder** (CR 11 / 17 / 10), **Couatl**
+  (CR 4), **Lamia** (CR 4), **Sea Hag / Green Hag** innate (CR 2 / 3),
+  **Satyr** (innate), **Salamander**-tier innate casters.
 ## Regeneration / recurring self-heal
 "Regeneration" or "regains N Hit Points at the start of its turn." No
 regen tick (recurring_damage/temp_hp exist; a self-heal regen does not).
@@ -98,6 +108,10 @@ without the rider** (its base damage is the core):
 - **Will-o'-Wisp** (CR 2, rating 4) — Consume Life (finish a 0-HP creature
   + self-heal). **Built without it** (Shock is the core).
 
+- **Ogre Zombie** (CR 2, rating 3) — Undead Fortitude (drop-to-1-HP
+  save). **Built without this trait** (Slam is the complete core).
+- rating 3 full defers: **Gray Ooze** (CR 1/2) — corrode/split;
+  **Magma/Ice/Steam Mephit** (CR 1/2–1/4) — Death Burst (+ breath).
 ## Form change
 "Change Shape" / "Shapechanger" — the polymorph/form-replacement family.
 - **Mimic** (CR 2, rating 5) — Shape-Shift (object/creature form toggle).
@@ -107,6 +121,8 @@ without the rider** (its base damage is the core):
 - **Werebear** (CR 5, rating 4), **Wererat** (CR 2, rating 4),
   **Succubus / Incubus** (CR 4, rating 4) — Shapechanger. Full defer.
 
+- rating 3 full defers: **Wereboar** (CR 4), **Weretiger** (CR 4) —
+  Shapechanger.
 ## Engulf / swallow
 "Swallow," "Engulf," restrain-and-internalize mechanics.
 - **Gelatinous Cube** (CR 2, rating 5) — Engulf (DEX save, pulled inside,
@@ -115,6 +131,10 @@ without the rider** (its base damage is the core):
   — Swallow; **Black Pudding / Ochre Jelly** (CR 4 / 2) — split-on-hit
   (also "On-death / triggered"). Full defer.
 
+- **Giant Frog** (CR 1/4, rating 3), **Giant Toad** (CR 1, rating 3) —
+  Bite-then-Swallow. **Built without the Swallow** (Bite + Grapple core).
+- rating 3 full defers: **Behir** (CR 11), **Remorhaz** (CR 11),
+  **Roper** (CR 5) — Swallow.
 ## Reaction abilities
 Reactions beyond the existing reaction infra (Shield-style AC, Parry,
 attack redirection). No general monster-reaction declaration path yet.
@@ -127,6 +147,8 @@ attack redirection). No general monster-reaction declaration path yet.
   Veteran** (CR 3, rating 4) — Parry (+2/+3 AC vs a melee hit). **Built
   without this reaction.**
 
+- **Pirate Captain** (CR 6, rating 3) — Parry (+3 AC vs a melee hit).
+  **Built without this reaction.**
 ## Aura traits
 Per-turn area effects on nearby creatures ("each creature within X feet
 …", "Frightful Presence"). Some may later map to persistent_aura; defer
@@ -152,6 +174,11 @@ gated here (most also have Spellcasting/Legendary):
 
 ---
 
+- rating 3 full defers (Magic Resistance / nonmagical-attack resistance):
+  **Vrock / Hezrou / Nalfeshnee** (CR 6 / 8 / 13 demons), **Clay / Stone
+  Golem** (CR 9 / 10), **Chuul** (CR 4), **Salamander** (CR 5, Fire
+  aura), **Azer Sentinel** (CR 2, heated body), **Xorn** (CR 5),
+  **Cloaker** (CR 8), **Barbed Devil** (CR 5).
 ## Notes on approximations (BUILT, not deferred)
 These are built with a documented simplification rather than deferred:
 - **Non-walk movement** (fly/swim/burrow): built using `walk` speed as
