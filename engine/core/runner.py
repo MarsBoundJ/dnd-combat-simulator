@@ -159,6 +159,14 @@ class EncounterRunner:
         if actor.is_alive():
             self._resolve_recurring_damage(actor, state)
 
+        # Recurring saves at turn-start (Searing Smite co_ignited:
+        # target takes burn damage THEN makes CON save to end the
+        # spell). Fires AFTER recurring_damage so the save is post-
+        # damage per RAW.
+        if actor.is_alive():
+            self._resolve_recurring_saves(
+                actor, state, trigger_event="target_turn_start")
+
         # PR #94: recurring temp HP grants (Heroism; future Aid-shape
         # spells). Dual of recurring damage. Fires at the affected
         # creature's turn-start, AFTER damage ticks so any damage
@@ -611,11 +619,16 @@ class EncounterRunner:
             finally:
                 state.current_attack = saved_attack
 
-    def _resolve_recurring_saves(self, actor: Actor, state: CombatState) -> None:
-        """At actor's turn_end, roll any recurring saves registered against them.
+    def _resolve_recurring_saves(self, actor: Actor,
+                                      state: CombatState,
+                                      trigger_event: str = "target_turn_end"
+                                      ) -> None:
+        """Roll recurring saves for `actor` matching `trigger_event`.
 
-        Used by Hold Person etc.: target re-rolls save at end of its turn; on
-        success, end the source condition.
+        Used by Hold Person (target_turn_end) and Searing Smite's
+        co_ignited (target_turn_start — fires AFTER the burn tick).
+        On success with on_success == 'end_spell_on_target': removes
+        the condition, its recurring_damage entries, and the save entry.
         """
         if not state.recurring_saves:
             return
@@ -624,7 +637,7 @@ class EncounterRunner:
             if entry.get("target_id") != actor.id:
                 remaining.append(entry)
                 continue
-            if entry.get("trigger_event") != "target_turn_end":
+            if entry.get("trigger_event") != trigger_event:
                 remaining.append(entry)
                 continue
             # Roll the save
@@ -675,10 +688,14 @@ class EncounterRunner:
                 "for_condition": entry.get("condition_id"),
             })
             if outcome == "success" and entry.get("on_success") == "end_spell_on_target":
-                # End the source condition on this target
-                if entry.get("condition_id"):
-                    remove_condition(actor, entry["condition_id"], entry.get("source_id"))
-                # Don't re-register this entry (spell ended)
+                cond_id = entry.get("condition_id")
+                if cond_id:
+                    remove_condition(actor, cond_id, entry.get("source_id"))
+                    state.recurring_damage = [
+                        rd for rd in state.recurring_damage
+                        if not (rd.get("target_id") == actor.id
+                                and rd.get("condition_id") == cond_id)
+                    ]
                 continue
             # Save failed (or no end-on-success) — keep the entry for next turn
             remaining.append(entry)

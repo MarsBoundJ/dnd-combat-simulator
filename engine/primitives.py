@@ -677,11 +677,15 @@ def _instantiate_condition_effects(target: Actor, application: dict,
         # set up by _apply_condition's caller.
         if prim == "recurring_damage":
             params = dict(effect.get("params") or {})
-            # Pass the host condition's id through so the entry can
-            # be scrubbed later via condition-removal cleanup.
             params.setdefault("condition_id",
                                 application["condition_id"])
             _recurring_damage(params, state, _NoOpBus())
+            continue
+        if prim == "recurring_save":
+            params = dict(effect.get("params") or {})
+            params.setdefault("condition_id",
+                                application["condition_id"])
+            _recurring_save(params, state, _NoOpBus())
             continue
         entry = {
             "primitive": prim,

@@ -52,8 +52,11 @@ class SmiteRiderSpec:
     - bonus_damage_die: die size for bonus damage on the empowering hit
       (6 → 1d6), or None for no bonus damage.
     - bonus_scales_with_upcast: True → +1 die per slot level above 1st.
-    - has_initial_save: True → forced save on hit (Searing/Wrathful);
-      False → condition applied automatically on hit (Blinding).
+    - has_initial_save: True → forced save on hit (Wrathful);
+      False → condition applied automatically on hit (Searing/Blinding).
+    - burn_scales_with_upcast: True → post-process the condition's
+      recurring_damage dice to match slot_level (Searing Smite:
+      "All the damage increases by 1d6 per slot above 1st").
     """
     key: str
     marker_primitive: str
@@ -65,6 +68,7 @@ class SmiteRiderSpec:
     bonus_damage_die: int | None
     bonus_scales_with_upcast: bool
     has_initial_save: bool = True
+    burn_scales_with_upcast: bool = False
 
 
 def register_armed(caster: Actor, spec: SmiteRiderSpec, *,
@@ -183,6 +187,13 @@ def try_apply_followup(attacker: Actor, target: Actor, state: CombatState,
             }, state, _NoOpBus())
     finally:
         state.current_attack["action"] = saved_action
+
+    if spec.burn_scales_with_upcast and slot_level > 1:
+        for rd in state.recurring_damage:
+            if (rd.get("target_id") == target.id
+                    and rd.get("condition_id") == spec.on_fail_condition):
+                base_die = rd["dice"].split("d")[-1]
+                rd["dice"] = f"{slot_level}d{base_die}"
 
     clear_armed(attacker, spec)
     return bonus_damage

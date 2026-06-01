@@ -7,20 +7,19 @@ the original public functions (unchanged signatures) so existing
 callers — the `searing_smite_arm` primitive, the `_damage` hook, and
 the test suite — keep working.
 
-RAW (PHB 2024):
-  Bonus Action, V/S, Self, Concentration up to 1 minute. The next time
-  you hit a creature with a Melee weapon during the spell's duration,
-  the attack deals an extra 1d6 fire damage; the target must succeed
-  on a Constitution saving throw or be Ignited (1d6 fire at the start
-  of each of its turns). Higher Levels: +1d6 on the empowering attack
-  per slot above 1st (the per-turn burn does NOT scale).
+RAW (SRD 5.2.1 / PHB 2024):
+  Bonus Action, V, Self, 1 minute (NOT Concentration). As you hit
+  the target, it takes an extra 1d6 Fire damage. At the start of
+  each of its turns until the spell ends, the target takes 1d6 Fire
+  damage and then makes a CON save — on success the spell ends.
+  Higher Levels: ALL damage increases by 1d6 per slot above 1st.
 
-Spec specifics: melee-only; 1d6 fire bonus damage that scales with
-upcast; CON save → co_ignited.
+Spec specifics: melee-only; 1d6 fire bonus damage on hit (scales
+with upcast); NO initial save — co_ignited applies automatically
+on hit; per-turn burn also scales with upcast (burn_scales_with_upcast).
 
-**v1 deferred** (unchanged): target's "use an action to save to end";
-typed bonus damage modeling (added as untyped to the existing damage
-step — shared gap with Divine Favor's +1d4 radiant).
+Deferred: typed bonus damage modeling (added as untyped to the
+existing damage step — shared gap with Divine Favor's +1d4 radiant).
 """
 from __future__ import annotations
 
@@ -39,11 +38,13 @@ SEARING_SMITE_SPEC = SmiteRiderSpec(
     marker_primitive=SEARING_SMITE_ARMED_PRIMITIVE,
     named_effect="searing_smite",
     default_action_id="a_searing_smite",
-    save_ability="constitution",
+    save_ability="constitution",        # end-of-turn save (via co_ignited)
     on_fail_condition="co_ignited",
     melee_only=True,
-    bonus_damage_die=6,            # 1d6 fire on the empowering hit
+    bonus_damage_die=6,                 # 1d6 fire on the empowering hit
     bonus_scales_with_upcast=True,
+    has_initial_save=False,             # 2024: co_ignited auto-applies on hit
+    burn_scales_with_upcast=True,       # "All the damage increases"
 )
 
 

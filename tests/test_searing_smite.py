@@ -287,13 +287,12 @@ class FollowupApplicationTest(unittest.TestCase):
         self.assertGreaterEqual(damage, 2)
         self.assertLessEqual(damage, 12)
 
-    def test_on_fail_applies_ignited_with_recurring_damage(self) -> None:
-        # DC 30 → target auto-fails CON save → Ignited applies → entry
-        # registered in state.recurring_damage.
+    def test_ignited_auto_applies_with_recurring_damage(self) -> None:
+        # 2024: no initial save — co_ignited auto-applies on hit.
         paladin = _make_actor("paladin")
         target = _make_actor("goblin", side="enemy", hp=100, ac=10)
         state = _make_state([paladin, target])
-        ss.register_armed(paladin, slot_level=1, spell_save_dc=30,
+        ss.register_armed(paladin, slot_level=1, spell_save_dc=13,
                             action_id="a_searing_smite", state=state)
         state.current_attack = {
             "actor": paladin, "target": target,
@@ -302,15 +301,17 @@ class FollowupApplicationTest(unittest.TestCase):
         rng = random.Random(1)
         ss.try_apply_searing_smite_followup(
             paladin, target, state, {"kind": "melee"}, rng, is_crit=False)
-        # Target should be Ignited
         ignited = [c for c in target.applied_conditions
                      if c.get("condition_id") == "co_ignited"]
         self.assertEqual(len(ignited), 1)
-        # And recurring_damage tick should be registered
         ticks = [t for t in state.recurring_damage
                    if t.get("target_id") == "goblin"
                    and t.get("damage_type") == "fire"]
         self.assertEqual(len(ticks), 1)
+        saves = [s for s in state.recurring_saves
+                   if s.get("target_id") == "goblin"
+                   and s.get("condition_id") == "co_ignited"]
+        self.assertEqual(len(saves), 1)
 
 
 # ============================================================================
@@ -364,7 +365,7 @@ class YamlAndSchemaTest(unittest.TestCase):
         tmpl = feature["action_template"]
         self.assertEqual(tmpl["spell_slot_level"], 1)
         self.assertEqual(tmpl["slot"], "bonus_action")
-        self.assertTrue(tmpl["concentration"])
+        self.assertNotIn("concentration", tmpl)
         # Pipeline = searing_smite_arm primitive
         self.assertEqual(tmpl["pipeline"][0]["primitive"],
                             "searing_smite_arm")
@@ -374,6 +375,8 @@ class YamlAndSchemaTest(unittest.TestCase):
         self.assertEqual(cond["scope"], "source_referencing")
         effects = cond["effects"]
         self.assertTrue(any(e["primitive"] == "recurring_damage"
+                              for e in effects))
+        self.assertTrue(any(e["primitive"] == "recurring_save"
                               for e in effects))
 
     def test_paladin_l2_has_searing_smite(self) -> None:
@@ -389,6 +392,101 @@ class YamlAndSchemaTest(unittest.TestCase):
                         template.get("features_known", []))
         action_ids = {a.get("id") for a in template.get("actions", [])}
         self.assertIn("a_searing_smite", action_ids)
+
+
+# ============================================================================
+# Layer 11: save-to-end at turn start
+# ============================================================================
+
+class SaveToEndTest(unittest.TestCase):
+
+    def test_successful_save_ends_ignited_and_scrubs_entries(self) -> None:
+        from engine.core.runner import EncounterRunner
+        paladin = _make_actor("paladin")
+        # CON 30 → save +10; caster DC = 8+3+2 = 13; roll 3+ passes
+        target = _make_actor("goblin", side="enemy", hp=100, ac=10)
+        target.abilities["con"] = {"score": 30, "save": 10}
+        state = _make_state([paladin, target])
+        ss.register_armed(paladin, slot_level=1, spell_save_dc=13,
+                            action_id="a_searing_smite", state=state)
+        state.current_attack = {
+            "actor": paladin, "target": target,
+            "action": {"id": "a_longsword"}, "state": "hit",
+        }
+        ss.try_apply_searing_smite_followup(
+            paladin, target, state, {"kind": "melee"},
+            random.Random(1), is_crit=False)
+        # co_ignited applied + recurring entries registered
+        self.assertTrue(any(c.get("condition_id") == "co_ignited"
+                              for c in target.applied_conditions))
+        self.assertTrue(any(rd.get("condition_id") == "co_ignited"
+                              for rd in state.recurring_damage))
+        self.assertTrue(any(rs.get("condition_id") == "co_ignited"
+                              for rs in state.recurring_saves))
+        # Resolve turn-start: damage tick fires, then save (DC 1 → auto-pass)
+        runner = EncounterRunner.new(state.encounter, seed=42)
+        runner._resolve_recurring_damage(target, state)
+        runner._resolve_recurring_saves(
+            target, state, trigger_event="target_turn_start")
+        # Save succeeded → co_ignited removed, entries scrubbed
+        self.assertFalse(any(c.get("condition_id") == "co_ignited"
+                               for c in target.applied_conditions))
+        self.assertFalse(any(rd.get("condition_id") == "co_ignited"
+                               for rd in state.recurring_damage))
+        self.assertFalse(any(rs.get("condition_id") == "co_ignited"
+                               for rs in state.recurring_saves))
+
+    def test_failed_save_keeps_ignited(self) -> None:
+        from engine.core.runner import EncounterRunner
+        paladin = _make_actor("paladin")
+        target = _make_actor("goblin", side="enemy", hp=100, ac=10)
+        state = _make_state([paladin, target])
+        ss.register_armed(paladin, slot_level=1, spell_save_dc=30,
+                            action_id="a_searing_smite", state=state)
+        state.current_attack = {
+            "actor": paladin, "target": target,
+            "action": {"id": "a_longsword"}, "state": "hit",
+        }
+        ss.try_apply_searing_smite_followup(
+            paladin, target, state, {"kind": "melee"},
+            random.Random(1), is_crit=False)
+        runner = EncounterRunner.new(state.encounter, seed=42)
+        runner._resolve_recurring_damage(target, state)
+        runner._resolve_recurring_saves(
+            target, state, trigger_event="target_turn_start")
+        # Save failed → co_ignited still active
+        self.assertTrue(any(c.get("condition_id") == "co_ignited"
+                              for c in target.applied_conditions))
+        self.assertTrue(any(rd.get("condition_id") == "co_ignited"
+                              for rd in state.recurring_damage))
+
+
+# ============================================================================
+# Layer 12: upcast burn scaling
+# ============================================================================
+
+class UpcastBurnTest(unittest.TestCase):
+
+    def setUp(self) -> None:
+        primitives_module.set_rng(random.Random(7))
+
+    def test_upcast_slot_3_scales_burn_dice(self) -> None:
+        paladin = _make_actor("paladin")
+        target = _make_actor("goblin", side="enemy", hp=100, ac=10)
+        state = _make_state([paladin, target])
+        ss.register_armed(paladin, slot_level=3, spell_save_dc=30,
+                            action_id="a_searing_smite", state=state)
+        state.current_attack = {
+            "actor": paladin, "target": target,
+            "action": {"id": "a_longsword"}, "state": "hit",
+        }
+        ss.try_apply_searing_smite_followup(
+            paladin, target, state, {"kind": "melee"},
+            random.Random(1), is_crit=False)
+        ticks = [t for t in state.recurring_damage
+                   if t.get("condition_id") == "co_ignited"]
+        self.assertEqual(len(ticks), 1)
+        self.assertEqual(ticks[0]["dice"], "3d6")
 
 
 if __name__ == "__main__":
