@@ -264,6 +264,22 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
     invocations = _validate_invocations(
         pc_spec.get("invocations"), features_known, class_id, level)
     features_known = set(features_known) | set(invocations)
+
+    # Draconic Sorcery build-time effects (keyed on subclass features).
+    #   - Draconic Resilience: HP max += sorcerer level (RAW: +3 at L3,
+    #     +1 per level after = level); unarmored base AC = 10+DEX+CHA.
+    #   - Elemental Affinity: Resistance to the chosen draconic type
+    #     (pc_spec.draconic_element, default fire).
+    draconic_resistances: list[str] = []
+    if "f_draconic_resilience" in features_known:
+        hp += level
+        if not armor_spec:
+            ac = (10 + ability_modifier(ability_scores["dex"]["score"])
+                   + ability_modifier(ability_scores["cha"]["score"]))
+    if "f_elemental_affinity" in features_known:
+        draconic_resistances.append(
+            str(pc_spec.get("draconic_element", "fire")).lower())
+
     actions += _build_feature_actions(features_known, level, class_id,
                                          weapon_actions=weapon_actions,
                                          ability_scores=ability_scores,
@@ -338,8 +354,9 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
             if race_def else 0),
         "racial_traits": list(race_def.get("racial_traits") or [])
             if race_def else [],
-        "damage_resistances": list(race_def.get("damage_resistances") or [])
-            if race_def else [],
+        "damage_resistances": (
+            (list(race_def.get("damage_resistances") or [])
+              if race_def else []) + draconic_resistances),
         "race": race_id,    # telemetry only — runtime code uses
                               # template.racial_traits, not the id
         # Chosen subclass id (or None). Telemetry + reception-join key;
@@ -351,6 +368,10 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
         "bardic_die": (
             _class_resources_at_level(class_def, level).get("bardic_die")
             if "f_bardic_inspiration" in features_known else None),
+        # Metamagic options this Sorcerer knows (chosen at build time via
+        # pc_spec.metamagic). engine.core.metamagic.knows() reads this.
+        "metamagic_known": (list(pc_spec.get("metamagic") or [])
+                              if "f_metamagic" in features_known else []),
         # Per-class level table (read by primitives via
         # `template.levels.<class_short_name>`). Single-class PCs from
         # pc_schema get exactly one entry; multiclass support will
@@ -530,6 +551,20 @@ def derive_pc_resources(pc_spec: dict, content_registry: Any) -> dict:
         uses = max(1, ability_modifier(cha_score))
         resources["bardic_inspiration_uses_remaining"] = uses
         resources["bardic_inspiration_uses_max"] = uses
+
+    # ---- Sorcery Points (Sorcerer, Font of Magic L2+) ----
+    # Pool = the Sorcerer level (capped at 20), read off the per-row
+    # class_resources.sorcery_points. Fuels Metamagic + slot conversion.
+    if "f_font_of_magic" in features_known:
+        sp = int(class_resources_at_level.get("sorcery_points", 0))
+        if sp > 0:
+            resources["sorcery_points_remaining"] = sp
+            resources["sorcery_points_max"] = sp
+
+    # ---- Innate Sorcery (Sorcerer L1+) — 2 uses/long rest ----
+    if "f_innate_sorcery" in features_known:
+        resources["innate_sorcery_uses_remaining"] = 2
+        resources["innate_sorcery_uses_max"] = 2
 
     # ---- Lay on Hands (Paladin L1+) — PR #83 ----
     # Pool = 5 × paladin_level HP. Refreshes on long rest. The

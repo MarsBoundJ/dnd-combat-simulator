@@ -1,0 +1,22 @@
+# f_elemental_affinity — Elemental Affinity (Draconic Sorcery L6)
+#
+# RAW (SRD 5.2.1): Choose a draconic damage type (Acid, Cold, Fire,
+# Lightning, or Poison). You have Resistance to it, and when you cast a
+# spell that deals that type, you can add your CHA modifier to one
+# damage roll of that spell.
+#
+# Engine modeling: pc_schema stamps the chosen type
+# (pc_spec.draconic_element, default fire) into template.damage_
+# resistances. The "+CHA mod to one damage roll" rider is deferred
+# (needs a caster-side typed-damage bonus hook); the resistance is the
+# v1 effect.
+#
+# source: srd_5.2.1
+
+id: f_elemental_affinity
+name: Elemental Affinity
+source: srd_5.2.1
+granted_by:
+  subclass: sc_draconic_sorcery
+  level: 6
+type: passive

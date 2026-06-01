@@ -1,0 +1,21 @@
+# f_metamagic — Metamagic (Sorcerer L2)
+#
+# RAW (SRD 5.2.1): You know 2 Metamagic options (3 at L10, 4 at L17).
+# Each modifies a spell as you cast it, fueled by Sorcery Points. The 10
+# options: Careful, Distant, Empowered, Extended, Heightened, Quickened,
+# Seeking, Subtle, Transmuted, Twinned.
+#
+# Engine modeling: the SP-spend-during-cast framework lives in
+# engine.core.metamagic + the apply_metamagic pre-cast hook in the
+# pipeline. metamagic_known count is read from class_resources. Each
+# option is a transform over the cast action / its effects.
+#
+# source: srd_5.2.1
+
+id: f_metamagic
+name: Metamagic
+source: srd_5.2.1
+granted_by:
+  class: c_sorcerer
+  level: 2
+type: passive

@@ -1,0 +1,28 @@
+# sc_draconic_sorcery — Draconic Sorcery (Sorcerer subclass)
+# Source: SRD CC v5.2.1 (PHB 2024)
+#
+# The SRD Sorcerer subclass. Combat-relevant features:
+#   - L3 Draconic Resilience: HP max += sorcerer level (RAW: +3 at L3,
+#     +1 per level after = level); unarmored base AC = 10 + DEX + CHA.
+#     Both are build-time effects applied in pc_schema.
+#   - L6 Elemental Affinity: Resistance to a chosen draconic damage type
+#     (pc_spec.draconic_element, default fire) + add CHA mod to one
+#     damage roll of spells of that type (the +CHA rider is deferred).
+#   - L14 Dragon Wings: 60-ft fly speed (deferred — flight not modeled).
+#   - Draconic Spells: always-prepared list (wire the built ones).
+
+id: sc_draconic_sorcery
+name: Draconic Sorcery
+source: srd_5.2.1
+parent_class: c_sorcerer
+
+archetype_tags:
+  behavior_archetype: apex_predator
+  role: blaster                   # INTERNAL-EVAL-ONLY per vocabulary firewall
+  flavor_tags: [draconic, elemental, resilient]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_draconic_resilience]
+  - level: 6
+    feature_ids: [f_elemental_affinity]
