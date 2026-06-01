@@ -129,11 +129,20 @@ on THAT spell (build it first, or omit + note).
   **Satyr** (innate), **Salamander**-tier innate casters.
 - **Giant Owl** (CR 1/4, rating 2) — innate Spellcasting. Full defer.
 ## Regeneration / recurring self-heal
-"Regeneration" or "regains N Hit Points at the start of its turn." No
-regen tick (recurring_damage/temp_hp exist; a self-heal regen does not).
-- **Troll** (CR 5, rating 5) — Regeneration 15 (stops to acid/fire).
-- **Hydra** (CR 8, rating 5) — Regeneration 10 + multi-head / lose-a-head
-  on-hit mechanic (also an on-hit triggered effect).
+**✅ SYSTEM BUILT (engine.core.regeneration).** Stat-block
+`regeneration: { amount: N, suppressed_by: [acid, fire],
+revives_from_zero: true }`. Heals N at the creature's turn start; a
+suppressing damage type switches it off for the next turn;
+`revives_from_zero` models the Troll rule (0 HP is downed-not-dead — the
+creature revives at its turn start unless it took acid/fire, and the
+encounter doesn't end while it's down). Plain "if it has ≥1 HP" regen =
+`revives_from_zero: false`.
+- **Troll** (CR 5) — now buildable: Multiattack of Rend +
+  `regeneration: { amount: 15, suppressed_by: [acid, fire],
+  revives_from_zero: true }`.
+- **Hydra** (CR 8) — Regeneration 10 maps to this trait, but the Hydra
+  still defers on its multi-head / lose-a-head-on-hit / grow-heads
+  mechanic (dynamic action count + on-hit trigger) — its own follow-up.
 
 ## Summon / call adds
 Monsters that summon or call other creatures into the fight.

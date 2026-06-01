@@ -247,6 +247,13 @@ class Actor:
     # roll succeeds. See engine/core/recharge.py.
     recharge_spent: set = field(default_factory=set)
 
+    # `regen_suppressed`: set True when this creature takes a damage type
+    # that switches off its Regeneration (Troll: acid/fire). Consumed +
+    # cleared at the creature's next turn start by engine.core.regeneration
+    # (one-turn suppression). NOT reset by reset_turn — it carries from the
+    # damaging hit until the next turn-start regen check.
+    regen_suppressed: bool = False
+
     # Racial trait ids (PR #75). Loaded from PC race spec via
     # pc_schema → cli — e.g. `["t_lucky", "t_brave"]` for a Halfling.
     # Read at runtime by query_save_modifiers (Brave / Fey Ancestry /

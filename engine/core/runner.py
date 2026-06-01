@@ -80,6 +80,16 @@ class EncounterRunner:
     def check_termination(self, state: CombatState) -> bool:
         """Encounter ends when one side has no living actors, or round cap hit."""
         sides = state.living_actors_by_side()
+        # A Troll-rule regenerator downed at 0 HP isn't dead yet — it
+        # revives at its next turn start unless it took acid/fire. Keep its
+        # side "in the fight" so a solo troll's encounter doesn't end the
+        # instant it's dropped to 0 (it must actually be burned down).
+        from engine.core import regeneration as _regeneration
+        for a in state.encounter.actors:
+            if _regeneration.is_pending(a):
+                sides.setdefault(a.side, [])
+                if a not in sides[a.side]:
+                    sides[a.side].append(a)
         if len(sides) <= 1:
             state.terminated = True
             if sides:
@@ -97,6 +107,14 @@ class EncounterRunner:
     def tick(self, state: CombatState) -> None:
         """Run one turn of the current actor, then advance turn order."""
         actor = state.current_actor()
+        # Regeneration resolves at the very start of the creature's turn —
+        # BEFORE the is_alive gate, so a Troll-rule regenerator downed at 0
+        # HP gets its revive-or-die resolution (a revived troll then takes
+        # its turn; one that took acid/fire dies and is skipped). Normal
+        # regenerators heal here too. No-op for non-regenerators.
+        if actor is not None:
+            from engine.core import regeneration as _regeneration
+            _regeneration.resolve_turn_start(actor, state)
         if actor is None or not actor.is_alive():
             state.advance_turn()
             return
