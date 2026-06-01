@@ -202,9 +202,12 @@ class EncounterRunner:
 
         # Swallow: a creature that has swallowed someone deals its ongoing
         # acid to the victim at the start of its turn. See
-        # engine/core/swallow.py.
+        # engine/core/swallow.py. Also reset the regurgitate damage
+        # accumulator at a swallowed creature's turn start (it measures
+        # damage-from-inside over this turn only).
         from engine.core import swallow as _swallow
         _swallow.tick(actor, state, self.primitives, self.event_bus)
+        _swallow.reset_turn_damage(actor, state)
 
         # PR #43: persistent aura triggers (Spirit Guardians-shape).
         # Fires AFTER turn_start so the event log shows turn_start first,
@@ -254,6 +257,13 @@ class EncounterRunner:
         self.event_bus.emit("turn_end", {"actor": actor, "round": state.round})
         state.event_log.append({"event": "turn_end", "actor": actor.id,
                                 "hp_remaining": actor.hp_current})
+
+        # Swallow regurgitate: if `actor` is swallowed and dealt enough
+        # damage to its swallower this turn, the swallower saves or expels
+        # it (freed + Prone). Checked at the victim's turn end.
+        from engine.core import swallow as _swallow_re
+        _swallow_re.check_regurgitate(actor, state, self.primitives,
+                                        self.event_bus)
 
         # Legendary Actions fire "immediately after another creature's
         # turn ends": every OTHER eligible legendary creature may spend

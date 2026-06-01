@@ -69,6 +69,17 @@ def apply(swallower: Actor, target: Actor, params: dict,
         "dice": params.get("acid_dice", "6d6"),
         "type": params.get("acid_type", "acid"),
     }
+    # Optional regurgitate spec: if the swallower takes `threshold`+ damage
+    # from this victim in one turn it must save or expel it. Omitted →
+    # no regurgitate counterplay (victim freed only by killing the
+    # swallower).
+    if params.get("regurgitate_threshold"):
+        target.swallow_regurgitate = {
+            "threshold": int(params["regurgitate_threshold"]),
+            "dc": int(params.get("regurgitate_dc", 14)),
+            "save": params.get("regurgitate_save", "constitution"),
+        }
+    swallower.swallow_damage_taken_this_turn = 0
     target.position = swallower.position   # inside the swallower
     state.event_log.append({
         "event": "swallowed", "swallower": swallower.id,
@@ -89,6 +100,7 @@ def release(swallowed: Actor, state: CombatState, *, reason: str) -> None:
     swallowed.cover = "none"
     swallowed.swallowed_by = None
     swallowed.swallow_damage = None
+    swallowed.swallow_regurgitate = None
     state.event_log.append({
         "event": "swallow_released", "creature": swallowed.id,
         "reason": reason,
@@ -127,3 +139,80 @@ def tick(swallower: Actor, state: CombatState, primitives, bus) -> None:
         "event": "swallow_acid_tick", "swallower": swallower.id,
         "target": victim.id, "hp_remaining": victim.hp_current,
     })
+
+
+def note_damage_to_swallower(attacker: Actor, target: Actor,
+                               amount: int) -> None:
+    """Accumulate damage a swallowed creature deals to its swallower this
+    turn (feeds the regurgitate check). Called from primitives._damage."""
+    if amount > 0 and attacker.swallowed_by == target.id:
+        target.swallow_damage_taken_this_turn += int(amount)
+
+
+def reset_turn_damage(actor: Actor, state: CombatState) -> None:
+    """At the start of a swallowed creature's turn, zero its swallower's
+    per-turn damage accumulator so the regurgitate threshold is measured
+    over this turn only. No-op if `actor` isn't swallowed."""
+    if actor.swallowed_by is None:
+        return
+    for a in state.encounter.actors:
+        if a.id == actor.swallowed_by:
+            a.swallow_damage_taken_this_turn = 0
+            return
+
+
+def check_regurgitate(victim: Actor, state: CombatState, primitives,
+                        bus) -> None:
+    """At the end of a swallowed creature's turn: if its swallower took
+    `threshold`+ damage from it this turn, the swallower makes a save (via
+    forced_save, so Legendary Resistance applies); on a failure it expels
+    the victim, which is freed and falls Prone. The per-turn accumulator is
+    reset afterward. No-op if the creature isn't swallowed or has no
+    regurgitate spec."""
+    spec = victim.swallow_regurgitate
+    if victim.swallowed_by is None or not spec:
+        return
+    swallower = None
+    for a in state.encounter.actors:
+        if a.id == victim.swallowed_by:
+            swallower = a
+            break
+    if swallower is None:
+        return
+    taken = swallower.swallow_damage_taken_this_turn
+    if taken < int(spec["threshold"]):
+        swallower.swallow_damage_taken_this_turn = 0
+        return
+    # Threshold met → the swallower saves or regurgitates.
+    saved_attack = state.current_attack
+    state.current_attack = {
+        "actor": victim, "target": swallower, "state": None,
+        "had_advantage": False, "had_disadvantage": False,
+    }
+    try:
+        primitives.invoke("forced_save", {
+            "ability": spec.get("save", "constitution"),
+            "dc": int(spec["dc"]), "affected": "current_target",
+            "on_fail": [], "on_success": [],
+        }, state, bus)
+        outcome = (state.current_save or {}).get("outcome")
+    finally:
+        state.current_attack = saved_attack
+    swallower.swallow_damage_taken_this_turn = 0
+    state.event_log.append({
+        "event": "regurgitate_check", "swallower": swallower.id,
+        "victim": victim.id, "damage_taken": taken, "outcome": outcome,
+    })
+    if outcome == "fail":
+        release(victim, state, reason="regurgitated")
+        # The expelled creature falls Prone.
+        prone_attack = state.current_attack
+        state.current_attack = {"actor": swallower, "target": victim,
+                                 "had_advantage": False,
+                                 "had_disadvantage": False}
+        try:
+            primitives.invoke("apply_condition", {
+                "condition_id": "co_prone", "duration": "until_removed",
+            }, state, bus)
+        finally:
+            state.current_attack = prone_attack

@@ -161,5 +161,97 @@ class ReleaseTest(unittest.TestCase):
         self.assertEqual(h.cover, "none")
 
 
+# ---------------------------------------------------------------------------
+# v2: regurgitate counterplay
+# ---------------------------------------------------------------------------
+
+def _swallow_with_regurg(behir, hero, state, *, dc):
+    """Swallow `hero` and attach a regurgitate spec (threshold 30, the
+    given save DC)."""
+    state.current_attack = {"actor": behir, "target": hero, "state": None,
+                             "had_advantage": False, "had_disadvantage": False}
+    on_fail = _ON_FAIL[:-1] + [{
+        "primitive": "swallow_apply",
+        "params": {"acid_dice": "6d6", "acid_type": "acid",
+                    "regurgitate_threshold": 30, "regurgitate_dc": dc,
+                    "regurgitate_save": "constitution"}}]
+    _forced_save({"ability": "dexterity", "dc": 99,
+                   "affected": "current_target",
+                   "on_fail": on_fail, "on_success": []}, state, EventBus())
+
+
+def _is_prone(actor):
+    return any(c.get("condition_id") == "co_prone"
+                for c in actor.applied_conditions)
+
+
+class RegurgitateTest(unittest.TestCase):
+
+    def setUp(self):
+        primitives_module.set_rng(random.Random(7))
+        self.prims = PrimitiveRegistry.with_defaults()
+
+    def test_below_threshold_no_check(self):
+        b, h = _behir(), _hero()
+        st = _state([b, h])
+        _swallow_with_regurg(b, h, st, dc=10)
+        b.swallow_damage_taken_this_turn = 20      # < 30
+        swallow.check_regurgitate(h, st, self.prims, EventBus())
+        self.assertTrue(swallow.is_swallowed(h))   # not expelled
+        self.assertFalse([e for e in st.event_log
+                            if e["event"] == "regurgitate_check"])
+
+    def test_threshold_met_failed_save_expels_and_prones(self):
+        b, h = _behir(), _hero()
+        st = _state([b, h])
+        _swallow_with_regurg(b, h, st, dc=99)      # swallower can't pass
+        b.swallow_damage_taken_this_turn = 35      # >= 30
+        swallow.check_regurgitate(h, st, self.prims, EventBus())
+        self.assertFalse(swallow.is_swallowed(h))  # expelled
+        self.assertEqual(h.cover, "none")
+        self.assertTrue(_is_prone(h))              # falls Prone
+        self.assertEqual(b.swallow_damage_taken_this_turn, 0)  # reset
+
+    def test_threshold_met_passed_save_stays_swallowed(self):
+        b, h = _behir(), _hero()
+        st = _state([b, h])
+        _swallow_with_regurg(b, h, st, dc=1)       # swallower auto-passes
+        b.swallow_damage_taken_this_turn = 40
+        swallow.check_regurgitate(h, st, self.prims, EventBus())
+        self.assertTrue(swallow.is_swallowed(h))   # held down
+        self.assertEqual(b.swallow_damage_taken_this_turn, 0)
+
+    def test_accumulator_counts_only_victim_to_swallower(self):
+        b, h = _behir(), _hero()
+        st = _state([b, h])
+        _swallow_with_regurg(b, h, st, dc=10)
+        # Victim → swallower accumulates.
+        swallow.note_damage_to_swallower(h, b, 12)
+        self.assertEqual(b.swallow_damage_taken_this_turn, 12)
+        # An unrelated attacker → swallower does NOT accumulate.
+        other = _hero("other"); other.id = "other"
+        swallow.note_damage_to_swallower(other, b, 99)
+        self.assertEqual(b.swallow_damage_taken_this_turn, 12)
+
+    def test_reset_turn_damage_zeroes_accumulator(self):
+        b, h = _behir(), _hero()
+        st = _state([b, h])
+        _swallow_with_regurg(b, h, st, dc=10)
+        b.swallow_damage_taken_this_turn = 25
+        swallow.reset_turn_damage(h, st)           # victim's turn start
+        self.assertEqual(b.swallow_damage_taken_this_turn, 0)
+
+    def test_legendary_swallower_uses_LR_to_avoid_regurgitate(self):
+        b, h = _behir(), _hero()
+        b.resources["legendary_resistance_remaining"] = 2
+        st = _state([b, h])
+        _swallow_with_regurg(b, h, st, dc=99)      # would fail the save...
+        b.swallow_damage_taken_this_turn = 50
+        swallow.check_regurgitate(h, st, self.prims, EventBus())
+        # ...but Legendary Resistance flips the failed save to a success.
+        self.assertTrue(swallow.is_swallowed(h))
+        self.assertEqual(b.resources["legendary_resistance_remaining"], 1)
+
+
 if __name__ == "__main__":
     unittest.main()
