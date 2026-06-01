@@ -47,19 +47,33 @@ Legendary / Spellcasting), not by recharge itself:
   **Ankheg** (CR 2, Acid Spray); **Ettercap** (CR 2, Web); **Adult
   Brass/Bronze/Copper Dragon, Ancient Silver/White Dragon** (Legendary).
 ## Legendary Actions & Legendary Resistance
-- Legendary Actions: extra actions taken between other creatures' turns.
-- Legendary Resistance: "N/Day, auto-succeed a failed save."
-Neither has runner support (the `legendary_actions` schema field exists
-but isn't consumed).
+**✅ BOTH SYSTEMS BUILT.**
+- **Legendary Resistance** (engine.core.legendary_resistance): stat-block
+  `legendary_resistance: { uses: N }` → a failed save can be spent to
+  succeed. Hooked into `_forced_save`.
+- **Legendary Actions** (engine.core.legendary_actions): stat-block
+  `legendary_actions: { uses_per_round: N, options: [...] }` → the runner
+  spends one use per "another creature's turn ended" window (pool refills
+  at the creature's own turn start); options run through the normal
+  score/select/execute path.
+
+These were the last blockers for the adult+ dragons and the legendary
+solos. Each is now BUILDABLE by a monster batch (read the per-creature
+breath / attacks / LA options / LR count from the SRD). Remaining
+per-creature riders may still defer to OTHER buckets (Frightful Presence →
+Aura/Reaction; Spellcasting on casters; Change Shape; Swallow) — triage
+per monster.
 - **Adult Black / Blue / Green / Red Dragon, Ancient Red Dragon** (CR
-  14–24, rating 5) — Legendary Resistance (3/Day) + Legendary Actions,
-  plus Recharge breath. Full defer.
+  14–24, rating 5) — now buildable (LR + LA + Recharge breath all
+  supported); watch for Frightful Presence (Aura/Reaction bucket).
 - **Lich** (CR 21, rating 5), **Vampire** (CR 15, rating 5), **Balor**
   (CR 19, rating 5), **Pit Fiend** (CR 20, rating 5), **Kraken** (CR 23,
-  rating 5), **Tarrasque** (CR 30, rating 5) — Legendary Actions/
-  Resistance (+ Spellcasting / auras / on-hit riders). Full defer.
+  rating 5), **Tarrasque** (CR 30, rating 5) — Legendary no longer
+  blocks, but each still defers on OTHER systems (Spellcasting / auras /
+  on-hit drains / Swallow). Triage per creature.
 - rating 4: **Adult Gold/Silver/White Dragon, Ancient Black/Blue/Gold/
-  Green Dragon** (Legendary + Recharge breath); **Aboleth** (CR 10),
+  Green Dragon** — now buildable (Legendary + Recharge breath all
+  supported). **Aboleth** (CR 10),
   **Deva/Planetar/Solar** (CR 10/16/21), **Marilith** (CR 16),
   **Mummy Lord** (CR 15), **Purple Worm** (CR 15, also Swallow),
   **Dragon Turtle** (CR 17). Full defer.

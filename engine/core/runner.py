@@ -176,6 +176,12 @@ class EncounterRunner:
         from engine.core import recharge as _recharge
         _recharge.roll_recharges_at_turn_start(actor, state, self.rng)
 
+        # Legendary Actions: a legendary creature regains all its uses at
+        # the start of its turn. (Spent between other creatures' turns via
+        # _resolve_legendary_actions.) See engine/core/legendary_actions.py.
+        from engine.core import legendary_actions as _legendary_actions
+        _legendary_actions.reset_budget(actor, state)
+
         # PR #43: persistent aura triggers (Spirit Guardians-shape).
         # Fires AFTER turn_start so the event log shows turn_start first,
         # then any aura damage. Skip if the actor died from the aura
@@ -224,6 +230,13 @@ class EncounterRunner:
         self.event_bus.emit("turn_end", {"actor": actor, "round": state.round})
         state.event_log.append({"event": "turn_end", "actor": actor.id,
                                 "hp_remaining": actor.hp_current})
+
+        # Legendary Actions fire "immediately after another creature's
+        # turn ends": every OTHER eligible legendary creature may spend
+        # one use now. Skipped cleanly if the encounter terminated this
+        # turn. See engine/core/legendary_actions.py.
+        if not state.terminated:
+            self._resolve_legendary_actions(actor, state)
 
         state.advance_turn()
 
@@ -814,6 +827,58 @@ class EncounterRunner:
                 and actor.is_alive() and not state.terminated):
             actor._dash_post_move_done = True
             self._move_to_engage(actor, state)
+
+    def _resolve_legendary_actions(self, ended_actor: Actor,
+                                     state: CombatState) -> None:
+        """Give every OTHER eligible legendary creature one window to spend
+        a Legendary Action use, now that `ended_actor`'s turn has ended.
+
+        Selection reuses the normal decision machinery: the creature's
+        legendary `options` are temporarily exposed as its slot-'action'
+        actions and run through generate_candidates → score → select →
+        execute, so range / cover / recharge filtering and eHP scoring all
+        apply. One use is spent per window (RAW); the option's cost is
+        deducted from the pool. See engine/core/legendary_actions.py.
+        """
+        from engine.core import legendary_actions as la
+        for creature in list(state.encounter.actors):
+            if creature.id == ended_actor.id:
+                continue                      # not after one's own turn
+            if not la.is_eligible(creature):
+                continue
+            options = la.affordable_options(creature)
+            if not options:
+                continue
+            option_ids = {o["id"] for o in options}
+            # Expose the legendary options as the creature's action-slot
+            # actions for one candidate-generation pass, then restore.
+            saved_actions = creature.template.get("actions")
+            creature.template["actions"] = options
+            try:
+                cands = pipeline.generate_candidates(
+                    creature, state, slot="action")
+            finally:
+                creature.template["actions"] = saved_actions
+            cands = [c for c in cands
+                      if c["action"].get("id") in option_ids]
+            if not cands:
+                continue
+            cands = pipeline.apply_hard_filters(cands, creature, state)
+            cands = pipeline.apply_forced_choices(cands, creature, state)
+            scored = pipeline.score_candidates(cands, creature, state)
+            # Only spend a use on a worthwhile option (positive eHP value);
+            # a legendary creature won't burn a use on a no-op.
+            scored = [(s, c) for (s, c) in scored if s > 0]
+            chosen = pipeline.select_max(scored)
+            if chosen is None:
+                continue
+            chosen_option = next(
+                o for o in options
+                if o["id"] == chosen["action"].get("id"))
+            pipeline.execute(chosen, state, self.event_bus, self.primitives)
+            la.consume(creature, chosen_option, state)
+            if state.terminated:
+                break
 
     def _run_free_phase(self, actor: Actor, state: CombatState) -> None:
         """Auto-fire any slot='free' actions on the actor (PR #57 +
