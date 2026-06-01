@@ -1,0 +1,62 @@
+# f_flame_strike — Flame Strike (Level 5 Evocation, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p131): a 10-ft-radius, 40-ft-high Cylinder of
+# fire within 60 ft. Each creature in it makes a Dexterity saving throw,
+# taking 5d6 Fire + 5d6 Radiant damage on a fail or half on a success.
+# Using a Higher-Level Spell Slot: each of the Fire and Radiant
+# increases by 1d6 per slot above 5th. (Cleric.)
+#
+# Engine modeling: a two-damage-type sphere save-burst. type aoe_attack,
+# sphere radius 10 (cylinder approximated as sphere). DEX save vs the
+# caster's spell save DC; on a fail 5d6 fire + 5d6 radiant, on a success
+# both halved.
+#
+# Deferred RAW bits:
+#   - Upcast (+1d6 fire AND +1d6 radiant per slot): the engine's upcast
+#     block scales a single damage type, so multi-type upcast can't be
+#     expressed in one block; base cast only in v1.
+#
+# source: srd_5.2.1
+
+id: f_flame_strike
+name: Flame Strike
+source: srd_5.2.1
+granted_by:
+  class: c_cleric
+  level: 9             # Clerics gain 5th-level slots at L9
+type: active
+spell:
+  class: c_cleric
+  level: 5
+
+description: |
+  10-ft radius column within 60 ft. DEX save vs spell DC: 5d6 fire +
+  5d6 radiant on a fail, half on a success.
+
+action_template:
+  id: a_flame_strike
+  name: Flame Strike
+  type: aoe_attack
+  spell_slot_level: 5
+  named_effect: flame_strike
+  range_ft: 60
+  area:
+    shape: sphere
+    radius_ft: 10
+    range_ft: 60
+  pipeline:
+    - primitive: forced_save
+      params:
+        ability: dexterity
+        dc_source: caster_spell_save_dc
+        affected: all_creatures_in_area
+        on_fail:
+          - primitive: damage
+            params: { dice: "5d6", modifier: 0, type: fire }
+          - primitive: damage
+            params: { dice: "5d6", modifier: 0, type: radiant }
+        on_success:
+          - primitive: damage
+            params: { dice: "5d6", modifier: 0, type: fire, multiplier: 0.5 }
+          - primitive: damage
+            params: { dice: "5d6", modifier: 0, type: radiant, multiplier: 0.5 }

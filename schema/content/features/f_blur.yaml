@@ -1,0 +1,49 @@
+# f_blur — Blur (Level 2 Illusion, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p113): your body becomes blurred. For the
+# duration, any creature has Disadvantage on attack rolls against you. An
+# attacker with Blindsight or Truesight is immune to this effect.
+# Concentration, up to 1 minute. (Sorcerer/Wizard.)
+#
+# Engine modeling: a self defensive buff. A single attack_modifier on the
+# caster — disadvantage_for_attacker, gated on target_is_self so it only
+# applies when the caster is the one being attacked (mirrors how
+# co_faerie_fire / Restrained grant the inverse). Concentration, so
+# end_concentration scrubs it. The query layer folds the Disadvantage
+# into every incoming attack.
+#
+# Deferred RAW bits:
+#   - Blindsight/Truesight immunity (no per-attacker sense gate in v1).
+#
+# source: srd_5.2.1
+
+id: f_blur
+name: Blur
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 3             # Wizards gain 2nd-level slots at L3
+type: active
+spell:
+  class: c_wizard
+  level: 2
+
+description: |
+  Attacks against the caster have Disadvantage for the duration.
+  Concentration, 1 minute.
+
+action_template:
+  id: a_blur
+  name: Blur
+  type: defensive_buff
+  spell_slot_level: 2
+  concentration: true
+  named_effect: blur
+  range_ft: 0             # self
+  pipeline:
+    - primitive: attack_modifier
+      params:
+        target: self
+        when: target_is_self
+        modifier: disadvantage_for_attacker
+        lifetime: until_short_rest

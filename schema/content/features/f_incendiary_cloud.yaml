@@ -1,0 +1,63 @@
+# f_incendiary_cloud — Incendiary Cloud (Level 8 Conjuration, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p141): a 20-ft-radius Sphere of embers within
+# 150 ft, Heavily Obscured. When it appears, and when a creature enters
+# it for the first time on a turn or ends its turn there, it makes a
+# Dexterity saving throw, taking 10d8 Fire damage on a fail or half on a
+# success. As a Bonus Action the caster can move the cloud 10 ft.
+# Concentration, up to 1 minute. (Druid/Sorcerer/Wizard.)
+#
+# Engine modeling: a point-anchored damaging zone (persistent_aura), the
+# same shape as Cloudkill. sphere radius 20; DEX save vs the caster's
+# spell save DC at each creature's turn in the area; 10d8 fire on a fail,
+# half on a success. Concentration.
+#
+# Deferred RAW bits:
+#   - Heavy Obscurement zone + the bonus-action cloud move (v1 leaves it
+#     where placed, like Moonbeam); entry-trigger (turn-based only).
+#
+# source: srd_5.2.1
+
+id: f_incendiary_cloud
+name: Incendiary Cloud
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 15            # Wizards gain 8th-level slots at L15
+type: active
+spell:
+  class: c_wizard
+  level: 8
+
+description: |
+  20-ft radius ember cloud within 150 ft. DEX save vs spell DC at each
+  creature's turn in the area: 10d8 fire on a fail, half on a success.
+  Concentration, 1 minute.
+
+action_template:
+  id: a_incendiary_cloud
+  name: Incendiary Cloud
+  type: persistent_aura
+  spell_slot_level: 8
+  concentration: true
+  named_effect: incendiary_cloud
+  area:
+    shape: sphere
+    radius_ft: 20
+    range_ft: 150
+  pipeline:
+    - primitive: persistent_aura
+      params:
+        shape: sphere
+        radius_ft: 20
+        anchor: point
+        trigger_event: target_turn_start_in_area
+        affected: all_creatures
+        ability: dexterity
+        dc_source: caster_spell_save_dc
+        on_fail:
+          - primitive: damage
+            params: { dice: "10d8", modifier: 0, type: fire }
+        on_success:
+          - primitive: damage
+            params: { dice: "10d8", modifier: 0, type: fire, multiplier: 0.5 }

@@ -1,0 +1,57 @@
+# f_fire_storm — Fire Storm (Level 7 Evocation, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p131): a storm of fire of up to ten contiguous
+# 10-ft Cubes within 150 ft. Each creature in the area makes a Dexterity
+# saving throw, taking 7d10 Fire damage on a fail or half on a success.
+# (Cleric/Druid/Sorcerer.)
+#
+# Engine modeling: the arrangeable-cubes area is approximated as a
+# single 20-ft-radius Sphere burst (a comparable footprint to ten 10-ft
+# cubes clustered on the enemy). type aoe_attack, sphere radius 20. DEX
+# save vs the caster's spell save DC; 7d10 fire on a fail, half on a
+# success.
+#
+# Deferred RAW bits:
+#   - Free-form cube arrangement (v1 uses one sphere footprint).
+#   - No upcast (Fire Storm doesn't scale by slot).
+#
+# source: srd_5.2.1
+
+id: f_fire_storm
+name: Fire Storm
+source: srd_5.2.1
+granted_by:
+  class: c_cleric
+  level: 13            # Clerics gain 7th-level slots at L13
+type: active
+spell:
+  class: c_cleric
+  level: 7
+
+description: |
+  Fire fills ~ten 10-ft cubes (modeled as a 20-ft sphere) within
+  150 ft. DEX save vs spell DC: 7d10 fire on a fail, half on a success.
+
+action_template:
+  id: a_fire_storm
+  name: Fire Storm
+  type: aoe_attack
+  spell_slot_level: 7
+  named_effect: fire_storm
+  range_ft: 150
+  area:
+    shape: sphere
+    radius_ft: 20
+    range_ft: 150
+  pipeline:
+    - primitive: forced_save
+      params:
+        ability: dexterity
+        dc_source: caster_spell_save_dc
+        affected: all_creatures_in_area
+        on_fail:
+          - primitive: damage
+            params: { dice: "7d10", modifier: 0, type: fire }
+        on_success:
+          - primitive: damage
+            params: { dice: "7d10", modifier: 0, type: fire, multiplier: 0.5 }

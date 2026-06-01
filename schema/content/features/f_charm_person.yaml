@@ -1,0 +1,61 @@
+# f_charm_person — Charm Person (Level 1 Enchantment, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p114): 30 ft, one Humanoid. It makes a Wisdom
+# saving throw (Advantage if you/your allies are fighting it) or has the
+# Charmed condition until the spell ends or until you or your allies
+# damage it (1 hour, NOT Concentration). Using a Higher-Level Spell Slot:
+# one additional creature per slot above 1st. (Bard/Druid/Sorc/Lock/Wiz.)
+#
+# Engine modeling: single-target save-or-charm. type hard_control;
+# forced_save WIS vs the caster's spell save DC, on_fail applies
+# co_charmed (the charmed creature won't harm the caster) plus a turn-end
+# WIS re-save — used as the v1 escape (the spell isn't Concentration, so
+# end_concentration can't scrub the condition, and "ends when harmed"
+# isn't modeled; the re-save guarantees the charm eventually lifts).
+#
+# Deferred RAW bits:
+#   - Humanoid-only restriction + Advantage-while-fighting on the save.
+#   - "Ends when you/allies damage it" (v1 uses the turn-end re-save).
+#   - Upcast multi-target.
+#
+# source: srd_5.2.1
+
+id: f_charm_person
+name: Charm Person
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 1
+type: active
+spell:
+  class: c_wizard
+  level: 1
+
+description: |
+  One creature within 30 ft makes a WIS save or is Charmed (won't harm
+  the caster); re-saves at turn-end. 1 hour (not Concentration).
+
+action_template:
+  id: a_charm_person
+  name: Charm Person
+  type: hard_control
+  spell_slot_level: 1
+  named_effect: charm_person
+  range_ft: 30
+  pipeline:
+    - primitive: forced_save
+      params:
+        ability: wisdom
+        dc_source: caster_spell_save_dc
+        affected: current_target
+        on_fail:
+          - primitive: apply_condition
+            params: { condition_id: co_charmed, duration: until_spell_ends }
+          - primitive: recurring_save
+            params:
+              ability: wisdom
+              dc_source: caster_spell_save_dc
+              trigger_event: target_turn_end
+              on_success: end_spell_on_target
+              condition_id: co_charmed
+        on_success: []

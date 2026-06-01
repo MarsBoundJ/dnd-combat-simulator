@@ -1,0 +1,65 @@
+# f_sunburst — Sunburst (Level 8 Evocation, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p166): brilliant sunlight in a 60-ft-radius
+# Sphere within 150 ft. Each creature makes a Constitution saving throw;
+# on a fail it takes 12d6 Radiant damage and gains the Blinded condition
+# for 1 minute (re-saving CON at the end of each of its turns); on a
+# success it takes half damage only. (Cleric/Druid/Sorcerer/Wizard.)
+#
+# Engine modeling: a large sphere save-burst with a Blinded rider. type
+# aoe_attack, sphere radius 60. CON save vs the caster's spell save DC;
+# on a fail 12d6 radiant + co_blinded (with a turn-end CON re-save), on
+# a success half damage.
+#
+# Deferred RAW bits:
+#   - "Dispels Darkness in the area" (flavor / vision interaction).
+#
+# source: srd_5.2.1
+
+id: f_sunburst
+name: Sunburst
+source: srd_5.2.1
+granted_by:
+  class: c_cleric
+  level: 15            # Clerics gain 8th-level slots at L15
+type: active
+spell:
+  class: c_cleric
+  level: 8
+
+description: |
+  60-ft radius sphere within 150 ft. CON save vs spell DC: 12d6
+  radiant + Blinded (re-save at turn-end) on a fail, half on a success.
+
+action_template:
+  id: a_sunburst
+  name: Sunburst
+  type: aoe_attack
+  spell_slot_level: 8
+  named_effect: sunburst
+  range_ft: 150
+  area:
+    shape: sphere
+    radius_ft: 60
+    range_ft: 150
+  pipeline:
+    - primitive: forced_save
+      params:
+        ability: constitution
+        dc_source: caster_spell_save_dc
+        affected: all_creatures_in_area
+        on_fail:
+          - primitive: damage
+            params: { dice: "12d6", modifier: 0, type: radiant }
+          - primitive: apply_condition
+            params: { condition_id: co_blinded, duration: until_spell_ends }
+          - primitive: recurring_save
+            params:
+              ability: constitution
+              dc_source: caster_spell_save_dc
+              trigger_event: target_turn_end
+              on_success: end_spell_on_target
+              condition_id: co_blinded
+        on_success:
+          - primitive: damage
+            params: { dice: "12d6", modifier: 0, type: radiant, multiplier: 0.5 }

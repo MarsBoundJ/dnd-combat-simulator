@@ -1,0 +1,68 @@
+# f_insect_plague — Insect Plague (Level 5 Conjuration, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p142): a 20-ft-radius Sphere of swarming
+# locusts within 300 ft, Lightly Obscured and Difficult Terrain. When
+# the swarm appears, and when a creature enters the area for the first
+# time on a turn or ends its turn there, it makes a Constitution saving
+# throw, taking 4d10 Piercing damage on a fail or half on a success.
+# Concentration, up to 10 minutes. Using a Higher-Level Spell Slot:
+# +1d10 per slot above 5th. (Cleric/Druid/Sorcerer.)
+#
+# Engine modeling: a point-anchored damaging zone — the persistent_aura
+# archetype (like Cloudkill / Moonbeam). sphere radius 20; CON save vs
+# the caster's spell save DC at each creature's turn in the area; 4d10
+# piercing on a fail, half on a success. +1d10/slot upcast. Concentration.
+#
+# Deferred RAW bits:
+#   - Lightly Obscured + Difficult Terrain (no vision/movement-cost
+#     modeling); the per-turn damage is the load-bearing effect.
+#   - Entry-trigger (v1 fires on turn-based in-area resolution).
+#
+# source: srd_5.2.1
+
+id: f_insect_plague
+name: Insect Plague
+source: srd_5.2.1
+granted_by:
+  class: c_cleric
+  level: 9             # Clerics gain 5th-level slots at L9
+type: active
+spell:
+  class: c_cleric
+  level: 5
+
+description: |
+  20-ft radius locust swarm within 300 ft. CON save vs spell DC at
+  each creature's turn in the area: 4d10 piercing on a fail, half on a
+  success. +1d10/slot. Concentration, 10 minutes.
+
+action_template:
+  id: a_insect_plague
+  name: Insect Plague
+  type: persistent_aura
+  spell_slot_level: 5
+  concentration: true
+  named_effect: insect_plague
+  area:
+    shape: sphere
+    radius_ft: 20
+    range_ft: 300
+  upcast_scaling:
+    extra_dice_per_level: "1d10"
+    damage_type: piercing
+  pipeline:
+    - primitive: persistent_aura
+      params:
+        shape: sphere
+        radius_ft: 20
+        anchor: point
+        trigger_event: target_turn_start_in_area
+        affected: all_creatures
+        ability: constitution
+        dc_source: caster_spell_save_dc
+        on_fail:
+          - primitive: damage
+            params: { dice: "4d10", modifier: 0, type: piercing }
+        on_success:
+          - primitive: damage
+            params: { dice: "4d10", modifier: 0, type: piercing, multiplier: 0.5 }

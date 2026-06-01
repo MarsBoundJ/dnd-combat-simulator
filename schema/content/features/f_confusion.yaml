@@ -1,0 +1,68 @@
+# f_confusion — Confusion (Level 4 Enchantment, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p116): each creature in a 10-ft-radius Sphere
+# within 90 ft makes a Wisdom saving throw. On a fail, the target can't
+# take Bonus Actions or Reactions and rolls 1d10 at the start of each of
+# its turns for a random behavior (often doing nothing or moving
+# randomly, sometimes attacking a random creature). At the end of each of
+# its turns it repeats the save, ending the effect on a success.
+# Concentration, up to 1 minute. (Bard/Druid/Sorcerer/Wizard.)
+#
+# Engine modeling: an AoE save-or-lose. type aoe_attack, sphere radius
+# 10; forced_save WIS vs the caster's spell save DC, all_creatures_in_
+# area; on_fail applies co_incapacitated + a per-creature turn-end WIS
+# re-save. Concentration.
+#
+# Deferred RAW bits:
+#   - The 1d10 random-behavior table is approximated as full action
+#     denial (co_incapacitated): RAW a confused creature usually wastes
+#     its turn but can sometimes attack a random creature (including
+#     allies) — the friendly-fire upside isn't modeled (no random-action
+#     primitive). Consistent with the Hypnotic Pattern / Sleep posture.
+#
+# source: srd_5.2.1
+
+id: f_confusion
+name: Confusion
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 7             # Wizards gain 4th-level slots at L7
+type: active
+spell:
+  class: c_wizard
+  level: 4
+
+description: |
+  10-ft radius sphere within 90 ft. WIS save or Incapacitated
+  (confused); re-saves at turn-end. Concentration, 1 minute.
+
+action_template:
+  id: a_confusion
+  name: Confusion
+  type: aoe_attack
+  spell_slot_level: 4
+  concentration: true
+  named_effect: confusion
+  range_ft: 90
+  area:
+    shape: sphere
+    radius_ft: 10
+    range_ft: 90
+  pipeline:
+    - primitive: forced_save
+      params:
+        ability: wisdom
+        dc_source: caster_spell_save_dc
+        affected: all_creatures_in_area
+        on_fail:
+          - primitive: apply_condition
+            params: { condition_id: co_incapacitated, duration: until_spell_ends }
+          - primitive: recurring_save
+            params:
+              ability: wisdom
+              dc_source: caster_spell_save_dc
+              trigger_event: target_turn_end
+              on_success: end_spell_on_target
+              condition_id: co_incapacitated
+        on_success: []
