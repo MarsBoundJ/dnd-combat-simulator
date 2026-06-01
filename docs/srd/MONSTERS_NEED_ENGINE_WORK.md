@@ -154,12 +154,25 @@ v2).**
   `bonus_actions`), so spellcasting-based legendary actions work: Brass
   **Blazing Light**, Bronze/Gold **Guiding Light**, Copper **Mind Jolt**,
   Silver **Chill** — all WIRED IN as LA options (batch M8 touch-up).
-- **Priest** (CR 2, rating 4) — Spellcasting (Light, Thaumaturgy, Spirit
-  Guardians) + Divine Aid (Bless / Dispel Magic / Healing Word / Lesser
-  Restoration). Full defer (its weapon attacks aren't the point).
-- **Mage** (CR 9, rating 4), **Druid** (CR 2, rating 4), **Green Hag**
-  (CR 3, rating 4) — Spellcasting / Innate Spellcasting. Full defer.
-- **Archmage** (CR 12, rating 5) — full Wizard spell list. Full defer.
+- **✅ BUILT (batch M9): Mage / Priest / Archmage** — the first pure
+  spellcaster NPCs, each modeled as its weapon/Arcane-Burst attack + a
+  Spellcasting action whose buildable damage/control spells are `casts:`
+  actions, gated daily:1 for per-day spells. Built casts: **Priest** (CR 2,
+  WIS DC 13) — Spirit Guardians (1/Day) + Divine Aid → Bless (bonus action);
+  **Mage** (CR **6** per the 2024 SRD, not CR 9; INT DC 14) — Fireball
+  (2/Day) + Cone of Cold (1/Day); **Archmage** (CR 12, INT DC 17, Magic
+  Resistance trait) — Lightning Bolt (2/Day) + Cone of Cold (1/Day).
+  Per-caster DEFERS (noted in each file): at-will utility cantrips (Light,
+  Thaumaturgy, Detect Magic/Thoughts, Mage Hand, Prestidigitation, Disguise
+  Self, Invisibility) and **Mage Armor** (already in AC); the unbuilt/heal
+  Divine Aid options **Healing Word / Dispel Magic / Lesser Restoration**;
+  utility 1/Day **Fly / Mind Blank / Scrying / Teleport**; bonus-action
+  **Misty Step** (f_misty_step not built); and the **Protective Magic**
+  reaction (Counterspell / Shield) — no monster reactive-cast path yet.
+  RAW 2/Day casts (Fireball, Lightning Bolt) are gated daily:1 (one cast
+  per encounter — the second daily use is a v1 under-representation).
+- **Druid** (CR 2, rating 4), **Green Hag** (CR 3, rating 4) —
+  Spellcasting / Innate Spellcasting. Full defer.
 - **Lich** (CR 21, rating 5) — Spellcasting (also Legendary). Full defer.
 - **Cultist Fanatic** (CR 2, rating 5), **Drider** (CR 6, rating 5),
   **Medusa** (CR 6, rating 5) — Spellcasting (Medusa also Petrifying Gaze).

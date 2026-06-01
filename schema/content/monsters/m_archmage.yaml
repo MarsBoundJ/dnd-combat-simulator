@@ -1,0 +1,76 @@
+# m_archmage — Archmage
+# Source: SRD CC v5.2.1 p305
+# Triage: GREEN for its combat kit — Multiattack of Arcane Burst (its
+# baseline ranged force attack) plus a Spellcasting action that casts the
+# buildable damage spells Lightning Bolt (2/Day) and Cone of Cold (1/Day).
+# Both casts expand from built spell features at the archmage's spell save
+# DC (INT, DC 17). Magic Resistance is a declarative trait.
+# DEFERRED (see MONSTERS_NEED_ENGINE_WORK.md → Monster Spellcasting):
+#   - At-will utility (Detect Magic / Detect Thoughts / Disguise Self /
+#     Invisibility / Light / Mage Hand / Prestidigitation) and Mage Armor
+#     (baked into AC 17, "included in AC").
+#   - 1/Day utility Mind Blank (pre-combat) / Scrying / Teleport, and Fly
+#     (2/Day): not combat-modelable.
+#   - Bonus action **Misty Step** (3/Day): spell not built.
+#   - Reaction **Protective Magic** (3/Day, Counterspell / Shield): a
+#     spell-trigger reaction — no monster reactive-cast path yet.
+# Lightning Bolt is RAW 2/Day; the recharge system gates one cast per
+# encounter (daily:1), so the second daily use is a v1 under-representation.
+id: m_archmage
+name: Archmage
+source: srd_5.2.1
+size: medium
+creature_type: humanoid
+alignment: neutral
+combat:
+  armor_class: 17
+  hit_points: { average: 170, dice: "31d8", con_contribution: 31 }
+  speed: { walk: 30 }
+  initiative: { modifier: 7, score: 17 }
+abilities:
+  str: { score: 10, save: 0 }
+  dex: { score: 14, save: 2 }
+  con: { score: 12, save: 1 }
+  int: { score: 20, save: 9 }
+  wis: { score: 15, save: 6 }
+  cha: { score: 16, save: 3 }
+skills: { arcana: 13, history: 9, perception: 6 }
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: [psychic]
+condition_immunities: []
+senses: { passive_perception: 16 }
+languages: [common]
+gear: [wand]
+cr: { value: 12, xp: 8000, proficiency_bonus: 4 }
+spellcasting: { ability: intelligence, save_dc: 17 }
+traits:
+  - id: t_magic_resistance
+    name: Magic Resistance
+    type: trait_passive
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 4
+    sub_actions: [a_arcane_burst]
+  - id: a_arcane_burst
+    name: Arcane Burst
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: ranged, bonus: 9, range_ft: 150 }
+      - primitive: damage
+        params: { dice: "4d10", modifier: 5, type: force, average: 27 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+  - id: a_cast_lightning_bolt
+    name: Lightning Bolt
+    casts: f_lightning_bolt
+    recharge: "daily:1"
+  - id: a_cast_cone_of_cold
+    name: Cone of Cold
+    casts: f_cone_of_cold
+    recharge: "daily:1"
+behavior_profile:
+  archetype: cowardly_skirmisher
+  presets: { retreat: cowardly, ability_selection: default, targeting: weakest_target, action_economy: skilled }
