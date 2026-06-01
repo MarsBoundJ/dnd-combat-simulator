@@ -245,6 +245,17 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
     # `weapon_actions` is passed so Extra Attack can reference the
     # weapon ids in its sub_actions list (PR #39).
     features_known = _features_known_at_level(class_def, level)
+    # Subclass features. When the PC spec names a `subclass: sc_<id>`,
+    # validate it (parent_class match + level gate) and merge its
+    # features_by_level (up to the PC's level) into features_known, so
+    # the SAME downstream paths — action generation, spell auto-attach,
+    # resource derivation, runtime feature gates — pick them up with no
+    # subclass-specific branching. A PC without a subclass is unchanged.
+    subclass_def = _resolve_subclass(
+        pc_spec, class_def, class_id, level, content_registry)
+    if subclass_def:
+        features_known = set(features_known) | _subclass_features_at_level(
+            subclass_def, level)
     # PR #103: Eldritch Invocations — player-chosen Warlock features
     # (like fighting_style). Validated against the known-invocation
     # registry + prerequisites, then merged into features_known so
@@ -321,6 +332,10 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
             if race_def else [],
         "race": race_id,    # telemetry only — runtime code uses
                               # template.racial_traits, not the id
+        # Chosen subclass id (or None). Telemetry + reception-join key;
+        # the subclass's features are already merged into features_known
+        # below, so runtime code reads those, not this id.
+        "subclass": (subclass_def.get("id") if subclass_def else None),
         # Per-class level table (read by primitives via
         # `template.levels.<class_short_name>`). Single-class PCs from
         # pc_schema get exactly one entry; multiclass support will
@@ -437,6 +452,14 @@ def derive_pc_resources(pc_spec: dict, content_registry: Any) -> dict:
         return {}
 
     features_known = _features_known_at_level(class_def, level)
+    # Subclass features may drive resources too (e.g. a subclass that
+    # grants a use-limited feature). Merge them in the same way
+    # build_pc_template does, so resource derivation sees the full set.
+    subclass_def = _resolve_subclass(
+        pc_spec, class_def, class_id, level, content_registry)
+    if subclass_def:
+        features_known = set(features_known) | _subclass_features_at_level(
+            subclass_def, level)
     class_resources_at_level = _class_resources_at_level(class_def, level)
 
     resources: dict = {}
@@ -872,6 +895,66 @@ def _features_known_at_level(class_def: dict, level: int) -> set[str]:
         for fid in (row.get("features") or []):
             features.add(fid)
     return features
+
+
+def _subclass_features_at_level(subclass_def: dict, level: int) -> set[str]:
+    """Set of feature IDs granted by a subclass at or before `level`,
+    read from its `features_by_level` rows (each {level, feature_ids}).
+
+    Mirror of `_features_known_at_level` but for the subclass schema's
+    `features_by_level` / `feature_ids` shape (vs the class table's
+    `level_table` / `features`)."""
+    features: set[str] = set()
+    if not subclass_def:
+        return features
+    for row in (subclass_def.get("features_by_level") or []):
+        if int(row.get("level", 0)) > level:
+            continue
+        for fid in (row.get("feature_ids") or []):
+            features.add(fid)
+    return features
+
+
+def _resolve_subclass(pc_spec: dict, class_def: dict, class_id: str,
+                       level: int, content_registry: Any) -> dict | None:
+    """Validate + return the PC's chosen subclass definition, or None.
+
+    `pc_spec.subclass` (e.g. "sc_champion") is optional. When set it must:
+      - resolve to a subclass in the content registry,
+      - have `parent_class` equal to the PC's class, and
+      - be allowed at the PC's level (>= the class's subclass_grant_level,
+        default 3 per PHB 2024).
+
+    Raises ValueError on any violation (unknown id, wrong parent class,
+    or chosen below the grant level). Returns None when no subclass is
+    specified — backward-compatible with every existing subclass-less PC.
+    """
+    sub_id = pc_spec.get("subclass")
+    if not sub_id:
+        return None
+    try:
+        subclass_def = content_registry.get("subclass", sub_id)
+    except (KeyError, AttributeError):
+        raise ValueError(
+            f"pc_spec.subclass={sub_id!r} not found in content registry."
+        )
+    if subclass_def is None:
+        raise ValueError(
+            f"pc_spec.subclass={sub_id!r} not found in content registry."
+        )
+    parent = subclass_def.get("parent_class")
+    if parent != class_id:
+        raise ValueError(
+            f"subclass {sub_id!r} belongs to class {parent!r}, not the "
+            f"PC's class {class_id!r}."
+        )
+    grant_level = int(class_def.get("subclass_grant_level", 3))
+    if level < grant_level:
+        raise ValueError(
+            f"subclass {sub_id!r} requires level >= {grant_level} "
+            f"(PC is level {level})."
+        )
+    return subclass_def
 
 
 def _class_resources_at_level(class_def: dict, level: int) -> dict:
