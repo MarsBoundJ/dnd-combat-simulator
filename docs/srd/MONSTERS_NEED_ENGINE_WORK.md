@@ -163,6 +163,11 @@ attack redirection). No general monster-reaction declaration path yet.
 
 - **Pirate Captain** (CR 6, rating 3) — Parry (+3 AC vs a melee hit).
   **Built without this reaction.**
+- **Octopus** (CR 0, rating 1) — Ink Cloud (1/Day) reaction (escape:
+  release ink + swim away). **Built without this reaction** (Tentacles
+  is the core). No full monster defers at rating 1 — the trivial-critter
+  tail is entirely GREEN.
+
 ## Aura traits
 Per-turn area effects on nearby creatures ("each creature within X feet
 …", "Frightful Presence"). Some may later map to persistent_aura; defer

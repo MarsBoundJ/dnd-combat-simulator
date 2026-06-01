@@ -1,0 +1,42 @@
+# m_seahorse — Seahorse
+# Source: SRD CC v5.2.1 p360
+# Triage: GREEN — a non-combatant critter (1 HP). Its only listed action
+# is Bubble Dash (a no-OA swim move), so it has NO attack; built as a
+# declarative stat block with the move recorded as a bonus action.
+id: m_seahorse
+name: Seahorse
+source: srd_5.2.1
+size: tiny
+creature_type: beast
+alignment: unaligned
+combat:
+  armor_class: 12
+  hit_points: { average: 1, dice: "1d4", con_contribution: -1 }
+  speed: { walk: 5, swim: 20 }
+  initiative: { modifier: 1, score: 11 }
+abilities:
+  str: { score: 1, save: -5 }
+  dex: { score: 12, save: 1 }
+  con: { score: 8, save: -1 }
+  int: { score: 1, save: -5 }
+  wis: { score: 10, save: 0 }
+  cha: { score: 2, save: -4 }
+skills: { perception: 2, stealth: 5 }
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: []
+condition_immunities: []
+senses: { passive_perception: 12 }
+languages: []
+cr: { value: 0, xp: 0, proficiency_bonus: 2 }
+traits: []
+actions: []
+bonus_actions:
+  - id: ba_bubble_dash
+    name: Bubble Dash
+    type: granted_action
+    # Declarative: while underwater, moves up to half its Swim Speed
+    # without provoking Opportunity Attacks.
+behavior_profile:
+  archetype: cowardly_skirmisher
+  presets: { retreat: cowardly, ability_selection: default, targeting: weakest_target, action_economy: casual }
