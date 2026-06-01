@@ -1,0 +1,56 @@
+# f_burning_hands — Burning Hands (Level 1 Evocation, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p113): a 15-ft Cone from you. Each creature in
+# it makes a Dexterity saving throw, taking 3d6 Fire damage on a fail or
+# half on a success. Using a Higher-Level Spell Slot: +1d6 per slot
+# above 1st. (Sorcerer/Wizard.)
+#
+# Engine modeling: a cone save-burst — the cone sibling of Fireball.
+# type aoe_attack with a `cone` area (length 15); the candidate
+# generator sets origin = caster + direction toward the chosen enemy and
+# forced_save resolves every living creature in the cone via
+# actors_in_cone. DEX save vs the caster's spell save DC; 3d6 fire on a
+# fail, half on a success. +1d6/slot upcast.
+#
+# source: srd_5.2.1
+
+id: f_burning_hands
+name: Burning Hands
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 1
+type: active
+spell:
+  class: c_wizard
+  level: 1
+
+description: |
+  15-ft cone from the caster. DEX save vs spell DC: 3d6 fire on a
+  fail, half on a success. +1d6 per slot above 1st.
+
+action_template:
+  id: a_burning_hands
+  name: Burning Hands
+  type: aoe_attack
+  spell_slot_level: 1
+  named_effect: burning_hands
+  range_ft: 15
+  area:
+    shape: cone
+    length_ft: 15
+  upcast_scaling:
+    extra_dice_per_level: "1d6"
+    damage_type: fire
+  pipeline:
+    - primitive: forced_save
+      params:
+        ability: dexterity
+        dc_source: caster_spell_save_dc
+        affected: all_creatures_in_area
+        on_fail:
+          - primitive: damage
+            params: { dice: "3d6", modifier: 0, type: fire }
+        on_success:
+          - primitive: damage
+            params: { dice: "3d6", modifier: 0, type: fire, multiplier: 0.5 }

@@ -1,0 +1,63 @@
+# f_vitriolic_sphere — Vitriolic Sphere (Level 4 Evocation, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p171): a ball of acid explodes in a 20-ft-
+# radius Sphere within 150 ft. Each creature makes a Dexterity saving
+# throw; on a fail it takes 10d4 Acid damage and another 5d4 Acid at the
+# end of its next turn; on a success it takes half the initial damage
+# only. Using a Higher-Level Spell Slot: the initial damage increases by
+# 2d4 per slot above 4th. (Sorcerer/Wizard.)
+#
+# Engine modeling: a sphere save-burst. type aoe_attack, sphere radius
+# 20. DEX save vs the caster's spell save DC; 10d4 acid on a fail, half
+# on a success. +2d4/slot upcast on the initial damage.
+#
+# Deferred RAW bits:
+#   - The delayed "another 5d4 acid at the end of its next turn" — needs
+#     a per-target delayed-damage trigger (no end-of-next-turn callback
+#     for an instantaneous spell in v1); the 10d4 burst is the load-
+#     bearing effect.
+#
+# source: srd_5.2.1
+
+id: f_vitriolic_sphere
+name: Vitriolic Sphere
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 7             # Wizards gain 4th-level slots at L7
+type: active
+spell:
+  class: c_wizard
+  level: 4
+
+description: |
+  20-ft radius sphere within 150 ft. DEX save vs spell DC: 10d4 acid
+  on a fail, half on a success. +2d4 per slot above 4th. (Delayed 5d4
+  deferred.)
+
+action_template:
+  id: a_vitriolic_sphere
+  name: Vitriolic Sphere
+  type: aoe_attack
+  spell_slot_level: 4
+  named_effect: vitriolic_sphere
+  range_ft: 150
+  area:
+    shape: sphere
+    radius_ft: 20
+    range_ft: 150
+  upcast_scaling:
+    extra_dice_per_level: "2d4"
+    damage_type: acid
+  pipeline:
+    - primitive: forced_save
+      params:
+        ability: dexterity
+        dc_source: caster_spell_save_dc
+        affected: all_creatures_in_area
+        on_fail:
+          - primitive: damage
+            params: { dice: "10d4", modifier: 0, type: acid }
+        on_success:
+          - primitive: damage
+            params: { dice: "10d4", modifier: 0, type: acid, multiplier: 0.5 }

@@ -1,0 +1,56 @@
+# f_finger_of_death — Finger of Death (Level 7 Necromancy, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p130): 60 ft, one creature. It makes a
+# Constitution saving throw, taking 7d8 + 30 Necrotic damage on a fail
+# or half on a success. A Humanoid killed by it rises as a Zombie under
+# the caster's command at the start of the caster's next turn.
+# (Sorcerer/Warlock/Wizard.)
+#
+# Engine modeling: a single-target save-for-half nuke — a static
+# `save_attack` action_template. forced_save CON vs the caster's spell
+# save DC; 7d8 + 30 necrotic on a fail, half on a success.
+#
+# Deferred RAW bits:
+#   - The slain-Humanoid-rises-as-a-Zombie rider (needs the summon /
+#     create-undead system); the 7d8+30 damage is the load-bearing
+#     effect.
+#
+# source: srd_5.2.1
+
+id: f_finger_of_death
+name: Finger of Death
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 13            # Wizards gain 7th-level slots at L13
+type: active
+spell:
+  class: c_wizard
+  level: 7
+
+description: |
+  One creature within 60 ft makes a CON save vs spell DC: 7d8+30
+  necrotic on a fail, half on a success. (Zombie-rise rider deferred.)
+
+action_template:
+  id: a_finger_of_death
+  name: Finger of Death
+  type: save_attack
+  spell_slot_level: 7
+  named_effect: finger_of_death
+  range_ft: 60
+  save_ability: constitution
+  save_dc_source: caster_spell_save_dc
+  half_on_success: true
+  pipeline:
+    - primitive: forced_save
+      params:
+        ability: constitution
+        dc_source: caster_spell_save_dc
+        affected: current_target
+        on_fail:
+          - primitive: damage
+            params: { dice: "7d8", modifier: 30, type: necrotic }
+        on_success:
+          - primitive: damage
+            params: { dice: "7d8", modifier: 30, type: necrotic, multiplier: 0.5 }
