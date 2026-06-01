@@ -1,0 +1,84 @@
+# m_goblin_minion — Goblin Minion
+# Source: SRD CC v5.2.1 p290
+# Triage: GREEN — single weapon attack; Nimble Escape bonus action
+# (Disengage / Hide) reuses the goblin template's choose_action shape.
+
+id: m_goblin_minion
+name: Goblin Minion
+source: srd_5.2.1
+
+size: small
+creature_type: fey
+type_tags: [goblinoid]
+alignment: chaotic_neutral
+
+combat:
+  armor_class: 12
+  hit_points:
+    average: 7
+    dice: "2d6"
+    con_contribution: 0
+  speed:
+    walk: 30
+  initiative:
+    modifier: 2
+    score: 12
+
+abilities:
+  str: { score: 8, save: -1 }
+  dex: { score: 15, save: 2 }
+  con: { score: 10, save: 0 }
+  int: { score: 10, save: 0 }
+  wis: { score: 8, save: -1 }
+  cha: { score: 8, save: -1 }
+
+skills:
+  stealth: 6
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: []
+condition_immunities: []
+
+gear: [dagger]
+
+senses:
+  passive_perception: 9
+  special:
+    darkvision: 60
+
+languages: [common, goblin]
+
+cr:
+  value: 0.125
+  xp: 25
+  proficiency_bonus: 2
+
+traits: []
+
+actions:
+  - id: a_dagger
+    name: Dagger
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 4, reach_ft: 5, range: [20, 60] }
+      - primitive: damage
+        params: { dice: "1d4", modifier: 2, type: piercing, average: 4 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+bonus_actions:
+  - id: ba_nimble_escape
+    name: Nimble Escape
+    type: choose_action
+    is_signature: true
+    options:
+      - granted_action: disengage
+      - granted_action: hide
+
+behavior_profile:
+  archetype: cowardly_skirmisher
+  presets:
+    retreat: cowardly
+    ability_selection: default
+    targeting: weakest_target
+    action_economy: casual

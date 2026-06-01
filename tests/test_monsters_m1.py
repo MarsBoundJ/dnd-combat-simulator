@@ -133,5 +133,59 @@ class AttackBehaviorTest(unittest.TestCase):
         self.assertEqual(len(atk_rolls), 2)
 
 
+class RiderBehaviorTest(unittest.TestCase):
+    """On-hit / save riders that apply existing conditions."""
+
+    def setUp(self):
+        primitives_module.set_rng(random.Random(2))
+
+    def test_ghoul_claw_paralyzes_on_failed_save(self):
+        ghoul = _actor_from("m_ghoul")
+        pc = _dummy(ac=1, hp=40, con=-10)            # low AC + near-auto-fail CON
+        st = _state([ghoul, pc])
+        chosen = {"kind": "weapon_attack", "action": _action("m_ghoul", "a_claw"),
+                    "target": pc, "actor": ghoul}
+        pipeline.execute(chosen, st, EventBus(), PrimitiveRegistry.with_defaults())
+        self.assertIn("co_paralyzed", [c["condition_id"] for c in pc.applied_conditions])
+
+    def test_wolf_bite_knocks_prone_on_hit(self):
+        wolf = _actor_from("m_wolf")
+        pc = _dummy(ac=1, hp=40)                      # low AC so the bite lands
+        st = _state([wolf, pc])
+        chosen = {"kind": "weapon_attack", "action": _action("m_wolf", "a_bite"),
+                    "target": pc, "actor": wolf}
+        pipeline.execute(chosen, st, EventBus(), PrimitiveRegistry.with_defaults())
+        self.assertLess(pc.hp_current, 40)
+        self.assertIn("co_prone", [c["condition_id"] for c in pc.applied_conditions])
+
+    def test_wyvern_sting_poisons_on_hit(self):
+        wyvern = _actor_from("m_wyvern")
+        pc = _dummy(ac=1, hp=120)
+        st = _state([wyvern, pc])
+        chosen = {"kind": "weapon_attack", "action": _action("m_wyvern", "a_sting"),
+                    "target": pc, "actor": wyvern}
+        pipeline.execute(chosen, st, EventBus(), PrimitiveRegistry.with_defaults())
+        self.assertIn("co_poisoned", [c["condition_id"] for c in pc.applied_conditions])
+
+    def test_bugbear_grab_grapples_on_hit(self):
+        bug = _actor_from("m_bugbear_warrior")
+        pc = _dummy(ac=1, hp=60)
+        st = _state([bug, pc])
+        chosen = {"kind": "weapon_attack", "action": _action("m_bugbear_warrior", "a_grab"),
+                    "target": pc, "actor": bug}
+        pipeline.execute(chosen, st, EventBus(), PrimitiveRegistry.with_defaults())
+        self.assertIn("co_grappled", [c["condition_id"] for c in pc.applied_conditions])
+
+    def test_bugbear_stalker_quick_grapple_save(self):
+        bug = _actor_from("m_bugbear_stalker")
+        pc = _dummy(hp=60, dex=-10)                  # near-auto-fail DEX
+        st = _state([bug, pc])
+        ba = next(a for a in _monster("m_bugbear_stalker")["bonus_actions"]
+                   if a["id"] == "ba_quick_grapple")
+        chosen = {"kind": "save_effect", "action": ba, "target": pc, "actor": bug}
+        pipeline.execute(chosen, st, EventBus(), PrimitiveRegistry.with_defaults())
+        self.assertIn("co_grappled", [c["condition_id"] for c in pc.applied_conditions])
+
+
 if __name__ == "__main__":
     unittest.main()
