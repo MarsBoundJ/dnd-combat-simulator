@@ -1,0 +1,65 @@
+# f_guardian_of_faith — Guardian of Faith (Level 4 Conjuration, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p136): a Large spectral guardian hovers in a
+# space within 30 ft for 8 hours. Any enemy that moves within 10 ft of it
+# for the first time on a turn or starts its turn there makes a Dexterity
+# saving throw, taking 20 Radiant damage on a fail or half on a success.
+# When it has dealt a total of 60 damage, it vanishes. (Cleric.) NOT
+# Concentration.
+#
+# Engine modeling: a point-anchored damaging zone — the persistent_aura
+# archetype, centered on the guardian's space (10-ft reach). DEX save vs
+# the caster's spell save DC at each enemy's turn in the area; a flat 20
+# Radiant on a fail (damage primitive with modifier-only, no dice), 10 on
+# a success. affected: enemies (the guardian targets foes, not allies).
+# Not Concentration.
+#
+# Deferred RAW bits:
+#   - The 60-damage budget after which the guardian vanishes (no per-aura
+#     damage-cap tracking); the guardian persists for the duration in v1.
+#   - The guardian as a space-occupying, attackable-but-invulnerable
+#     object (no body modeling).
+#
+# source: srd_5.2.1
+
+id: f_guardian_of_faith
+name: Guardian of Faith
+source: srd_5.2.1
+granted_by:
+  class: c_cleric
+  level: 7             # Clerics gain 4th-level slots at L7
+type: active
+spell:
+  class: c_cleric
+  level: 4
+
+description: |
+  A spectral guardian within 30 ft. Enemies within 10 ft make a DEX
+  save vs spell DC: 20 radiant on a fail, half on a success. 8 hours.
+
+action_template:
+  id: a_guardian_of_faith
+  name: Guardian of Faith
+  type: persistent_aura
+  spell_slot_level: 4
+  named_effect: guardian_of_faith
+  area:
+    shape: sphere
+    radius_ft: 10
+    range_ft: 30
+  pipeline:
+    - primitive: persistent_aura
+      params:
+        shape: sphere
+        radius_ft: 10
+        anchor: point
+        trigger_event: target_turn_start_in_area
+        affected: enemies
+        ability: dexterity
+        dc_source: caster_spell_save_dc
+        on_fail:
+          - primitive: damage
+            params: { modifier: 20, type: radiant }
+        on_success:
+          - primitive: damage
+            params: { modifier: 20, type: radiant, multiplier: 0.5 }

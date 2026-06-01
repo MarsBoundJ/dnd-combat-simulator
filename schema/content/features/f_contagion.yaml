@@ -1,0 +1,68 @@
+# f_contagion — Contagion (Level 5 Necromancy, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p118): touch. The target makes a Constitution
+# saving throw or takes 11d8 Necrotic damage and has the Poisoned
+# condition; while Poisoned it has Disadvantage on saves with one chosen
+# ability. It repeats the CON save at the end of each of its turns until
+# it gets three successes (effect ends) or three failures (the poisoning
+# becomes lasting). Duration 7 days. (Cleric/Druid.)
+#
+# Engine modeling: a touch save-or-poison nuke. type save_attack;
+# forced_save CON vs the caster's spell save DC; on a fail 11d8 necrotic
+# + co_poisoned + a turn-end CON re-save (which ends the effect on a
+# success — the SRD escape). Not Concentration.
+#
+# Deferred RAW bits:
+#   - The three-successes/three-failures escalation (recurring_save ends
+#     on the first success; no failure-counter); v1 uses a single turn-
+#     end re-save as the escape.
+#   - The chosen-ability save Disadvantage while Poisoned (co_poisoned's
+#     base effects apply; the extra ability-specific penalty isn't
+#     modeled).
+#
+# source: srd_5.2.1
+
+id: f_contagion
+name: Contagion
+source: srd_5.2.1
+granted_by:
+  class: c_cleric
+  level: 9             # Clerics gain 5th-level slots at L9
+type: active
+spell:
+  class: c_cleric
+  level: 5
+
+description: |
+  Touch. CON save or 11d8 necrotic + Poisoned; re-saves at turn-end.
+  7 days (not Concentration).
+
+action_template:
+  id: a_contagion
+  name: Contagion
+  type: save_attack
+  spell_slot_level: 5
+  named_effect: contagion
+  range_ft: 5             # touch
+  save_ability: constitution
+  save_dc_source: caster_spell_save_dc
+  half_on_success: false
+  pipeline:
+    - primitive: forced_save
+      params:
+        ability: constitution
+        dc_source: caster_spell_save_dc
+        affected: current_target
+        on_fail:
+          - primitive: damage
+            params: { dice: "11d8", modifier: 0, type: necrotic }
+          - primitive: apply_condition
+            params: { condition_id: co_poisoned, duration: until_spell_ends }
+          - primitive: recurring_save
+            params:
+              ability: constitution
+              dc_source: caster_spell_save_dc
+              trigger_event: target_turn_end
+              on_success: end_spell_on_target
+              condition_id: co_poisoned
+        on_success: []
