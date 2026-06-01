@@ -200,6 +200,12 @@ class EncounterRunner:
         from engine.core import legendary_actions as _legendary_actions
         _legendary_actions.reset_budget(actor, state)
 
+        # Swallow: a creature that has swallowed someone deals its ongoing
+        # acid to the victim at the start of its turn. See
+        # engine/core/swallow.py.
+        from engine.core import swallow as _swallow
+        _swallow.tick(actor, state, self.primitives, self.event_bus)
+
         # PR #43: persistent aura triggers (Spirit Guardians-shape).
         # Fires AFTER turn_start so the event log shows turn_start first,
         # then any aura damage. Skip if the actor died from the aura
