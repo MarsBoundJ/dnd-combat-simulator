@@ -202,6 +202,17 @@ def _build_actor(actor_spec: dict, registry) -> Actor:
     if lr_uses is not None and "legendary_resistance_remaining" not in resources:
         resources["legendary_resistance_remaining"] = int(lr_uses)
 
+    # Legendary Actions (monster stat block `legendary_actions:
+    # { uses_per_round: N, options: [...] }`). Seed the pool so the
+    # creature can spend uses between other creatures' turns from the
+    # very first round (RAW: the pool starts full). The runner resets it
+    # at the creature's own turn start. Explicit resources win on conflict.
+    la = template.get("legendary_actions") or {}
+    la_uses = la.get("uses_per_round")
+    if (la_uses is not None and la.get("options")
+            and "legendary_actions_remaining" not in resources):
+        resources["legendary_actions_remaining"] = int(la_uses)
+
     # PR #48 + PR #76: optional per-actor cover state ('none' |
     # 'half' | 'three_quarters' | 'total'). Defaults to 'none'.
     # Fixture authors set this to model a creature behind a wall,
