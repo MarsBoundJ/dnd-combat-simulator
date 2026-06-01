@@ -281,6 +281,16 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
             feature = content_registry.get("feature", feature_id)
         except (KeyError, AttributeError):
             continue
+        # Data-driven spell-action builders (pc_builder block) — new
+        # attack/heal spells declare their builder in YAML and are built
+        # here, no per-feature dispatch in _build_feature_actions needed.
+        builder_action = _dispatch_pc_builder(
+            feature, level, ability_scores, proficiency_bonus, class_id)
+        if builder_action is not None:
+            if builder_action.get("id") not in existing_ids:
+                actions.append(builder_action)
+                existing_ids.add(builder_action.get("id"))
+            continue
         action_template = feature.get("action_template")
         if not action_template:
             continue
@@ -1074,34 +1084,11 @@ def _build_feature_actions(features_known: set[str], level: int,
     # attack_roll primitive takes a fixed bonus; cantrips also bake the
     # character-level die count. Gated on the feature id, so only the
     # granting class builds each.
-    if "f_ray_of_frost" in features_known and ability_scores is not None:
-        actions.append(_build_attack_cantrip_action(
-            "a_ray_of_frost", "Ray of Frost", level, ability_scores,
-            proficiency_bonus, class_id, damage_type="cold", die=8,
-            range_ft=60))
-    if "f_vicious_mockery" in features_known:
-        actions.append(_build_save_cantrip_action(
-            "a_vicious_mockery", "Vicious Mockery", level,
-            save_ability="wisdom", damage_type="psychic", die=6,
-            range_ft=60))
-    if "f_guiding_bolt" in features_known and ability_scores is not None:
-        actions.append(_build_leveled_spell_attack_action(
-            "a_guiding_bolt", "Guiding Bolt", slot_level=1, range_ft=120,
-            ability_scores=ability_scores, proficiency_bonus=proficiency_bonus,
-            class_id=class_id, damage_dice="4d6", damage_type="radiant",
-            upcast_dice="1d6"))
-    if "f_chromatic_orb" in features_known and ability_scores is not None:
-        actions.append(_build_leveled_spell_attack_action(
-            "a_chromatic_orb", "Chromatic Orb", slot_level=1, range_ft=90,
-            ability_scores=ability_scores, proficiency_bonus=proficiency_bonus,
-            class_id=class_id, damage_dice="3d8", damage_type="fire",
-            upcast_dice="1d8"))
-    if "f_scorching_ray" in features_known and ability_scores is not None:
-        actions.append(_build_leveled_spell_attack_action(
-            "a_scorching_ray", "Scorching Ray", slot_level=2, range_ft=120,
-            ability_scores=ability_scores, proficiency_bonus=proficiency_bonus,
-            class_id=class_id, damage_dice="2d6", damage_type="fire",
-            ray_count=3))
+    # NOTE: Ray of Frost, Vicious Mockery, Guiding Bolt, Chromatic Orb,
+    # Scorching Ray, and the mass heals are now built data-driven from
+    # their YAML `pc_builder` blocks (see _dispatch_pc_builder, invoked
+    # in build_pc_template). New attack/heal spells add a pc_builder
+    # block and need NO edit here.
     # PR #116: Cure Wounds — direct heal (2d8 + spellcasting-ability
     # mod). Built here (not auto-attached) because the +mod depends on
     # the caster's ability, like Eldritch Blast / the cantrips.
@@ -1113,15 +1100,6 @@ def _build_feature_actions(features_known: set[str], level: int,
     # make it the "pick an ally up from across the field" heal.
     if "f_healing_word" in features_known and ability_scores is not None:
         actions.append(_build_healing_word_action(
-            level, ability_scores, class_id))
-    # batch-2 mass heals — multi-target (max_targets=6) heal actions that
-    # ride the candidate generator's Aid-shape grouping. +mod baked at
-    # build time like the single-target heals.
-    if "f_mass_healing_word" in features_known and ability_scores is not None:
-        actions.append(_build_mass_healing_word_action(
-            level, ability_scores, class_id))
-    if "f_mass_cure_wounds" in features_known and ability_scores is not None:
-        actions.append(_build_mass_cure_wounds_action(
             level, ability_scores, class_id))
     return actions
 
@@ -1202,61 +1180,24 @@ def _build_healing_word_action(level: int, ability_scores: dict,
     }
 
 
+# Mass heals now build from their YAML pc_builder blocks via
+# _dispatch_pc_builder → _build_heal_action. These thin wrappers are kept
+# so direct-call tests + any external callers resolve to the same generic
+# builder (identical output).
 def _build_mass_healing_word_action(level: int, ability_scores: dict,
                                        class_id: str) -> dict:
-    """Mass Healing Word (batch 2): a 3rd-level BONUS-action ranged heal
-    of 2d4 + spellcasting mod to up to six creatures within 60 ft. Same
-    `heal` shape as Healing Word plus max_targets=6, which routes it
-    through the candidate generator's multi-target grouping (PR #97
-    Aid-shape) so one cast heals the best up-to-6 wounded allies.
-
-    Deferred: upcast (+1d4 per slot above 3rd) — base cast only in v1."""
-    abbr = _SPELL_ABILITY_BY_CLASS.get(class_id, "wis")
-    score = (ability_scores.get(abbr) or {}).get("score", 10)
-    mod = max(0, ability_modifier(score))
-    return {
-        "id": "a_mass_healing_word",
-        "name": "Mass Healing Word",
-        "type": "heal",
-        "slot": "bonus_action",
-        "spell_slot_level": 3,
-        "range_ft": 60,
-        "max_targets": 6,
-        "pipeline": [
-            {"primitive": "heal",
-              "params": {"target": "current_target",
-                          "dice": "2d4", "modifier": mod}},
-        ],
-    }
+    return _build_heal_action(
+        "a_mass_healing_word", "Mass Healing Word", level, ability_scores,
+        class_id, slot="bonus_action", slot_level=3, range_ft=60,
+        dice="2d4", max_targets=6)
 
 
 def _build_mass_cure_wounds_action(level: int, ability_scores: dict,
                                       class_id: str) -> dict:
-    """Mass Cure Wounds (batch 2): a 5th-level Action heal of 5d8 +
-    spellcasting mod to up to six creatures in a 30-ft sphere within
-    60 ft. `heal` + max_targets=6 → multi-target grouping. v1 picks the
-    best up-to-6 wounded allies by the candidate grouper rather than
-    modeling the sphere placement (the heal goes to whoever's hurt).
-
-    Deferred: upcast (+1d8 per slot above 5th); explicit sphere
-    placement (v1 heals the wounded directly)."""
-    abbr = _SPELL_ABILITY_BY_CLASS.get(class_id, "wis")
-    score = (ability_scores.get(abbr) or {}).get("score", 10)
-    mod = max(0, ability_modifier(score))
-    return {
-        "id": "a_mass_cure_wounds",
-        "name": "Mass Cure Wounds",
-        "type": "heal",
-        "slot": "action",
-        "spell_slot_level": 5,
-        "range_ft": 60,
-        "max_targets": 6,
-        "pipeline": [
-            {"primitive": "heal",
-              "params": {"target": "current_target",
-                          "dice": "5d8", "modifier": mod}},
-        ],
-    }
+    return _build_heal_action(
+        "a_mass_cure_wounds", "Mass Cure Wounds", level, ability_scores,
+        class_id, slot="action", slot_level=5, range_ft=60,
+        dice="5d8", max_targets=6)
 
 
 def _cantrip_dice_count(character_level: int) -> int:
@@ -1436,6 +1377,102 @@ def _build_leveled_spell_attack_action(action_id: str, name: str, *,
         action["upcast_scaling"] = {"extra_dice_per_level": upcast_dice,
                                       "damage_type": damage_type}
     return action
+
+
+def _build_heal_action(action_id: str, name: str, level: int,
+                         ability_scores: dict, class_id: str, *,
+                         slot: str, slot_level: int, range_ft: int,
+                         dice: str, max_targets: int = 1) -> dict:
+    """Generic heal action: `<dice>` + the caster's spellcasting-ability
+    modifier (floored at 0). Subsumes Cure Wounds / Healing Word / the
+    mass heals — they differ only in id/name/slot/slot_level/range/dice/
+    max_targets, all of which are parameters here. max_targets > 1 routes
+    through the candidate generator's multi-target (Aid-shape) grouping.
+
+    Deferred (matching the per-spell builders it replaces): upcast
+    scaling on the healing dice — base cast only in v1."""
+    abbr = _SPELL_ABILITY_BY_CLASS.get(class_id, "wis")
+    score = (ability_scores.get(abbr) or {}).get("score", 10)
+    mod = max(0, ability_modifier(score))
+    action = {
+        "id": action_id,
+        "name": name,
+        "type": "heal",
+        "slot": slot,
+        "spell_slot_level": slot_level,
+        "range_ft": range_ft,
+        "pipeline": [
+            {"primitive": "heal",
+              "params": {"target": "current_target",
+                          "dice": dice, "modifier": mod}},
+        ],
+    }
+    if max_targets and int(max_targets) > 1:
+        action["max_targets"] = int(max_targets)
+    return action
+
+
+def _dispatch_pc_builder(feature_def: dict, level: int,
+                           ability_scores: dict, proficiency_bonus: int,
+                           class_id: str) -> dict | None:
+    """Data-driven spell-action builder. A feature YAML can declare a
+    `pc_builder` block instead of an `action_template` when its action
+    must be computed at PC-build time (spell-attack bonus from the
+    caster's ability + PB; cantrip die count from character level; heal
+    +mod from ability). This lets new attack/heal spells be added by YAML
+    ALONE — no per-feature dispatch edit in this module.
+
+    pc_builder shape:
+        pc_builder:
+          kind: attack_cantrip | save_cantrip | spell_attack | heal
+          action_id: a_<spell>
+          name: <Spell Name>
+          params: { ...kind-specific... }
+
+    Kind-specific params:
+      attack_cantrip: damage_type, die, range_ft
+      save_cantrip:   save_ability, damage_type, die, range_ft
+      spell_attack:   slot_level, range_ft, damage_dice, damage_type,
+                      [ray_count], [upcast_dice]
+      heal:           slot, slot_level, range_ft, dice, [max_targets]
+
+    Returns the built action dict, or None if the feature has no
+    pc_builder block. Raises ValueError on an unknown kind."""
+    spec = feature_def.get("pc_builder")
+    if not spec:
+        return None
+    kind = spec.get("kind")
+    aid = spec.get("action_id")
+    name = spec.get("name")
+    p = spec.get("params") or {}
+    if not (kind and aid and name):
+        raise ValueError(
+            f"pc_builder requires kind + action_id + name (got {spec!r})")
+    if kind == "attack_cantrip":
+        return _build_attack_cantrip_action(
+            aid, name, level, ability_scores, proficiency_bonus, class_id,
+            damage_type=p["damage_type"], die=int(p["die"]),
+            range_ft=int(p["range_ft"]))
+    if kind == "save_cantrip":
+        return _build_save_cantrip_action(
+            aid, name, level, save_ability=p["save_ability"],
+            damage_type=p["damage_type"], die=int(p["die"]),
+            range_ft=int(p["range_ft"]))
+    if kind == "spell_attack":
+        return _build_leveled_spell_attack_action(
+            aid, name, slot_level=int(p["slot_level"]),
+            range_ft=int(p["range_ft"]), ability_scores=ability_scores,
+            proficiency_bonus=proficiency_bonus, class_id=class_id,
+            damage_dice=p["damage_dice"], damage_type=p["damage_type"],
+            ray_count=int(p.get("ray_count", 1)),
+            upcast_dice=p.get("upcast_dice"))
+    if kind == "heal":
+        return _build_heal_action(
+            aid, name, level, ability_scores, class_id,
+            slot=p.get("slot", "action"), slot_level=int(p["slot_level"]),
+            range_ft=int(p["range_ft"]), dice=p["dice"],
+            max_targets=int(p.get("max_targets", 1)))
+    raise ValueError(f"unknown pc_builder kind: {kind!r}")
 
 
 def _build_toll_the_dead_action(level: int) -> dict:

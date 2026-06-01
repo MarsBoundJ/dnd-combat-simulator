@@ -28,6 +28,17 @@ spell:
   class: c_cleric
   level: 3
 
+pc_builder:
+  kind: heal
+  action_id: a_mass_healing_word
+  name: Mass Healing Word
+  params:
+    slot: bonus_action
+    slot_level: 3
+    range_ft: 60
+    dice: "2d4"
+    max_targets: 6
+
 description: |
   Bonus action. Up to six creatures within 60 ft regain 2d4 + your
   spellcasting modifier HP.

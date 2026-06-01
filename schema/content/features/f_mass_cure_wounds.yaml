@@ -30,6 +30,17 @@ spell:
   class: c_cleric
   level: 5
 
+pc_builder:
+  kind: heal
+  action_id: a_mass_cure_wounds
+  name: Mass Cure Wounds
+  params:
+    slot: action
+    slot_level: 5
+    range_ft: 60
+    dice: "5d8"
+    max_targets: 6
+
 description: |
   Up to six creatures within 60 ft regain 5d8 + your spellcasting
   modifier HP.

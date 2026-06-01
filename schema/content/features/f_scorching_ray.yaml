@@ -34,6 +34,17 @@ spell:
   class: c_wizard
   level: 2
 
+pc_builder:
+  kind: spell_attack
+  action_id: a_scorching_ray
+  name: Scorching Ray
+  params:
+    slot_level: 2
+    range_ft: 120
+    damage_dice: "2d6"
+    damage_type: fire
+    ray_count: 3
+
 description: |
   Three ranged spell attacks at 120 ft, 2d6 fire each (v1 focus-fires
   one target). Multi-target split + ray-count upcast deferred.

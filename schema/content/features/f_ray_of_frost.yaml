@@ -28,6 +28,17 @@ spell:
   class: c_wizard
   level: 0
 
+# Data-driven builder: pc_schema._dispatch_pc_builder reads this block
+# at PC-build time (no per-feature dispatch in _build_feature_actions).
+pc_builder:
+  kind: attack_cantrip
+  action_id: a_ray_of_frost
+  name: Ray of Frost
+  params:
+    damage_type: cold
+    die: 8
+    range_ft: 60
+
 description: |
   Cantrip. Ranged spell attack at 60 ft; on a hit deals Nd8 cold
   (N scales 1/2/3/4 at character level 1/5/11/17). Speed-reduction
