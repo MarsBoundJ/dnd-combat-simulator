@@ -1,0 +1,57 @@
+# f_freezing_sphere — Freezing Sphere (Level 6 Evocation, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p133): a frigid globe streaks to a point within
+# 300 ft and explodes in a 60-ft-radius Sphere. Each creature makes a
+# Constitution saving throw, taking 10d6 Cold damage on a fail or half on
+# a success. (Bodies of water freeze; deferred globe-in-hand option.)
+# (Sorcerer/Wizard.)
+#
+# Engine modeling: a large sphere save-burst. type aoe_attack, sphere
+# radius 60; CON save vs the caster's spell save DC, all_creatures_in_
+# area; 10d6 cold on a fail, half on a success.
+#
+# Deferred RAW bits:
+#   - Water-freezing / the held-globe delayed-detonation option (flavor /
+#     no environment modeling).
+#   - No upcast (Freezing Sphere doesn't scale by slot in 2024).
+#
+# source: srd_5.2.1
+
+id: f_freezing_sphere
+name: Freezing Sphere
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 11            # Wizards gain 6th-level slots at L11
+type: active
+spell:
+  class: c_wizard
+  level: 6
+
+description: |
+  60-ft radius sphere within 300 ft. CON save vs spell DC: 10d6 cold
+  on a fail, half on a success.
+
+action_template:
+  id: a_freezing_sphere
+  name: Freezing Sphere
+  type: aoe_attack
+  spell_slot_level: 6
+  named_effect: freezing_sphere
+  range_ft: 300
+  area:
+    shape: sphere
+    radius_ft: 60
+    range_ft: 300
+  pipeline:
+    - primitive: forced_save
+      params:
+        ability: constitution
+        dc_source: caster_spell_save_dc
+        affected: all_creatures_in_area
+        on_fail:
+          - primitive: damage
+            params: { dice: "10d6", modifier: 0, type: cold }
+        on_success:
+          - primitive: damage
+            params: { dice: "10d6", modifier: 0, type: cold, multiplier: 0.5 }

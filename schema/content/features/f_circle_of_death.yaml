@@ -1,0 +1,56 @@
+# f_circle_of_death — Circle of Death (Level 6 Necromancy, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p114): negative energy ripples in a 60-ft-
+# radius Sphere from a point within 150 ft. Each creature makes a
+# Constitution saving throw, taking 8d6 Necrotic damage on a fail or half
+# on a success. Using a Higher-Level Spell Slot: +2d8 per slot above 6th.
+# (Sorcerer/Warlock/Wizard.)
+#
+# Engine modeling: a large sphere save-burst (same shape as Fireball).
+# type aoe_attack, sphere radius 60; CON save vs the caster's spell save
+# DC, all_creatures_in_area; 8d6 necrotic on a fail, half on a success.
+# +2d8/slot upcast.
+#
+# source: srd_5.2.1
+
+id: f_circle_of_death
+name: Circle of Death
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 11            # Wizards gain 6th-level slots at L11
+type: active
+spell:
+  class: c_wizard
+  level: 6
+
+description: |
+  60-ft radius sphere within 150 ft. CON save vs spell DC: 8d6
+  necrotic on a fail, half on a success. +2d8 per slot above 6th.
+
+action_template:
+  id: a_circle_of_death
+  name: Circle of Death
+  type: aoe_attack
+  spell_slot_level: 6
+  named_effect: circle_of_death
+  range_ft: 150
+  area:
+    shape: sphere
+    radius_ft: 60
+    range_ft: 150
+  upcast_scaling:
+    extra_dice_per_level: "2d8"
+    damage_type: necrotic
+  pipeline:
+    - primitive: forced_save
+      params:
+        ability: constitution
+        dc_source: caster_spell_save_dc
+        affected: all_creatures_in_area
+        on_fail:
+          - primitive: damage
+            params: { dice: "8d6", modifier: 0, type: necrotic }
+        on_success:
+          - primitive: damage
+            params: { dice: "8d6", modifier: 0, type: necrotic, multiplier: 0.5 }

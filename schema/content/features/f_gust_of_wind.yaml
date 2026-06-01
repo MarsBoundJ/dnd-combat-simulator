@@ -1,0 +1,59 @@
+# f_gust_of_wind — Gust of Wind (Level 2 Evocation, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p137): a 60-ft-long, 10-ft-wide Line of strong
+# wind from you. Each creature in the Line must succeed on a Strength
+# saving throw or be pushed 15 ft away from you along the Line (and again
+# if it ends its turn there); moving against the wind costs extra. The
+# wind disperses gas/fog. Concentration, up to 1 minute. (Druid/Ranger/
+# Sorcerer/Wizard.)
+#
+# Engine modeling: a line forced-movement effect (no damage). type
+# aoe_attack with a `line` area (length 60, width 10); forced_save STR vs
+# the caster's spell save DC, all_creatures_in_area; on a fail the
+# creature is pushed 15 ft away from the caster via forced_movement.
+# Concentration.
+#
+# Deferred RAW bits:
+#   - The recurring end-of-turn push + move-against-wind cost, and the
+#     gas/fog dispersal (no zone-interaction modeling); the initial
+#     15-ft push is the load-bearing effect.
+#
+# source: srd_5.2.1
+
+id: f_gust_of_wind
+name: Gust of Wind
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 3             # Wizards gain 2nd-level slots at L3
+type: active
+spell:
+  class: c_wizard
+  level: 2
+
+description: |
+  60-ft line (10 ft wide) from the caster. STR save vs spell DC or
+  pushed 15 ft away. Concentration, 1 minute.
+
+action_template:
+  id: a_gust_of_wind
+  name: Gust of Wind
+  type: aoe_attack
+  spell_slot_level: 2
+  concentration: true
+  named_effect: gust_of_wind
+  range_ft: 60
+  area:
+    shape: line
+    length_ft: 60
+    width_ft: 10
+  pipeline:
+    - primitive: forced_save
+      params:
+        ability: strength
+        dc_source: caster_spell_save_dc
+        affected: all_creatures_in_area
+        on_fail:
+          - primitive: forced_movement
+            params: { distance_ft: 15 }
+        on_success: []

@@ -1,0 +1,43 @@
+# f_poison_spray — Poison Spray (Necromancy cantrip, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p152): 30 ft, one creature. Make a ranged
+# spell attack; on a hit the target takes 1d12 Poison damage. Cantrip
+# Upgrade: +1d12 at character levels 5 (2d12), 11 (3d12), 17 (4d12).
+# (Druid/Sorcerer/Warlock/Wizard — note 2024 changed this from a CON
+# save to a ranged spell attack.)
+#
+# Engine modeling: a ranged-spell-attack cantrip — a MARKER feature
+# built by pc_schema via the `attack_cantrip` pc_builder kind (attack
+# bonus baked at PC-build time; Nd12 poison on a hit, N scaling with
+# character level).
+#
+# source: srd_5.2.1
+
+id: f_poison_spray
+name: Poison Spray
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 1
+type: passive
+spell:
+  class: c_wizard
+  level: 0
+pc_builder:
+  kind: attack_cantrip
+  action_id: a_poison_spray
+  name: Poison Spray
+  params:
+    damage_type: poison
+    die: 12
+    range_ft: 30
+
+description: |
+  Cantrip. Ranged spell attack at 30 ft; on a hit deals Nd12 poison
+  (N scales 1/2/3/4 at character level 1/5/11/17).
+
+contract:
+  reads: [actor.spell_ability_mod, actor.proficiency_bonus, actor.levels]
+  writes: [combat.attack_roll, combat.damage_total]
+  event: passive
+  scope: builds_attack_cantrip_action

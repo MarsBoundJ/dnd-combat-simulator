@@ -1,0 +1,52 @@
+# f_vampiric_touch — Vampiric Touch (Level 3 Necromancy, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p170): Self/touch. Make a melee spell attack
+# against a creature within reach; on a hit it takes 3d6 Necrotic damage
+# and you regain Hit Points equal to half that. Until the spell ends you
+# can repeat the attack as a Magic action each turn. Concentration, up to
+# 1 minute. Using a Higher-Level Spell Slot: +1d6 per slot above 3rd.
+# (Sorcerer/Warlock/Wizard.)
+#
+# Engine modeling: a melee spell attack — a MARKER feature built by
+# pc_schema via the `spell_attack` pc_builder kind (range 5; 3d6 necrotic
+# on a hit, +1d6/slot upcast).
+#
+# Deferred RAW bits:
+#   - The lifesteal (regain HP = half the necrotic dealt) — no lifesteal
+#     hook on the spell_attack builder.
+#   - The per-later-turn repeat attack (recurring-caster-action system,
+#     and the free re-attack wouldn't re-spend the slot); v1 delivers the
+#     initial cast's attack. The 3d6 necrotic is the load-bearing effect.
+#
+# source: srd_5.2.1
+
+id: f_vampiric_touch
+name: Vampiric Touch
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 5             # Wizards gain 3rd-level slots at L5
+type: passive
+spell:
+  class: c_wizard
+  level: 3
+pc_builder:
+  kind: spell_attack
+  action_id: a_vampiric_touch
+  name: Vampiric Touch
+  params:
+    slot_level: 3
+    range_ft: 5
+    damage_dice: "3d6"
+    damage_type: necrotic
+    upcast_dice: "1d6"
+
+description: |
+  Melee spell attack (reach 5 ft); on a hit deals 3d6 necrotic
+  (+1d6/slot above 3rd). Lifesteal + per-turn repeat deferred.
+
+contract:
+  reads: [actor.spell_ability_mod, actor.proficiency_bonus]
+  writes: [combat.attack_roll, combat.damage_total]
+  event: passive
+  scope: builds_spell_attack_action
