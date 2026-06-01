@@ -1,0 +1,45 @@
+# co_dancing — compelled to dance by Irresistible Dance
+# Source: SRD CC v5.2.1 p142 (the Irresistible Dance spell)
+#
+# Not a core PHB condition — the named effect Irresistible Dance imposes
+# on a creature that fails its save (RAW it is also Charmed). Scope:
+# absolute. A dancing creature must spend all its movement dancing in
+# place and has Disadvantage on Dexterity saving throws and attack
+# rolls, while attack rolls against it have Advantage.
+#
+# Engine enforcement (v1): the attack-side facets are REAL modifiers the
+# query layer applies — the target's own attacks have Disadvantage
+# (disadvantage_for_self), attacks against it have Advantage
+# (advantage_for_attacker), and its DEX saves have Disadvantage. The
+# "spend all movement dancing in place" facet is descriptive (no
+# movement-budget enforcement in v1).
+
+id: co_dancing
+name: Dancing
+source: srd_5.2.1
+category: condition
+scope: absolute
+
+effects:
+  - id: your_attacks_disadvantage
+    primitive: attack_modifier
+    params:
+      when: attacker_is_self
+      modifier: disadvantage_for_self
+
+  - id: attacks_vs_you_advantage
+    primitive: attack_modifier
+    params:
+      when: target_is_self
+      modifier: advantage_for_attacker
+
+  - id: dex_save_disadvantage
+    primitive: save_modifier
+    params:
+      when: "save_ability == dexterity"
+      modifier: disadvantage
+
+  - id: movement_wasted_dancing
+    primitive: movement_restriction
+    params:
+      must_spend_all_movement: dance_in_place

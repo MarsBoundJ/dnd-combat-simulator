@@ -1,0 +1,67 @@
+# f_call_lightning — Call Lightning (Level 3 Conjuration, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p113): a storm cloud forms; choose a point you
+# can see under it and a lightning bolt strikes — each creature within
+# 5 ft of that point makes a Dexterity saving throw, taking 3d10
+# Lightning damage on a failed save or half on a success. On later turns
+# you can take an action to call another bolt. Concentration, up to 10
+# minutes. Using a Higher-Level Spell Slot: +1d10 per slot above 3rd.
+#
+# Engine modeling: the immediate bolt is a small instantaneous AoE — a
+# static `aoe_attack` sphere (radius 5). forced_save DEX vs the caster's
+# spell save DC, all_creatures_in_area; 3d10 lightning on a fail, half
+# on a success. +1d10/slot upcast. Concentration is declared (the spell
+# is Concentration) even though the repeat-bolt upkeep is deferred.
+#
+# Deferred RAW bits:
+#   - The per-later-turn "call another bolt" action — needs the
+#     recurring-caster-action system (same bucket as Spiritual Weapon);
+#     v1 delivers the first bolt only.
+#   - Storm-cloud cylinder geometry (v1 just resolves the bolt's 5-ft
+#     burst at the chosen point).
+#
+# source: srd_5.2.1
+
+id: f_call_lightning
+name: Call Lightning
+source: srd_5.2.1
+granted_by:
+  class: c_druid
+  level: 5             # Druids gain 3rd-level slots at L5
+type: active
+spell:
+  class: c_druid
+  level: 3
+
+description: |
+  A lightning bolt strikes a point within 120 ft: each creature in a
+  5-ft radius makes a DEX save vs spell DC, 3d10 lightning on a fail,
+  half on a success. +1d10/slot. Concentration (repeat-bolt deferred).
+
+action_template:
+  id: a_call_lightning
+  name: Call Lightning
+  type: aoe_attack
+  spell_slot_level: 3
+  concentration: true
+  named_effect: call_lightning
+  range_ft: 120
+  area:
+    shape: sphere
+    radius_ft: 5
+    range_ft: 120
+  upcast_scaling:
+    extra_dice_per_level: "1d10"
+    damage_type: lightning
+  pipeline:
+    - primitive: forced_save
+      params:
+        ability: dexterity
+        dc_source: caster_spell_save_dc
+        affected: all_creatures_in_area
+        on_fail:
+          - primitive: damage
+            params: { dice: "3d10", modifier: 0, type: lightning }
+        on_success:
+          - primitive: damage
+            params: { dice: "3d10", modifier: 0, type: lightning, multiplier: 0.5 }

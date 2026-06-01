@@ -190,6 +190,105 @@ first, then the spell rides it.
   Orb's matching-d8 leap is the single-leap cousin, deferred for the same
   reason.)
 
+## Recurring caster-action effects (per-turn re-trigger)
+- **Heat Metal** (L2, P4) — auto 2d8 Fire on a creature touching the
+  heated metal, repeatable each later turn as a Bonus Action (plus a CON
+  save to drop the item / attack-and-check disadvantage). The per-turn
+  re-deal is the whole spell and needs the recurring-caster-action system
+  (same bucket as Spiritual Weapon). A one-shot 2d8 would drop the
+  defining mechanic, so deferred rather than stubbed.
+- Note: Call Lightning and Sunbeam are BUILT for their first bolt/line
+  but their "call another bolt / fire a new line each turn" upkeep rides
+  this same system and is deferred.
+
+## Decoy / attack-redirection
+- **Mirror Image** (L2, P4) — three duplicates; each incoming attack
+  rolls a d6 and may hit an image instead of you (an image is destroyed),
+  effectively a decaying miss-chance buff. Needs a per-attack
+  intercept that consumes duplicates and converts a would-be hit into a
+  miss — no attack-redirection / decoy-pool hook exists.
+
+## Illusion belief
+- **Phantasmal Force** (L2, P4) — INT save or believe a personal
+  illusion that can deal 1d6 Psychic/turn if rationalized as a threat,
+  with INT-check interactions to disbelieve. Needs a belief/illusion
+  model (per-target perceived reality + disbelief checks); no primitive
+  represents "this creature believes X until it spends an action to
+  investigate."
+
+## Attack-breaks-invisibility (regular Invisibility)
+- **Invisibility** (L4, P4) — grants co_invisible until the target
+  attacks or casts a spell (then it ends). co_invisible exists and Hide
+  already scrubs it on the next attack via a source_action_id="a_hide"
+  tag, but a spell-granted invisibility needs the same break-on-attack
+  scrub keyed to the spell (and the regular-vs-Greater distinction —
+  Greater doesn't break). Sibling of the already-deferred Greater
+  Invisibility; build both when the attack-breaks-invis hook generalizes.
+
+## Vertical positioning / flight
+- **Levitate** (L2, P4) — raise a creature 20 ft (CON save if unwilling),
+  it can only move by pushing off surfaces.
+- **Reverse Gravity** (L7, P4) — creatures in a 50-ft-radius column fall
+  upward (DEX save to grab an anchor), taking fall damage.
+  Both need vertical positioning / fall mechanics (the same gap the Fly
+  entry above calls out — v1 has no z-axis or fall model).
+
+## Containment barrier
+- **Resilient Sphere** (L4, P4) — encloses a creature in an impassable
+  globe (DEX save): nothing passes in or out, the target can't be
+  targeted from outside and can't affect anything outside, and it can
+  only "roll" the sphere slowly. Needs an enclose/containment state
+  (two-way targeting + movement block) — a barrier system cousin of the
+  Wall / Forcecage entries above.
+
+## Movement-blocking emanation
+- **Antilife Shell** (L5, P4) — a 10-ft self emanation that non-
+  Construct/Undead creatures can't pass or reach through. Needs a
+  movement-blocking / forced-stop barrier tied to a moving emanation; no
+  movement-interdiction hook exists.
+
+## Telekinetic move / grapple contest
+- **Telekinesis** (L5, P4) — each turn, move a creature (STR contest) up
+  to 30 ft in any direction, or restrain/grapple it, or manipulate
+  objects. Needs forced-movement-with-a-contested-check + an ongoing
+  grapple state the caster maintains (the Spike Growth "grapple drag"
+  bucket), plus the recurring-caster-action system.
+
+## Banish-removal + ability-check escape
+- **Maze** (L8, P4) — banish a creature to a demiplane; it escapes only
+  by succeeding a DC 20 Intelligence (Investigation) check on its turn.
+  Like Banishment's removal but the escape is a flat ability CHECK, not
+  a save — needs the "removed from play" state (see Banishment note) plus
+  an ability-check-to-escape resolver (no skill/ability-check action
+  primitive exists).
+
+## Planar transport
+- **Plane Shift** (L7, P4) — transport willing creatures to another plane
+  (or, offensively, a melee spell attack that banishes one creature).
+  Needs planar removal / the same "removed from play" state; the
+  offensive single-target banish could ride a future removal primitive.
+
+## Weapon stat replacement
+- **Shillelagh** (cantrip, P4) — a Club/Quarterstaff uses the caster's
+  spellcasting ability instead of STR, its damage die becomes a d8, and
+  damage can be Force. Needs a weapon-property transformation (override a
+  weapon action's attack ability + damage die + type at cast time);
+  weapon_damage_bonus only adds flat damage, it can't restat the weapon.
+
+## Stored / triggered spell
+- **Contingency** (L6, P4) — pre-cast a 5th-level-or-lower spell that
+  auto-triggers on a chosen condition later. Needs a stored-spell +
+  trigger-evaluation system (the Ready action is the in-combat cousin,
+  but Contingency persists across the whole adventuring day on an
+  arbitrary trigger).
+
+## Magic suppression field
+- **Antimagic Field** (L8, P4) — a 10-ft self emanation where no spells
+  can be cast, no magical effects function, and nothing magical can
+  target/affect anything inside. Needs a suppression system that
+  disables spell candidates, modifiers, auras, and items for occupants —
+  a broad, cross-cutting engine feature.
+
 ## Meta / Special
 - **Wish** (L9, P5) — can duplicate any 8th-level-or-lower spell + freeform
 - **Mass Suggestion** (L6, P5) — multi-target charm control (12 creatures)

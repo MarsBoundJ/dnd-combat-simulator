@@ -1,0 +1,67 @@
+# f_sleet_storm — Sleet Storm (Level 3 Conjuration, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p162): sleet fills a 40-ft-tall, 20-ft-radius
+# Cylinder within 150 ft. The area is Heavily Obscured, ground in it is
+# Difficult Terrain, and exposed flames are doused. When a creature
+# enters the Cylinder for the first time on a turn or starts its turn
+# there, it makes a Dexterity saving throw or gains the Prone condition
+# and loses Concentration. Concentration, up to 1 minute.
+#
+# Engine modeling: a point-anchored control zone — the persistent_aura
+# archetype (the cylinder approximated as a 20-ft-radius sphere). DEX
+# save vs the caster's spell save DC at each creature's turn in the
+# area; on a fail the creature is knocked Prone (co_prone, re-applied
+# each turn while it remains in the sleet). Concentration.
+#
+# Deferred RAW bits:
+#   - Heavy Obscurement + Difficult Terrain zone effects (no vision/
+#     movement-cost modeling tied to this aura in v1); the Prone control
+#     is the load-bearing combat effect.
+#   - "Loses Concentration" on a failed save (no break-target-
+#     concentration sub-primitive in v1).
+#   - Cylinder→sphere geometry; entry-trigger (turn-based only).
+#
+# source: srd_5.2.1
+
+id: f_sleet_storm
+name: Sleet Storm
+source: srd_5.2.1
+granted_by:
+  class: c_druid
+  level: 5             # Druids gain 3rd-level slots at L5
+type: active
+spell:
+  class: c_druid
+  level: 3
+
+description: |
+  20-ft radius sleet zone within 150 ft. DEX save vs spell DC at each
+  creature's turn in the area or knocked Prone. Concentration, 1 minute.
+
+action_template:
+  id: a_sleet_storm
+  name: Sleet Storm
+  type: persistent_aura
+  spell_slot_level: 3
+  concentration: true
+  named_effect: sleet_storm
+  area:
+    shape: sphere        # 20-ft-radius Cylinder approximated as a Sphere
+    radius_ft: 20
+    range_ft: 150
+  pipeline:
+    - primitive: persistent_aura
+      params:
+        shape: sphere
+        radius_ft: 20
+        anchor: point
+        trigger_event: target_turn_start_in_area
+        affected: all_creatures
+        ability: dexterity
+        dc_source: caster_spell_save_dc
+        on_fail:
+          - primitive: apply_condition
+            params:
+              condition_id: co_prone
+              duration: until_actor_next_turn_start
+        on_success: []
