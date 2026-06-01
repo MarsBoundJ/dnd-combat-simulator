@@ -1,0 +1,165 @@
+# c_monk — Monk (DEX/WIS martial, non-caster)
+# Source: SRD CC v5.2.1 (PHB 2024)
+#
+# First non-caster of the 4 missing classes. Core combat identity:
+#   - Martial Arts (L1): unarmed strikes use DEX + a Martial Arts die
+#     (1d6→1d12 by level); bonus-action unarmed strike.
+#   - Unarmored Defense (L1): base AC = 10 + DEX + WIS (no armor/shield).
+#   - Monk's Focus (L2): Focus Points (= Monk level, L2+) fuel Flurry of
+#     Blows / Patient Defense / Step of the Wind; save DC = 8 + WIS + PB.
+#   - Flurry of Blows (L2): 1 Focus Point → two bonus-action unarmed
+#     strikes.
+#   - Extra Attack (L5): two attacks on the Attack action.
+#
+# Build-time effects (Unarmored Defense AC, Martial Arts unarmed-strike
+# action + Flurry + Extra Attack) live in pc_schema. Focus Points +
+# Martial Arts die read from class_resources.
+#
+# Deferred (follow-on increment): Stunning Strike (L5 on-hit CON-save
+# stun rider), Empowered Strikes (L6 force-damage option), Deflect
+# Attacks, Evasion, Unarmored Movement (+speed), Uncanny Metabolism,
+# and the rest of the high-level features. Subclass (Warrior of the
+# Open Hand) lands with the follow-on.
+
+id: c_monk
+name: Monk
+source: srd_5.2.1
+
+core_traits:
+  primary_abilities: [dexterity, wisdom]
+  hit_die: d8
+  save_proficiencies: [strength, dexterity]
+  skill_proficiencies:
+    choose: 2
+    from: [acrobatics, athletics, history, insight, religion, stealth]
+  weapon_proficiencies: [simple, martial_light]
+  armor_training: []
+  tool_proficiencies: []
+
+multiclass_entry:
+  traits_gained: [simple_weapons]
+  features_gained: [f_martial_arts]
+  multiclass_slot_contribution: none
+
+level_table:
+  - level: 1
+    proficiency_bonus: 2
+    features: [f_martial_arts, f_unarmored_defense_monk]
+    class_resources:
+      martial_arts: "1d6"
+  - level: 2
+    proficiency_bonus: 2
+    features: [f_monks_focus, f_flurry_of_blows]
+    class_resources:
+      martial_arts: "1d6"
+      focus_points: 2
+  - level: 3
+    proficiency_bonus: 2
+    features: [grant_subclass]
+    class_resources:
+      martial_arts: "1d6"
+      focus_points: 3
+  - level: 4
+    proficiency_bonus: 2
+    features: [grant_asi_or_feat]
+    class_resources:
+      martial_arts: "1d6"
+      focus_points: 4
+  - level: 5
+    proficiency_bonus: 3
+    features: [f_monk_extra_attack]
+    class_resources:
+      martial_arts: "1d8"
+      focus_points: 5
+  - level: 6
+    proficiency_bonus: 3
+    features: []
+    class_resources:
+      martial_arts: "1d8"
+      focus_points: 6
+  - level: 7
+    proficiency_bonus: 3
+    features: []
+    class_resources:
+      martial_arts: "1d8"
+      focus_points: 7
+  - level: 8
+    proficiency_bonus: 3
+    features: [grant_asi_or_feat]
+    class_resources:
+      martial_arts: "1d8"
+      focus_points: 8
+  - level: 9
+    proficiency_bonus: 4
+    features: []
+    class_resources:
+      martial_arts: "1d8"
+      focus_points: 9
+  - level: 10
+    proficiency_bonus: 4
+    features: []
+    class_resources:
+      martial_arts: "1d8"
+      focus_points: 10
+  - level: 11
+    proficiency_bonus: 4
+    features: []
+    class_resources:
+      martial_arts: "1d10"
+      focus_points: 11
+  - level: 12
+    proficiency_bonus: 4
+    features: [grant_asi_or_feat]
+    class_resources:
+      martial_arts: "1d10"
+      focus_points: 12
+  - level: 13
+    proficiency_bonus: 5
+    features: []
+    class_resources:
+      martial_arts: "1d10"
+      focus_points: 13
+  - level: 14
+    proficiency_bonus: 5
+    features: []
+    class_resources:
+      martial_arts: "1d10"
+      focus_points: 14
+  - level: 15
+    proficiency_bonus: 5
+    features: []
+    class_resources:
+      martial_arts: "1d10"
+      focus_points: 15
+  - level: 16
+    proficiency_bonus: 5
+    features: [grant_asi_or_feat]
+    class_resources:
+      martial_arts: "1d10"
+      focus_points: 16
+  - level: 17
+    proficiency_bonus: 6
+    features: []
+    class_resources:
+      martial_arts: "1d12"
+      focus_points: 17
+  - level: 18
+    proficiency_bonus: 6
+    features: []
+    class_resources:
+      martial_arts: "1d12"
+      focus_points: 18
+  - level: 19
+    proficiency_bonus: 6
+    features: [grant_asi_or_feat]
+    class_resources:
+      martial_arts: "1d12"
+      focus_points: 19
+  - level: 20
+    proficiency_bonus: 6
+    features: []
+    class_resources:
+      martial_arts: "1d12"
+      focus_points: 20
+
+subclass_grant_level: 3

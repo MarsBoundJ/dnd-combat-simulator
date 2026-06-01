@@ -1,0 +1,24 @@
+# f_martial_arts — Martial Arts (Monk L1)
+#
+# RAW (SRD 5.2.1): While unarmed/wielding only Monk weapons and not
+# wearing armor or a shield: make an Unarmed Strike as a Bonus Action;
+# roll the Martial Arts die (1d6→1d12 by level) in place of normal
+# Unarmed Strike damage; use DEX instead of STR for attack + damage of
+# Unarmed Strikes and Monk weapons.
+#
+# Engine modeling: pc_schema builds the Monk's unarmed-strike actions
+# from this marker — a main-action Unarmed Strike (a_unarmed_strike) and
+# a bonus-action one (a_unarmed_strike_bonus), both DEX-based dealing the
+# Martial Arts die (from class_resources.martial_arts) + DEX mod
+# bludgeoning. Monk-weapon DEX swap is deferred (the unarmed strike is
+# the load-bearing attack).
+#
+# source: srd_5.2.1
+
+id: f_martial_arts
+name: Martial Arts
+source: srd_5.2.1
+granted_by:
+  class: c_monk
+  level: 1
+type: passive

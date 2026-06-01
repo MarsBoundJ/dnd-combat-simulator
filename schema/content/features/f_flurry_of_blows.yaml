@@ -1,0 +1,19 @@
+# f_flurry_of_blows — Flurry of Blows (Monk L2)
+#
+# RAW (SRD 5.2.1): Expend 1 Focus Point to make two Unarmed Strikes as a
+# Bonus Action.
+#
+# Engine modeling: pc_schema builds a_flurry_of_blows — a bonus-action
+# multiattack of two unarmed strikes, gated/consumed via
+# feature_use: focus_points_remaining. Reuses the unarmed-strike action
+# built by Martial Arts.
+#
+# source: srd_5.2.1
+
+id: f_flurry_of_blows
+name: Flurry of Blows
+source: srd_5.2.1
+granted_by:
+  class: c_monk
+  level: 2
+type: active

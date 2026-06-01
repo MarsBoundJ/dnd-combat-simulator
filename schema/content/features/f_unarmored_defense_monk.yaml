@@ -1,0 +1,18 @@
+# f_unarmored_defense_monk — Unarmored Defense (Monk L1)
+#
+# RAW (SRD 5.2.1): While not wearing armor or wielding a Shield, your
+# base Armor Class equals 10 + your DEX modifier + your WIS modifier.
+#
+# Engine modeling: build-time AC hook in pc_schema (when the PC has no
+# armor block, AC = 10 + DEX + WIS). Named distinctly from the Barbarian
+# variant (which uses CON).
+#
+# source: srd_5.2.1
+
+id: f_unarmored_defense_monk
+name: Unarmored Defense
+source: srd_5.2.1
+granted_by:
+  class: c_monk
+  level: 1
+type: passive
