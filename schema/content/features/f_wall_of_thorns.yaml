@@ -1,0 +1,65 @@
+# f_wall_of_thorns — Wall of Thorns (Level 6 Conjuration, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p172): a wall of needle-sharp brush (up to
+# 60×10×5 ft, or a 20-ft-diameter ring) within 120 ft that blocks line
+# of sight. When the wall appears, each creature in its area makes a
+# Dexterity saving throw, taking 7d8 Piercing damage on a fail or half
+# on a success (and moving through it costs extra movement + more
+# piercing). Concentration, up to 10 minutes. (Druid.)
+#
+# Engine modeling: a save-zone (per the "wall as a save-zone" guidance)
+# — the persistent_aura archetype, footprint approximated as a point-
+# anchored 10-ft cube zone. DEX save vs the caster's spell save DC at
+# each creature's turn in the area; 7d8 piercing on a fail, half on a
+# success. Concentration.
+#
+# Deferred RAW bits:
+#   - True wall geometry + line-of-sight blocking + the move-through
+#     cost/damage (no wall/terrain modeling); the per-turn save-damage
+#     is the load-bearing effect.
+#
+# source: srd_5.2.1
+
+id: f_wall_of_thorns
+name: Wall of Thorns
+source: srd_5.2.1
+granted_by:
+  class: c_druid
+  level: 11            # Druids gain 6th-level slots at L11
+type: active
+spell:
+  class: c_druid
+  level: 6
+
+description: |
+  A thorn-wall zone within 120 ft (wall modeled as a 10-ft zone). DEX
+  save vs spell DC at each creature's turn in the area: 7d8 piercing on
+  a fail, half on a success. Concentration, 10 minutes.
+
+action_template:
+  id: a_wall_of_thorns
+  name: Wall of Thorns
+  type: persistent_aura
+  spell_slot_level: 6
+  concentration: true
+  named_effect: wall_of_thorns
+  area:
+    shape: cube
+    size_ft: 10
+    range_ft: 120
+  pipeline:
+    - primitive: persistent_aura
+      params:
+        shape: cube
+        size_ft: 10
+        anchor: point
+        trigger_event: target_turn_start_in_area
+        affected: all_creatures
+        ability: dexterity
+        dc_source: caster_spell_save_dc
+        on_fail:
+          - primitive: damage
+            params: { dice: "7d8", modifier: 0, type: piercing }
+        on_success:
+          - primitive: damage
+            params: { dice: "7d8", modifier: 0, type: piercing, multiplier: 0.5 }

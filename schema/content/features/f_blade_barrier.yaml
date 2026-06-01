@@ -1,0 +1,66 @@
+# f_blade_barrier — Blade Barrier (Level 6 Evocation, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p112): a wall of whirling blades (a straight
+# wall up to 100×20×5 ft, or a ringed wall up to 60 ft across) within
+# 90 ft. It provides Three-Quarters Cover and is Difficult Terrain. Any
+# creature in the wall's space makes a Dexterity saving throw, taking
+# 6d10 Force damage on a fail or half on a success (also when it enters
+# or ends its turn there). Concentration, up to 10 minutes. (Cleric.)
+#
+# Engine modeling: a save-zone (per the build guide's "wall as a save-
+# zone" guidance) — the persistent_aura archetype. The wall's footprint
+# is approximated as a point-anchored zone (cube, 10-ft, standing in for
+# a thick wall segment); DEX save vs the caster's spell save DC at each
+# creature's turn in the area; 6d10 force on a fail, half on a success.
+# Concentration.
+#
+# Deferred RAW bits:
+#   - True wall geometry (length/ring) + the Three-Quarters Cover and
+#     Difficult Terrain it grants (no wall/cover-zone modeling); the
+#     per-turn save-damage is the load-bearing effect.
+#
+# source: srd_5.2.1
+
+id: f_blade_barrier
+name: Blade Barrier
+source: srd_5.2.1
+granted_by:
+  class: c_cleric
+  level: 11            # Clerics gain 6th-level slots at L11
+type: active
+spell:
+  class: c_cleric
+  level: 6
+
+description: |
+  A whirling-blade zone within 90 ft (wall modeled as a 10-ft zone).
+  DEX save vs spell DC at each creature's turn in the area: 6d10 force
+  on a fail, half on a success. Concentration, 10 minutes.
+
+action_template:
+  id: a_blade_barrier
+  name: Blade Barrier
+  type: persistent_aura
+  spell_slot_level: 6
+  concentration: true
+  named_effect: blade_barrier
+  area:
+    shape: cube
+    size_ft: 10
+    range_ft: 90
+  pipeline:
+    - primitive: persistent_aura
+      params:
+        shape: cube
+        size_ft: 10
+        anchor: point
+        trigger_event: target_turn_start_in_area
+        affected: all_creatures
+        ability: dexterity
+        dc_source: caster_spell_save_dc
+        on_fail:
+          - primitive: damage
+            params: { dice: "6d10", modifier: 0, type: force }
+        on_success:
+          - primitive: damage
+            params: { dice: "6d10", modifier: 0, type: force, multiplier: 0.5 }
