@@ -1,0 +1,53 @@
+# m_ankylosaurus — Ankylosaurus
+# Source: SRD CC v5.2.1 p333
+# Triage: GREEN — Multiattack of Tail; Tail knocks Prone (existing
+# co_prone) a Huge-or-smaller target on a hit.
+id: m_ankylosaurus
+name: Ankylosaurus
+source: srd_5.2.1
+size: huge
+creature_type: beast
+type_tags: [dinosaur]
+alignment: unaligned
+combat:
+  armor_class: 15
+  hit_points: { average: 68, dice: "8d12", con_contribution: 16 }
+  speed: { walk: 30 }
+  initiative: { modifier: 0, score: 10 }
+abilities:
+  str: { score: 19, save: 6 }
+  dex: { score: 11, save: 0 }
+  con: { score: 15, save: 2 }
+  int: { score: 2, save: -4 }
+  wis: { score: 12, save: 1 }
+  cha: { score: 5, save: -3 }
+skills: {}
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: []
+condition_immunities: []
+senses: { passive_perception: 11 }
+languages: []
+cr: { value: 3, xp: 700, proficiency_bonus: 2 }
+traits: []
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 2
+    sub_actions: [a_tail]
+  - id: a_tail
+    name: Tail
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 6, reach_ft: 10 }
+      - primitive: damage
+        params: { dice: "1d10", modifier: 4, type: bludgeoning, average: 9 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: apply_condition
+        params: { condition_id: co_prone, duration: until_removed }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+behavior_profile:
+  archetype: apex_predator
+  presets: { retreat: ftd, ability_selection: default, targeting: closest_enemy, action_economy: casual }

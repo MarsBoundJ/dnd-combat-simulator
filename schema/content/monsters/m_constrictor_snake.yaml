@@ -1,0 +1,59 @@
+# m_constrictor_snake — Constrictor Snake
+# Source: SRD CC v5.2.1 p347
+# Triage: GREEN — Bite + Constrict (STR save DC 12 → existing
+# co_grappled). Swim omitted.
+id: m_constrictor_snake
+name: Constrictor Snake
+source: srd_5.2.1
+size: large
+creature_type: beast
+alignment: unaligned
+combat:
+  armor_class: 13
+  hit_points: { average: 13, dice: "2d10", con_contribution: 2 }
+  speed: { walk: 30 }
+  initiative: { modifier: 2, score: 12 }
+abilities:
+  str: { score: 15, save: 2 }
+  dex: { score: 14, save: 2 }
+  con: { score: 12, save: 1 }
+  int: { score: 1, save: -5 }
+  wis: { score: 10, save: 0 }
+  cha: { score: 3, save: -4 }
+skills: { perception: 2, stealth: 4 }
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: []
+condition_immunities: []
+senses: { passive_perception: 12, special: { blindsight: 10 } }
+languages: []
+cr: { value: 0.25, xp: 50, proficiency_bonus: 2 }
+traits: []
+actions:
+  - id: a_bite
+    name: Bite
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 4, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d8", modifier: 2, type: piercing, average: 6 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+  - id: a_constrict
+    name: Constrict
+    type: save_effect
+    pipeline:
+      - primitive: forced_save
+        params:
+          ability: strength
+          dc: 12
+          affected: current_target
+          on_fail:
+            - primitive: damage
+              params: { dice: "1d8", modifier: 2, type: bludgeoning, average: 7 }
+            - primitive: apply_condition
+              params: { condition_id: co_grappled, duration: until_removed }
+          on_success: []
+behavior_profile:
+  archetype: apex_predator
+  presets: { retreat: ftd, ability_selection: default, targeting: weakest_target, action_economy: casual }

@@ -1,0 +1,46 @@
+# m_giant_lizard — Giant Lizard
+# Source: SRD CC v5.2.1 p353
+# Triage: GREEN — single Bite; Spider Climb declarative. Climb omitted.
+id: m_giant_lizard
+name: Giant Lizard
+source: srd_5.2.1
+size: large
+creature_type: beast
+alignment: unaligned
+combat:
+  armor_class: 12
+  hit_points: { average: 19, dice: "3d10", con_contribution: 3 }
+  speed: { walk: 40 }
+  initiative: { modifier: 1, score: 11 }
+abilities:
+  str: { score: 15, save: 2 }
+  dex: { score: 12, save: 3 }
+  con: { score: 13, save: 1 }
+  int: { score: 2, save: -4 }
+  wis: { score: 10, save: 0 }
+  cha: { score: 5, save: -3 }
+skills: {}
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: []
+condition_immunities: []
+senses: { passive_perception: 10, special: { darkvision: 60 } }
+languages: []
+cr: { value: 0.25, xp: 50, proficiency_bonus: 2 }
+traits:
+  - id: t_spider_climb
+    name: Spider Climb
+    type: trait_passive
+actions:
+  - id: a_bite
+    name: Bite
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 4, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d8", modifier: 2, type: piercing, average: 6 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+behavior_profile:
+  archetype: pack_hunter
+  presets: { retreat: cowardly, ability_selection: default, targeting: weakest_target, action_economy: casual }

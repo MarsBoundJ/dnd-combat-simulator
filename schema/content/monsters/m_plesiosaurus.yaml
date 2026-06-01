@@ -1,0 +1,44 @@
+# m_plesiosaurus — Plesiosaurus
+# Source: SRD CC v5.2.1 p359
+# Triage: GREEN — single Bite; Hold Breath declarative. Swim omitted.
+id: m_plesiosaurus
+name: Plesiosaurus
+source: srd_5.2.1
+size: large
+creature_type: beast
+type_tags: [dinosaur]
+alignment: unaligned
+combat:
+  armor_class: 13
+  hit_points: { average: 68, dice: "8d10", con_contribution: 24 }
+  speed: { walk: 20, swim: 40 }
+  initiative: { modifier: 2, score: 12 }
+abilities:
+  str: { score: 18, save: 4 }
+  dex: { score: 15, save: 2 }
+  con: { score: 16, save: 3 }
+  int: { score: 2, save: -4 }
+  wis: { score: 12, save: 1 }
+  cha: { score: 5, save: -3 }
+skills: { perception: 3, stealth: 4 }
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: []
+condition_immunities: []
+senses: { passive_perception: 13 }
+languages: []
+cr: { value: 2, xp: 450, proficiency_bonus: 2 }
+traits: []
+actions:
+  - id: a_bite
+    name: Bite
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 6, reach_ft: 10 }
+      - primitive: damage
+        params: { dice: "2d6", modifier: 4, type: piercing, average: 11 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+behavior_profile:
+  archetype: apex_predator
+  presets: { retreat: ftd, ability_selection: default, targeting: weakest_target, action_economy: casual }
