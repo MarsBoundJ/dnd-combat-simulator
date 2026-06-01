@@ -1,0 +1,28 @@
+# co_enthralled — distracted by Enthrall
+# Source: SRD CC v5.2.1 p127 (the Enthrall spell)
+#
+# Not a core PHB condition — the named effect Enthrall imposes on a
+# creature that fails its save: a -10 penalty to Wisdom (Perception)
+# checks and Passive Perception for the duration. Scope: absolute.
+#
+# Engine enforcement (v1): DESCRIPTIVE only. There is no perception /
+# passive-Perception modifier primitive (ability_check_modifier is a
+# stub), so the -10 is recorded as spec metadata, not enforced — the
+# same posture as co_slowed's speed/reaction facets. Enthrall is a
+# rating-1 combat spell whose sole effect is a Perception debuff that
+# only matters to the Hide/Search subsystem; modeling it faithfully
+# needs a perception-modifier hook the engine doesn't yet have.
+
+id: co_enthralled
+name: Enthralled
+source: srd_5.2.1
+category: condition
+scope: absolute
+
+effects:
+  - id: perception_penalty
+    primitive: ability_check_modifier
+    params:
+      skill: perception
+      value: -10
+      applies_to: [perception_check, passive_perception]

@@ -1,0 +1,73 @@
+# f_weird — Weird (Level 9 Illusion, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p173): each creature of your choice in a 30-ft-
+# radius Sphere within 120 ft makes a Wisdom saving throw. On a fail it
+# takes 10d10 Psychic damage and has the Frightened condition for the
+# duration; on a success it takes half damage only. A Frightened target
+# re-saves WIS at the end of each of its turns, taking 5d10 Psychic on a
+# fail or ending the spell on itself on a success. Concentration, up to
+# 1 minute. (Warlock/Wizard.) Weird is the mass version of Phantasmal
+# Killer.
+#
+# Engine modeling: an AoE save-burst plus a frighten + re-save. type
+# aoe_attack, sphere radius 30; forced_save WIS vs the caster's spell
+# save DC, all_creatures_in_area; on a fail 10d10 psychic + co_frightened
+# + a turn-end WIS re-save (which ends the effect on a success); on a
+# success half damage. Concentration.
+#
+# Deferred RAW bits:
+#   - The per-failed-re-save 5d10 recurring psychic (recurring_save ends
+#     the condition on success but deals no damage on a failed re-save);
+#     v1 delivers the initial 10d10 + the lingering Frightened.
+#
+# source: srd_5.2.1
+
+id: f_weird
+name: Weird
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 17            # Wizards gain 9th-level slots at L17
+type: active
+spell:
+  class: c_wizard
+  level: 9
+
+description: |
+  30-ft radius sphere within 120 ft. WIS save: 10d10 psychic +
+  Frightened on a fail, half on a success; re-saves at turn-end.
+  Concentration, 1 minute.
+
+action_template:
+  id: a_weird
+  name: Weird
+  type: aoe_attack
+  spell_slot_level: 9
+  concentration: true
+  named_effect: weird
+  range_ft: 120
+  area:
+    shape: sphere
+    radius_ft: 30
+    range_ft: 120
+  pipeline:
+    - primitive: forced_save
+      params:
+        ability: wisdom
+        dc_source: caster_spell_save_dc
+        affected: all_creatures_in_area
+        on_fail:
+          - primitive: damage
+            params: { dice: "10d10", modifier: 0, type: psychic }
+          - primitive: apply_condition
+            params: { condition_id: co_frightened, duration: until_spell_ends }
+          - primitive: recurring_save
+            params:
+              ability: wisdom
+              dc_source: caster_spell_save_dc
+              trigger_event: target_turn_end
+              on_success: end_spell_on_target
+              condition_id: co_frightened
+        on_success:
+          - primitive: damage
+            params: { dice: "10d10", modifier: 0, type: psychic, multiplier: 0.5 }

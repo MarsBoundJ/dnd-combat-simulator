@@ -368,6 +368,36 @@ Still deferred — COMPOSITE shapes that no single pc_builder kind covers:
   suppression field." Fire Shield additionally needs a retaliation-on-hit
   rider.
 
+## Utility spells (batch 5 triage — combat-relevant, need a system)
+Most map to buckets above; the genuinely-new gaps are noted here.
+- **Perception modifier** — **Enthrall** (L2) is BUILT, but its -10
+  Perception / Passive-Perception penalty is descriptive only
+  (co_enthralled); there is no perception-modifier primitive feeding the
+  Hide/Search passive-Perception comparison. Once that hook exists,
+  Enthrall (and any Perception debuff) becomes enforced.
+- **Stealth / detection** — **Pass without Trace** (L2, group +10 Stealth)
+  and **Nondetection** (L3, immunity to divination/being-detected) need a
+  stealth-bonus grant + a detection-immunity flag. The Hide system tracks
+  a per-creature stealth_total but has no way to add a flat group bonus or
+  mark a creature undetectable.
+- **Safe-rest / escape positioning** — **Rope Trick** (L2), **Tiny Hut**
+  (L3): create an extradimensional/closed safe space to wait out a fight.
+  Needs a "leave the encounter to an inaccessible space" state (cousin of
+  the containment-barrier bucket, but caster-chosen and protective).
+- **Pre-combat ability buff** — **Enhance Ability** (L2): Advantage on
+  checks with one ability + a secondary benefit (e.g. temp HP). Needs a
+  per-ability advantage-on-checks grant; mostly out-of-combat value.
+- Map to existing buckets (no new entry): **Heroes' Feast** / **Mind
+  Blank** / **Death Ward** (immunity grants), **Lesser/Greater
+  Restoration** / **Protection from Poison** (cleanse), **Sanctuary**
+  (targeting restriction → Decoy/attack-redirection), **Warding Bond**
+  (damage-sharing link), **Fly** / **Spider Climb** / **Longstrider** /
+  **Water Walk** (movement modes + vertical positioning), **Guidance** /
+  **Resistance** (one-shot triggered d20 bonus — see the Resistance note),
+  **Aid** (built). Pure non-combat utility (divination, illusions,
+  detection, communication, fabrication, travel, raise-dead) is out of
+  combat-spell scope.
+
 ## Meta / Special
 - **Wish** (L9, P5) — can duplicate any 8th-level-or-lower spell + freeform
 - **Mass Suggestion** (L6, P5) — multi-target charm control (12 creatures)

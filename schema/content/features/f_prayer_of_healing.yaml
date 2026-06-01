@@ -1,0 +1,52 @@
+# f_prayer_of_healing — Prayer of Healing (Level 2 Abjuration, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p153): 10-minute cast, 30 ft. Up to five
+# creatures who remain in range for the whole casting gain the benefits
+# of a Short Rest and also regain 2d8 Hit Points (no spellcasting
+# modifier). A creature can't be affected again until it finishes a Long
+# Rest. Using a Higher-Level Spell Slot: +1d8 per slot above 2nd.
+# (Cleric/Paladin.)
+#
+# Engine modeling: a flat multi-target heal. Because the healing is a
+# plain 2d8 with NO caster ability modifier, it ships as a STATIC `heal`
+# action_template (not via the pc_builder `heal` kind, which always adds
+# the caster's mod). `max_targets: 5` routes it through the candidate
+# generator's multi-target (Aid-shape) grouping, so one cast heals the
+# best up-to-five wounded allies.
+#
+# Deferred RAW bits:
+#   - The Short-Rest benefit + the once-per-Long-Rest gate (no rest /
+#     per-spell-target cooldown modeling); the 2d8 restore is the load-
+#     bearing effect.
+#   - Upcast (+1d8 per slot above 2nd) — the heal primitive doesn't apply
+#     upcast scaling to healing dice; base cast only in v1.
+#   - The 10-minute cast time (a between-fights heal; modeled as an
+#     action-cost heal for sim purposes).
+#
+# source: srd_5.2.1
+
+id: f_prayer_of_healing
+name: Prayer of Healing
+source: srd_5.2.1
+granted_by:
+  class: c_cleric
+  level: 3             # Clerics gain 2nd-level slots at L3
+type: active
+spell:
+  class: c_cleric
+  level: 2
+
+description: |
+  Up to five creatures within 30 ft regain 2d8 HP (no modifier).
+
+action_template:
+  id: a_prayer_of_healing
+  name: Prayer of Healing
+  type: heal
+  spell_slot_level: 2
+  named_effect: prayer_of_healing
+  range_ft: 30
+  max_targets: 5
+  pipeline:
+    - primitive: heal
+      params: { target: current_target, dice: "2d8" }
