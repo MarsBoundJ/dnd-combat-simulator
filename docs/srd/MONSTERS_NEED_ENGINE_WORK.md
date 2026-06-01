@@ -174,16 +174,28 @@ without the rider** (its base damage is the core):
   its Fire Breath + Rend are the core.
 
 ## Form change
-"Change Shape" / "Shapechanger" — the polymorph/form-replacement family.
-- **Mimic** (CR 2, rating 5) — Shape-Shift (object/creature form toggle).
-  **Built without this bonus action** (Bite + Pseudopod are the core).
-- **Doppelganger** (CR 3, rating 5), **Werewolf** (CR 3, rating 5) —
-  Change Shape / Shapechanger. Full defer.
-- **Werebear** (CR 5, rating 4), **Wererat** (CR 2, rating 4),
-  **Succubus / Incubus** (CR 4, rating 4) — Shapechanger. Full defer.
+2024 SRD trait name is **"Shape-Shift"** (not "Change Shape").
+**✅ SYSTEM BUILT (shape_shift primitive + change_shape form policy).**
+RAW: "its game statistics, OTHER THAN ITS SIZE, are the same in each
+form" — so Shape-Shift is combat-light: it changes only `size`
+(+ creature_type if declared) and keeps HP/AC/abilities/attacks. A monster
+action runs `primitive: shape_shift {form_id, size, creature_type?}`
+(revert via `shape_shift_revert`); a creature dropped to 0 HP while shifted
+dies in its true size (no HP-snapshot resurrection).
 
-- rating 3 full defers: **Wereboar** (CR 4), **Weretiger** (CR 4) —
-  Shapechanger.
+The Shape-Shift trait itself is no longer a blocker. These monsters can
+now build their Shape-Shift toggle — but most still defer on their OTHER
+combat abilities, which are the real point:
+- **Mimic** (CR 2) — Shape-Shift now buildable; Adhesive is the remaining
+  flavor (Bite + Pseudopod core already built).
+- **Doppelganger** (CR 3) — Shape-Shift buildable; defers on Read
+  Thoughts / surprise-burst riders.
+- **Werewolf** (CR 3), **Werebear** (CR 5), **Wererat** (CR 2),
+  **Wereboar** (CR 4), **Weretiger** (CR 4) — Shape-Shift buildable
+  (size-only per 2024 RAW; attacks are NOT form-gated); the lycanthropy
+  curse-on-bite is non-combat and stays declarative.
+- **Succubus / Incubus** (CR 4) — Shape-Shift buildable; the real
+  blockers are Charm / Draining Kiss / Etherealness (own buckets).
 ## Engulf / swallow
 "Swallow," "Engulf," restrain-and-internalize mechanics.
 - **Gelatinous Cube** (CR 2, rating 5) — Engulf (DEX save, pulled inside,
