@@ -36,6 +36,11 @@ rating-5 monsters; strong candidate for the desktop systems track.)*
   (CR 5, Petrifying Breath); **Half-Dragon** (CR 5, breath); **Ankheg**
   (CR 2, Acid Spray); **Ettercap** (CR 2, Web); **Adult Brass/Bronze/
   Copper Dragon, Ancient Silver/White Dragon** (also Legendary).
+- **Ape** (CR 1/2, rating 2) — Rock (Recharge 6). **Built without it**
+  (Fist multiattack is the complete core).
+- rating 2 full defers: **Brass / Bronze / Copper Dragon Wyrmling**
+  (CR 1–2) — Breath Weapon (Recharge); also blocked by Spellcasting on
+  some wyrmlings.
 ## Legendary Actions & Legendary Resistance
 - Legendary Actions: extra actions taken between other creatures' turns.
 - Legendary Resistance: "N/Day, auto-succeed a failed save."
@@ -58,6 +63,8 @@ but isn't consumed).
   Djinni** (CR 11), **Oni** (CR 7, also Regeneration), **Night Hag**
   (CR 5), **Unicorn** (CR 5), **Treant** (CR 9).
 
+- rating 2 full defers: **Ancient Brass / Bronze / Copper Dragon**
+  (CR 20–22) — Legendary Actions/Resistance + Recharge breath.
 ## Lair Actions & Regional Effects
 Initiative-20 lair actions / area regional effects — no lair-timing system.
 
@@ -78,6 +85,7 @@ spell is already built AND a monster-spellcasting action path exists.
   **Sphinx of Lore / Valor / Wonder** (CR 11 / 17 / 10), **Couatl**
   (CR 4), **Lamia** (CR 4), **Sea Hag / Green Hag** innate (CR 2 / 3),
   **Satyr** (innate), **Salamander**-tier innate casters.
+- **Giant Owl** (CR 1/4, rating 2) — innate Spellcasting. Full defer.
 ## Regeneration / recurring self-heal
 "Regeneration" or "regains N Hit Points at the start of its turn." No
 regen tick (recurring_damage/temp_hp exist; a self-heal regen does not).
@@ -112,6 +120,12 @@ without the rider** (its base damage is the core):
   save). **Built without this trait** (Slam is the complete core).
 - rating 3 full defers: **Gray Ooze** (CR 1/2) — corrode/split;
   **Magma/Ice/Steam Mephit** (CR 1/2–1/4) — Death Burst (+ breath).
+- **Death Dog** (CR 1, rating 2) — Bite disease (CON save → HP-max
+  decay). **Built without the disease** (Bite damage core).
+- **Lemure** (CR 0, rating 2) — Hellish Restoration (non-combat revive in
+  the Nine Hells). **Built** with it recorded as a declarative trait.
+- rating 2 full defers: **Dust Mephit** (CR 1/2), **Magmin** (CR 1/2) —
+  Death Burst (explode on death) + breath.
 ## Form change
 "Change Shape" / "Shapechanger" — the polymorph/form-replacement family.
 - **Mimic** (CR 2, rating 5) — Shape-Shift (object/creature form toggle).
