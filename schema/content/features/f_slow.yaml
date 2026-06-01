@@ -1,0 +1,78 @@
+# f_slow — Slow (Level 3 Transmutation, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p162): you alter time around up to six
+# creatures in a 40-foot Cube within 120 ft. Each target makes a Wisdom
+# saving throw or is affected for the duration: Speed halved; −2 to AC
+# and Dexterity saving throws; can't take Reactions; on its turn it can
+# take only an action OR a Bonus Action (not both) and only one attack
+# on the Attack action; 25% chance a Somatic spell fails. An affected
+# target repeats the save at the end of each of its turns, ending the
+# spell on itself on a success. Concentration, up to 1 minute.
+#
+# Engine modeling: an AoE partial-control debuff.
+#   - type: aoe_attack. The 40-ft Cube is approximated as a 20-ft-radius
+#     Sphere (forced_save's AoE resolver supports sphere/cone/line, not
+#     cube — same approximation as Hypnotic Pattern / Moonbeam).
+#   - forced_save: WIS vs the caster's spell save DC, all_creatures_in_area.
+#     on_fail applies co_slowed (its enforced facets: −2 AC + DEX-save
+#     disadvantage; speed/reaction/action-economy facets are documented
+#     spec) plus a per-creature turn-end WIS re-save — the SRD escape.
+#   - Concentration.
+#
+# Deferred RAW bits:
+#   - "up to six creatures" cap (v1 affects all in the sphere).
+#   - Cube→sphere geometry approximation.
+#   - Speed-halving, reaction denial, action-OR-bonus, single-attack, and
+#     somatic-failure facets are spec-only (stub primitives) — see
+#     co_slowed. The −2 AC / DEX-save penalty is the enforced v1 effect.
+#   - AI scoring: co_slowed isn't in the AI's partial-control set, so
+#     offensive_ehp_aoe scores the lockdown 0 until the desktop lane
+#     assigns it a denial weight (loads + executes meanwhile).
+#
+# source: srd_5.2.1
+
+id: f_slow
+name: Slow
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 5             # Wizards gain 3rd-level slots at L5
+type: active
+spell:
+  class: c_wizard
+  level: 3
+
+description: |
+  40-ft cube (modeled as a 20-ft sphere) within 120 ft. WIS save or
+  Slowed (−2 AC, DEX-save disadvantage, + spec facets); re-saves at
+  turn-end. Concentration, 1 minute.
+
+action_template:
+  id: a_slow
+  name: Slow
+  type: aoe_attack
+  spell_slot_level: 3
+  concentration: true
+  named_effect: slow
+  range_ft: 120
+  area:
+    shape: sphere       # 40-ft Cube approximated as a 20-ft-radius Sphere
+    radius_ft: 20
+    range_ft: 120
+  pipeline:
+    - primitive: forced_save
+      params:
+        ability: wisdom
+        dc_source: caster_spell_save_dc
+        affected: all_creatures_in_area
+        on_fail:
+          - primitive: apply_condition
+            params: { condition_id: co_slowed, duration: until_spell_ends }
+          - primitive: recurring_save
+            params:
+              ability: wisdom
+              dc_source: caster_spell_save_dc
+              trigger_event: target_turn_end
+              on_success: end_spell_on_target
+              condition_id: co_slowed
+        on_success: []

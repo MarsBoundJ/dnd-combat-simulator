@@ -50,6 +50,7 @@ action_template:
     - primitive: attack_modifier
       params:
         target: self
+        when: target_is_self      # only raises the buffed creature's own AC
         modifier: ac_modifier
         value: 3
         lifetime: until_long_rest

@@ -1,0 +1,65 @@
+# co_slowed — Slowed (the Slow spell's effect bundle)
+# Source: SRD CC v5.2.1 p162 (the Slow spell)
+#
+# Not one of the 15 core PHB conditions — this is the named effect Slow
+# imposes. Scope: absolute (its effects don't reference the caster). A
+# Slowed creature, per the spell:
+#   - Speed is halved.
+#   - −2 penalty to AC and Dexterity saving throws.
+#   - Can't take Reactions.
+#   - On its turn, can take only an action OR a Bonus Action (not both),
+#     and can make only one attack if it takes the Attack action.
+#   - 25% chance a Somatic-component spell fails.
+#
+# Engine enforcement status (v1):
+#   - AC −2 (ac_modifier) and DEX-save disadvantage (save_modifier) are
+#     REAL modifiers the query layer reads and applies.
+#   - Speed-halving, reaction denial, and the action-economy / somatic
+#     restrictions are recorded as descriptive effects (speed_modifier /
+#     action_restriction are stub primitives — stored as spec metadata,
+#     not yet enforced), mirroring how the core conditions document
+#     not-yet-enforced facets. The AC/DEX penalty is the load-bearing
+#     enforced effect for v1.
+#
+# NOTE: the RAW penalty is "−2 to DEX saves," but v1 has no flat
+# save-value modifier primitive, so it is approximated as Disadvantage
+# on DEX saves (the same approximation Restrained uses) — strictly
+# harsher than −2 but in the same direction.
+
+id: co_slowed
+name: Slowed
+source: srd_5.2.1
+category: condition
+scope: absolute
+
+effects:
+  - id: ac_penalty
+    primitive: attack_modifier
+    params:
+      when: target_is_self
+      modifier: ac_modifier
+      value: -2
+
+  - id: dex_save_disadvantage
+    primitive: save_modifier
+    params:
+      when: "save_ability == dexterity"
+      modifier: disadvantage
+
+  - id: speed_halved
+    primitive: speed_modifier
+    params:
+      mode: multiply
+      factor: 0.5
+
+  - id: no_reactions
+    primitive: action_restriction
+    params:
+      cannot_take: [reaction]
+
+  - id: action_or_bonus_not_both
+    primitive: action_restriction
+    params:
+      limit: one_of
+      choices: [action, bonus_action]
+      attack_action_single_attack: true

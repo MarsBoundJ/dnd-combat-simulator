@@ -1,0 +1,50 @@
+# f_mass_heal — Mass Heal (Level 9 Abjuration, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p146): a flood of healing energy restores up
+# to 700 Hit Points, divided as you choose among any number of creatures
+# within 60 ft. Creatures healed are also cured of the Blinded, Deafened,
+# and Poisoned conditions.
+#
+# Engine modeling: the capstone heal — effectively a full top-off. With a
+# 700-HP pool, in any realistic encounter the cap is the creatures'
+# missing HP, not the pool, so v1 ships it as a `heal` action with a
+# fixed amount of 700 (the heal primitive clamps each target to hp_max).
+# Enumerated per ally and scored by defensive_ehp_healing (capped at
+# missing HP), so the AI uses it to fully restore the most-wounded ally.
+#
+# Deferred RAW bits:
+#   - "Divided as you choose among any number of creatures" — v1 heals
+#     ONE chosen creature to full per cast (no shared-pool distribution
+#     across the party in a single action; the heal candidate path is
+#     single-target). The 700 fixed amount makes that single heal a
+#     guaranteed full top-off.
+#   - Ends Blinded / Deafened / Poisoned — no condition-cleanse primitive
+#     (same deferral as Heal).
+#
+# source: srd_5.2.1
+
+id: f_mass_heal
+name: Mass Heal
+source: srd_5.2.1
+granted_by:
+  class: c_cleric
+  level: 17            # Clerics gain 9th-level slots at L17
+type: active
+spell:
+  class: c_cleric
+  level: 9
+
+description: |
+  Restores up to 700 HP among creatures within 60 ft. v1 fully tops off
+  one chosen creature per cast (700 clamped to its max).
+
+action_template:
+  id: a_mass_heal
+  name: Mass Heal
+  type: heal
+  spell_slot_level: 9
+  named_effect: mass_heal
+  range_ft: 60
+  pipeline:
+    - primitive: heal
+      params: { target: current_target, fixed: 700 }

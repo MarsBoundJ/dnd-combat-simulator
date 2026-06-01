@@ -1,0 +1,73 @@
+# f_banishment — Banishment (Level 4 Abjuration, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p111): one creature within 30 ft must succeed
+# on a Charisma saving throw or be transported to a harmless demiplane
+# for the duration, where it has the Incapacitated condition. When the
+# spell ends, the target reappears. If the target is an Aberration,
+# Celestial, Elemental, Fey, or Fiend, it doesn't return if the spell
+# lasts the full minute (banished permanently). Concentration, up to 1
+# minute. Using a Higher-Level Spell Slot: one additional creature per
+# slot above 4th.
+#
+# Engine modeling: a single-target removal/lockdown.
+#   - type: hard_control. forced_save: CHA vs the caster's spell save DC,
+#     current_target. on_fail applies co_incapacitated (the load-bearing
+#     "can't act / removed from play" effect — full denial, so
+#     defensive_ehp_hard_control scores it) for the duration, plus a
+#     turn-end CHA re-save as the v1 escape.
+#   - Concentration.
+#
+# Deferred RAW bits:
+#   - Demiplane removal: v1 models "gone from the fight" as Incapacitated
+#     (the target can't act). The "can't be targeted at all / isn't
+#     present" facet (so allies can't hit it either) isn't modeled.
+#   - The CHA re-save is a v1 escape proxy — RAW Banishment has NO
+#     recurring save (it lasts until the caster's concentration ends).
+#     Used because apply_condition isn't yet scrubbed on concentration
+#     end (see NEEDS_ENGINE_WORK); once that's fixed the proxy can drop.
+#   - Permanent banishment of outsiders after 1 minute (not modeled).
+#   - Upcast multi-target (+1 creature per slot above 4th).
+#
+# source: srd_5.2.1
+
+id: f_banishment
+name: Banishment
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 7             # Wizards gain 4th-level slots at L7
+type: active
+spell:
+  class: c_wizard
+  level: 4
+
+description: |
+  One creature within 30 ft makes a CHA save or is banished
+  (Incapacitated) for the duration; re-saves at turn-end.
+  Concentration, 1 minute.
+
+action_template:
+  id: a_banishment
+  name: Banishment
+  type: hard_control
+  spell_slot_level: 4
+  concentration: true
+  named_effect: banishment
+  range_ft: 30
+  pipeline:
+    - primitive: forced_save
+      params:
+        ability: charisma
+        dc_source: caster_spell_save_dc
+        affected: current_target
+        on_fail:
+          - primitive: apply_condition
+            params: { condition_id: co_incapacitated, duration: until_spell_ends }
+          - primitive: recurring_save
+            params:
+              ability: charisma
+              dc_source: caster_spell_save_dc
+              trigger_event: target_turn_end
+              on_success: end_spell_on_target
+              condition_id: co_incapacitated
+        on_success: []
