@@ -1,0 +1,84 @@
+# m_kobold_warrior — Kobold Warrior
+# Source: SRD CC v5.2.1 p302
+# Triage: GREEN — single weapon attack. Pack Tactics + Sunlight
+# Sensitivity are declarative traits (conditional attack adv/disadv;
+# recorded, not enforced — no positional/lighting attack modifier in v1).
+
+id: m_kobold_warrior
+name: Kobold Warrior
+source: srd_5.2.1
+
+size: small
+creature_type: dragon
+alignment: neutral
+
+combat:
+  armor_class: 14
+  hit_points:
+    average: 7
+    dice: "3d6"
+    con_contribution: -3
+  speed:
+    walk: 30
+  initiative:
+    modifier: 2
+    score: 12
+
+abilities:
+  str: { score: 7, save: -2 }
+  dex: { score: 15, save: 2 }
+  con: { score: 9, save: -1 }
+  int: { score: 8, save: -1 }
+  wis: { score: 7, save: -2 }
+  cha: { score: 8, save: -1 }
+
+skills: {}
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: []
+condition_immunities: []
+
+gear: [dagger]
+
+senses:
+  passive_perception: 8
+  special:
+    darkvision: 60
+
+languages: [common, draconic]
+
+cr:
+  value: 0.125
+  xp: 25
+  proficiency_bonus: 2
+
+traits:
+  - id: t_pack_tactics
+    name: Pack Tactics
+    type: trait_passive
+    # Declarative: Advantage on attacks vs a creature with an ally within
+    # 5 ft of it. Not enforced in v1.
+  - id: t_sunlight_sensitivity
+    name: Sunlight Sensitivity
+    type: trait_passive
+    # Declarative: Disadvantage on attacks + Perception checks in sunlight.
+    # Not enforced in v1 (no lighting-based attack modifier).
+
+actions:
+  - id: a_dagger
+    name: Dagger
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 4, reach_ft: 5, range: [20, 60] }
+      - primitive: damage
+        params: { dice: "1d4", modifier: 2, type: piercing, average: 4 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: pack_hunter
+  presets:
+    retreat: cowardly
+    ability_selection: default
+    targeting: weakest_target
+    action_economy: casual

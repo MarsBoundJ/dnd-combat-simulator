@@ -1,0 +1,102 @@
+# m_fire_giant — Fire Giant
+# Source: SRD CC v5.2.1 p293
+# Triage: GREEN — Multiattack of weapon attacks; Fire immunity declarative;
+# no Recharge/Legendary/Spellcasting. Hammer Throw pushes the target 15 ft
+# (forced_movement on a hit); its "Disadvantage on next attack" rider is
+# noted but not enforced.
+
+id: m_fire_giant
+name: Fire Giant
+source: srd_5.2.1
+
+size: huge
+creature_type: giant
+alignment: lawful_evil
+
+combat:
+  armor_class: 18
+  hit_points:
+    average: 162
+    dice: "13d12"
+    con_contribution: 78
+  speed:
+    walk: 30
+  initiative:
+    modifier: 3
+    score: 13
+
+abilities:
+  str: { score: 25, save: 7 }
+  dex: { score: 9, save: 3 }
+  con: { score: 23, save: 10 }
+  int: { score: 10, save: 0 }
+  wis: { score: 14, save: 2 }
+  cha: { score: 13, save: 5 }
+
+skills:
+  athletics: 11
+  perception: 6
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: [fire]
+condition_immunities: []
+
+gear: []
+
+senses:
+  passive_perception: 16
+
+languages: [giant]
+
+cr:
+  value: 9
+  xp: 5000
+  proficiency_bonus: 4
+
+traits: []
+
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 2
+    sub_actions: [a_flame_sword, a_hammer_throw]
+
+  - id: a_flame_sword
+    name: Flame Sword
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 11, reach_ft: 10 }
+      - primitive: damage
+        params: { dice: "4d6", modifier: 7, type: slashing, average: 21 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: damage
+        params: { dice: "3d6", modifier: 0, type: fire, average: 10 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  - id: a_hammer_throw
+    name: Hammer Throw
+    type: weapon_attack
+    # On a hit the target is pushed 15 ft away (and has Disadvantage on its
+    # next attack — rider noted, not enforced).
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: ranged, bonus: 11, range: [60, 240] }
+      - primitive: damage
+        params: { dice: "3d10", modifier: 7, type: bludgeoning, average: 23 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: damage
+        params: { dice: "1d8", modifier: 0, type: fire, average: 4 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: forced_movement
+        params: { distance_ft: 15 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: apex_predator
+  presets:
+    retreat: ftd
+    ability_selection: default
+    targeting: weakest_target
+    action_economy: skilled
