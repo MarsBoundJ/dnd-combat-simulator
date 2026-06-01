@@ -238,6 +238,15 @@ class Actor:
     # Each entry: {form_id, policy, source, reversion}. Top = current.
     form_stack: list = field(default_factory=list)
 
+    # `recharge_spent`: action_ids of recharge-gated abilities (e.g. a
+    # dragon's Breath Weapon "Recharge 5–6") that have been used and are
+    # currently unavailable. An action is available unless its id is in
+    # here. Populated by engine.core.recharge.mark_spent at execution and
+    # cleared by roll_recharges_at_turn_start when the d6 lands in range.
+    # NOT reset by reset_turn — recharge persists across turns until the
+    # roll succeeds. See engine/core/recharge.py.
+    recharge_spent: set = field(default_factory=set)
+
     # Racial trait ids (PR #75). Loaded from PC race spec via
     # pc_schema → cli — e.g. `["t_lucky", "t_brave"]` for a Halfling.
     # Read at runtime by query_save_modifiers (Brave / Fey Ancestry /

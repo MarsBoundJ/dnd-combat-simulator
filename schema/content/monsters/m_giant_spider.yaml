@@ -1,9 +1,9 @@
 # m_giant_spider — Giant Spider
 # Source: SRD CC v5.2.1 p354
-# Triage: GREEN (core) — Bite weapon attack (+ poison damage). Spider
-# Climb / Web Walker are declarative traits. Built WITHOUT "Web (Recharge
-# 5–6)" — a Recharge ability logged in MONSTERS_NEED_ENGINE_WORK.md under
-# "Recharge abilities". Climb 30 omitted (walk stand-in).
+# Triage: GREEN — Bite weapon attack (+ poison damage). Spider Climb /
+# Web Walker are declarative traits. Climb 30 omitted (walk stand-in).
+# Web (Recharge 5–6) is now built — the recharge system (engine.core.
+# recharge) gates it as a hard_control save-or-Restrained.
 
 id: m_giant_spider
 name: Giant Spider
@@ -76,6 +76,26 @@ actions:
       - primitive: damage
         params: { dice: "2d6", modifier: 0, type: poison, average: 7 }
         when: { event: damage_roll, condition: "combat.attack_state == hit" }
+  # Web (Recharge 5–6): DEX save DC 13 vs one creature within 60 ft; on a
+  # failure the target is Restrained. RAW the webbing is an object that
+  # can be destroyed (AC 10, HP 5, fire-vulnerable, poison/psychic-immune)
+  # to free the target; v1 models Restrained until_removed and defers the
+  # destructible-web escape mechanic (no web-as-object entity yet).
+  - id: a_web
+    name: Web
+    type: hard_control
+    recharge: "5-6"
+    range_ft: 60
+    pipeline:
+      - primitive: forced_save
+        params:
+          ability: dexterity
+          dc: 13
+          affected: current_target
+          on_fail:
+            - primitive: apply_condition
+              params: { condition_id: co_restrained, duration: until_removed }
+          on_success: []
 
 behavior_profile:
   archetype: apex_predator

@@ -1,9 +1,9 @@
 # m_giant_ape — Giant Ape
 # Source: SRD CC v5.2.1 p294
-# Triage: GREEN (core) — Multiattack of Fist attacks. Built WITHOUT
-# "Boulder Toss (Recharge 6)" — a Recharge ability logged under "Recharge
-# abilities". Leap bonus action is declarative movement (omitted). Climb
-# 40 omitted (walk stand-in).
+# Triage: GREEN — Multiattack of Fist attacks + Boulder Toss (Recharge 6),
+# a ranged DEX-save AoE now gated by the recharge system — the same
+# action shape a dragon's Breath Weapon will use. Leap bonus action is
+# declarative movement (omitted). Climb 40 omitted (walk stand-in).
 
 id: m_giant_ape
 name: Giant Ape
@@ -56,6 +56,35 @@ actions:
       - primitive: damage
         params: { dice: "3d10", modifier: 6, type: bludgeoning, average: 22 }
         when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  # Boulder Toss (Recharge 6): hurl a boulder at a point within 90 ft;
+  # DEX save DC 17 for each creature in a 5-ft-radius sphere. Failure:
+  # 7d6 bludgeoning + Prone (Large or smaller). Success: half, no Prone.
+  # The Prone-on-fail Large-or-smaller size gate is not enforced (no size
+  # check on the condition rider) — v1 applies Prone to any creature that
+  # fails, matching how other save-AoE knockdowns are modeled.
+  - id: a_boulder_toss
+    name: Boulder Toss
+    type: aoe_attack
+    recharge: "6-6"
+    area:
+      shape: sphere
+      radius_ft: 5
+      range_ft: 90
+    pipeline:
+      - primitive: forced_save
+        params:
+          ability: dexterity
+          dc: 17
+          affected: all_creatures_in_area
+          on_fail:
+            - primitive: damage
+              params: { dice: "7d6", modifier: 0, type: bludgeoning, average: 24 }
+            - primitive: apply_condition
+              params: { condition_id: co_prone, duration: until_removed }
+          on_success:
+            - primitive: damage
+              params: { dice: "7d6", modifier: 0, type: bludgeoning, average: 24, multiplier: 0.5 }
 
 behavior_profile:
   archetype: apex_predator
