@@ -137,25 +137,21 @@ Bless, Fireball, Healing Word, Mass Healing Word, Spirit Guardians (plus
 the rest of the spell library). A caster needing an unbuilt spell defers
 on THAT spell (build it first, or omit + note).
 
-Two `casts`-expansion GAPS surfaced in batch M8 (each a small desktop-lane
-follow-up; not blockers for most casters):
-- **Spell-ATTACK spells can't be cast by monsters.** `expand_template`
-  copies a spell's effect from its `action_template`, but spell-attack
-  marker features (`pc_builder: kind: spell_attack` — e.g. Scorching Ray,
-  Guiding Bolt) have no `action_template`, so the expanded action ends up
-  with only `{id, name, casts}` (no type/pipeline) — non-runnable.
-  monster_spellcasting needs a spell-attack code path (or those features
-  need an action_template). Affected M8 defers: **Scorching Ray** (Adult
-  Brass), **Guiding Bolt** (Adult Bronze, Adult Gold). SAVE/AoE casts
-  (Mind Spike, Flame Strike, Hold Monster, Ice Storm) expand fine.
-- **`casts` is not expanded in `legendary_actions.options`.**
-  `expand_template` only walks top-level `actions`, so a spellcasting-based
-  legendary action (`{name: …, casts: f_x}` as an option) never gets a
-  pipeline and won't execute. The spell can still be offered as a normal
-  action; only the legendary-action *timing* is lost. Affected M8 defers:
-  Brass **Blazing Light**, Bronze/Gold **Guiding Light**, Copper **Mind
-  Jolt**, Silver **Chill**. (Expanding nested option `casts` would close
-  this.)
+**✅ Both M8-surfaced `casts`-expansion gaps are now FIXED (spellcasting
+v2).**
+- **Spell-ATTACK casts now build.** `monster_spellcasting` builds a runnable
+  ranged-attack pipeline from a `pc_builder: kind: spell_attack` /
+  `attack_cantrip` feature (no action_template needed), using the
+  monster's spell attack bonus (`spellcasting.attack_bonus`, else ability
+  mod + PB). A `casts` to a feature with NEITHER an action_template NOR a
+  buildable pc_builder now RAISES at load (fail-fast — no more silent
+  non-runnable actions). The M8 defers are now buildable: **Scorching
+  Ray** (Adult Brass), **Guiding Bolt** (Adult Bronze/Gold).
+- **`casts` now expands in `legendary_actions.options`** (and
+  `bonus_actions`), so spellcasting-based legendary actions work: Brass
+  **Blazing Light**, Bronze/Gold **Guiding Light**, Copper **Mind Jolt**,
+  Silver **Chill** are buildable as LA options. (A future M8 touch-up can
+  wire these in.)
 - **Priest** (CR 2, rating 4) — Spellcasting (Light, Thaumaturgy, Spirit
   Guardians) + Divine Aid (Bless / Dispel Magic / Healing Word / Lesser
   Restoration). Full defer (its weapon attacks aren't the point).

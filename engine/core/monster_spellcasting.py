@@ -57,17 +57,99 @@ _COPIED_FIELDS = (
 )
 
 
-def _expand_action(monster_action: dict, feature: dict) -> dict:
-    """Build a full action from a `casts` reference + the spell feature."""
-    template = (feature or {}).get("action_template") or {}
+def _ability_mod(score) -> int:
+    return (int(score) - 10) // 2
+
+
+def spell_attack_bonus(template: dict) -> int:
+    """The monster's spell attack bonus: an explicit
+    `spellcasting.attack_bonus` (the 2024 stat block lists "Spell Attack
+    +X") if present, else spellcasting-ability modifier + proficiency
+    bonus."""
+    sc = template.get("spellcasting") or {}
+    if sc.get("attack_bonus") is not None:
+        return int(sc["attack_bonus"])
+    ability = sc.get("ability", "charisma")
+    score = ((template.get("abilities") or {}).get(ability[:3]) or {}).get(
+        "score", 10)
+    pb = int((template.get("cr") or {}).get("proficiency_bonus", 2))
+    return _ability_mod(score) + pb
+
+
+def _build_from_pc_builder(monster_action: dict, feature: dict,
+                             attack_bonus: int) -> dict | None:
+    """Build a runnable action from a feature's `pc_builder` block (a
+    spell-ATTACK marker that has no action_template — Scorching Ray /
+    Guiding Bolt / attack cantrips). Returns the pipeline body, or None if
+    the pc_builder kind isn't a buildable spell-attack shape.
+
+    The attack roll uses the MONSTER's spell attack bonus (the PC builder
+    bakes the PC's mod+PB; here we bake the monster's). spell_slot_level /
+    upcast are intentionally dropped — monster casts ride at-will / daily
+    gates, not PC slots."""
+    pb = (feature or {}).get("pc_builder") or {}
+    kind = pb.get("kind")
+    params = pb.get("params") or {}
+    range_ft = int(params.get("range_ft", 120))
+    dmg_type = params.get("damage_type", "force")
+
+    if kind == "spell_attack":
+        dice = params.get("damage_dice", "1d6")
+        rays = max(1, int(params.get("ray_count", 1)))
+    elif kind == "attack_cantrip":
+        # Monster cantrips deal a fixed amount; the PC builder scales dice
+        # by caster level, which a monster lacks — v1 uses a single die.
+        dice = f"1d{int(params.get('die', 8))}"
+        rays = 1
+    else:
+        return None   # not a spell-attack shape we can build
+
+    pipeline: list[dict] = []
+    for _ in range(rays):
+        pipeline.append({"primitive": "attack_roll",
+                          "params": {"kind": "ranged", "bonus": attack_bonus,
+                                      "range_ft": range_ft}})
+        pipeline.append({"primitive": "damage",
+                          "params": {"dice": dice, "modifier": 0,
+                                      "type": dmg_type},
+                          "when": {"event": "damage_roll",
+                                    "condition": "combat.attack_state == hit"}})
+    return {"type": "weapon_attack", "range_ft": range_ft, "pipeline": pipeline}
+
+
+def _expand_action(monster_action: dict, feature: dict,
+                     attack_bonus: int) -> dict:
+    """Build a full action from a `casts` reference + the spell feature.
+
+    A feature with an `action_template` (save / AoE / buff spells) is
+    copied; a spell-ATTACK marker (`pc_builder`, no action_template) is
+    built via _build_from_pc_builder. A feature with NEITHER raises — a
+    `casts` to an unexpandable feature is an authoring error, and failing
+    fast beats silently emitting a non-runnable {id, name, casts} action
+    (the bug batch M8 hit)."""
+    template = (feature or {}).get("action_template")
     expanded: dict = {}
-    for key in _COPIED_FIELDS:
-        if key in template:
-            expanded[key] = template[key]
+    if template:
+        for key in _COPIED_FIELDS:
+            if key in template:
+                expanded[key] = template[key]
+    else:
+        built = _build_from_pc_builder(monster_action, feature, attack_bonus)
+        if built is None:
+            raise ValueError(
+                f"casts: {monster_action.get('casts')!r} references a "
+                f"feature with no action_template and no buildable "
+                f"pc_builder spell-attack — cannot expand it into a "
+                f"monster spell action."
+            )
+        expanded.update(built)
     # The monster action's own identity + gate win.
-    expanded["id"] = monster_action.get("id") or template.get("id")
-    expanded["name"] = monster_action.get("name") or template.get("name")
-    for gate in ("recharge", "feature_use", "slot"):
+    expanded["id"] = monster_action.get("id")
+    expanded["name"] = (monster_action.get("name")
+                          or (template or {}).get("name"))
+    # Carry the monster action's gate + option metadata (e.g. `cost` for a
+    # legendary-action option, which legendary_actions.option_cost reads).
+    for gate in ("recharge", "feature_use", "slot", "cost"):
         if gate in monster_action:
             expanded[gate] = monster_action[gate]
     # Record provenance so the action is traceable as a cast spell.
@@ -91,18 +173,31 @@ def expand_template(template: dict, registry) -> bool:
         template["spell_save_dc"] = int(sc["save_dc"])
         changed = True
 
-    actions = template.get("actions")
-    if isinstance(actions, list):
-        new_actions = []
+    attack_bonus = spell_attack_bonus(template)
+
+    def _expand_list(actions):
+        nonlocal changed
+        out = []
         for action in actions:
             if isinstance(action, dict) and action.get("casts"):
-                feature_id = action["casts"]
-                feature = registry.get("feature", feature_id)
-                new_actions.append(_expand_action(action, feature))
+                feature = registry.get("feature", action["casts"])
+                out.append(_expand_action(action, feature, attack_bonus))
                 changed = True
             else:
-                new_actions.append(action)
-        template["actions"] = new_actions
+                out.append(action)
+        return out
+
+    # Top-level actions + bonus actions.
+    for key in ("actions", "bonus_actions"):
+        lst = template.get(key)
+        if isinstance(lst, list):
+            template[key] = _expand_list(lst)
+
+    # Legendary action options (e.g. a dragon's "uses Spellcasting to cast
+    # …" options) — casts in option position now expand too.
+    la = template.get("legendary_actions")
+    if isinstance(la, dict) and isinstance(la.get("options"), list):
+        la["options"] = _expand_list(la["options"])
 
     return changed
 
