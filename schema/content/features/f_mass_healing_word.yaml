@@ -1,0 +1,39 @@
+# f_mass_healing_word — Mass Healing Word (Level 3 Abjuration, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p147): Bonus Action, 60 ft. Up to six creatures
+# of your choice regain 2d4 + your spellcasting ability modifier Hit
+# Points. Using a Higher-Level Spell Slot: +1d4 per slot above 3rd.
+# (Bard/Cleric.)
+#
+# Engine modeling: a bonus-action multi-target heal — a MARKER feature
+# built by pc_schema._build_mass_healing_word_action (2d4 + mod, like
+# Healing Word, plus max_targets=6). The candidate generator's
+# multi-target grouping (PR #97 Aid-shape) covers the best up-to-six
+# wounded allies in one cast; the pipeline runs the heal per grouped
+# target. Built (not static) because the +mod depends on the caster.
+#
+# Deferred RAW bits:
+#   - Upcast (+1d4 per slot above 3rd) — base cast only in v1.
+#
+# source: srd_5.2.1
+
+id: f_mass_healing_word
+name: Mass Healing Word
+source: srd_5.2.1
+granted_by:
+  class: c_cleric
+  level: 5             # Clerics gain 3rd-level slots at L5
+type: passive
+spell:
+  class: c_cleric
+  level: 3
+
+description: |
+  Bonus action. Up to six creatures within 60 ft regain 2d4 + your
+  spellcasting modifier HP.
+
+contract:
+  reads: [actor.spell_ability_mod, target.hp_current, target.hp_max]
+  writes: [target.hp_current]
+  event: passive
+  scope: builds_multi_target_heal_action

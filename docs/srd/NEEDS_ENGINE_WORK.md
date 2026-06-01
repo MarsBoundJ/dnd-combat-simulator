@@ -124,6 +124,59 @@ first, then the spell rides it.
   spell) scores 0 in defensive_ehp_hard_control. Charmed denies only
   attacks against the charmer — assign it a small partial-denial weight.
 
+## Condition / effect removal (cleanse)
+- **Lesser Restoration** (L2, P4) — end one of Blinded/Deafened/
+  Paralyzed/Poisoned on a touched creature.
+- **Greater Restoration** (L5, P4) — remove 1 Exhaustion level, or
+  Charmed/Petrified, a curse, an ability-score reduction, or an HP-max
+  reduction.
+  Both need a `remove_condition` / cleanse PRIMITIVE (today
+  remove_condition is an internal helper invoked only by recurring_save;
+  there is no action-pipeline primitive to strip a chosen condition from
+  an ally, and no model of exhaustion-level / ability-score / HP-max
+  reductions to undo). Pure-utility; low combat value but trivial once a
+  cleanse primitive exists.
+
+## Death-prevention trigger
+- **Death Ward** (L4, P4) — the first time the warded creature would
+  drop to 0 HP before the spell ends, it drops to 1 instead (and the
+  spell ends); also negates a save-or-die. Needs a pre-applied reaction/
+  trigger that intercepts the lethal-damage step and clamps HP to 1 once,
+  then expires. No "on would-drop-to-0" hook or one-shot damage-intercept
+  buff exists (the damage primitive has no pre-death interception point a
+  content effect can register into).
+
+## Condition / damage immunity grants
+- **Freedom of Movement** (L4, P4) — immunity to Speed reduction +
+  Paralyzed/Restrained, ignores Difficult Terrain, auto-escapes grapples.
+- **Mind Blank** (L8, P4) — immunity to Psychic damage + the Charmed
+  condition (plus anti-scrying flavor).
+  Both need condition-immunity / damage-immunity GRANT primitives
+  (`condition_immunity_grant`, `damage_resistance_grant` are stubbed and
+  raise NotImplementedError; the save/condition/damage query layers don't
+  consult an immunity list on the actor yet). Once immunity grants are
+  enforced these are thin recolors.
+
+## Consumable healing items
+- **Goodberry** (L1, P4) — creates ten berries; any creature can spend a
+  Bonus Action to eat one for 1 HP (and a day's nourishment). Needs a
+  created-consumable-item model (a pool of single-HP bonus-action heals
+  that persist across turns / creatures and are tracked per-berry). No
+  item-creation or per-turn-consumable-resource system exists; modeling
+  it as a plain heal would lose the across-turns, anyone-can-eat economy
+  that is the whole point.
+
+## Ally-buffing emanation aura
+- **Holy Aura** (L8, P4) — a 30-ft self emanation: chosen creatures in it
+  have Advantage on ALL saving throws and attackers have Disadvantage
+  against them, and a Fiend/Undead that hits an affected creature must
+  save or be Blinded. persistent_aura applies on_fail effects to
+  creatures at turn boundaries (damage/conditions) — it has no path to
+  continuously grant save-advantage / impose attacker-disadvantage on
+  allies inside the aura, nor an on-hit-by-creature-type counter-rider.
+  Needs an ally-buffing aura mode (continuous modifier grant to occupants
+  + a creature-type-gated retaliation trigger).
+
 ## Multi-target chained selection
 - **Chain Lightning** (L6, P4) — a primary bolt plus three (more at higher
   levels) bolts that "leap" to other targets of the caster's choice within

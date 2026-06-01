@@ -1,0 +1,41 @@
+# f_mass_cure_wounds — Mass Cure Wounds (Level 5 Abjuration, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p146): a wave of healing washes from a point
+# within 60 ft. Choose up to six creatures in a 30-foot-radius Sphere;
+# each regains 5d8 + your spellcasting ability modifier Hit Points.
+# Using a Higher-Level Spell Slot: +1d8 per slot above 5th.
+# (Bard/Cleric/Druid.)
+#
+# Engine modeling: an Action multi-target heal — a MARKER feature built
+# by pc_schema._build_mass_cure_wounds_action (5d8 + mod, max_targets=6).
+# Routed through the candidate generator's multi-target grouping; the
+# heal goes to the best up-to-six wounded allies. Built (not static)
+# because the +mod depends on the caster.
+#
+# Deferred RAW bits:
+#   - Explicit 30-ft sphere placement (v1 heals the wounded directly via
+#     the grouper rather than choosing a point).
+#   - Upcast (+1d8 per slot above 5th) — base cast only in v1.
+#
+# source: srd_5.2.1
+
+id: f_mass_cure_wounds
+name: Mass Cure Wounds
+source: srd_5.2.1
+granted_by:
+  class: c_cleric
+  level: 9             # Clerics gain 5th-level slots at L9
+type: passive
+spell:
+  class: c_cleric
+  level: 5
+
+description: |
+  Up to six creatures within 60 ft regain 5d8 + your spellcasting
+  modifier HP.
+
+contract:
+  reads: [actor.spell_ability_mod, target.hp_current, target.hp_max]
+  writes: [target.hp_current]
+  event: passive
+  scope: builds_multi_target_heal_action

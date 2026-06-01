@@ -1013,6 +1013,15 @@ def _build_feature_actions(features_known: set[str], level: int,
     if "f_healing_word" in features_known and ability_scores is not None:
         actions.append(_build_healing_word_action(
             level, ability_scores, class_id))
+    # batch-2 mass heals — multi-target (max_targets=6) heal actions that
+    # ride the candidate generator's Aid-shape grouping. +mod baked at
+    # build time like the single-target heals.
+    if "f_mass_healing_word" in features_known and ability_scores is not None:
+        actions.append(_build_mass_healing_word_action(
+            level, ability_scores, class_id))
+    if "f_mass_cure_wounds" in features_known and ability_scores is not None:
+        actions.append(_build_mass_cure_wounds_action(
+            level, ability_scores, class_id))
     return actions
 
 
@@ -1088,6 +1097,63 @@ def _build_healing_word_action(level: int, ability_scores: dict,
             {"primitive": "heal",
               "params": {"target": "current_target",
                           "dice": "2d4", "modifier": mod}},
+        ],
+    }
+
+
+def _build_mass_healing_word_action(level: int, ability_scores: dict,
+                                       class_id: str) -> dict:
+    """Mass Healing Word (batch 2): a 3rd-level BONUS-action ranged heal
+    of 2d4 + spellcasting mod to up to six creatures within 60 ft. Same
+    `heal` shape as Healing Word plus max_targets=6, which routes it
+    through the candidate generator's multi-target grouping (PR #97
+    Aid-shape) so one cast heals the best up-to-6 wounded allies.
+
+    Deferred: upcast (+1d4 per slot above 3rd) — base cast only in v1."""
+    abbr = _SPELL_ABILITY_BY_CLASS.get(class_id, "wis")
+    score = (ability_scores.get(abbr) or {}).get("score", 10)
+    mod = max(0, ability_modifier(score))
+    return {
+        "id": "a_mass_healing_word",
+        "name": "Mass Healing Word",
+        "type": "heal",
+        "slot": "bonus_action",
+        "spell_slot_level": 3,
+        "range_ft": 60,
+        "max_targets": 6,
+        "pipeline": [
+            {"primitive": "heal",
+              "params": {"target": "current_target",
+                          "dice": "2d4", "modifier": mod}},
+        ],
+    }
+
+
+def _build_mass_cure_wounds_action(level: int, ability_scores: dict,
+                                      class_id: str) -> dict:
+    """Mass Cure Wounds (batch 2): a 5th-level Action heal of 5d8 +
+    spellcasting mod to up to six creatures in a 30-ft sphere within
+    60 ft. `heal` + max_targets=6 → multi-target grouping. v1 picks the
+    best up-to-6 wounded allies by the candidate grouper rather than
+    modeling the sphere placement (the heal goes to whoever's hurt).
+
+    Deferred: upcast (+1d8 per slot above 5th); explicit sphere
+    placement (v1 heals the wounded directly)."""
+    abbr = _SPELL_ABILITY_BY_CLASS.get(class_id, "wis")
+    score = (ability_scores.get(abbr) or {}).get("score", 10)
+    mod = max(0, ability_modifier(score))
+    return {
+        "id": "a_mass_cure_wounds",
+        "name": "Mass Cure Wounds",
+        "type": "heal",
+        "slot": "action",
+        "spell_slot_level": 5,
+        "range_ft": 60,
+        "max_targets": 6,
+        "pipeline": [
+            {"primitive": "heal",
+              "params": {"target": "current_target",
+                          "dice": "5d8", "modifier": mod}},
         ],
     }
 
