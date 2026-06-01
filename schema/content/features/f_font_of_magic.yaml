@@ -1,0 +1,21 @@
+# f_font_of_magic — Font of Magic (Sorcerer L2)
+#
+# RAW (SRD 5.2.1): You gain Sorcery Points (= your Sorcerer level, max
+# 20, regained on a long rest). Convert a spell slot to SP equal to the
+# slot level (no action); or, as a Bonus Action, convert SP into a spell
+# slot (cost per the Creating Spell Slots table). SP fuel Metamagic.
+#
+# Engine modeling: a marker feature. pc_schema derives the
+# `sorcery_points_remaining` resource from class_resources.sorcery_points
+# at the PC's level. The slot<->SP conversion actions are modeled in
+# engine.core.metamagic (Font of Magic conversion) — see that module.
+#
+# source: srd_5.2.1
+
+id: f_font_of_magic
+name: Font of Magic
+source: srd_5.2.1
+granted_by:
+  class: c_sorcerer
+  level: 2
+type: passive

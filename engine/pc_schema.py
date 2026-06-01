@@ -531,6 +531,20 @@ def derive_pc_resources(pc_spec: dict, content_registry: Any) -> dict:
         resources["bardic_inspiration_uses_remaining"] = uses
         resources["bardic_inspiration_uses_max"] = uses
 
+    # ---- Sorcery Points (Sorcerer, Font of Magic L2+) ----
+    # Pool = the Sorcerer level (capped at 20), read off the per-row
+    # class_resources.sorcery_points. Fuels Metamagic + slot conversion.
+    if "f_font_of_magic" in features_known:
+        sp = int(class_resources_at_level.get("sorcery_points", 0))
+        if sp > 0:
+            resources["sorcery_points_remaining"] = sp
+            resources["sorcery_points_max"] = sp
+
+    # ---- Innate Sorcery (Sorcerer L1+) — 2 uses/long rest ----
+    if "f_innate_sorcery" in features_known:
+        resources["innate_sorcery_uses_remaining"] = 2
+        resources["innate_sorcery_uses_max"] = 2
+
     # ---- Lay on Hands (Paladin L1+) — PR #83 ----
     # Pool = 5 × paladin_level HP. Refreshes on long rest. The
     # lay_on_hands primitive reads `lay_on_hands_pool_remaining` to

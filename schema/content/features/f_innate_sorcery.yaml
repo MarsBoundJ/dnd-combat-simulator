@@ -1,0 +1,40 @@
+# f_innate_sorcery — Innate Sorcery (Sorcerer L1)
+#
+# RAW (SRD 5.2.1): Bonus Action, 1 minute, 2/long rest. While active:
+# (1) the spell save DC of your Sorcerer spells increases by 1, and
+# (2) you have Advantage on the attack rolls of Sorcerer spells you cast.
+#
+# Engine modeling (v1): a self-buff BA action. The advantage-on-spell-
+# attacks half rides attack_modifier (advantage_for_self gated on spell
+# attacks). feature_use: innate_sorcery_uses_remaining (2/long rest).
+#
+# Deferred RAW bit:
+#   - The +1 spell save DC half needs a caster-side DC hook in
+#     _caster_spell_save_dc / _resolve_dc (no active-DC-bonus modifier
+#     exists yet). Documented; the advantage half is the v1 effect.
+#
+# source: srd_5.2.1
+
+id: f_innate_sorcery
+name: Innate Sorcery
+source: srd_5.2.1
+granted_by:
+  class: c_sorcerer
+  level: 1
+type: active
+
+action_template:
+  id: a_innate_sorcery
+  name: Innate Sorcery
+  type: defensive_buff
+  slot: bonus_action
+  feature_use: innate_sorcery_uses_remaining
+  named_effect: innate_sorcery
+  range_ft: 0
+  pipeline:
+    - primitive: attack_modifier
+      params:
+        target: self
+        when: attacker_is_self
+        modifier: advantage_for_self
+        lifetime: until_short_rest

@@ -1,0 +1,199 @@
+# c_sorcerer — Sorcerer (CHA full-caster)
+# Source: SRD CC v5.2.1 (PHB 2024)
+#
+# CHA full-caster (d6). Same casting chassis as the Bard; the signature
+# systems are Sorcery Points (Font of Magic) + Metamagic.
+#
+# **Sorcery Points (Font of Magic, L2):** a pool equal to the Sorcerer's
+# level (L2+), capped at 20, regained on a long rest. Drives Metamagic
+# and slot<->SP conversion. Derived in pc_schema from class_resources.
+#
+# **Metamagic (L2):** 2 options known (3 at L10, 4 at L17). The
+# SP-spend-during-cast framework lives in engine.core.metamagic +
+# pipeline (apply_metamagic pre-cast hook). All 10 SRD options modeled.
+#
+# **Innate Sorcery (L1):** BA, 1 min self-buff (+1 spell save DC +
+# advantage on Sorcerer spell attacks), 2/long rest.
+#
+# **Spells wired (v1):** built Sorcerer-list spells — Fire Bolt / Ray of
+# Frost / Shocking Grasp / Sorcerous Burst / Chill Touch (cantrips),
+# Burning Hands / Chromatic Orb / Magic Missile (L1), Scorching Ray (L2,
+# at sorcerer L3), Fireball / Lightning Bolt (L3, at sorcerer L5), Cone
+# of Cold (L5, at sorcerer L9). The auto-attach + pc_builder paths key
+# off features_known, so these wire regardless of their granted_by.
+#
+# Deferred class features: Sorcerous Restoration (L5 short-rest SP),
+# Sorcery Incarnate (L7), Arcane Apotheosis (L20) — SP-economy/economy.
+
+id: c_sorcerer
+name: Sorcerer
+source: srd_5.2.1
+
+core_traits:
+  primary_abilities: [charisma]
+  hit_die: d6
+  save_proficiencies: [constitution, charisma]
+  skill_proficiencies:
+    choose: 2
+    from: [arcana, deception, insight, intimidation, persuasion, religion]
+  weapon_proficiencies: [simple]
+  armor_training: []
+  tool_proficiencies: []
+
+multiclass_entry:
+  traits_gained: [simple_weapons]
+  features_gained: []
+  multiclass_slot_contribution: full_caster
+
+spellcasting:
+  enabled: true
+  ability: charisma
+  save_dc_formula: "8 + actor.cha_mod + actor.proficiency_bonus"
+  attack_mod_formula: "actor.cha_mod + actor.proficiency_bonus"
+  preparation_model: prepared_from_class_list
+  preparation_change_trigger: long_rest
+  slots_progression: full_caster
+
+level_table:
+  - level: 1
+    proficiency_bonus: 2
+    features: [f_innate_sorcery, f_fire_bolt, f_ray_of_frost,
+                f_shocking_grasp, f_sorcerous_burst, f_chill_touch,
+                f_burning_hands, f_chromatic_orb, f_magic_missile]
+    class_resources:
+      spell_slots: { 1: 2 }
+  - level: 2
+    proficiency_bonus: 2
+    features: [f_font_of_magic, f_metamagic]
+    class_resources:
+      spell_slots: { 1: 3 }
+      sorcery_points: 2
+      metamagic_known: 2
+  - level: 3
+    proficiency_bonus: 2
+    features: [grant_subclass, f_scorching_ray]
+    class_resources:
+      spell_slots: { 1: 4, 2: 2 }
+      sorcery_points: 3
+      metamagic_known: 2
+  - level: 4
+    proficiency_bonus: 2
+    features: [grant_asi_or_feat]
+    class_resources:
+      spell_slots: { 1: 4, 2: 3 }
+      sorcery_points: 4
+      metamagic_known: 2
+  - level: 5
+    proficiency_bonus: 3
+    features: [f_fireball, f_lightning_bolt]
+    class_resources:
+      spell_slots: { 1: 4, 2: 3, 3: 2 }
+      sorcery_points: 5
+      metamagic_known: 2
+  - level: 6
+    proficiency_bonus: 3
+    features: []
+    class_resources:
+      spell_slots: { 1: 4, 2: 3, 3: 3 }
+      sorcery_points: 6
+      metamagic_known: 2
+  - level: 7
+    proficiency_bonus: 3
+    features: []
+    class_resources:
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 1 }
+      sorcery_points: 7
+      metamagic_known: 2
+  - level: 8
+    proficiency_bonus: 3
+    features: [grant_asi_or_feat]
+    class_resources:
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 2 }
+      sorcery_points: 8
+      metamagic_known: 2
+  - level: 9
+    proficiency_bonus: 4
+    features: [f_cone_of_cold]
+    class_resources:
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 1 }
+      sorcery_points: 9
+      metamagic_known: 2
+  - level: 10
+    proficiency_bonus: 4
+    features: []
+    class_resources:
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2 }
+      sorcery_points: 10
+      metamagic_known: 3
+  - level: 11
+    proficiency_bonus: 4
+    features: []
+    class_resources:
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1 }
+      sorcery_points: 11
+      metamagic_known: 3
+  - level: 12
+    proficiency_bonus: 4
+    features: [grant_asi_or_feat]
+    class_resources:
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1 }
+      sorcery_points: 12
+      metamagic_known: 3
+  - level: 13
+    proficiency_bonus: 5
+    features: []
+    class_resources:
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1, 7: 1 }
+      sorcery_points: 13
+      metamagic_known: 3
+  - level: 14
+    proficiency_bonus: 5
+    features: []
+    class_resources:
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1, 7: 1 }
+      sorcery_points: 14
+      metamagic_known: 3
+  - level: 15
+    proficiency_bonus: 5
+    features: []
+    class_resources:
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1, 7: 1, 8: 1 }
+      sorcery_points: 15
+      metamagic_known: 3
+  - level: 16
+    proficiency_bonus: 5
+    features: [grant_asi_or_feat]
+    class_resources:
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1, 7: 1, 8: 1 }
+      sorcery_points: 16
+      metamagic_known: 3
+  - level: 17
+    proficiency_bonus: 6
+    features: []
+    class_resources:
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1, 7: 1, 8: 1, 9: 1 }
+      sorcery_points: 17
+      metamagic_known: 4
+  - level: 18
+    proficiency_bonus: 6
+    features: []
+    class_resources:
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 3, 6: 1, 7: 1, 8: 1, 9: 1 }
+      sorcery_points: 18
+      metamagic_known: 4
+  - level: 19
+    proficiency_bonus: 6
+    features: [grant_asi_or_feat]
+    class_resources:
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 3, 6: 2, 7: 1, 8: 1, 9: 1 }
+      sorcery_points: 19
+      metamagic_known: 4
+  - level: 20
+    proficiency_bonus: 6
+    features: []
+    class_resources:
+      spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 3, 6: 2, 7: 2, 8: 1, 9: 1 }
+      sorcery_points: 20
+      metamagic_known: 4
+
+subclass_grant_level: 3
