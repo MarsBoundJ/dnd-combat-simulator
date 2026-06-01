@@ -1,0 +1,19 @@
+# f_monk_extra_attack — Extra Attack (Monk L5)
+#
+# RAW (SRD 5.2.1): You can attack twice, instead of once, whenever you
+# take the Attack action on your turn.
+#
+# Engine modeling: pc_schema builds a 2× multiattack of the Monk's
+# unarmed strike (a_monk_extra_attack). Named distinctly from the
+# Fighter's f_extra_attack (which scales 2/3/4) — the Monk's is a flat
+# two attacks.
+#
+# source: srd_5.2.1
+
+id: f_monk_extra_attack
+name: Extra Attack
+source: srd_5.2.1
+granted_by:
+  class: c_monk
+  level: 5
+type: passive

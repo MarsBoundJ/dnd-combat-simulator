@@ -1,0 +1,20 @@
+# f_monks_focus — Monk's Focus (Monk L2)
+#
+# RAW (SRD 5.2.1): You gain Focus Points (= your Monk level). Expend them
+# to fuel Flurry of Blows, Patient Defense, and Step of the Wind.
+# Regained on a Short or Long Rest. Focus save DC = 8 + WIS + PB.
+#
+# Engine modeling: a marker. pc_schema derives focus_points_remaining
+# from class_resources.focus_points at the PC's level. Flurry of Blows
+# consumes it (feature_use gate). Patient Defense / Step of the Wind are
+# movement/utility and deferred.
+#
+# source: srd_5.2.1
+
+id: f_monks_focus
+name: Monk's Focus
+source: srd_5.2.1
+granted_by:
+  class: c_monk
+  level: 2
+type: passive

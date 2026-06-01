@@ -118,6 +118,27 @@ class EncounterRunner:
         modifiers.scrub_source_caster_turn_start_modifiers(
             actor.id, state)
 
+        # Source-timed conditions (Monk Stunning Strike's Stunned, etc.)
+        # expire at the start of the source actor's next turn. Remove the
+        # condition from each target + drop the tracking entry.
+        if state.timed_conditions:
+            from engine.primitives import remove_condition
+            still_pending = []
+            for entry in state.timed_conditions:
+                if entry.get("source_id") == actor.id:
+                    tgt = state._actor_by_id(entry.get("target_id"))
+                    if tgt is not None:
+                        remove_condition(tgt, entry.get("condition_id"),
+                                          entry.get("source_id"))
+                        state.event_log.append({
+                            "event": "timed_condition_expired",
+                            "target": entry.get("target_id"),
+                            "condition": entry.get("condition_id"),
+                            "source": actor.id})
+                else:
+                    still_pending.append(entry)
+            state.timed_conditions = still_pending
+
         # PR #86: forward the readied-action discard event from
         # reset_turn. Actor.reset_turn clears `readied_action` but
         # stashes the discarded entry on a sentinel attr; we log it

@@ -1,0 +1,27 @@
+# sc_warrior_of_the_open_hand — Warrior of the Open Hand (Monk subclass)
+# Source: SRD CC v5.2.1 (PHB 2024)
+#
+# The SRD Monk subclass — masters of unarmed combat.
+#   - L3 Open Hand Technique: on a Flurry-of-Blows hit, impose Addle
+#     (no OA) / Push (STR save, 15 ft) / Topple (DEX save → Prone). v1
+#     models Topple (the highest-value option) as an on-hit rider; see
+#     f_open_hand_technique.
+#   - L6 Wholeness of Body: BA self-heal (Martial Arts die + WIS),
+#     WIS-mod uses/long rest.
+#   - L11 Fleet Step / L17 Quivering Palm — deferred (movement / niche).
+
+id: sc_warrior_of_the_open_hand
+name: Warrior of the Open Hand
+source: srd_5.2.1
+parent_class: c_monk
+
+archetype_tags:
+  behavior_archetype: berserker_fanatic
+  role: martial_striker           # INTERNAL-EVAL-ONLY per vocabulary firewall
+  flavor_tags: [unarmed, disciplined, mobile]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_open_hand_technique]
+  - level: 6
+    feature_ids: [f_wholeness_of_body]

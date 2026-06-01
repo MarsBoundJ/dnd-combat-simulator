@@ -1,0 +1,21 @@
+# f_wholeness_of_body — Wholeness of Body (Warrior of the Open Hand L6)
+#
+# RAW (SRD 5.2.1): As a Bonus Action, roll your Martial Arts die and
+# regain HP equal to the roll + your WIS modifier (min 1). Usable a
+# number of times equal to your WIS modifier (min 1) per long rest.
+#
+# Engine modeling: DEFERRED (documented marker). A self-targeted,
+# feature-use-gated heal whose use count derives from WIS — the generic
+# pc_builder `heal` kind doesn't yet support self-target + feature_use +
+# ability-derived use counts. Wired into the subclass so the feature is
+# present/countable; the bonus-action heal action is a follow-on.
+#
+# source: srd_5.2.1
+
+id: f_wholeness_of_body
+name: Wholeness of Body
+source: srd_5.2.1
+granted_by:
+  subclass: sc_warrior_of_the_open_hand
+  level: 6
+type: passive

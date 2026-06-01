@@ -280,6 +280,12 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
         draconic_resistances.append(
             str(pc_spec.get("draconic_element", "fire")).lower())
 
+    # Monk Unarmored Defense: base AC = 10 + DEX + WIS while wearing no
+    # armor (build-time, like Draconic Resilience but WIS not CHA).
+    if "f_unarmored_defense_monk" in features_known and not armor_spec:
+        ac = (10 + ability_modifier(ability_scores["dex"]["score"])
+               + ability_modifier(ability_scores["wis"]["score"]))
+
     actions += _build_feature_actions(features_known, level, class_id,
                                          weapon_actions=weapon_actions,
                                          ability_scores=ability_scores,
@@ -372,6 +378,11 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
         # pc_spec.metamagic). engine.core.metamagic.knows() reads this.
         "metamagic_known": (list(pc_spec.get("metamagic") or [])
                               if "f_metamagic" in features_known else []),
+        # Monk on-hit rider eligibility (read by engine.core.monk_strikes
+        # from _damage). Stunning Strike (L5) + Open Hand Technique
+        # (Warrior of the Open Hand L3).
+        "has_stunning_strike": "f_stunning_strike" in features_known,
+        "has_open_hand": "f_open_hand_technique" in features_known,
         # Per-class level table (read by primitives via
         # `template.levels.<class_short_name>`). Single-class PCs from
         # pc_schema get exactly one entry; multiclass support will
@@ -565,6 +576,15 @@ def derive_pc_resources(pc_spec: dict, content_registry: Any) -> dict:
     if "f_innate_sorcery" in features_known:
         resources["innate_sorcery_uses_remaining"] = 2
         resources["innate_sorcery_uses_max"] = 2
+
+    # ---- Monk's Focus / Focus Points (Monk L2+) ----
+    # Pool = Monk level, read off class_resources.focus_points. Fuels
+    # Flurry of Blows (+ future Stunning Strike / Patient Defense).
+    if "f_monks_focus" in features_known:
+        fp = int(class_resources_at_level.get("focus_points", 0))
+        if fp > 0:
+            resources["focus_points_remaining"] = fp
+            resources["focus_points_max"] = fp
 
     # ---- Lay on Hands (Paladin L1+) — PR #83 ----
     # Pool = 5 × paladin_level HP. Refreshes on long rest. The
@@ -1076,6 +1096,12 @@ def _build_feature_actions(features_known: set[str], level: int,
     # spent).
     if "f_steady_aim" in features_known and class_id == "c_rogue":
         actions.append(_build_steady_aim_action())
+    # Monk Martial Arts — unarmed strike (DEX + Martial Arts die),
+    # bonus-action strike, Flurry of Blows (L2, Focus Point), and
+    # Monk Extra Attack (L5). Built from f_martial_arts + the level.
+    if "f_martial_arts" in features_known and ability_scores is not None:
+        actions.extend(_build_martial_arts_actions(
+            level, ability_scores, proficiency_bonus, features_known))
     # Extra Attack: count scales with feature presence (RAW Fighter
     # progression at L5 / L11 / L20). Only one of the three feature
     # ids is meaningful at a time — higher-level features supersede
@@ -1705,6 +1731,57 @@ def _build_extra_attack_action(count: int,
         "count": int(count),
         "sub_actions": [primary_id] * int(count),
     }
+
+
+def _monk_martial_arts_die(level: int) -> str:
+    """Monk Martial Arts die by level: 1d6 (1-4), 1d8 (5-10),
+    1d10 (11-16), 1d12 (17+)."""
+    if level >= 17:
+        return "1d12"
+    if level >= 11:
+        return "1d10"
+    if level >= 5:
+        return "1d8"
+    return "1d6"
+
+
+def _build_martial_arts_actions(level: int, ability_scores: dict,
+                                  proficiency_bonus: int,
+                                  features_known: set[str]) -> list[dict]:
+    """Build the Monk's unarmed-strike actions (Martial Arts).
+
+    The unarmed strike reuses _build_weapon_action with a synthetic
+    DEX-based spec so its pipeline (attack + hit-gated damage) is
+    identical to every other weapon. Variants:
+      - a_unarmed_strike: main-action strike (DEX + Martial Arts die)
+      - a_unarmed_strike_bonus: the Bonus-Action strike (Martial Arts)
+      - a_flurry_of_blows: BA 2× strike, consumes a Focus Point (L2+)
+      - a_monk_extra_attack: 2× strike multiattack (L5+)
+    """
+    ma_die = _monk_martial_arts_die(level)
+    spec = {"id": "a_unarmed_strike", "name": "Unarmed Strike",
+            "attack_ability": "dex", "damage_dice": ma_die,
+            "damage_type": "bludgeoning", "reach_ft": 5, "light": True}
+    unarmed = _build_weapon_action(spec, ability_scores, proficiency_bonus)
+    out = [unarmed]
+    ba = dict(unarmed)
+    ba["id"] = "a_unarmed_strike_bonus"
+    ba["name"] = "Unarmed Strike (Bonus)"
+    ba["slot"] = "bonus_action"
+    out.append(ba)
+    if "f_flurry_of_blows" in features_known:
+        out.append({
+            "id": "a_flurry_of_blows", "name": "Flurry of Blows",
+            "type": "multiattack", "slot": "bonus_action", "count": 2,
+            "sub_actions": ["a_unarmed_strike", "a_unarmed_strike"],
+            "feature_use": "focus_points_remaining"})
+    if "f_monk_extra_attack" in features_known:
+        out.append({
+            "id": "a_monk_extra_attack",
+            "name": "Extra Attack (2× Unarmed Strike)",
+            "type": "multiattack", "count": 2,
+            "sub_actions": ["a_unarmed_strike", "a_unarmed_strike"]})
+    return out
 
 
 def _derive_class_spell_slots(class_def: dict, level: int) -> dict:
