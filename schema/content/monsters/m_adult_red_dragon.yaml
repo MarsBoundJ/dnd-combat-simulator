@@ -1,0 +1,85 @@
+# m_adult_red_dragon — Adult Red Dragon
+# Source: SRD CC v5.2.1 p317-318
+# Triage: GREEN for core kit — Multiattack of Rend (+ fire rider),
+# recharge Fire Breath (DEX-save cone), Legendary Resistance (3/Day),
+# and Legendary Actions (Pounce Rend).
+# DEFERRED (see MONSTERS_NEED_ENGINE_WORK.md): innate Spellcasting and the
+# "replace one attack with Spellcasting" Multiattack option; the Commanding
+# Presence and Fiery Rays legendary actions (both cast spells via
+# Spellcasting). Fly/Climb omitted (walk stand-in). Pounce's half-Speed
+# move omitted; modeled as one Rend.
+id: m_adult_red_dragon
+name: Adult Red Dragon
+source: srd_5.2.1
+size: huge
+creature_type: dragon
+type_tags: [chromatic]
+alignment: chaotic_evil
+combat:
+  armor_class: 19
+  hit_points: { average: 256, dice: "19d12", con_contribution: 133 }
+  speed: { walk: 40 }
+  initiative: { modifier: 12, score: 22 }
+abilities:
+  str: { score: 27, save: 8 }
+  dex: { score: 10, save: 6 }
+  con: { score: 25, save: 7 }
+  int: { score: 16, save: 3 }
+  wis: { score: 13, save: 7 }
+  cha: { score: 23, save: 6 }
+skills: { perception: 13, stealth: 6 }
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: [fire]
+condition_immunities: []
+senses: { passive_perception: 23, special: { blindsight: 60, darkvision: 120 } }
+languages: [common, draconic]
+cr: { value: 17, xp: 18000, proficiency_bonus: 6 }
+legendary_resistance: { uses: 3 }
+traits: []
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 3
+    sub_actions: [a_rend]
+  - id: a_rend
+    name: Rend
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 14, reach_ft: 10 }
+      - primitive: damage
+        params: { dice: "1d10", modifier: 8, type: slashing, average: 13 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: damage
+        params: { dice: "2d4", modifier: 0, type: fire, average: 5 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+  - id: a_fire_breath
+    name: Fire Breath
+    type: aoe_attack
+    recharge: "5-6"
+    area: { shape: cone, length_ft: 60 }
+    pipeline:
+      - primitive: forced_save
+        params:
+          ability: dexterity
+          dc: 21
+          affected: all_creatures_in_area
+          on_fail:
+            - primitive: damage
+              params: { dice: "17d6", modifier: 0, type: fire, average: 59 }
+          on_success:
+            - primitive: damage
+              params: { dice: "17d6", modifier: 0, type: fire, average: 59, multiplier: 0.5 }
+legendary_actions:
+  uses_per_round: 3
+  options:
+    - id: la_pounce
+      name: Pounce
+      type: multiattack
+      count: 1
+      sub_actions: [a_rend]
+behavior_profile:
+  archetype: apex_predator
+  presets: { retreat: ftd, ability_selection: default, targeting: weakest_target, action_economy: skilled }

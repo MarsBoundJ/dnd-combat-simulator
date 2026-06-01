@@ -30,9 +30,9 @@ Legendary / Spellcasting), not by recharge itself:
 - **Wolf** (CR 1/4) — the *Winter* Wolf variant's Cold Breath (5–6) is a
   NEW monster (not the built plain Wolf); recharge-ready, awaits a
   monster batch.
-- **Adult Black / Blue / Green / Red Dragon, Ancient Red Dragon, Young
-  Red Dragon** (CR 10–24, rating 5) — Breath Weapon (Recharge 5–6) is now
-  buildable, but these stay deferred on Legendary Actions/Resistance.
+- **Ancient Red Dragon, Young Red Dragon** (CR 10–24, rating 5) — Breath
+  Weapon (Recharge 5–6) is buildable. (The five **Adult** chromatics are
+  now BUILT — see the Legendary section.)
 - **✅ BUILT (batch M6): all ten Dragon Wyrmlings** — Black/Blue/Green/
   Red/White (chromatic) + Brass/Bronze/Copper/Gold/Silver (metallic),
   each with Rend (+ chromatic elemental rider) and a Recharge 5–6 breath
@@ -63,17 +63,30 @@ breath / attacks / LA options / LR count from the SRD). Remaining
 per-creature riders may still defer to OTHER buckets (Frightful Presence →
 Aura/Reaction; Spellcasting on casters; Change Shape; Swallow) — triage
 per monster.
-- **Adult Black / Blue / Green / Red Dragon, Ancient Red Dragon** (CR
-  14–24, rating 5) — now buildable (LR + LA + Recharge breath all
-  supported); watch for Frightful Presence (Aura/Reaction bucket).
+- **✅ BUILT (batch M7): Adult Black / Blue / Green / Red / White Dragon**
+  (CR 13–17) — the first consumers of both Legendary systems: Multiattack
+  of Rend (+ chromatic elemental rider), Recharge 5–6 breath (DEX-save
+  line for Black/Blue, DEX-save cone for Red, CON-save cone for
+  Green/White), `legendary_resistance: { uses: 3 }`, and
+  `legendary_actions` (Pounce/Tail Swipe Rend, plus the save-based
+  options: Black Cloud of Insects, Green Noxious Miasma, White Freezing
+  Burst). Per-dragon DEFERS noted in each file: innate **Spellcasting**
+  (and the "replace one attack with Spellcasting" Multiattack option),
+  the Spellcasting-based legendary actions (Black/White **Frightful
+  Presence** → Aura/Reaction bucket; Blue Cloaked Flight / Sonic Boom;
+  Green Mind Invasion; Red Commanding Presence / Fiery Rays), and the
+  no-engine-hook save riders (Concentration disadvantage, −2 AC, Speed-0).
+- **Ancient Red Dragon** (CR 24, rating 5) — now buildable (LR + LA +
+  Recharge breath all supported); watch for Frightful Presence
+  (Aura/Reaction bucket) and Spellcasting.
 - **Lich** (CR 21, rating 5), **Vampire** (CR 15, rating 5), **Balor**
   (CR 19, rating 5), **Pit Fiend** (CR 20, rating 5), **Kraken** (CR 23,
   rating 5), **Tarrasque** (CR 30, rating 5) — Legendary no longer
   blocks, but each still defers on OTHER systems (Spellcasting / auras /
   on-hit drains / Swallow). Triage per creature.
-- rating 4: **Adult Gold/Silver/White Dragon, Ancient Black/Blue/Gold/
+- rating 4: **Adult Gold/Silver Dragon, Ancient Black/Blue/Gold/
   Green Dragon** — now buildable (Legendary + Recharge breath all
-  supported). **Aboleth** (CR 10),
+  supported). (**Adult White** is BUILT — batch M7.) **Aboleth** (CR 10),
   **Deva/Planetar/Solar** (CR 10/16/21), **Marilith** (CR 16),
   **Mummy Lord** (CR 15), **Purple Worm** (CR 15, also Swallow),
   **Dragon Turtle** (CR 17). Full defer.
