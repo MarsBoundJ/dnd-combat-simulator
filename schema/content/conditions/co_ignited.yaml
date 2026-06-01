@@ -1,48 +1,50 @@
-# co_ignited — Ignited condition (PHB 2024 Searing Smite)
-# Source: srd_5.2.1 (Searing Smite spell text)
+# co_ignited — Ignited condition (Searing Smite, SRD 5.2.1)
 #
-# RAW summary: A creature on fire from Searing Smite takes 1d6 fire
-# damage at the start of each of its turns. The ignited creature can
-# use an action to make another Constitution saving throw, ending
-# the spell on itself on a success.
+# RAW (SRD 5.2.1 / PHB 2024): "At the start of each of its turns
+# until the spell ends, the target takes 1d6 Fire damage and then
+# makes a Constitution saving throw. On a failed save, the spell
+# continues. On a successful save, the spell ends."
 #
-# Engine modeling (PR #89):
+# Engine modeling:
 #   - scope: source_referencing — the burn is tied to the caster's
-#     concentration; ending concentration ends the burn. Effects
-#     reference the source spell, not the target's static state.
-#   - effects.recurring_damage: registers a per-turn damage tick at
-#     turn-start via state.recurring_damage; runner._resolve_recurring_
-#     damage fires it.
+#     spell. Effects reference the source spell for cleanup.
+#   - effects.recurring_damage: per-turn fire damage at turn-start.
+#     Dice may be post-processed by smite_rider for upcast scaling
+#     (burn_scales_with_upcast → e.g., "3d6" at slot 3).
+#   - effects.recurring_save: CON save at turn-start (AFTER the
+#     damage tick). On success, the spell ends (condition + burn
+#     removed). DC is captured from the caster's spell save DC at
+#     application time via dc_source: caster_spell_save_dc.
 #
-# Deferred RAW bits:
-#   - Action to save vs CON to end the spell (target-side opt-in
-#     concentration break). v1 only ends Ignited when the caster
-#     drops concentration. Adding a save-to-end action would mean
-#     emitting a candidate at the target's turn — meaningful AI
-#     scope; tracked for a follow-on PR.
+# Note: NOT tied to concentration (PHB 2024 removed concentration
+# from Searing Smite). The burn ends via the save-to-end mechanic
+# or the 1-minute duration (duration timer deferred).
 
 id: co_ignited
 name: Ignited
 source: srd_5.2.1
 category: condition
-scope: source_referencing       # burn tied to caster concentration
+scope: source_referencing
 
 inherits_conditions: []
 
 stacking:
-  type: none                    # one Ignited at a time; multi-source
-                                  # stacking deferred (rare RAW edge)
+  type: none
 
 effects:
-  # Per-turn fire damage at the start of each affected creature's
-  # turn. The recurring_damage primitive registers a tick in
-  # state.recurring_damage; runner resolves it. source_id +
-  # source_action_id are stamped from the in-flight condition
-  # application context so end_concentration can scrub the tick.
   - id: e_ignited_burn
     primitive: recurring_damage
     params:
       dice: "1d6"
       type: fire
       trigger_event: target_turn_start
+      condition_id: co_ignited
+
+  - id: e_ignited_save
+    primitive: recurring_save
+    params:
+      ability: constitution
+      dc_source: caster_spell_save_dc
+      trigger_event: target_turn_start
+      on_success: end_spell_on_target
       condition_id: co_ignited

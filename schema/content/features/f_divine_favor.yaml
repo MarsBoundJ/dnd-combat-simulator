@@ -1,8 +1,8 @@
 # f_divine_favor — Divine Favor (1st-level Paladin spell, SRD CC v5.2.1)
 #
-# RAW summary: Your weapon glows with white-hot light. Until the spell
-# ends, your weapon attacks deal an extra 1d4 radiant damage on a hit.
-# Self only. Bonus Action cast. Concentration, up to 1 minute.
+# RAW summary (SRD 5.2.1 / PHB 2024): Until the spell ends, your
+# attacks with weapons deal an extra 1d4 Radiant damage on a hit.
+# Self only. Bonus Action cast. Duration: 1 minute (NOT Concentration).
 # At Higher Levels: no scaling.
 #
 # Engine modeling (PR #88):
@@ -15,9 +15,9 @@
 #   - named_effect: "divine_favor" → cross-caster dedup (PR #36)
 #     prevents stacking with itself or being re-cast by an ally
 #     for double bonus.
-#   - Concentration spell — competes with Bless / Shield of Faith /
-#     Searing Smite for the Paladin's single concentration slot.
-#     AI picks the highest-value option per buff scoring.
+#   - NOT Concentration (PHB 2024 change from 2014). Can stack with
+#     Bless / Shield of Faith / Searing Smite. Paladin gains both
+#     the +1d4 weapon rider AND another concentration buff.
 #
 # Deferred RAW bits:
 #   - Per-roll 1d4 die (v1 uses flat +2)
@@ -42,7 +42,7 @@ spell:
 
 description: |
   Self-buff. Your weapon attacks deal an extra 1d4 (v1: flat +2)
-  radiant damage on hit. Concentration, 1 minute. Bonus Action cast.
+  radiant damage on hit. 1 minute (NOT concentration). BA cast.
 
 action_template:
   id: a_divine_favor
@@ -50,11 +50,10 @@ action_template:
   type: defensive_buff
   spell_slot_level: 1
   slot: bonus_action
-  concentration: true
   named_effect: divine_favor
   range_ft: 0                # self-only
   pipeline:
-    # +2 damage on every weapon attack until concentration ends. Gated
+    # +2 damage on every weapon attack until spell ends. Gated
     # on `when: weapon_attack` so non-weapon damage (spells / class
     # features dealing typed damage) doesn't pick up the rider.
     - primitive: weapon_damage_bonus

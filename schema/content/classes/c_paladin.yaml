@@ -84,7 +84,8 @@ level_table:
     proficiency_bonus: 2
     features: [f_divine_smite, f_bless, f_shield_of_faith,
                 f_divine_favor, f_protection_from_evil_and_good,
-                f_searing_smite, f_heroism, f_compelled_duel]
+                f_searing_smite, f_wrathful_smite, f_heroism,
+                f_compelled_duel]
     class_resources:
       weapon_mastery_count: 2
       spell_slots: { 1: 2 }
@@ -114,7 +115,7 @@ level_table:
       spell_slots: { 1: 4, 2: 3 }
   - level: 9
     proficiency_bonus: 4
-    features: []
+    features: [f_blinding_smite]
     class_resources:
       weapon_mastery_count: 2
       spell_slots: { 1: 4, 2: 3, 3: 2 }

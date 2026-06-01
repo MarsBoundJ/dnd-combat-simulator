@@ -419,6 +419,24 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
             _es.try_apply_ensnaring_strike_followup(
                 actor, target, state, attack_params, rng,
                 is_crit=(sa_state == "crit"))
+        # Blinding Smite rider (Paladin, 3rd-level). Melee-only;
+        # 3d8 radiant bonus (+1d8/upcast), Blinded auto-applied on hit.
+        if is_weapon_attack and (attack_params or {}).get(
+                "kind", "melee") == "melee":
+            from engine.core import blinding_smite as _bs
+            bs_damage = _bs.try_apply_blinding_smite_followup(
+                actor, target, state, attack_params, rng,
+                is_crit=(sa_state == "crit"))
+            total += bs_damage
+        # Wrathful Smite rider (Paladin, 1st-level). Melee-only;
+        # 1d6 necrotic bonus (+1d6/upcast), WIS save -> co_frightened.
+        if is_weapon_attack and (attack_params or {}).get(
+                "kind", "melee") == "melee":
+            from engine.core import wrathful_smite as _ws
+            ws_damage = _ws.try_apply_wrathful_smite_followup(
+                actor, target, state, attack_params, rng,
+                is_crit=(sa_state == "crit"))
+            total += ws_damage
 
     # Resistance / vulnerability / immunity (template-level)
     template = target.template or {}
@@ -659,11 +677,15 @@ def _instantiate_condition_effects(target: Actor, application: dict,
         # set up by _apply_condition's caller.
         if prim == "recurring_damage":
             params = dict(effect.get("params") or {})
-            # Pass the host condition's id through so the entry can
-            # be scrubbed later via condition-removal cleanup.
             params.setdefault("condition_id",
                                 application["condition_id"])
             _recurring_damage(params, state, _NoOpBus())
+            continue
+        if prim == "recurring_save":
+            params = dict(effect.get("params") or {})
+            params.setdefault("condition_id",
+                                application["condition_id"])
+            _recurring_save(params, state, _NoOpBus())
             continue
         entry = {
             "primitive": prim,
@@ -1568,26 +1590,18 @@ def _persistent_aura(params: dict, state: CombatState, bus: EventBus) -> None:
 
 def _counterspell_resolve(params: dict, state: CombatState,
                               bus: EventBus) -> dict:
-    """Resolve a Counterspell attempt. Reads the triggering spell info
-    from state.current_attack.reaction_event_data; performs RAW 2024
-    Counterspell mechanics:
+    """Resolve a Counterspell attempt (SRD 5.2.1 / PHB 2024).
 
-      - If target spell is level ≤ 3: auto-cancel (no check needed).
-      - If level ≥ 4: counterspeller rolls Intelligence (Spellcasting)
-        ability check vs DC = 10 + target spell's level.
-        Spellcasting ability is the caster's INT (Counterspell is on
-        the wizard list; v1 hard-codes INT for the check). Modifier =
-        INT_mod + proficiency_bonus (every spellcaster is automatically
-        proficient with their spellcasting ability for casting purposes).
-        On success: cancel. On fail: spell goes through.
+    The TARGET CASTER makes a Constitution saving throw against the
+    counterspeller's spell save DC. On a failed save, the spell
+    dissipates (state.cast_cancelled = True; pipeline.execute skips
+    the pipeline and refunds the slot). On a successful save, the
+    spell goes through.
 
-    Side effects on cancel:
-      - Sets state.cast_cancelled = True (pipeline.execute checks this
-        flag after the spell_cast_initiated event resolves; if True,
-        skips the target spell's pipeline but still consumes its slot).
-      - Logs counterspell_resolved event with outcome + check details.
+    No level comparison, no auto-success, no caster ability check —
+    the 2024 version simplified to a flat CON save.
 
-    Returns {"outcome": "auto_cancel" | "check_success" | "check_fail"}.
+    Returns {"outcome": "countered" | "resisted"}.
     """
     rng = _get_rng(state, bus)
     counterspeller = state.current_attack.get("actor")
@@ -1598,48 +1612,35 @@ def _counterspell_resolve(params: dict, state: CombatState,
     target_action = event_data.get("action") or {}
     target_level = int(event_data.get("spell_slot_level", 0))
 
-    if target_level <= 3:
-        state.cast_cancelled = True
-        state.event_log.append({
-            "event": "counterspell_resolved",
-            "counterspeller": counterspeller.id,
-            "target_caster": target_caster.id if target_caster else None,
-            "target_spell": target_action.get("id"),
-            "target_level": target_level,
-            "outcome": "auto_cancel",
-        })
-        return {"outcome": "auto_cancel"}
+    dc = _caster_spell_save_dc(counterspeller)
 
-    # Level ≥ 4: ability check
-    int_score = (counterspeller.abilities.get("int") or {}).get("score", 10)
-    int_mod = ability_modifier(int_score)
-    pb = int((counterspeller.template.get("cr") or {})
-                .get("proficiency_bonus", 2))
-    dc = 10 + target_level
+    con_score = ((target_caster.abilities.get("con") or {}).get("score", 10)
+                   if target_caster else 10)
+    con_save_bonus = ((target_caster.abilities.get("con") or {}).get("save", 0)
+                        if target_caster else 0)
     d20 = rng.randint(1, 20)
-    # PR #95: Halfling Lucky applies to Counterspell's INT ability
-    # check (RAW: Lucky fires on "an attack roll, an ability check,
-    # or a saving throw"). No-op for non-Halflings.
     from engine.core.racial_traits import lucky_d20
-    d20, _rerolled = lucky_d20(rng, d20, counterspeller)
-    total = d20 + int_mod + pb
-    success = total >= dc
-    if success:
+    if target_caster:
+        d20, _rerolled = lucky_d20(rng, d20, target_caster)
+    total = d20 + con_save_bonus
+    save_failed = total < dc
+
+    if save_failed:
         state.cast_cancelled = True
+
     state.event_log.append({
         "event": "counterspell_resolved",
         "counterspeller": counterspeller.id,
         "target_caster": target_caster.id if target_caster else None,
         "target_spell": target_action.get("id"),
         "target_level": target_level,
-        "outcome": "check_success" if success else "check_fail",
+        "outcome": "countered" if save_failed else "resisted",
         "d20": d20,
-        "int_mod": int_mod,
-        "proficiency_bonus": pb,
+        "con_save_bonus": con_save_bonus,
         "total": total,
         "dc": dc,
     })
-    return {"outcome": "check_success" if success else "check_fail"}
+    return {"outcome": "countered" if save_failed else "resisted"}
 
 
 # ============================================================================
@@ -2231,6 +2232,54 @@ def _ensnaring_strike_arm(params: dict, state: CombatState,
                      state=state)
 
 
+def _blinding_smite_arm(params: dict, state: CombatState,
+                           bus: EventBus) -> None:
+    """Arm the caster with Blinding Smite's one-shot rider.
+
+    Called from f_blinding_smite's cast pipeline. 3rd-level spell;
+    reads cast slot level from state.current_attack.chosen_slot_level
+    and the caster's CHA-based spell save DC. Mirrors _searing_smite_arm.
+    """
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        raise ValueError("blinding_smite_arm requires a current actor")
+    slot_level = int((state.current_attack or {}).get(
+        "chosen_slot_level") or 3)
+    if "dc" in params:
+        dc = int(params["dc"])
+    else:
+        dc = _caster_spell_save_dc(actor)
+    action = (state.current_attack or {}).get("action") or {}
+    action_id = action.get("id", "a_blinding_smite")
+    from engine.core.blinding_smite import register_armed
+    register_armed(actor, slot_level=slot_level, spell_save_dc=dc,
+                     action_id=action_id, state=state)
+
+
+def _wrathful_smite_arm(params: dict, state: CombatState,
+                           bus: EventBus) -> None:
+    """Arm the caster with Wrathful Smite's one-shot rider.
+
+    Called from f_wrathful_smite's cast pipeline. 1st-level spell;
+    reads cast slot level from state.current_attack.chosen_slot_level
+    and the caster's CHA-based spell save DC. Mirrors _searing_smite_arm.
+    """
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        raise ValueError("wrathful_smite_arm requires a current actor")
+    slot_level = int((state.current_attack or {}).get(
+        "chosen_slot_level") or 1)
+    if "dc" in params:
+        dc = int(params["dc"])
+    else:
+        dc = _caster_spell_save_dc(actor)
+    action = (state.current_attack or {}).get("action") or {}
+    action_id = action.get("id", "a_wrathful_smite")
+    from engine.core.wrathful_smite import register_armed
+    register_armed(actor, slot_level=slot_level, spell_save_dc=dc,
+                     action_id=action_id, state=state)
+
+
 def _caster_spell_save_dc(actor: Actor) -> int:
     """Compute the actor's spell save DC: 8 + proficiency_bonus +
     spellcasting_ability_modifier.
@@ -2535,6 +2584,16 @@ def _all_primitives() -> list[Primitive]:
         # engine.core.ensnaring_strike.try_apply_ensnaring_strike_followup
         # (STR save → on fail co_ensnared). No bonus damage.
         Primitive("ensnaring_strike_arm", _ensnaring_strike_arm,
+                    implemented=True),
+        # Blinding Smite arming primitive (Paladin, 3rd-level). Same
+        # pattern as searing_smite_arm: registers a one-shot marker;
+        # _damage fires the rider (3d8 radiant + CON save -> Blinded).
+        Primitive("blinding_smite_arm", _blinding_smite_arm,
+                    implemented=True),
+        # Wrathful Smite arming primitive (Paladin, 1st-level). Same
+        # pattern: registers a one-shot marker; _damage fires the
+        # rider (1d6 psychic + WIS save -> Frightened).
+        Primitive("wrathful_smite_arm", _wrathful_smite_arm,
                     implemented=True),
         # PR #90 — Hex curse primitive. Registers a target-specific
         # weapon_damage_bonus modifier on the caster gated via

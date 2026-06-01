@@ -1,34 +1,24 @@
-# f_counterspell — Counterspell (Wizard 3rd-level spell, SRD CC v5.2.1)
+# f_counterspell — Counterspell (3rd-level Abjuration, SRD CC v5.2.1)
 #
-# RAW 2024 (simplified from 2014):
-#   "You attempt to interrupt a creature in the process of casting a
-#    spell. If the creature is casting a spell of level 3 or lower,
-#    its spell fails and has no effect. If it is casting a spell of
-#    level 4 or higher, make an Intelligence (Spellcasting) check.
-#    The DC equals 10 + the spell's level. On a success, the
-#    creature's spell fails and has no effect."
+# RAW (SRD 5.2.1 / PHB 2024):
+#   Reaction (when you see a creature within 60 ft casting a spell
+#   with V/S/M components). The creature makes a Constitution saving
+#   throw. On a failed save, the spell dissipates with no effect, and
+#   the action/BA/reaction used to cast it is wasted. If that spell
+#   was cast with a spell slot, the slot isn't expended.
 #
-# Casting time: 1 reaction, which you take when you see a creature
-# within 60 feet of you casting a spell.
-#
-# Engine modeling (PR #46):
+# Engine modeling:
 #   - trigger: spell_cast_initiated — fires BEFORE the target's
-#     spell pipeline runs (after slot availability check). The
-#     pipeline.execute hook then checks state.cast_cancelled and
-#     skips the pipeline if Counterspell succeeded. Slot is still
-#     consumed (RAW 2024).
+#     spell pipeline runs. The counterspell_resolve primitive rolls
+#     the target caster's CON save vs the counterspeller's spell save
+#     DC. On fail: state.cast_cancelled = True → pipeline.execute
+#     skips the pipeline and refunds the slot.
 #   - condition: enemy_casting_spell_within_60_ft — caster on
-#     opposing side, not self, within 60 ft. Skips vision RAW gate.
-#   - pipeline: counterspell_resolve primitive does the level check
-#     + ability check + sets cast_cancelled.
+#     opposing side, not self, within 60 ft.
 #
 # v1 deferred:
 #   - "you can see" gate (no vision system)
-#   - Counterspell-of-Counterspell chains (reaction-cascade limit
-#     deferred from PR #45)
-#   - Counterspell against Magic Missile / other no-cast-time spells
-#     (all our spell actions go through pipeline.execute so this
-#     should just work, but no specific tests yet)
+#   - Counterspell-of-Counterspell chains (reaction-cascade limit)
 
 id: f_counterspell
 name: Counterspell

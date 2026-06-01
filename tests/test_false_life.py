@@ -1,7 +1,7 @@
 """False Life tests (PR #99) — one-shot self temp HP grant.
 
 RAW (1st-level Necromancy, PHB/SRD): Action, Self, NOT concentration.
-Gain 1d4+4 temp HP (v1: flat 6) for the duration. +5/upcast.
+Gain 2d4+4 temp HP (v1: flat 9). +5/upcast.
 
 The simplest temp-HP spell — pure reuse of PR #94 temp_hp infra +
 PR #96 upcast. This PR adds:
@@ -15,7 +15,7 @@ PR #96 upcast. This PR adds:
 Layers:
   1. f_false_life YAML loads (self, NOT concentration)
   2. Self-targeted detection → one candidate emitted
-  3. temp_hp_grant applies flat 6 to caster
+  3. temp_hp_grant applies flat 9 to caster
   4. Upcast scales (+5/level)
   5. Scorer = amount × absorption fraction (one-shot path, NOT Heroism)
   6. Scorer dedups when caster already has >= the grant in temp HP
@@ -66,7 +66,7 @@ def _false_life_action():
         "slot": "action", "named_effect": "false_life", "range_ft": 0,
         "pipeline": [
             {"primitive": "temp_hp_grant",
-              "params": {"target": "self", "amount": 6,
+              "params": {"target": "self", "amount": 9,
                           "amount_per_slot_above_base": 5}},
         ],
     }
@@ -143,8 +143,8 @@ class GrantTest(unittest.TestCase):
             "actor": caster, "target": caster,
             "action": {"id": "a_false_life", "named_effect": "false_life"},
         }
-        _temp_hp_grant({"target": "self", "amount": 6}, state, EventBus())
-        self.assertEqual(caster.temp_hp, 6)
+        _temp_hp_grant({"target": "self", "amount": 9}, state, EventBus())
+        self.assertEqual(caster.temp_hp, 9)
 
     def test_upcast_scales(self) -> None:
         caster = _make_actor("wiz")
@@ -154,11 +154,11 @@ class GrantTest(unittest.TestCase):
             "action": {"id": "a_false_life", "spell_slot_level": 1},
             "chosen_slot_level": 3,
         }
-        _temp_hp_grant({"target": "self", "amount": 6,
+        _temp_hp_grant({"target": "self", "amount": 9,
                           "amount_per_slot_above_base": 5},
                          state, EventBus())
-        # 6 + 2*5 = 16
-        self.assertEqual(caster.temp_hp, 16)
+        # 9 + 2*5 = 19
+        self.assertEqual(caster.temp_hp, 19)
 
 
 # ============================================================================
@@ -175,12 +175,12 @@ class ScoringTest(unittest.TestCase):
         score = defensive_ehp_defensive_buff(
             caster, caster, _false_life_action(), state)
         self.assertAlmostEqual(
-            score, 6 * TEMP_HP_ABSORPTION_FRACTION, places=4)
+            score, 9 * TEMP_HP_ABSORPTION_FRACTION, places=4)
 
     def test_dedup_when_already_has_temp_hp(self) -> None:
         from engine.ai.defensive_ehp import defensive_ehp_defensive_buff
         caster = _make_actor("wiz")
-        caster.temp_hp = 10   # already higher than the 6 grant
+        caster.temp_hp = 10   # already higher than the 9 grant
         state = _make_state([caster])
         score = defensive_ehp_defensive_buff(
             caster, caster, _false_life_action(), state)
@@ -193,11 +193,11 @@ class ScoringTest(unittest.TestCase):
         from engine.ai.defensive_ehp import defensive_ehp_defensive_buff
         caster = _make_actor("wiz")
         # caster has CHA 12 → +1 mod; Heroism path would give
-        # 1 * 0.6 * rounds; one-shot path gives 6 * 0.6 = 3.6.
+        # 1 * 0.6 * rounds; one-shot path gives 9 * 0.6 = 5.4.
         state = _make_state([caster])
         score = defensive_ehp_defensive_buff(
             caster, caster, _false_life_action(), state)
-        # One-shot value is 6 * fraction, distinctly larger than the
+        # One-shot value is 9 * fraction, distinctly larger than the
         # +1-mod Heroism per-tick of 0.6 * EXPECTED_BUFF_ROUNDS.
         self.assertGreater(score, 3.0)
 
