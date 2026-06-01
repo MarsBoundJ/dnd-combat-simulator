@@ -44,8 +44,9 @@ Legendary / Spellcasting), not by recharge itself:
 - Still recharge-ready but blocked on OTHER systems: **Young** dragons
   (CR 6–9, breath ready — most also fine but check per color); **Gorgon**
   (CR 5, Petrifying Breath → petrify escalation); **Half-Dragon** (CR 5);
-  **Ankheg** (CR 2, Acid Spray); **Ettercap** (CR 2, Web); **Adult
-  Brass/Bronze/Copper Dragon, Ancient Silver/White Dragon** (Legendary).
+  **Ankheg** (CR 2, Acid Spray); **Ettercap** (CR 2, Web); **Ancient
+  Silver/White Dragon** (Legendary). (**Adult Brass/Bronze/Copper** are
+  BUILT — batch M8.)
 ## Legendary Actions & Legendary Resistance
 **✅ BOTH SYSTEMS BUILT.**
 - **Legendary Resistance** (engine.core.legendary_resistance): stat-block
@@ -84,9 +85,31 @@ per monster.
   rating 5), **Tarrasque** (CR 30, rating 5) — Legendary no longer
   blocks, but each still defers on OTHER systems (Spellcasting / auras /
   on-hit drains / Swallow). Triage per creature.
-- rating 4: **Adult Gold/Silver Dragon, Ancient Black/Blue/Gold/
-  Green Dragon** — now buildable (Legendary + Recharge breath all
-  supported). (**Adult White** is BUILT — batch M7.) **Aboleth** (CR 10),
+- **✅ BUILT (batch M8): Adult Brass / Bronze / Copper / Gold / Silver
+  Dragon** (CR 13–17) — the first content to combine all four monster
+  systems: Multiattack of Rend (+ metallic elemental rider), Recharge 5–6
+  primary breath (DEX-save line for Brass/Bronze/Copper, DEX/CON-save cone
+  for Gold/Silver), an at-will SECONDARY breath where it composes (Brass
+  Sleep → co_incapacitated; Bronze Repulsion → push + co_prone; Copper
+  Slowing → co_slowed; Silver Paralyzing → co_incapacitated),
+  `legendary_resistance { uses: 3 }`, `legendary_actions` (Pounce Rend +
+  a save option: Brass Scorching Sands, Bronze Thunderclap, Copper
+  Giggling Magic, Gold Banish, Silver Cold Gale), and SAVE/AoE spell
+  casts via `casts:` (Copper Mind Spike at-will; Gold Flame Strike 1/Day;
+  Silver Hold Monster at-will + Ice Storm 1/Day). Per-dragon DEFERS noted
+  in each file (see also the Monster Spellcasting + Lair sections below):
+  Gold **Weakening Breath** (STR-disadvantage/damage-penalty debuff → no
+  primitive); the spell-ATTACK casts **Scorching Ray** (Brass) and
+  **Guiding Bolt** (Bronze, Gold) — marker features with no
+  `action_template`, so monster_spellcasting can't expand them; the
+  Spellcasting-based legendary actions (Brass Blazing Light, Bronze/Gold
+  Guiding Light, Copper Mind Jolt, Silver Chill — see Spellcasting note);
+  **Ice Knife** (Silver, unbuilt spell); and the no-engine-hook save
+  riders (sleep/paralysis escalation, Speed-halved, D20-Test penalty,
+  demiplane teleport).
+- rating 4: **Ancient Black/Blue/Gold/Green Dragon** — now buildable
+  (Legendary + Recharge breath all supported). (**Adult White** is BUILT —
+  batch M7; **Adult Gold/Silver** BUILT — batch M8.) **Aboleth** (CR 10),
   **Deva/Planetar/Solar** (CR 10/16/21), **Marilith** (CR 16),
   **Mummy Lord** (CR 15), **Purple Worm** (CR 15, also Swallow),
   **Dragon Turtle** (CR 17). Full defer.
@@ -113,6 +136,26 @@ Remaining blocker is now CONTENT, not engine: a caster is buildable once
 Bless, Fireball, Healing Word, Mass Healing Word, Spirit Guardians (plus
 the rest of the spell library). A caster needing an unbuilt spell defers
 on THAT spell (build it first, or omit + note).
+
+Two `casts`-expansion GAPS surfaced in batch M8 (each a small desktop-lane
+follow-up; not blockers for most casters):
+- **Spell-ATTACK spells can't be cast by monsters.** `expand_template`
+  copies a spell's effect from its `action_template`, but spell-attack
+  marker features (`pc_builder: kind: spell_attack` — e.g. Scorching Ray,
+  Guiding Bolt) have no `action_template`, so the expanded action ends up
+  with only `{id, name, casts}` (no type/pipeline) — non-runnable.
+  monster_spellcasting needs a spell-attack code path (or those features
+  need an action_template). Affected M8 defers: **Scorching Ray** (Adult
+  Brass), **Guiding Bolt** (Adult Bronze, Adult Gold). SAVE/AoE casts
+  (Mind Spike, Flame Strike, Hold Monster, Ice Storm) expand fine.
+- **`casts` is not expanded in `legendary_actions.options`.**
+  `expand_template` only walks top-level `actions`, so a spellcasting-based
+  legendary action (`{name: …, casts: f_x}` as an option) never gets a
+  pipeline and won't execute. The spell can still be offered as a normal
+  action; only the legendary-action *timing* is lost. Affected M8 defers:
+  Brass **Blazing Light**, Bronze/Gold **Guiding Light**, Copper **Mind
+  Jolt**, Silver **Chill**. (Expanding nested option `casts` would close
+  this.)
 - **Priest** (CR 2, rating 4) — Spellcasting (Light, Thaumaturgy, Spirit
   Guardians) + Divine Aid (Bless / Dispel Magic / Healing Word / Lesser
   Restoration). Full defer (its weapon attacks aren't the point).
@@ -177,10 +220,11 @@ without the rider** (its base damage is the core):
   the Nine Hells). **Built** with it recorded as a declarative trait.
 - rating 2 full defers: **Dust Mephit** (CR 1/2), **Magmin** (CR 1/2) —
   Death Burst (explode on death) + breath.
-- **Gold Dragon Wyrmling** (CR 3) — Weakening Breath (STR save: Disadvantage on
-  STR-based D20 Tests + a -1d4 damage-roll penalty). **Built without this
-  secondary breath** (a damage-roll/ability-check debuff has no primitive);
-  its Fire Breath + Rend are the core.
+- **Gold Dragon Wyrmling** (CR 3) and **Adult Gold Dragon** (CR 17, batch
+  M8) — Weakening Breath (STR save: Disadvantage on STR-based D20 Tests +
+  a -1d4/-1d6 damage-roll penalty). **Built without this secondary
+  breath** (a damage-roll/ability-check debuff has no primitive); the Fire
+  Breath + Rend (+ the Adult's legendary kit) are the core.
 
 ## Form change
 2024 SRD trait name is **"Shape-Shift"** (not "Change Shape").
