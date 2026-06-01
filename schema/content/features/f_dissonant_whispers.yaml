@@ -1,0 +1,63 @@
+# f_dissonant_whispers — Dissonant Whispers (Level 1 Enchantment, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p123): 60 ft, one creature. It makes a Wisdom
+# saving throw. On a failed save it takes 3d6 Psychic damage and must
+# immediately use its Reaction (if available) to move as far from you as
+# it can by the safest route. On a success it takes half damage only.
+# Using a Higher-Level Spell Slot: +1d6 per slot above 1. (Bard.)
+#
+# Engine modeling: a single-target save-for-half psychic nuke — a static
+# `save_attack` action_template. forced_save WIS vs the caster's spell
+# save DC; 3d6 psychic on a fail, half on a success. +1d6/slot upcast.
+#
+# granted_by points to c_bard (not yet shipped); the DC resolves
+# dynamically.
+#
+# Deferred RAW bits:
+#   - The "use Reaction to flee" rider (forced reaction-move + the
+#     opportunity attacks it provokes); the psychic damage is the
+#     load-bearing effect.
+#
+# source: srd_5.2.1
+
+id: f_dissonant_whispers
+name: Dissonant Whispers
+source: srd_5.2.1
+granted_by:
+  class: c_bard
+  level: 1
+type: active
+spell:
+  class: c_bard
+  level: 1
+
+description: |
+  One creature within 60 ft makes a WIS save vs spell DC: 3d6 psychic
+  on a fail, half on a success. +1d6 per slot above 1st. Flee-reaction
+  rider deferred.
+
+action_template:
+  id: a_dissonant_whispers
+  name: Dissonant Whispers
+  type: save_attack
+  spell_slot_level: 1
+  named_effect: dissonant_whispers
+  range_ft: 60
+  save_ability: wisdom
+  save_dc_source: caster_spell_save_dc
+  half_on_success: true
+  upcast_scaling:
+    extra_dice_per_level: "1d6"
+    damage_type: psychic
+  pipeline:
+    - primitive: forced_save
+      params:
+        ability: wisdom
+        dc_source: caster_spell_save_dc
+        affected: current_target
+        on_fail:
+          - primitive: damage
+            params: { dice: "3d6", modifier: 0, type: psychic }
+        on_success:
+          - primitive: damage
+            params: { dice: "3d6", modifier: 0, type: psychic, multiplier: 0.5 }

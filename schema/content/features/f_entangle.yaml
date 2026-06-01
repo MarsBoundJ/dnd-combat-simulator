@@ -1,0 +1,68 @@
+# f_entangle — Entangle (Level 1 Conjuration, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p127): grasping plants fill a 20-foot square
+# within 90 ft, turning it into Difficult Terrain. Each creature (other
+# than you) in the area when cast must succeed on a Strength saving throw
+# or have the Restrained condition until the spell ends. A Restrained
+# creature can use an action to make a Strength (Athletics) check vs your
+# spell save DC to free itself. Concentration, up to 1 minute.
+# (Druid/Ranger.)
+#
+# Engine modeling: a persistent restraining zone — the same archetype as
+# Web. type persistent_aura, 20-ft cube, point-anchored; STR save vs the
+# caster's spell save DC at each creature's turn-start in the area;
+# on_fail applies co_restrained until the actor's next turn-start (re-
+# saved each turn while in the zone, which doubles as the v1 escape
+# proxy for the Athletics-check break-out). Concentration.
+#
+# granted_by points to c_ranger (Ranger exists; Druid also gets it).
+#
+# Deferred RAW bits:
+#   - Difficult Terrain (no per-square movement-cost modeling).
+#   - The Strength (Athletics) action to escape — v1 uses the turn-start
+#     re-save (same posture as Web).
+#
+# source: srd_5.2.1
+
+id: f_entangle
+name: Entangle
+source: srd_5.2.1
+granted_by:
+  class: c_ranger
+  level: 1
+type: active
+spell:
+  class: c_ranger
+  level: 1
+
+description: |
+  20-ft square of grasping plants within 90 ft. STR save at each
+  creature's turn-start in area or Restrained. Concentration, 1 minute.
+
+action_template:
+  id: a_entangle
+  name: Entangle
+  type: persistent_aura
+  spell_slot_level: 1
+  concentration: true
+  named_effect: entangle
+  area:
+    shape: cube
+    size_ft: 20
+    range_ft: 90
+  pipeline:
+    - primitive: persistent_aura
+      params:
+        shape: cube
+        size_ft: 20
+        anchor: point
+        trigger_event: target_turn_start_in_area
+        affected: all_creatures
+        ability: strength
+        dc_source: caster_spell_save_dc
+        on_fail:
+          - primitive: apply_condition
+            params:
+              condition_id: co_restrained
+              duration: until_actor_next_turn_start
+        on_success: []

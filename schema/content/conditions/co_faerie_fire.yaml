@@ -1,0 +1,33 @@
+# co_faerie_fire — outlined by Faerie Fire
+# Source: SRD CC v5.2.1 p128 (the Faerie Fire spell)
+#
+# Not a core PHB condition — the named effect Faerie Fire imposes on a
+# creature that fails its save. Scope: absolute. An outlined creature
+# sheds Dim Light, can't benefit from the Invisible condition, and —
+# the load-bearing combat effect — attack rolls against it have
+# Advantage if the attacker can see it.
+#
+# Engine enforcement (v1): the "attacks against you have Advantage"
+# facet is a REAL modifier (attack_modifier / advantage_for_attacker,
+# the same shape Restrained uses for its grant-advantage effect). The
+# dim-light glow and the "can't benefit from Invisible" facets are
+# descriptive (no light-emission or invis-suppression hook in v1).
+
+id: co_faerie_fire
+name: Faerie Fire
+source: srd_5.2.1
+category: condition
+scope: absolute
+
+effects:
+  - id: attacks_vs_you_advantage
+    primitive: attack_modifier
+    params:
+      when: target_is_self
+      modifier: advantage_for_attacker
+
+  - id: sheds_dim_light
+    primitive: visibility_state
+    params:
+      emits_dim_light_ft: 10
+      cannot_benefit_from_invisible: true

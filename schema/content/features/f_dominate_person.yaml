@@ -1,0 +1,67 @@
+# f_dominate_person — Dominate Person (Level 5 Enchantment, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p125): 60 ft, one Humanoid. It makes a Wisdom
+# saving throw (with Advantage if you/your allies are fighting it) or
+# gains the Charmed condition for the duration. Whenever it takes damage
+# it repeats the save, ending the spell on a success. While Charmed you
+# share a telepathic link and can issue commands it obeys. Concentration,
+# up to 1 minute. (Bard/Sorcerer/Wizard.)
+#
+# Engine modeling: single-target domination. type hard_control;
+# forced_save WIS vs the caster's spell save DC, on_fail applies
+# co_charmed (the v1 control surface: the dominated target won't harm the
+# caster) + a turn-end WIS re-save. Concentration.
+#
+# Deferred RAW bits:
+#   - Full puppet control ("issue commands it obeys") — v1 models the
+#     Charmed combat effect only (won't attack the caster); the engine
+#     has no take-control-of-an-enemy's-turn mechanism.
+#   - Advantage-on-save-while-fighting + re-save-on-damage — v1 uses a
+#     plain turn-end WIS re-save as the escape.
+#   - Humanoid-only restriction (no creature-type filter).
+#   - co_charmed isn't in the AI control-denial set, so the AI scores
+#     this 0 (desktop-lane scoring owns Charmed weighting).
+#
+# source: srd_5.2.1
+
+id: f_dominate_person
+name: Dominate Person
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 9             # Wizards gain 5th-level slots at L9
+type: active
+spell:
+  class: c_wizard
+  level: 5
+
+description: |
+  One creature within 60 ft makes a WIS save or is Charmed (won't harm
+  the caster); re-saves at turn-end. Concentration. Full puppet
+  control deferred.
+
+action_template:
+  id: a_dominate_person
+  name: Dominate Person
+  type: hard_control
+  spell_slot_level: 5
+  concentration: true
+  named_effect: dominate_person
+  range_ft: 60
+  pipeline:
+    - primitive: forced_save
+      params:
+        ability: wisdom
+        dc_source: caster_spell_save_dc
+        affected: current_target
+        on_fail:
+          - primitive: apply_condition
+            params: { condition_id: co_charmed, duration: until_spell_ends }
+          - primitive: recurring_save
+            params:
+              ability: wisdom
+              dc_source: caster_spell_save_dc
+              trigger_event: target_turn_end
+              on_success: end_spell_on_target
+              condition_id: co_charmed
+        on_success: []
