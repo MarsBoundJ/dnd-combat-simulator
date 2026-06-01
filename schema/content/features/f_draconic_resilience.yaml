@@ -1,0 +1,20 @@
+# f_draconic_resilience — Draconic Resilience (Draconic Sorcery L3)
+#
+# RAW (SRD 5.2.1): Your HP maximum increases by 3, and by 1 whenever you
+# gain another Sorcerer level (net = your Sorcerer level). While not
+# wearing armor, your base AC = 10 + DEX modifier + CHA modifier.
+#
+# Engine modeling: a build-time passive. pc_schema (build_pc_template)
+# adds `sorcerer_level` to HP max and, when the PC has no armor block,
+# sets AC = 10 + DEX + CHA. Both keyed on f_draconic_resilience being in
+# features_known (via subclass consumption).
+#
+# source: srd_5.2.1
+
+id: f_draconic_resilience
+name: Draconic Resilience
+source: srd_5.2.1
+granted_by:
+  subclass: sc_draconic_sorcery
+  level: 3
+type: passive

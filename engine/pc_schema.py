@@ -264,6 +264,22 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
     invocations = _validate_invocations(
         pc_spec.get("invocations"), features_known, class_id, level)
     features_known = set(features_known) | set(invocations)
+
+    # Draconic Sorcery build-time effects (keyed on subclass features).
+    #   - Draconic Resilience: HP max += sorcerer level (RAW: +3 at L3,
+    #     +1 per level after = level); unarmored base AC = 10+DEX+CHA.
+    #   - Elemental Affinity: Resistance to the chosen draconic type
+    #     (pc_spec.draconic_element, default fire).
+    draconic_resistances: list[str] = []
+    if "f_draconic_resilience" in features_known:
+        hp += level
+        if not armor_spec:
+            ac = (10 + ability_modifier(ability_scores["dex"]["score"])
+                   + ability_modifier(ability_scores["cha"]["score"]))
+    if "f_elemental_affinity" in features_known:
+        draconic_resistances.append(
+            str(pc_spec.get("draconic_element", "fire")).lower())
+
     actions += _build_feature_actions(features_known, level, class_id,
                                          weapon_actions=weapon_actions,
                                          ability_scores=ability_scores,
@@ -338,8 +354,9 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
             if race_def else 0),
         "racial_traits": list(race_def.get("racial_traits") or [])
             if race_def else [],
-        "damage_resistances": list(race_def.get("damage_resistances") or [])
-            if race_def else [],
+        "damage_resistances": (
+            (list(race_def.get("damage_resistances") or [])
+              if race_def else []) + draconic_resistances),
         "race": race_id,    # telemetry only — runtime code uses
                               # template.racial_traits, not the id
         # Chosen subclass id (or None). Telemetry + reception-join key;
