@@ -1,0 +1,60 @@
+# f_blindness_deafness — Blindness/Deafness (Level 2 Transmutation, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p112): 120 ft. One creature makes a Constitution
+# saving throw or gains the Blinded OR Deafened condition (your choice) for
+# 1 minute. At the end of each of its turns it repeats the save, ending the
+# spell on a success. NOT Concentration. Using a Higher-Level Spell Slot:
+# one additional creature per slot above 2nd.
+#
+# Engine modeling: single-target save-or-debuff. type hard_control;
+# forced_save CON vs the caster's spell save DC, on_fail applies co_blinded
+# (the combat-relevant choice — Blinded gives the target Disadvantage on
+# attacks and attackers Advantage) plus a turn-end CON re-save that ends
+# the effect on a success (the SRD escape; works without Concentration).
+#
+# Deferred RAW bits:
+#   - The Deafened option (v1 always picks Blinded — the combat-relevant
+#     choice; co_deafened exists but is mostly non-combat).
+#   - Upcast multi-target (+1 creature per slot above 2nd).
+#
+# source: srd_5.2.1
+
+id: f_blindness_deafness
+name: Blindness/Deafness
+source: srd_5.2.1
+granted_by:
+  class: c_cleric
+  level: 3             # Clerics gain 2nd-level slots at L3
+type: active
+spell:
+  class: c_cleric
+  level: 2
+
+description: |
+  One creature within 120 ft makes a CON save or is Blinded for 1
+  minute; re-saves at each turn-end. Not Concentration.
+
+action_template:
+  id: a_blindness_deafness
+  name: Blindness/Deafness
+  type: hard_control
+  spell_slot_level: 2
+  named_effect: blindness_deafness
+  range_ft: 120
+  pipeline:
+    - primitive: forced_save
+      params:
+        ability: constitution
+        dc_source: caster_spell_save_dc
+        affected: current_target
+        on_fail:
+          - primitive: apply_condition
+            params: { condition_id: co_blinded, duration: until_spell_ends }
+          - primitive: recurring_save
+            params:
+              ability: constitution
+              dc_source: caster_spell_save_dc
+              trigger_event: target_turn_end
+              on_success: end_spell_on_target
+              condition_id: co_blinded
+        on_success: []

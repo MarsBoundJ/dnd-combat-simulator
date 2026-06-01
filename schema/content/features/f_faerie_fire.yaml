@@ -1,0 +1,70 @@
+# f_faerie_fire — Faerie Fire (Level 1 Evocation, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p128): objects in a 20-foot Cube within 60 ft
+# are outlined; each creature in the Cube is also outlined if it fails a
+# Dexterity saving throw. Outlined creatures/objects shed Dim Light in a
+# 10-ft radius, can't benefit from the Invisible condition, and attack
+# rolls against them have Advantage if the attacker can see them.
+# Concentration, up to 1 minute. (Bard/Druid.)
+#
+# Engine modeling: an AoE accuracy debuff. type aoe_attack; the 20-ft
+# Cube is approximated as a 10-ft-radius Sphere (forced_save's AoE
+# resolver supports sphere/cone/line). forced_save DEX vs the caster's
+# spell save DC, all_creatures_in_area; on_fail applies co_faerie_fire,
+# whose load-bearing effect grants Advantage to attackers who can see
+# the target. Concentration.
+#
+# granted_by points to c_druid (not yet shipped); the DC resolves
+# dynamically, so the spell loads + executes regardless.
+#
+# Deferred RAW bits:
+#   - Cube→sphere geometry; dim-light glow + invis-suppression facets
+#     (descriptive on co_faerie_fire).
+#   - The advantage-granting effect isn't in the AI's control set, so
+#     offensive_ehp_aoe scores it 0 (it's an accuracy buff, not denial);
+#     desktop-lane scoring owns that valuation.
+#   - No turn-end re-save (RAW Faerie Fire has none — it ends only with
+#     Concentration; note the apply_condition/concentration-cleanup gap
+#     in NEEDS_ENGINE_WORK means the outline persists until the runner's
+#     concentration scrub is fixed).
+#
+# source: srd_5.2.1
+
+id: f_faerie_fire
+name: Faerie Fire
+source: srd_5.2.1
+granted_by:
+  class: c_druid
+  level: 1
+type: active
+spell:
+  class: c_druid
+  level: 1
+
+description: |
+  20-ft cube (modeled as a 10-ft sphere) within 60 ft. DEX save vs
+  spell DC or outlined: attackers who can see you have Advantage.
+  Concentration, 1 minute.
+
+action_template:
+  id: a_faerie_fire
+  name: Faerie Fire
+  type: aoe_attack
+  spell_slot_level: 1
+  concentration: true
+  named_effect: faerie_fire
+  range_ft: 60
+  area:
+    shape: sphere        # 20-ft Cube approximated as a 10-ft-radius Sphere
+    radius_ft: 10
+    range_ft: 60
+  pipeline:
+    - primitive: forced_save
+      params:
+        ability: dexterity
+        dc_source: caster_spell_save_dc
+        affected: all_creatures_in_area
+        on_fail:
+          - primitive: apply_condition
+            params: { condition_id: co_faerie_fire, duration: until_spell_ends }
+        on_success: []

@@ -1,0 +1,56 @@
+# f_inflict_wounds — Inflict Wounds (Level 1 Necromancy, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p142): touch. The target makes a Constitution
+# saving throw, taking 2d10 Necrotic damage on a failed save or half as
+# much on a success. (2024 changed this from an attack-roll spell to a
+# save-for-half.) Using a Higher-Level Spell Slot: +1d10 per slot above 1.
+#
+# Engine modeling: a single-target save-for-half — a static `save_attack`
+# action_template (no PC-build-time construction needed; the DC resolves
+# dynamically from the caster). forced_save CON vs the caster's spell
+# save DC: 2d10 necrotic on fail, half on success. upcast_scaling adds
+# +1d10 necrotic per slot above 1st. The top-level save_ability /
+# save_dc_source / half_on_success let offensive_ehp_save_attack score it.
+#
+# source: srd_5.2.1
+
+id: f_inflict_wounds
+name: Inflict Wounds
+source: srd_5.2.1
+granted_by:
+  class: c_cleric
+  level: 1
+type: active
+spell:
+  class: c_cleric
+  level: 1
+
+description: |
+  Touch. CON save vs spell DC: 2d10 necrotic on a fail, half on a
+  success. +1d10 per slot above 1st.
+
+action_template:
+  id: a_inflict_wounds
+  name: Inflict Wounds
+  type: save_attack
+  spell_slot_level: 1
+  named_effect: inflict_wounds
+  range_ft: 5             # touch
+  save_ability: constitution
+  save_dc_source: caster_spell_save_dc
+  half_on_success: true
+  upcast_scaling:
+    extra_dice_per_level: "1d10"
+    damage_type: necrotic
+  pipeline:
+    - primitive: forced_save
+      params:
+        ability: constitution
+        dc_source: caster_spell_save_dc
+        affected: current_target
+        on_fail:
+          - primitive: damage
+            params: { dice: "2d10", modifier: 0, type: necrotic }
+        on_success:
+          - primitive: damage
+            params: { dice: "2d10", modifier: 0, type: necrotic, multiplier: 0.5 }

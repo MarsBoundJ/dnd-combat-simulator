@@ -1,0 +1,59 @@
+# f_shatter — Shatter (Level 2 Evocation, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p160): a loud noise erupts at a point within
+# 60 ft. Each creature in a 10-foot-radius Sphere there makes a
+# Constitution saving throw, taking 3d8 Thunder damage on a failed save
+# or half on a success. A Construct has Disadvantage on the save. Using
+# a Higher-Level Spell Slot: +1d8 per slot above 2.
+#
+# Engine modeling: a small instantaneous sphere AoE — same shape as
+# Fireball. Static `aoe_attack`; forced_save CON vs the spell save DC,
+# all_creatures_in_area; 3d8 thunder on a fail, half on a success.
+# +1d8/slot upcast.
+#
+# Deferred RAW bits:
+#   - Construct save Disadvantage (no creature-type save modifier in v1).
+#
+# source: srd_5.2.1
+
+id: f_shatter
+name: Shatter
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 3             # Wizards gain 2nd-level slots at L3
+type: active
+spell:
+  class: c_wizard
+  level: 2
+
+description: |
+  10-ft radius sphere within 60 ft. CON save vs spell DC: 3d8 thunder
+  on a fail, half on a success. +1d8 per slot above 2nd.
+
+action_template:
+  id: a_shatter
+  name: Shatter
+  type: aoe_attack
+  spell_slot_level: 2
+  named_effect: shatter
+  range_ft: 60
+  area:
+    shape: sphere
+    radius_ft: 10
+    range_ft: 60
+  upcast_scaling:
+    extra_dice_per_level: "1d8"
+    damage_type: thunder
+  pipeline:
+    - primitive: forced_save
+      params:
+        ability: constitution
+        dc_source: caster_spell_save_dc
+        affected: all_creatures_in_area
+        on_fail:
+          - primitive: damage
+            params: { dice: "3d8", modifier: 0, type: thunder }
+        on_success:
+          - primitive: damage
+            params: { dice: "3d8", modifier: 0, type: thunder, multiplier: 0.5 }

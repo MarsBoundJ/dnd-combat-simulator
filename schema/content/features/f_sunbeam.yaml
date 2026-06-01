@@ -1,0 +1,66 @@
+# f_sunbeam — Sunbeam (Level 6 Evocation, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p165): a 5-ft-wide, 60-ft-long Line of light.
+# Each creature in the Line makes a Constitution saving throw: on a fail
+# it takes 6d8 Radiant damage and has the Blinded condition until the
+# start of your next turn; on a success it takes half damage only. On
+# later turns you can take a Magic action to fire a new Line.
+# Concentration, up to 1 minute. (Cleric/Druid/Sorcerer/Wizard.)
+#
+# Engine modeling: a line AoE save-burst with a rider — a static
+# `aoe_attack` with a `line` area (length 60, width 5). forced_save CON
+# vs the caster's spell save DC, all_creatures_in_area; on a fail 6d8
+# radiant + co_blinded (until the actor's next turn-start), on a success
+# half damage. Concentration declared (repeat-line deferred).
+#
+# Deferred RAW bits:
+#   - The per-later-turn "fire a new Line" action (recurring-caster-
+#     action system; v1 fires the first line only).
+#   - "Blinded until the start of YOUR next turn" approximated as
+#     until_actor_next_turn_start on the blinded creature.
+#
+# source: srd_5.2.1
+
+id: f_sunbeam
+name: Sunbeam
+source: srd_5.2.1
+granted_by:
+  class: c_cleric
+  level: 11            # Clerics gain 6th-level slots at L11
+type: active
+spell:
+  class: c_cleric
+  level: 6
+
+description: |
+  60-ft line (5 ft wide). CON save vs spell DC: 6d8 radiant + Blinded
+  on a fail, half on a success. Concentration (repeat-line deferred).
+
+action_template:
+  id: a_sunbeam
+  name: Sunbeam
+  type: aoe_attack
+  spell_slot_level: 6
+  concentration: true
+  named_effect: sunbeam
+  range_ft: 60
+  area:
+    shape: line
+    length_ft: 60
+    width_ft: 5
+  pipeline:
+    - primitive: forced_save
+      params:
+        ability: constitution
+        dc_source: caster_spell_save_dc
+        affected: all_creatures_in_area
+        on_fail:
+          - primitive: damage
+            params: { dice: "6d8", modifier: 0, type: radiant }
+          - primitive: apply_condition
+            params:
+              condition_id: co_blinded
+              duration: until_actor_next_turn_start
+        on_success:
+          - primitive: damage
+            params: { dice: "6d8", modifier: 0, type: radiant, multiplier: 0.5 }

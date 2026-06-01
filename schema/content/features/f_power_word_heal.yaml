@@ -1,0 +1,45 @@
+# f_power_word_heal — Power Word Heal (Level 9 Enchantment, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p153): 60 ft, one creature. The target regains
+# ALL its Hit Points. If it has the Charmed, Frightened, Paralyzed,
+# Poisoned, or Stunned condition, that condition ends; if Prone, it can
+# use its Reaction to stand. (Bard/Cleric.)
+#
+# Engine modeling: a single-target full heal — a static `heal`
+# action_template. The heal primitive clamps to hp_max, so a fixed
+# amount larger than any creature's max (9999) restores the target to
+# full regardless of its maximum. Enumerated per ally and scored by
+# defensive_ehp_healing (capped at missing HP).
+#
+# Deferred RAW bits:
+#   - The condition-cleanse (Charmed/Frightened/Paralyzed/Poisoned/
+#     Stunned) — no cleanse primitive (see Lesser/Greater Restoration in
+#     NEEDS_ENGINE_WORK); the full-HP restore is the load-bearing effect.
+#
+# source: srd_5.2.1
+
+id: f_power_word_heal
+name: Power Word Heal
+source: srd_5.2.1
+granted_by:
+  class: c_cleric
+  level: 17            # Clerics gain 9th-level slots at L17
+type: active
+spell:
+  class: c_cleric
+  level: 9
+
+description: |
+  A creature within 60 ft regains all its HP (modeled as a fixed 9999
+  heal, clamped to max). Condition-cleanse deferred.
+
+action_template:
+  id: a_power_word_heal
+  name: Power Word Heal
+  type: heal
+  spell_slot_level: 9
+  named_effect: power_word_heal
+  range_ft: 60
+  pipeline:
+    - primitive: heal
+      params: { target: current_target, fixed: 9999 }

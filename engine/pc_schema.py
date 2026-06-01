@@ -1051,6 +1051,39 @@ def _build_feature_actions(features_known: set[str], level: int,
     if "f_fire_bolt" in features_known and ability_scores is not None:
         actions.append(_build_fire_bolt_action(
             level, ability_scores, proficiency_bonus, class_id))
+    # batch-2 attack/save cantrips + leveled spell-attacks. All bake the
+    # spell attack bonus (spell mod + PB) at PC-build time because the
+    # attack_roll primitive takes a fixed bonus; cantrips also bake the
+    # character-level die count. Gated on the feature id, so only the
+    # granting class builds each.
+    if "f_ray_of_frost" in features_known and ability_scores is not None:
+        actions.append(_build_attack_cantrip_action(
+            "a_ray_of_frost", "Ray of Frost", level, ability_scores,
+            proficiency_bonus, class_id, damage_type="cold", die=8,
+            range_ft=60))
+    if "f_vicious_mockery" in features_known:
+        actions.append(_build_save_cantrip_action(
+            "a_vicious_mockery", "Vicious Mockery", level,
+            save_ability="wisdom", damage_type="psychic", die=6,
+            range_ft=60))
+    if "f_guiding_bolt" in features_known and ability_scores is not None:
+        actions.append(_build_leveled_spell_attack_action(
+            "a_guiding_bolt", "Guiding Bolt", slot_level=1, range_ft=120,
+            ability_scores=ability_scores, proficiency_bonus=proficiency_bonus,
+            class_id=class_id, damage_dice="4d6", damage_type="radiant",
+            upcast_dice="1d6"))
+    if "f_chromatic_orb" in features_known and ability_scores is not None:
+        actions.append(_build_leveled_spell_attack_action(
+            "a_chromatic_orb", "Chromatic Orb", slot_level=1, range_ft=90,
+            ability_scores=ability_scores, proficiency_bonus=proficiency_bonus,
+            class_id=class_id, damage_dice="3d8", damage_type="fire",
+            upcast_dice="1d8"))
+    if "f_scorching_ray" in features_known and ability_scores is not None:
+        actions.append(_build_leveled_spell_attack_action(
+            "a_scorching_ray", "Scorching Ray", slot_level=2, range_ft=120,
+            ability_scores=ability_scores, proficiency_bonus=proficiency_bonus,
+            class_id=class_id, damage_dice="2d6", damage_type="fire",
+            ray_count=3))
     # PR #116: Cure Wounds — direct heal (2d8 + spellcasting-ability
     # mod). Built here (not auto-attached) because the +mod depends on
     # the caster's ability, like Eldritch Blast / the cantrips.
@@ -1063,6 +1096,15 @@ def _build_feature_actions(features_known: set[str], level: int,
     if "f_healing_word" in features_known and ability_scores is not None:
         actions.append(_build_healing_word_action(
             level, ability_scores, class_id))
+    # batch-2 mass heals — multi-target (max_targets=6) heal actions that
+    # ride the candidate generator's Aid-shape grouping. +mod baked at
+    # build time like the single-target heals.
+    if "f_mass_healing_word" in features_known and ability_scores is not None:
+        actions.append(_build_mass_healing_word_action(
+            level, ability_scores, class_id))
+    if "f_mass_cure_wounds" in features_known and ability_scores is not None:
+        actions.append(_build_mass_cure_wounds_action(
+            level, ability_scores, class_id))
     return actions
 
 
@@ -1073,6 +1115,12 @@ def _build_feature_actions(features_known: set[str], level: int,
 _SPELL_ABILITY_BY_CLASS = {
     "c_cleric": "wis", "c_paladin": "cha", "c_ranger": "wis",
     "c_wizard": "int", "c_warlock": "cha",
+    # Spellcasting abilities for SRD caster classes not yet shipped as
+    # class YAMLs (Bard/Sorcerer/Druid). Listed so attack/save cantrip
+    # builders compute the right modifier when those classes land + so
+    # batch-2 spell tests can exercise the builders directly. The
+    # dispatch only fires once the class exists to grant the feature.
+    "c_bard": "cha", "c_sorcerer": "cha", "c_druid": "wis",
 }
 
 
@@ -1132,6 +1180,63 @@ def _build_healing_word_action(level: int, ability_scores: dict,
             {"primitive": "heal",
               "params": {"target": "current_target",
                           "dice": "2d4", "modifier": mod}},
+        ],
+    }
+
+
+def _build_mass_healing_word_action(level: int, ability_scores: dict,
+                                       class_id: str) -> dict:
+    """Mass Healing Word (batch 2): a 3rd-level BONUS-action ranged heal
+    of 2d4 + spellcasting mod to up to six creatures within 60 ft. Same
+    `heal` shape as Healing Word plus max_targets=6, which routes it
+    through the candidate generator's multi-target grouping (PR #97
+    Aid-shape) so one cast heals the best up-to-6 wounded allies.
+
+    Deferred: upcast (+1d4 per slot above 3rd) — base cast only in v1."""
+    abbr = _SPELL_ABILITY_BY_CLASS.get(class_id, "wis")
+    score = (ability_scores.get(abbr) or {}).get("score", 10)
+    mod = max(0, ability_modifier(score))
+    return {
+        "id": "a_mass_healing_word",
+        "name": "Mass Healing Word",
+        "type": "heal",
+        "slot": "bonus_action",
+        "spell_slot_level": 3,
+        "range_ft": 60,
+        "max_targets": 6,
+        "pipeline": [
+            {"primitive": "heal",
+              "params": {"target": "current_target",
+                          "dice": "2d4", "modifier": mod}},
+        ],
+    }
+
+
+def _build_mass_cure_wounds_action(level: int, ability_scores: dict,
+                                      class_id: str) -> dict:
+    """Mass Cure Wounds (batch 2): a 5th-level Action heal of 5d8 +
+    spellcasting mod to up to six creatures in a 30-ft sphere within
+    60 ft. `heal` + max_targets=6 → multi-target grouping. v1 picks the
+    best up-to-6 wounded allies by the candidate grouper rather than
+    modeling the sphere placement (the heal goes to whoever's hurt).
+
+    Deferred: upcast (+1d8 per slot above 5th); explicit sphere
+    placement (v1 heals the wounded directly)."""
+    abbr = _SPELL_ABILITY_BY_CLASS.get(class_id, "wis")
+    score = (ability_scores.get(abbr) or {}).get("score", 10)
+    mod = max(0, ability_modifier(score))
+    return {
+        "id": "a_mass_cure_wounds",
+        "name": "Mass Cure Wounds",
+        "type": "heal",
+        "slot": "action",
+        "spell_slot_level": 5,
+        "range_ft": 60,
+        "max_targets": 6,
+        "pipeline": [
+            {"primitive": "heal",
+              "params": {"target": "current_target",
+                          "dice": "5d8", "modifier": mod}},
         ],
     }
 
@@ -1233,6 +1338,86 @@ def _build_fire_bolt_action(level: int, ability_scores: dict,
               "when": {"condition": "combat.attack_state == hit"}},
         ],
     }
+
+
+def _spell_attack_bonus(ability_scores: dict, proficiency_bonus: int,
+                          class_id: str) -> tuple[int, str]:
+    """(attack_bonus, ability_abbr) for a spell attack: the caster's
+    spellcasting-ability modifier + proficiency bonus. Shared by every
+    attack-roll spell builder (Fire Bolt has its own copy for history)."""
+    abbr = _SPELL_ABILITY_BY_CLASS.get(class_id, "int")
+    score = (ability_scores.get(abbr) or {}).get("score", 10)
+    return ability_modifier(score) + proficiency_bonus, abbr
+
+
+def _build_attack_cantrip_action(action_id: str, name: str, level: int,
+                                    ability_scores: dict, proficiency_bonus: int,
+                                    class_id: str, *, damage_type: str,
+                                    die: int, range_ft: int) -> dict:
+    """Generic ranged-spell-attack cantrip (Ray of Frost shape; Fire Bolt
+    predates this helper). Attack bonus = spell mod + PB; damage = Nd<die>
+    of `damage_type` with N from _cantrip_dice_count, gated on hit. No
+    ability modifier on the damage (cantrip RAW). spell_slot_level 0."""
+    attack_bonus, abbr = _spell_attack_bonus(
+        ability_scores, proficiency_bonus, class_id)
+    n = _cantrip_dice_count(level)
+    return {
+        "id": action_id,
+        "name": name,
+        "type": "weapon_attack",
+        "slot": "action",
+        "spell_slot_level": 0,
+        "pipeline": [
+            {"primitive": "attack_roll",
+              "params": {"kind": "ranged", "ability": abbr,
+                          "bonus": attack_bonus, "range_ft": range_ft}},
+            {"primitive": "damage",
+              "params": {"dice": f"{n}d{die}", "modifier": 0,
+                          "type": damage_type},
+              "when": {"condition": "combat.attack_state == hit"}},
+        ],
+    }
+
+
+def _build_leveled_spell_attack_action(action_id: str, name: str, *,
+                                          slot_level: int, range_ft: int,
+                                          ability_scores: dict,
+                                          proficiency_bonus: int, class_id: str,
+                                          damage_dice: str, damage_type: str,
+                                          ray_count: int = 1,
+                                          upcast_dice: str | None = None) -> dict:
+    """Generic leveled ranged-spell-attack action (Guiding Bolt,
+    Chromatic Orb, Scorching Ray). Attack bonus = spell mod + PB, baked
+    at PC-build time because the attack_roll primitive takes a fixed
+    bonus. `ray_count` > 1 emits that many (attack_roll, damage-on-hit)
+    pairs in one action (Scorching Ray's three rays focus-fired in v1).
+    `upcast_dice` (single-ray only) attaches a per-slot-level scaling
+    block; multi-ray upcast adds RAYS not dice (RAW), so it's left off."""
+    attack_bonus, abbr = _spell_attack_bonus(
+        ability_scores, proficiency_bonus, class_id)
+    pipeline: list[dict] = []
+    for _ in range(max(1, ray_count)):
+        pipeline.append(
+            {"primitive": "attack_roll",
+              "params": {"kind": "ranged", "ability": abbr,
+                          "bonus": attack_bonus, "range_ft": range_ft}})
+        pipeline.append(
+            {"primitive": "damage",
+              "params": {"dice": damage_dice, "modifier": 0,
+                          "type": damage_type},
+              "when": {"condition": "combat.attack_state == hit"}})
+    action = {
+        "id": action_id,
+        "name": name,
+        "type": "weapon_attack",
+        "slot": "action",
+        "spell_slot_level": slot_level,
+        "pipeline": pipeline,
+    }
+    if upcast_dice and ray_count == 1:
+        action["upcast_scaling"] = {"extra_dice_per_level": upcast_dice,
+                                      "damage_type": damage_type}
+    return action
 
 
 def _build_toll_the_dead_action(level: int) -> dict:
