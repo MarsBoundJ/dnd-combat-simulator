@@ -289,6 +289,90 @@ first, then the spell rides it.
   disables spell candidates, modifiers, auras, and items for occupants —
   a broad, cross-cutting engine feature.
 
+## Needs pc_schema builder (desktop lane)
+These compose from existing primitives, but their attack bonus and/or
+damage dice key off the caster's stats + level, so they need a
+`_build_*_action` + dispatch line in pc_schema.py — which the desktop
+lane now owns (Bard done; Sorcerer/Monk/Druid in progress). Deferred to
+avoid pc_schema collisions; build once the class build-out settles. All
+are ranged/melee SPELL ATTACKS (the attack_roll primitive takes a fixed
+bonus, so the bonus must be baked at PC-build time, exactly like Fire
+Bolt / Eldritch Blast / Guiding Bolt / Scorching Ray already are).
+- **Chill Touch** (cantrip, P3) — ranged spell attack, 1d10 Necrotic,
+  target can't regain HP until your next turn (rider deferrable).
+- **Produce Flame** (cantrip, P3) — ranged spell attack, 1d8 Fire.
+- **Shocking Grasp** (cantrip, P3) — melee spell attack, 1d8 Lightning,
+  advantage vs metal-armored, target can't take Reactions.
+- **Sorcerous Burst** (cantrip, P3) — ranged spell attack, 1d8 (choose
+  type), explodes on a max die (rider deferrable).
+- **Starry Wisp** (cantrip, P3) — ranged spell attack, 1d8 Radiant,
+  reveals Invisible targets.
+- **Ice Knife** (L1, P3) — ranged spell attack 1d10 Piercing PLUS a
+  DEX-save 2d6 Cold burst around the target (the attack half needs the
+  builder; the burst half is a normal forced_save).
+
+## HP-threshold conditional effects
+- **Power Word Stun** (L8, P3) — no save; if the target has ≤150 HP it is
+  Stunned (CON re-save to end), otherwise nothing.
+- **Power Word Kill** (L9, P3) — no save; if the target has ≤100 HP it
+  dies outright.
+- **Divine Word** (L7, P3) — applies different conditions (Deafened /
+  Blinded / Stunned / dies) by the target's current-HP band.
+  All need a cast-time current-HP gate that selects the effect; the
+  pipeline has no "branch on target HP" step, and modeling them without
+  the gate (e.g. always-stun) would be strictly stronger than RAW.
+
+## Glyph / ward / trap
+- **Glyph of Warding** (L3, P3), **Symbol** (L7, P3), **Forbiddance**
+  (L6, P3) — pre-placed effects that trigger on a later condition (a
+  creature entering / reading / a trigger word). Needs a placed-trigger
+  system (the Contingency/Ready bucket, but location- and event-keyed
+  and persistent out of combat).
+
+## Size change
+- **Enlarge/Reduce** (L2, P3) — grow/shrink a creature: advantage or
+  disadvantage on STR, weapon damage +1d4 or -1d4, size category shift.
+  The +1d4/-1d4 weapon rider composes, but the size category (reach,
+  push/grapple eligibility, space) has no model; deferred as a unit.
+
+## Movement-mode buffs (no enforcement yet)
+- **Longstrider** (L1, P3) — +10 ft Speed. **Expeditious Retreat** (L1,
+  P3) — Dash as a Bonus Action. **Spider Climb** (L2, P3) — climb speed +
+  wall-walking. speed_modifier is a stub and the runner doesn't model
+  movement budget / climb, so these have nothing to enforce in v1.
+
+## Recurring heal-over-time
+- **Regenerate** (L7, P3) — restores HP now and then 1 HP at the start of
+  each of the target's turns for the duration (plus regrows limbs).
+  Needs a per-turn recurring-heal tick (the heal dual of recurring_damage
+  / recurring_temp_hp, keyed to the target's turn rather than a caster
+  action).
+
+## Damage-sharing / protective link
+- **Warding Bond** (L2, P3) — a bonded ally gains +1 AC, +1 saves, and
+  Resistance to all damage, while the caster takes the same damage the
+  ally takes. Needs a damage-redirection/sharing link plus a resistance
+  grant (see the immunity/resistance-grant bucket).
+
+## Random damage-type table
+- **Prismatic Spray** (L7, P3) — a 60-ft cone where each target rolls
+  1d8 for one of eight rays: six are 12d6 of differing types, one
+  Restrains→Petrifies, one Blinds→banishes. Needs per-target random
+  effect selection from a table plus the petrify/banish riders; not
+  expressible as a single forced_save pipeline.
+
+## Stabilize dying
+- **Spare the Dying** (cantrip, P3) — stabilize a creature at 0 HP. Needs
+  the dying / death-save state (same gap as Revivify's death model).
+
+## Resistance / immunity grants (already tracked above)
+- **Protection from Energy** (L3), **Stoneskin** (L4), **Fire Shield**
+  (L4), **Globe of Invulnerability** (L6, P3) all need the
+  damage-resistance / damage-immunity / spell-suppression grants already
+  called out under "Condition / damage immunity grants" and "Magic
+  suppression field." Fire Shield additionally needs a retaliation-on-hit
+  rider.
+
 ## Meta / Special
 - **Wish** (L9, P5) — can duplicate any 8th-level-or-lower spell + freeform
 - **Mass Suggestion** (L6, P5) — multi-target charm control (12 creatures)

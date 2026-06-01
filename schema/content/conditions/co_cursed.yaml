@@ -1,0 +1,25 @@
+# co_cursed — cursed by Bestow Curse
+# Source: SRD CC v5.2.1 p111 (the Bestow Curse spell)
+#
+# Not a core PHB condition — the named effect Bestow Curse imposes. The
+# spell offers several curse options; v1 models the combat-relevant one:
+# the cursed creature has Disadvantage on its attack rolls (RAW option:
+# "Disadvantage on attack rolls against you", generalized to its attacks
+# in v1). Scope: absolute.
+#
+# Engine enforcement: the attack-roll Disadvantage is a REAL modifier the
+# query layer applies (disadvantage_for_self when the cursed creature is
+# the attacker).
+
+id: co_cursed
+name: Cursed
+source: srd_5.2.1
+category: condition
+scope: absolute
+
+effects:
+  - id: your_attacks_disadvantage
+    primitive: attack_modifier
+    params:
+      when: attacker_is_self
+      modifier: disadvantage_for_self

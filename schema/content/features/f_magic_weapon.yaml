@@ -1,0 +1,58 @@
+# f_magic_weapon — Magic Weapon (Level 2 Transmutation, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p145): Bonus Action, Touch. A nonmagical weapon
+# you touch becomes magical with a +1 bonus to attack and damage rolls
+# (+2 with a level-4 slot, +3 with a level-6 slot). Concentration, up to
+# 1 hour. (Paladin/Ranger/Sorcerer/Wizard.)
+#
+# Engine modeling: a self weapon buff (the caster's own weapon in v1) —
+# an attack_modifier (+1 to the caster's attack rolls, gated on
+# attacker_is_self) plus a weapon_damage_bonus (+1 on weapon attacks),
+# the same primitives Bless and Divine Favor use. Concentration, so
+# end_concentration scrubs both action-sourced modifiers when the spell
+# ends.
+#
+# Deferred RAW bits:
+#   - Upcast scaling to +2/+3 (base +1 in v1).
+#   - Buffing an ally's / a specific weapon (v1 targets the caster).
+#
+# source: srd_5.2.1
+
+id: f_magic_weapon
+name: Magic Weapon
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 3             # Wizards gain 2nd-level slots at L3
+type: active
+spell:
+  class: c_wizard
+  level: 2
+
+description: |
+  The caster's weapon gains +1 to attack and damage. Bonus action,
+  Concentration, 1 hour.
+
+action_template:
+  id: a_magic_weapon
+  name: Magic Weapon
+  type: defensive_buff
+  spell_slot_level: 2
+  slot: bonus_action
+  concentration: true
+  named_effect: magic_weapon
+  range_ft: 5             # touch (self in v1)
+  pipeline:
+    - primitive: attack_modifier
+      params:
+        target: self
+        when: attacker_is_self
+        modifier: attack_bonus
+        value: 1
+        lifetime: until_short_rest
+    - primitive: weapon_damage_bonus
+      params:
+        target: self
+        value: 1
+        when: weapon_attack
+        lifetime: until_short_rest

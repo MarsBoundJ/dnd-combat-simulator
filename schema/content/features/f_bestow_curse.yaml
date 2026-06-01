@@ -1,0 +1,60 @@
+# f_bestow_curse — Bestow Curse (Level 3 Necromancy, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1, p111): touch, one creature. It makes a Wisdom
+# saving throw or is cursed for the duration with one chosen effect:
+# Disadvantage on checks/saves with one ability; Disadvantage on attack
+# rolls against you; a per-turn WIS save or lose its action; or +1d8
+# Necrotic from your attacks. Concentration, up to 1 minute.
+# (Bard/Cleric/Wizard.)
+#
+# Engine modeling: single-target save-or-curse. type hard_control;
+# forced_save WIS vs the caster's spell save DC, on_fail applies
+# co_cursed (the "Disadvantage on attack rolls" option — the enforced
+# combat effect) + a turn-end WIS re-save. Concentration.
+#
+# Deferred RAW bits:
+#   - The other curse options (ability disadvantage / lose-action /
+#     +1d8 necrotic) — v1 models the attack-Disadvantage option.
+#
+# source: srd_5.2.1
+
+id: f_bestow_curse
+name: Bestow Curse
+source: srd_5.2.1
+granted_by:
+  class: c_cleric
+  level: 5             # Clerics gain 3rd-level slots at L5
+type: active
+spell:
+  class: c_cleric
+  level: 3
+
+description: |
+  Touch. WIS save or Cursed (Disadvantage on its attack rolls);
+  re-saves at turn-end. Concentration, 1 minute.
+
+action_template:
+  id: a_bestow_curse
+  name: Bestow Curse
+  type: hard_control
+  spell_slot_level: 3
+  concentration: true
+  named_effect: bestow_curse
+  range_ft: 5             # touch
+  pipeline:
+    - primitive: forced_save
+      params:
+        ability: wisdom
+        dc_source: caster_spell_save_dc
+        affected: current_target
+        on_fail:
+          - primitive: apply_condition
+            params: { condition_id: co_cursed, duration: until_spell_ends }
+          - primitive: recurring_save
+            params:
+              ability: wisdom
+              dc_source: caster_spell_save_dc
+              trigger_event: target_turn_end
+              on_success: end_spell_on_target
+              condition_id: co_cursed
+        on_success: []
