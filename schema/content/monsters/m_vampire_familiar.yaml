@@ -1,0 +1,58 @@
+# m_vampire_familiar — Vampire Familiar
+# Source: SRD CC v5.2.1 p335
+# Triage: GREEN — Multiattack of Umbral Dagger (+ necrotic). Necrotic
+# resistance + Charmed immunity (except from its master) declarative;
+# Vampiric Connection is a declarative telepathy trait. Climb omitted.
+id: m_vampire_familiar
+name: Vampire Familiar
+source: srd_5.2.1
+size: medium
+creature_type: humanoid
+alignment: neutral_evil
+combat:
+  armor_class: 15
+  hit_points: { average: 65, dice: "10d8", con_contribution: 20 }
+  speed: { walk: 30 }
+  initiative: { modifier: 5, score: 15 }
+abilities:
+  str: { score: 17, save: 3 }
+  dex: { score: 16, save: 5 }
+  con: { score: 15, save: 2 }
+  int: { score: 10, save: 0 }
+  wis: { score: 10, save: 2 }
+  cha: { score: 14, save: 2 }
+skills: { perception: 4, persuasion: 4, stealth: 7 }
+damage_resistances: [necrotic]
+damage_vulnerabilities: []
+damage_immunities: []
+condition_immunities: [co_charmed]
+gear: [dagger]
+senses: { passive_perception: 14, special: { darkvision: 60 } }
+languages: [common]
+cr: { value: 3, xp: 700, proficiency_bonus: 2 }
+traits:
+  - id: t_vampiric_connection
+    name: Vampiric Connection
+    type: trait_passive
+    # Declarative: telepathic link with its vampire master.
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 2
+    sub_actions: [a_umbral_dagger]
+  - id: a_umbral_dagger
+    name: Umbral Dagger
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 5, reach_ft: 5, range: [20, 60] }
+      - primitive: damage
+        params: { dice: "1d4", modifier: 3, type: piercing, average: 5 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: damage
+        params: { dice: "3d4", modifier: 0, type: necrotic, average: 7 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+behavior_profile:
+  archetype: cunning_tactician
+  presets: { retreat: cowardly, ability_selection: default, targeting: weakest_target, action_economy: skilled }

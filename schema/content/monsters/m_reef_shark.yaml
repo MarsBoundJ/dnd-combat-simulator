@@ -1,0 +1,46 @@
+# m_reef_shark — Reef Shark
+# Source: SRD CC v5.2.1 p359
+# Triage: GREEN — single Bite; Pack Tactics declarative. Swim omitted.
+id: m_reef_shark
+name: Reef Shark
+source: srd_5.2.1
+size: medium
+creature_type: beast
+alignment: unaligned
+combat:
+  armor_class: 12
+  hit_points: { average: 22, dice: "4d8", con_contribution: 4 }
+  speed: { walk: 5, swim: 30 }
+  initiative: { modifier: 2, score: 12 }
+abilities:
+  str: { score: 14, save: 2 }
+  dex: { score: 15, save: 2 }
+  con: { score: 13, save: 1 }
+  int: { score: 1, save: -5 }
+  wis: { score: 10, save: 0 }
+  cha: { score: 4, save: -3 }
+skills: { perception: 2 }
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: []
+condition_immunities: []
+senses: { passive_perception: 12, special: { blindsight: 30 } }
+languages: []
+cr: { value: 0.5, xp: 100, proficiency_bonus: 2 }
+traits:
+  - id: t_pack_tactics
+    name: Pack Tactics
+    type: trait_passive
+actions:
+  - id: a_bite
+    name: Bite
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 4, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d8", modifier: 2, type: piercing, average: 6 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+behavior_profile:
+  archetype: pack_hunter
+  presets: { retreat: cowardly, ability_selection: default, targeting: weakest_target, action_economy: casual }

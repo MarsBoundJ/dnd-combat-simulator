@@ -1,0 +1,47 @@
+# m_giant_elk — Giant Elk
+# Source: SRD CC v5.2.1 p351
+# Triage: GREEN — single Ram (+ radiant); Necrotic/Radiant resistances
+# declarative; charge bonus + Prone movement-conditional (noted).
+id: m_giant_elk
+name: Giant Elk
+source: srd_5.2.1
+size: huge
+creature_type: celestial
+alignment: neutral_good
+combat:
+  armor_class: 14
+  hit_points: { average: 42, dice: "5d12", con_contribution: 10 }
+  speed: { walk: 60 }
+  initiative: { modifier: 6, score: 16 }
+abilities:
+  str: { score: 19, save: 6 }
+  dex: { score: 18, save: 6 }
+  con: { score: 14, save: 2 }
+  int: { score: 7, save: -2 }
+  wis: { score: 14, save: 2 }
+  cha: { score: 10, save: 0 }
+skills: { perception: 4 }
+damage_resistances: [necrotic, radiant]
+damage_vulnerabilities: []
+damage_immunities: []
+condition_immunities: []
+senses: { passive_perception: 14, special: { darkvision: 90 } }
+languages: [celestial]
+cr: { value: 2, xp: 450, proficiency_bonus: 2 }
+traits: []
+actions:
+  - id: a_ram
+    name: Ram
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 6, reach_ft: 10 }
+      - primitive: damage
+        params: { dice: "2d6", modifier: 4, type: bludgeoning, average: 11 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: damage
+        params: { dice: "2d4", modifier: 0, type: radiant, average: 5 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+behavior_profile:
+  archetype: apex_predator
+  presets: { retreat: ftd, ability_selection: default, targeting: closest_enemy, action_economy: casual }
