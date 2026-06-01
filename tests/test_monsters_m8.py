@@ -208,6 +208,44 @@ class AdultMetallicTest(unittest.TestCase):
             self.assertTrue(act.get("pipeline"),
                               f"{mid}:{action_id} expanded without a pipeline")
 
+    def test_spellcasting_legendary_actions_present_and_expanded(self):
+        # M8 touch-up: spellcasting v2 expands `casts` in
+        # legendary_actions.options, so each metallic dragon's "uses
+        # Spellcasting to cast X" legendary action is now a real, runnable
+        # LA option (type + pipeline), not a bare {id, name, casts}.
+        spell_las = {
+            "m_adult_brass_dragon": ("la_blazing_light", "f_scorching_ray"),
+            "m_adult_bronze_dragon": ("la_guiding_light", "f_guiding_bolt"),
+            "m_adult_copper_dragon": ("la_mind_jolt", "f_mind_spike"),
+            "m_adult_gold_dragon": ("la_guiding_light", "f_guiding_bolt"),
+            "m_adult_silver_dragon": ("la_chill", "f_hold_monster"),
+        }
+        for mid, (oid, feature_id) in spell_las.items():
+            opts = _monster(mid)["legendary_actions"]["options"]
+            opt = next((o for o in opts if o["id"] == oid), None)
+            self.assertIsNotNone(opt, f"{mid} missing legendary action {oid}")
+            # provenance kept, but the option must have expanded into a
+            # runnable shape (type + non-empty pipeline)
+            self.assertEqual(opt.get("casts"), feature_id)
+            self.assertIn("type", opt, f"{mid}:{oid} did not expand")
+            self.assertTrue(opt.get("pipeline"),
+                              f"{mid}:{oid} expanded without a pipeline")
+            self.assertEqual(opt.get("cost"), 1)
+
+    def test_spellcasting_legendary_action_executes(self):
+        # Drive Bronze's Guiding Light (a spell-ATTACK cast, built from the
+        # pc_builder) end-to-end against a soft target: it should roll an
+        # attack and deal radiant damage at the dragon's spell attack bonus.
+        opt = next(o for o in _monster("m_adult_bronze_dragon")["legendary_actions"]["options"]
+                     if o["id"] == "la_guiding_light")
+        actor = _actor_from("m_adult_bronze_dragon")
+        pc = _dummy(ac=1, hp=140)
+        st = _state([actor, pc])
+        chosen = {"kind": opt.get("type"), "action": opt, "target": pc, "actor": actor}
+        pipeline.execute(chosen, st, EventBus(), PrimitiveRegistry.with_defaults())
+        self.assertTrue([e for e in st.event_log if e.get("event") == "attack_roll"])
+        self.assertLess(pc.hp_current, 140)
+
 
 if __name__ == "__main__":
     unittest.main()

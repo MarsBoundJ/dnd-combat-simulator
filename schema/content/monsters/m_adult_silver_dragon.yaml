@@ -103,6 +103,15 @@ actions:
 legendary_actions:
   uses_per_round: 3
   options:
+    - id: la_chill
+      name: Chill
+      # "The dragon uses Spellcasting to cast Hold Monster. The dragon
+      # can't take this action again until the start of its next turn."
+      # Once-per-turn → gated with recharge "daily:1". casts expands from
+      # Hold Monster's action_template at the dragon's spell save DC.
+      casts: f_hold_monster
+      cost: 1
+      recharge: "daily:1"
     - id: la_cold_gale
       name: Cold Gale
       type: aoe_attack

@@ -41,6 +41,7 @@ senses: { passive_perception: 21, special: { blindsight: 60, darkvision: 120 } }
 languages: [common, draconic]
 cr: { value: 13, xp: 10000, proficiency_bonus: 5 }
 legendary_resistance: { uses: 3 }
+spellcasting: { ability: charisma, save_dc: 16 }
 traits: []
 actions:
   - id: a_multiattack
@@ -96,6 +97,13 @@ actions:
 legendary_actions:
   uses_per_round: 3
   options:
+    - id: la_blazing_light
+      name: Blazing Light
+      # "The dragon uses Spellcasting to cast Scorching Ray." No per-turn
+      # limit in the stat block → no recharge gate. casts expands via the
+      # spell-attack pc_builder using the dragon's spell attack bonus.
+      casts: f_scorching_ray
+      cost: 1
     - id: la_scorching_sands
       name: Scorching Sands
       type: save_effect

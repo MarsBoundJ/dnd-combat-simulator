@@ -98,6 +98,15 @@ actions:
 legendary_actions:
   uses_per_round: 3
   options:
+    - id: la_mind_jolt
+      name: Mind Jolt
+      # "The dragon uses Spellcasting to cast Mind Spike (level 4 version).
+      # The dragon can't take this action again until the start of its next
+      # turn." Once-per-turn → gated with recharge "daily:1". casts expands
+      # from Mind Spike's action_template at the dragon's spell save DC.
+      casts: f_mind_spike
+      cost: 1
+      recharge: "daily:1"
     - id: la_giggling_magic
       name: Giggling Magic
       type: save_effect

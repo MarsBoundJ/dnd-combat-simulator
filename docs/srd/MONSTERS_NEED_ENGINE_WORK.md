@@ -96,17 +96,20 @@ per monster.
   a save option: Brass Scorching Sands, Bronze Thunderclap, Copper
   Giggling Magic, Gold Banish, Silver Cold Gale), and SAVE/AoE spell
   casts via `casts:` (Copper Mind Spike at-will; Gold Flame Strike 1/Day;
-  Silver Hold Monster at-will + Ice Storm 1/Day). Per-dragon DEFERS noted
-  in each file (see also the Monster Spellcasting + Lair sections below):
-  Gold **Weakening Breath** (STR-disadvantage/damage-penalty debuff → no
-  primitive); the spell-ATTACK casts **Scorching Ray** (Brass) and
-  **Guiding Bolt** (Bronze, Gold) — marker features with no
-  `action_template`, so monster_spellcasting can't expand them; the
-  Spellcasting-based legendary actions (Brass Blazing Light, Bronze/Gold
-  Guiding Light, Copper Mind Jolt, Silver Chill — see Spellcasting note);
-  **Ice Knife** (Silver, unbuilt spell); and the no-engine-hook save
-  riders (sleep/paralysis escalation, Speed-halved, D20-Test penalty,
-  demiplane teleport).
+  Silver Hold Monster at-will + Ice Storm 1/Day). **M8 touch-up (after
+  spellcasting v2):** the Spellcasting-based legendary actions are now
+  WIRED IN as expanded `casts` LA options — Brass **Blazing Light**
+  (Scorching Ray), Bronze/Gold **Guiding Light** (Guiding Bolt), Copper
+  **Mind Jolt** (Mind Spike, daily:1), Silver **Chill** (Hold Monster,
+  daily:1); the spell-ATTACK casts (Scorching Ray, Guiding Bolt) build
+  from their pc_builder. Per-dragon DEFERS still noted in each file (see
+  also the Monster Spellcasting + Lair sections below): Gold **Weakening
+  Breath** (STR-disadvantage/damage-penalty debuff → no primitive);
+  **Ice Knife** (Silver, unbuilt spell); the at-will main-action versions
+  of the spell-ATTACK casts (represented only as the LA above for
+  Brass/Bronze/Gold — the top-level at-will cast is a possible follow-up);
+  and the no-engine-hook save riders (sleep/paralysis escalation,
+  Speed-halved, D20-Test penalty, demiplane teleport).
 - rating 4: **Ancient Black/Blue/Gold/Green Dragon** — now buildable
   (Legendary + Recharge breath all supported). (**Adult White** is BUILT —
   batch M7; **Adult Gold/Silver** BUILT — batch M8.) **Aboleth** (CR 10),

@@ -88,6 +88,13 @@ actions:
 legendary_actions:
   uses_per_round: 3
   options:
+    - id: la_guiding_light
+      name: Guiding Light
+      # "The dragon uses Spellcasting to cast Guiding Bolt (level 2
+      # version)." No per-turn limit → no recharge. casts expands via the
+      # spell-attack pc_builder using the dragon's spell attack bonus.
+      casts: f_guiding_bolt
+      cost: 1
     - id: la_banish
       name: Banish
       type: save_effect
