@@ -47,3 +47,29 @@ measurable axis** — and feeds the Trusight sim-vs-reception thesis.
   save-or-suck spam.
 - Per-sim metric buckets should record the optimization level used per
   side, so data separates "optimal" from "intended" runs.
+
+## AoE targeting model (refined + locked, Jun 2)
+- **Headline = the RANGE.** Run each encounter at both a WoTC-baseline
+  pass and an optimal pass; output is a lethality *band*. Band width per
+  monster = a metric ("how much skilled play matters"). Build **proxy-first**.
+- **The dial is aim/reposition EFFORT, not a target count.** Nobody picks a
+  number; they pick where to point the template, and count EMERGES from
+  (effort × party spread × geometry). Model effort, count what's caught.
+- **Per-level aim policy:** L1 noob → aim at nearest enemy, no reposition,
+  small tunnel-vision chance of 1, may clip allies. L3 baseline → best
+  static cluster, avoid allies (~2 PCs). L5 optimal → reposition for max PC
+  coverage, weight PCs > expendables, factor save odds, avoid allies (all
+  reachable).
+- **≥2 floor is geometry + clustering, not choice.** Even a noob rarely
+  catches exactly 1; when they do it's forced by the map (spread/terrain)
+  or tunnel-vision.
+- **Friendly-fire asymmetry** is the natural cap: PCs self-cap to avoid
+  clipping allies (why a player Fireballs one straggler); a solo dragon has
+  no such concern (why the first-sim dragon hit all 4); a monster with
+  minions flips it.
+- **Proxy = "no reposition + naive aim"; principled upgrade = "let the
+  party spread tactically."** Same geometry machinery — proxy is a clean
+  subset, no throwaway.
+- **Calibration check:** a competent party spread vs a mobile dragon should
+  emerge at ~2 PCs caught → validates both the positioning AI and the WoTC
+  folklore. Lethality ≈ recharge-frequency × targets-per-breath.
