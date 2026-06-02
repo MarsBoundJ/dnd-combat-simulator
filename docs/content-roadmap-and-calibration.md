@@ -118,3 +118,19 @@ Hypnotic Pattern vs a turn of Fireball in eHP, show control > damage at
 tier 3+. **Flagship Trusight result:** empirically measuring optimization
 folklore the community never quantified. "Run a controller" and
 "control-vs-damage eHP" are the same study.
+
+**Capstone — control is a LOAN, not a payment.** Control buys time/safety
+but the debt comes due when it ENDS (Wall of Force drops, Maze/Polymorph
+break → monster back at full strength). It's only "paid off" if, during
+the bought time, the party (a) DISPATCHES the monster (needs a CLOSER —
+control sets up the kill, doesn't make it) or (b) ESCAPES (and an
+undispatched monster persists + can track them → a DEFERRED threat, not a
+resolved win). ⇒ a party of PURE controllers can't win a solo boss. This
+refines the thesis: control's eHP is **contingent** (realized only when
+converted by a closer/escape) — a **multiplier** on the party's closing
+power, not a standalone win. Sim implications: (1) richer **outcome
+taxonomy** — party-victory / defeat-TPK / fled-enemy-alive (deferred) /
+stalemate-timeout; (2) pursuit/re-engagement is a campaign-layer concern
+(log escape as survived-but-unresolved); (3) run the controller benchmark
+solo (must escape) AND in a balanced party (control multiplies the closer)
+to show the contingency.
