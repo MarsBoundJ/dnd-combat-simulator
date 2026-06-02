@@ -127,6 +127,20 @@ def check_retreat(actor: Actor, state: CombatState,
     if rng is None:
         rng = random.Random()
 
+    # PC retreat model — the DEFAULT for a party PC with no explicitly
+    # declared retreat preset. Per table reality: a PC in a party does NOT
+    # flee on HP/bloodied — they fight until they drop, trusting the party
+    # to revive them; the one realistic retreat is the LAST conscious
+    # member fleeing to recover the downed rest. A SOLO PC has no revival
+    # safety net (self-preservation applies). A PC with an EXPLICIT preset
+    # (e.g. a fixture's ftd) opts out of this model and uses the normal
+    # algorithm. See _pc_party_retreat.
+    if actor.side == "pc" and not _has_explicit_retreat_preset(actor):
+        party_decision = _pc_party_retreat(actor, state)
+        if party_decision is not _SOLO_PC:
+            return party_decision
+        # else: solo PC → normal self-preservation algorithm
+
     # Step 1: mindless override — never flees
     if _is_mindless_for_retreat(actor):
         return None
@@ -181,6 +195,54 @@ def check_retreat(actor: Actor, state: CombatState,
             "total": total,
         }
     return None
+
+
+# ============================================================================
+# PC retreat model
+# ============================================================================
+
+# Sentinel: a solo PC (no companions) — caller falls through to the normal
+# self-preservation retreat algorithm rather than the party model.
+_SOLO_PC = object()
+
+
+def _has_explicit_retreat_preset(actor: Actor) -> bool:
+    """True if the actor's stat block explicitly declares a retreat preset
+    (behavior_profile.presets.retreat). Such actors opt out of the PC
+    default model and use the normal algorithm with their chosen preset."""
+    return bool(((actor.template.get("behavior_profile") or {})
+                 .get("presets") or {}).get("retreat"))
+
+
+def _pc_party_retreat(actor: Actor, state: CombatState):
+    """Retreat decision for a PC *that has companions*.
+
+    - Returns `_SOLO_PC` if the PC has no other party members → the caller
+      should use the normal algorithm (a solo PC has no revival safety net,
+      so it self-preserves like anyone else).
+    - Returns None if at least one companion is still up → fight until you
+      drop, trusting the party to revive you (no HP/bloodied/morale flee).
+    - Returns a retreat dict if this is the LAST conscious member (all
+      companions down) → flee to escape and recover/raise them.
+
+    v1 simplification: the last survivor always flees; a "heroic last stand
+    when the fight is clearly winnable" refinement is deferred.
+    """
+    party = [a for a in state.encounter.actors
+             if a.side == "pc" and a.id != actor.id]
+    if not party:
+        return _SOLO_PC                   # no companions → normal algorithm
+    if any(a.is_alive() for a in party):
+        return None                       # someone's still up — fight on
+    # Every other party member is down → flee to recover them.
+    state.event_log.append({
+        "event": "retreat_triggered", "actor": actor.id,
+        "preset": "pc_last_standing", "triggers": ["last_conscious_pc"],
+    })
+    return {
+        "reason": "last_conscious_pc", "triggers": ["last_conscious_pc"],
+        "preset": "pc_last_standing", "dc": None, "d20": None, "total": None,
+    }
 
 
 # ============================================================================
