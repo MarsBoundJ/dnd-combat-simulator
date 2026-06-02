@@ -125,6 +125,30 @@
         "attack_bonus": { "type": "integer" }
       }
     },
+    "auras": {
+      "description": "Always-on aura traits (Ghast Stench, etc.): each creature in `range_ft` makes a save at its turn start or suffers an effect; `immune_on_success` grants per-encounter immunity. Registered as caster-anchored persistent_auras at combat start by engine.core.aura_traits.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "range_ft"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "range_ft": { "type": "integer", "minimum": 0 },
+          "save": {
+            "type": "object",
+            "properties": {
+              "ability": { "type": "string" },
+              "dc": { "type": "integer" }
+            }
+          },
+          "on_fail": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/effect_primitive" } },
+          "on_success": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/effect_primitive" } },
+          "affected": { "type": "string" },
+          "immune_on_success": { "type": "boolean" }
+        }
+      }
+    },
     "regeneration": {
       "description": "Regeneration: regain `amount` HP at the start of each of the creature's turns. `suppressed_by` damage types switch it off for the creature's next turn (Troll: acid/fire). `revives_from_zero` true models the Troll rule (the creature isn't dead at 0 HP — it regenerates back unless suppressed, and dies only if it starts its turn at 0 while suppressed); false models the 'if it has at least 1 HP' gate (no revival from 0). Consumed by engine.core.regeneration.",
       "type": "object",

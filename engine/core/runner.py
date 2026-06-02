@@ -517,6 +517,11 @@ class EncounterRunner:
             if aura.get("affected", "enemies") == "enemies" \
                     and actor.side == caster.side:
                 continue
+            # Per-encounter immunity (Stench: "immune for 24 hours" on a
+            # successful save). Guarded by immune_on_success so spell auras
+            # are unaffected.
+            if actor.id in aura.get("_immune_ids", ()):
+                continue
             # Resolve current origin based on anchor type
             anchor = aura.get("anchor", "caster")
             if anchor == "point":
@@ -582,6 +587,13 @@ class EncounterRunner:
                         "on_fail": aura["on_fail"],
                         "on_success": aura["on_success"],
                     }, state, self.event_bus)
+                    # Trait aura with per-encounter immunity: a creature
+                    # that succeeds becomes immune for the rest of the
+                    # fight (Stench's 24h immunity).
+                    if (aura.get("immune_on_success")
+                            and (state.current_save or {}).get("outcome")
+                            == "success"):
+                        aura.setdefault("_immune_ids", set()).add(actor.id)
             finally:
                 state.current_attack = saved_attack
             # If the actor died from the aura, stop processing further
@@ -1135,6 +1147,11 @@ class EncounterRunner:
         )
         self.event_bus.emit("round_start", {"round": 1})
         self.roll_initiative(state)
+        # Register always-on aura traits (Ghast Stench, etc.) as
+        # caster-anchored persistent_auras so the turn-start resolver fires
+        # them. See engine/core/aura_traits.py.
+        from engine.core import aura_traits as _aura_traits
+        _aura_traits.register(state)
         state.round = 1
         while not state.terminated:
             self.tick(state)

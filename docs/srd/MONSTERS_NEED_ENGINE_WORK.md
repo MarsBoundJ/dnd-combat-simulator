@@ -292,14 +292,23 @@ attack redirection). No general monster-reaction declaration path yet.
   tail is entirely GREEN.
 
 ## Aura traits
-Per-turn area effects on nearby creatures ("each creature within X feet
-…", "Frightful Presence"). Some may later map to persistent_aura; defer
-until confirmed.
-- **Ghast** (CR 2, rating 4) — Stench (5-ft emanation, CON save →
-  Poisoned). **Built without this trait** (Bite + Claw are the core).
-- **Harpy** (CR 1, rating 4) — Luring Song (300-ft Concentration
-  emanation, WIS save → Charmed + Incapacitated + forced approach).
-  **Built without this trait** (Claw is the core).
+**✅ SYSTEM BUILT (engine.core.aura_traits).** Always-on emanations: a
+monster `auras: [{id, range_ft, save:{ability,dc}, on_fail, affected,
+immune_on_success}]` is registered at combat start as a caster-anchored
+`persistent_aura` (moves with the monster), and the existing turn-start
+resolver fires it. `immune_on_success` grants per-encounter immunity
+(the "immune for 24h" stand-in).
+- **Ghast** (CR 2) — Stench now buildable: `auras: [{ range_ft: 5,
+  save: {constitution, 10}, immune_on_success: true, on_fail:
+  [apply_condition co_poisoned] }]` (Bite + Claw core already built).
+- **Frightful Presence** (dragons) — NOT a trait aura in 2024 RAW; it's a
+  legendary action that **casts Fear**. Already buildable today via
+  `casts: f_fear` in `legendary_actions.options` (f_fear is built;
+  Spellcasting v2 expands it). No engine work — a dragon LA touch-up.
+- **Harpy** (CR 1) — Luring Song is a Concentration *action* aura (WIS →
+  Charmed + Incapacitated + forced approach), not an always-on trait;
+  rides the persistent_aura cast action. The Charmed-forced-approach
+  movement rider is the remaining gap.
 
 ## Conditional save/attack immunities & resistances (non-declarative)
 "Magic Resistance" (advantage on saves vs spells), damage resistance
