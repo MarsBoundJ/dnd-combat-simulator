@@ -103,6 +103,12 @@ class LoadShapeTest(unittest.TestCase):
                     for sid in act.get("sub_actions", []):
                         self.assertIn(sid, ids, f"{mid}:{act['id']} bad sub_action {sid}")
                     continue
+                # `casts`-expanded actions (monster_spellcasting) borrow a
+                # built spell's whole pipeline — richer than the hand-authored
+                # monster whitelist (persistent_aura, buffs, …). Those are
+                # validated by the spell library's own tests, not here.
+                if act.get("casts"):
+                    continue
                 for step in act.get("pipeline", []):
                     self.assertIn(step["primitive"], _ALLOWED_PRIMITIVES,
                                     f"{mid}:{act['id']} uses {step['primitive']}")

@@ -1,0 +1,81 @@
+# m_priest — Priest
+# Source: SRD CC v5.2.1 p316
+# Triage: GREEN for its combat kit — Multiattack of Mace / Radiant Flame
+# (any combination), plus a Spellcasting action that casts Spirit Guardians
+# (1/Day) and a Divine Aid bonus action that casts Bless (its one buildable
+# Divine Aid option). Both casts expand from built spell features at the
+# priest's spell save DC (WIS, DC 13).
+# DEFERRED (see MONSTERS_NEED_ENGINE_WORK.md → Monster Spellcasting): the
+# at-will utility cantrips Light / Thaumaturgy (non-combat, no feature);
+# and the other Divine Aid (3/Day) options — Healing Word (heal, not
+# expandable), Dispel Magic + Lesser Restoration (unbuilt/utility). Divine
+# Aid's 3/Day pool is modeled as a single daily:1 Bless cast (the recharge
+# system gates one use per encounter; N>1 per-day counts are a v1 follow-up).
+id: m_priest
+name: Priest
+source: srd_5.2.1
+size: medium
+creature_type: humanoid
+alignment: neutral
+combat:
+  armor_class: 13
+  hit_points: { average: 38, dice: "7d8", con_contribution: 7 }
+  speed: { walk: 30 }
+  initiative: { modifier: 0, score: 10 }
+abilities:
+  str: { score: 16, save: 3 }
+  dex: { score: 10, save: 0 }
+  con: { score: 12, save: 1 }
+  int: { score: 13, save: 1 }
+  wis: { score: 16, save: 3 }
+  cha: { score: 13, save: 1 }
+skills: { medicine: 7, perception: 5, religion: 5 }
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: []
+condition_immunities: []
+senses: { passive_perception: 15 }
+languages: [common]
+gear: [chain_shirt, holy_symbol, mace]
+cr: { value: 2, xp: 450, proficiency_bonus: 2 }
+spellcasting: { ability: wisdom, save_dc: 13 }
+traits: []
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 2
+    sub_actions: [a_mace, a_radiant_flame]
+  - id: a_mace
+    name: Mace
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 5, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d6", modifier: 3, type: bludgeoning, average: 6 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: damage
+        params: { dice: "2d4", modifier: 0, type: radiant, average: 5 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+  - id: a_radiant_flame
+    name: Radiant Flame
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: ranged, bonus: 5, range_ft: 60 }
+      - primitive: damage
+        params: { dice: "2d10", modifier: 0, type: radiant, average: 11 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+  - id: a_cast_spirit_guardians
+    name: Spirit Guardians
+    casts: f_spirit_guardians
+    recharge: "daily:1"
+bonus_actions:
+  - id: ba_divine_aid_bless
+    name: Divine Aid (Bless)
+    casts: f_bless
+    recharge: "daily:1"
+behavior_profile:
+  archetype: cowardly_skirmisher
+  presets: { retreat: cowardly, ability_selection: default, targeting: weakest_target, action_economy: skilled }
