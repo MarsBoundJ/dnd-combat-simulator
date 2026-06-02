@@ -73,3 +73,35 @@ measurable axis** — and feeds the Trusight sim-vs-reception thesis.
 - **Calibration check:** a competent party spread vs a mobile dragon should
   emerge at ~2 PCs caught → validates both the positioning AI and the WoTC
   folklore. Lethality ≈ recharge-frequency × targets-per-breath.
+
+## Pacifist & control modeling (Jun 2)
+Two distinct "pacifist" kinds the engine conflates:
+- **Via-constraint** (today's `pacifist_strict`): has attacks, won't *kill*
+  → in 2024 = **non-lethal melee knockout** (melee-only; drop to 0 +
+  Unconscious + stable; ranged/spells always lethal). NOT "stand and Dodge"
+  — the constraint forcing Dodge is wrong. Non-lethal melee is a small
+  clean mechanic (ties to the unconscious-vs-dead gap: sim treats 0 HP as
+  dead; 2024 has downed/stable/revive).
+- **Via-build** (Treantmonk lockdown controller): just no damage spells →
+  needs **no constraint**; good AI naturally picks control/defense. LV20
+  pure-control wizard: Web/Hypnotic Pattern/Polymorph/Blindness/Telekinesis/
+  Wall of Force/Forcecage/Maze/Mass Suggestion/Eyebite + **Counterspell at
+  every level** + Shield/Absorb Elements/Mind Blank/Foresight. ~0 damage.
+
+**Control taxonomy (control-eHP is not one number):** Removal (Maze/
+Forcecage/Polymorph/Wall of Force/Banish → target contributes 0 ≈ infinite
+eHP denied) · Disable-in-place (Hypnotic Pattern/Web/Blindness/Eyebite/Mass
+Suggestion) · Negation (Counterspell) · Self/ally defense (Shield/Absorb
+Elements/Mind Blank/Foresight).
+
+**Payoffs:** the pacifist controller is the **cleanest control-eHP signal**
+(0 damage → all value is control). "Can the AI run a Treantmonk lockdown
+controller?" = the success **benchmark for finding #2 (caster
+offense/selection)**; building it = building the control-eHP valuation
+Trusight needs. **Control is strongest vs SOLO bosses** — a controller
+collapses the Adult Red Dragon once its 3 Legendary Resistances are burned
+→ publishable signal: *"looks deadly on paper, folds to a competent
+controller."* **Content gaps (BC-lane):** Counterspell + Blindness built;
+likely unbuilt: Web/Polymorph (PC spells), Shield, Misty Step, Wall of
+Force, Forcecage, Maze, Mass Suggestion, Telekinesis, Eyebite, Mind Blank,
+Foresight — a control-spell pass unblocks the controller benchmark.
