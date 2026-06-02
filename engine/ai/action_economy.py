@@ -217,13 +217,22 @@ def resolve_main_slot(actor: Actor, chosen: dict | None,
     if default is None or default.get("id") == chosen.get("action", {}).get("id"):
         # No fallback distinct from current → just keep chosen
         return chosen
-    return {
+    downgrade = {
         "kind": "weapon_attack",
         "action": default,
         "target": chosen.get("target"),
         "actor": actor,
         "downgraded_from": chosen.get("action", {}).get("id"),
     }
+    # The default attack must still be a LEGAL choice for this actor. An RP
+    # hard filter (e.g. pacifist_strict, which forbids weapon attacks) would
+    # have removed it from the candidate pool, so the optimality miss must
+    # not resurrect it — keep the originally chosen (legal) action instead.
+    # (Previously masked: encounters ended before the rare miss roll fired.)
+    from engine.core.pipeline import apply_hard_filters
+    if not apply_hard_filters([downgrade], actor, state):
+        return chosen
+    return downgrade
 
 
 # ============================================================================
