@@ -271,6 +271,12 @@ class Actor:
     swallow_regurgitate: dict | None = None
     swallow_damage_taken_this_turn: int = 0
 
+    # `summoned_by`: the id of the creature that summoned this one into the
+    # fight (Wraith → Specter, conjure spells). None for natural
+    # combatants. Used for capacity caps + provenance. See
+    # engine/core/summoning.py.
+    summoned_by: str | None = None
+
     # Racial trait ids (PR #75). Loaded from PC race spec via
     # pc_schema → cli — e.g. `["t_lucky", "t_brave"]` for a Halfling.
     # Read at runtime by query_save_modifiers (Brave / Fey Ancestry /
