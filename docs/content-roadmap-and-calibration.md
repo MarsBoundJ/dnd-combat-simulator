@@ -105,3 +105,16 @@ controller."* **Content gaps (BC-lane):** Counterspell + Blindness built;
 likely unbuilt: Web/Polymorph (PC spells), Shield, Misty Step, Wall of
 Force, Forcecage, Maze, Mass Suggestion, Telekinesis, Eyebite, Mind Blank,
 Foresight — a control-spell pass unblocks the controller benchmark.
+
+**Refinement:** the example spell list is **2014-rules + illustrative**
+(Forcecage was nerfed in 2024; the 2024 list/subclass would shift —
+**Abjurer**, with Arcane Ward + Projected Ward + Spell Resistance, is a
+strong 2024 pure-defense pacifist). Durable parts: (1) build philosophy =
+best control + select buffs/debuffs, ZERO damage; (2) **★ Treantmonk's
+thesis (sim-TESTABLE):** a high-level wizard's most powerful spells, by
+eHP / contribution to victory, are CONTROL (Wall of Force, Web, Hypnotic
+Pattern, Fear), not damage. The sim can VALIDATE this — price a turn of
+Hypnotic Pattern vs a turn of Fireball in eHP, show control > damage at
+tier 3+. **Flagship Trusight result:** empirically measuring optimization
+folklore the community never quantified. "Run a controller" and
+"control-vs-damage eHP" are the same study.
