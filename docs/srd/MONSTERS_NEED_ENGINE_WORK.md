@@ -200,8 +200,18 @@ encounter doesn't end while it's down). Plain "if it has ≥1 HP" regen =
 
 ## Summon / call adds
 Monsters that summon or call other creatures into the fight.
-- **Wraith** (CR 5, rating 4) — Create Specter (raises a Specter from a
-  fresh Humanoid corpse). **Built without this action** (Life Drain core).
+**✅ SYSTEM BUILT (engine.core.summoning).** The `summon` primitive
+(params `monster`, `count`, optional `max_total`) spawns creatures
+mid-encounter: each is built from its stat block (via cli._build_actor),
+joins the summoner's side, is tagged `summoned_by`, added to
+`encounter.actors`, and inserted into `turn_order` right after the
+summoner — a full combatant from that moment (targetable, takes its turn).
+A `max_total` cap limits concurrent summons (Wraith: 7).
+- **Wraith** (CR 5) — Create Specter now buildable: a `summon` action with
+  `{ monster: m_specter, max_total: 7 }` (m_specter is built). v1 DEFERS
+  the corpse precondition (a Humanoid that died within 1 min, within
+  10 ft) — battlefield-corpse tracking is a follow-up; v1 summons
+  unconditionally.
 
 ## On-death / triggered effects
 "Death Burst," "When it dies …," ooze split-on-hit, phylactery, etc.
