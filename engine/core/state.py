@@ -542,6 +542,20 @@ class CombatState:
     # drops concentration.
     persistent_auras: list = field(default_factory=list)
 
+    # Barriers / walls (positional-barrier system). Each entry is an
+    # engine.core.geometry.Wall — a Foundry-WallDocument-shaped segment
+    # with move/sight/sound/light blocking channels + a `flags` provenance
+    # bag (source_action_id, caster_id). Consumed by movement
+    # (move_toward / push_creature), single-target line-of-effect
+    # (_attack_roll + candidate generation), and AoE occlusion
+    # (_resolve_save_targets + offensive_ehp_aoe). Wall of Force is the
+    # canonical consumer. An empty list (the default) means open
+    # battlefield — every barrier-aware code path is gated on this being
+    # non-empty, so a wall-free encounter behaves exactly as before.
+    # Concentration-end scrubs walls whose flags match the dropped spell
+    # (caster_id + action_id), mirroring persistent_auras.
+    walls: list = field(default_factory=list)
+
     # Conditions that auto-expire at the SOURCE actor's next turn-start
     # (e.g., Monk Stunning Strike's Stunned — "until the start of your
     # next turn"). Each entry: {target_id, condition_id, source_id}.

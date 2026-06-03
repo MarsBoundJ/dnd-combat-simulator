@@ -1185,6 +1185,17 @@ def offensive_ehp_aoe(actor: Actor, origin: tuple[int, int], action: dict,
     if not affected:
         return 0.0
 
+    # Barrier occlusion: drop creatures whose line of effect from the AoE
+    # origin is broken by a wall (Wall of Force stops the spread). Gated —
+    # no walls leaves scoring identical. Mirrors _resolve_save_targets so
+    # the AI's expected value matches what actually resolves.
+    _walls = getattr(state, "walls", None)
+    if _walls:
+        from engine.core.geometry import clear_line_of_effect
+        affected = clear_line_of_effect(tuple(origin), affected, _walls)
+        if not affected:
+            return 0.0
+
     # Resolve save params from the embedded forced_save step
     save_info = _extract_aoe_save_info(action, actor)
     if save_info is None:

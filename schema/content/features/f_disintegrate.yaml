@@ -16,7 +16,11 @@
 #   - "Disintegrated to dust at 0 HP / revivable only by True
 #     Resurrection or Wish" — flavor/death-state nuance not modeled; the
 #     10d6+40 damage is the load-bearing effect.
-#   - Object/force-wall destruction (no object modeling).
+#   - Object/force-wall destruction (no object modeling). NOTE: Wall of
+#     Force (f_wall_of_force) now exists as a state.walls barrier, and RAW
+#     Disintegrate is its one counter — but a wall is not a targetable
+#     actor, so wiring Disintegrate's AI to select + destroy a wall is
+#     deferred with the rest of the object-targeting model.
 #
 # source: srd_5.2.1
 

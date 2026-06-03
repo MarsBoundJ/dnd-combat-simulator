@@ -194,6 +194,24 @@ def _attack_roll(params: dict, state: CombatState, bus: EventBus) -> dict:
         })
         return {"state": "miss", "reason": "total_cover"}
 
+    # Barrier line-of-effect guard. A wall that breaks line of effect
+    # between attacker and target (e.g. Wall of Force) makes a direct
+    # attack — ranged OR melee across the barrier — impossible: auto-miss
+    # without rolling. Gated on the encounter having walls so a wall-free
+    # fight skips this entirely. AoE is handled separately at the
+    # area-membership layer (_resolve_save_targets), not here.
+    _walls = getattr(state, "walls", None)
+    if _walls:
+        from engine.core.geometry import line_of_effect_blocked
+        if line_of_effect_blocked(actor, target, _walls):
+            state.current_attack["state"] = "miss"
+            state.event_log.append({
+                "event": "attack_roll", "actor": actor.id,
+                "target": target.id, "result": "miss",
+                "reason": "no_line_of_effect",
+            })
+            return {"state": "miss", "reason": "no_line_of_effect"}
+
     # PR #45: reactions fire here. Protection Fighting Style imposes
     # disadvantage on attacks against an adjacent ally. The reaction
     # applies its modifier to the target BEFORE we query
@@ -2563,6 +2581,68 @@ def _polymorph_target(params: dict, state: CombatState,
     }, state)
 
 
+def _place_barrier(params: dict, state: CombatState, bus: EventBus) -> None:
+    """Place a Wall of Force-style barrier between the caster and the
+    current target (positional-barrier system, Phase C).
+
+    Creates a single wall PANEL perpendicular to the caster->target axis,
+    sitting one half-square in front of the target on the caster's side, so
+    it cuts the target off from the caster's side of the field. The wall
+    blocks movement and line of effect (ranged attacks + AoE spread can't
+    cross it) while staying sight-transparent — exactly like Wall of Force.
+    It rides the Phase B wiring (move_toward / _attack_roll /
+    _resolve_save_targets) for free; nothing spell-specific is needed there.
+
+    The wall is stamped with flags {effect, caster_id, action_id} so
+    end_concentration scrubs it when the caster drops concentration (the
+    same teardown channel as persistent_auras).
+
+    Params:
+      length_ft  total panel length, centered on the axis (default 30).
+      move       block movement?  (default True)
+      sight      block vision?     (default False — Wall of Force is clear)
+      effect     provenance tag    (default 'wall_of_force')
+    """
+    caster = (state.current_attack or {}).get("actor") or state.current_actor()
+    target = (state.current_attack or {}).get("target")
+    if caster is None or target is None:
+        raise ValueError("place_barrier needs a current actor + target")
+    action_id = (state.current_attack.get("action") or {}).get(
+        "id", "a_wall_of_force")
+
+    from engine.core.geometry import (
+        Wall, unit_direction, SQUARE_SIZE_FT,
+        WALL_BLOCK_NORMAL, WALL_BLOCK_NONE,
+    )
+    cx, cy = caster.position
+    tx, ty = target.position
+    dx, dy = unit_direction((cx, cy), (tx, ty))
+    if (dx, dy) == (0, 0):
+        dx, dy = (1, 0)   # caster + target stacked: fall back to east-facing
+    # Center the panel a half-square in front of the target on the caster
+    # side, so the caster->target center-to-center segment crosses it as a
+    # clean transversal (actors are integer centers; this sits on the
+    # half-integer boundary).
+    wcx = tx - 0.5 * dx
+    wcy = ty - 0.5 * dy
+    px, py = (-dy, dx)   # perpendicular to the facing axis
+    half = (int(params.get("length_ft", 30)) / SQUARE_SIZE_FT) / 2.0
+    wall = Wall(
+        c=(wcx - half * px, wcy - half * py,
+           wcx + half * px, wcy + half * py),
+        move=WALL_BLOCK_NORMAL if params.get("move", True) else WALL_BLOCK_NONE,
+        sight=WALL_BLOCK_NORMAL if params.get("sight", False) else WALL_BLOCK_NONE,
+        flags={"effect": params.get("effect", "wall_of_force"),
+               "caster_id": caster.id, "action_id": action_id},
+    )
+    state.walls.append(wall)
+    state.event_log.append({
+        "event": "barrier_placed", "actor": caster.id,
+        "effect": wall.flags["effect"], "c": list(wall.c),
+        "action_id": action_id,
+    })
+
+
 def _grant_bardic_inspiration(params: dict, state: CombatState,
                                 bus: EventBus) -> None:
     """Grant a Bardic Inspiration die to an ally (current_attack.target).
@@ -2760,27 +2840,37 @@ def _resolve_save_targets(params: dict, state: CombatState) -> list[Actor]:
         direction = state.current_attack.get("area_direction")
         living = [a for a in state.encounter.actors if a.is_alive()]
 
+        members: list[Actor] | None = None
         if origin is not None:
             if shape == "sphere":
                 radius_ft = area.get("radius_ft")
                 if radius_ft is not None:
                     from engine.core.geometry import actors_in_radius
-                    return actors_in_radius(tuple(origin), int(radius_ft),
-                                              living)
+                    members = actors_in_radius(tuple(origin), int(radius_ft),
+                                                 living)
             elif shape == "cone":
                 length_ft = area.get("length_ft")
                 if length_ft is not None and direction is not None:
                     from engine.core.geometry import actors_in_cone
-                    return actors_in_cone(tuple(origin), tuple(direction),
-                                            int(length_ft), living)
+                    members = actors_in_cone(tuple(origin), tuple(direction),
+                                               int(length_ft), living)
             elif shape == "line":
                 length_ft = area.get("length_ft")
                 width_ft = area.get("width_ft", 5)
                 if length_ft is not None and direction is not None:
                     from engine.core.geometry import actors_in_line
-                    return actors_in_line(tuple(origin), tuple(direction),
-                                            int(length_ft), int(width_ft),
-                                            living)
+                    members = actors_in_line(tuple(origin), tuple(direction),
+                                               int(length_ft), int(width_ft),
+                                               living)
+        if members is not None:
+            # Barrier occlusion: a creature whose line of effect from the
+            # blast origin is broken by a wall (Wall of Force) is spared.
+            # Gated — no walls leaves membership identical.
+            _walls = getattr(state, "walls", None)
+            if _walls:
+                from engine.core.geometry import clear_line_of_effect
+                members = clear_line_of_effect(tuple(origin), members, _walls)
+            return members
         # Legacy fallback: all living enemies
         return [a for a in state.encounter.actors
                 if a.side != actor.side and a.is_alive()]
@@ -2875,6 +2965,7 @@ def _populate_handler_table() -> None:
         "polymorph_target": _polymorph_target,
         "swallow_apply": _swallow_apply,
         "summon": _summon,
+        "place_barrier": _place_barrier,
     }
 
 
@@ -2977,6 +3068,10 @@ def _all_primitives() -> list[Primitive]:
         # Summon creatures into the fight (Wraith Create Specter, conjure)
         # via engine.core.summoning — dynamic encounter membership.
         Primitive("summon", _summon, implemented=True),
+        # Place a Wall of Force-style barrier (positional-barrier system):
+        # appends a geometry.Wall to state.walls; rides the movement / LoE /
+        # AoE wiring; concentration-end scrubs it by flags.
+        Primitive("place_barrier", _place_barrier, implemented=True),
         Primitive("grant_bardic_inspiration", _grant_bardic_inspiration,
                     implemented=True),
         # College of Lore Cutting Words — reaction that rolls the Bard's
