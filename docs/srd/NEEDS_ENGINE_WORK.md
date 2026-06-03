@@ -21,16 +21,17 @@ first, then the spell rides it.
 - **Teleport** (L7, P3)
 
 ## Form-replacement system (Polymorph family)
-- **Polymorph** (L4, P5) — replace target's stat block entirely.
-  DEFERRED in the control-spell content batch: the `polymorph` MERGE
-  POLICY already exists in `engine/core/forms.py` and `assume_form` works
-  on any actor, but it is only ever invoked on the CASTER (Wild Shape /
-  Change Shape). There is no pipeline primitive to transform a TARGET from
-  a failed save — needs a `polymorph_target` primitive (forced_save WIS →
-  on fail `forms.assume_form(target, beast_template, "polymorph", …)` +
-  temp HP = beast HP, spell ends when temp HP gone) plus a beast template
-  to morph into. SRD class lists (from PDF): Bard, Druid, Sorcerer,
-  Wizard. Build the primitive, then add f_polymorph + wire it.
+- **Polymorph** (L4, P5) — ✅ **BUILT (PR #159, desktop lane).** The
+  `polymorph_target` primitive (forced_save WIS on_fail →
+  `forms.assume_form(target, beast, "polymorph", …)`) rides the existing
+  `polymorph` MERGE POLICY in `engine/core/forms.py`: all-stats-replaced,
+  HP = beast pool, carry_overflow (excess damage → true HP on revert),
+  revert at 0 form HP, revert on caster concentration-end, and Legendary
+  Resistance applies to the WIS save for free. `f_polymorph` exists
+  (default form m_giant_toad). REMAINING content work: the spell is wired
+  to `c_wizard` only via `granted_by` (metadata) — full class-list wiring
+  (Bard, Druid, Sorcerer, Wizard per the PDF) onto the level_tables, and
+  tactical form selection (RAW CR ≤ target cap) which is AI-lane.
 - **True Polymorph** (L9, P5)
 - **Shapechange** (L9, P5)
 
