@@ -23,6 +23,8 @@ Convention per D&D 5e 2024:
 """
 from __future__ import annotations
 
+from dataclasses import dataclass, field
+
 from engine.core.state import Actor
 
 
@@ -387,3 +389,130 @@ def _step_toward(current: int, target: int) -> int:
     if current > target:
         return -1
     return 0
+
+
+# ============================================================================
+# Barriers / walls  (Foundry-VTT WallDocument-aligned)
+# ============================================================================
+#
+# A barrier is a line segment in the SAME continuous plane the grid lives in:
+# an actor on grid square (x, y) is the point (x, y); walls sit on square
+# *boundaries* (half-integer coordinates) so a center->center segment that
+# crosses a boundary intersects the wall as a clean transversal (no degenerate
+# endpoint-touching). Coordinates are in grid units (1 unit = one 5-ft square);
+# multiply by a scene's grid pixel-size at Foundry-export time.
+#
+# Field names mirror Foundry's BaseWall schema, so a Wall serializes almost
+# 1:1 into a Foundry WallDocument:
+#   c      [x0, y0, x1, y1]  endpoint pair (grid units here; pixels in Foundry)
+#   move   blocks movement                 (0 = none, 20 = normal-blocking)
+#   sight  blocks line-of-sight / vision    (0 = none, 20 = normal-blocking)
+#   sound  blocks sound                     (0 = none, 20 = normal-blocking)
+#   light  blocks light                     (0 = none, 20 = normal-blocking)
+#   dir    one-sided direction              (0 both, 1 left, 2 right)
+#   flags  provenance / system data         (we stamp source_action_id, caster_id)
+#
+# Foundry has no literal "line of effect" channel; for the sim we treat a wall
+# that blocks `move` (physical passage) OR `sight` (vision) as breaking line of
+# effect for ranged targeting and AoE spread — see line_of_effect_blocked().
+# Wall of Force (move-blocking, sight-transparent) therefore stops a Fireball's
+# spread and a ranged attack crossing it, while remaining see-through.
+
+WALL_BLOCK_NONE = 0
+WALL_BLOCK_NORMAL = 20    # mirrors Foundry CONST WALL_SENSE/MOVEMENT 'NORMAL'
+
+WALL_DIR_BOTH = 0
+WALL_DIR_LEFT = 1
+WALL_DIR_RIGHT = 2
+
+
+@dataclass
+class Wall:
+    """A barrier segment, shaped like a Foundry BaseWall.
+
+    Endpoints `c = (x0, y0, x1, y1)` are in grid units (square-center plane),
+    not pixels — the Foundry exporter scales by grid size. Each blocking
+    channel is 0 (passable) or >0 (blocking, conventionally 20 to match
+    Foundry's NORMAL). `flags` carries sim provenance for teardown.
+    """
+    c: tuple[float, float, float, float]
+    move: int = WALL_BLOCK_NORMAL
+    sight: int = WALL_BLOCK_NONE
+    sound: int = WALL_BLOCK_NONE
+    light: int = WALL_BLOCK_NONE
+    dir: int = WALL_DIR_BOTH
+    flags: dict = field(default_factory=dict)
+
+    def blocks(self, channel: str) -> bool:
+        """True if this wall blocks `channel` ('move' / 'sight' / 'sound' /
+        'light')."""
+        return int(getattr(self, channel, 0)) > 0
+
+    @property
+    def p0(self) -> tuple[float, float]:
+        return (self.c[0], self.c[1])
+
+    @property
+    def p1(self) -> tuple[float, float]:
+        return (self.c[2], self.c[3])
+
+
+def _orient(a: tuple[float, float], b: tuple[float, float],
+             c: tuple[float, float]) -> float:
+    """Twice the signed area of triangle abc; its sign gives the orientation
+    of c relative to the directed line a->b (>0 left, <0 right, 0 collinear)."""
+    return (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
+
+
+def segments_cross(p1: tuple[float, float], p2: tuple[float, float],
+                    p3: tuple[float, float], p4: tuple[float, float]) -> bool:
+    """True iff segment p1-p2 *properly* crosses segment p3-p4 (a transversal
+    intersection where each segment has an endpoint strictly on either side of
+    the other). Collinear overlap and shared-endpoint touching return False.
+
+    Proper-crossing is the right test here because actors sit on integer
+    square centers while walls sit on half-integer boundaries, so a real
+    line-of-effect crossing is always a clean transversal — a wall merely
+    *ending at* a center never counts as blocking.
+    """
+    d1 = _orient(p3, p4, p1)
+    d2 = _orient(p3, p4, p2)
+    d3 = _orient(p1, p2, p3)
+    d4 = _orient(p1, p2, p4)
+    return (((d1 > 0 and d2 < 0) or (d1 < 0 and d2 > 0)) and
+            ((d3 > 0 and d4 < 0) or (d3 < 0 and d4 > 0)))
+
+
+def segment_blocked(a: Actor | tuple[float, float],
+                     b: Actor | tuple[float, float],
+                     walls: list[Wall] | None,
+                     channel: str = "move") -> bool:
+    """True if the straight segment from `a` to `b` crosses any wall that
+    blocks `channel`. `a` / `b` may be Actors or raw (x, y). Empty / None
+    `walls` returns False (the universal no-barriers fast path that keeps
+    pre-wall behavior identical)."""
+    if not walls:
+        return False
+    pa = _as_position(a)
+    pb = _as_position(b)
+    fa = (float(pa[0]), float(pa[1]))
+    fb = (float(pb[0]), float(pb[1]))
+    for w in walls:
+        if not w.blocks(channel):
+            continue
+        if segments_cross(fa, fb, w.p0, w.p1):
+            return True
+    return False
+
+
+def line_of_effect_blocked(a: Actor | tuple[float, float],
+                            b: Actor | tuple[float, float],
+                            walls: list[Wall] | None) -> bool:
+    """True if a wall breaks line of effect between `a` and `b` — used for
+    ranged/spell targeting and AoE spread. A wall blocks line of effect if it
+    blocks physical passage (`move`) OR vision (`sight`). Wall of Force
+    (move-blocking) qualifies even though it is sight-transparent."""
+    if not walls:
+        return False
+    return (segment_blocked(a, b, walls, "move") or
+            segment_blocked(a, b, walls, "sight"))
