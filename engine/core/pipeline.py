@@ -485,7 +485,26 @@ def generate_candidates(actor: Actor, state: CombatState,
     if slot == "action":
         candidates += _emit_ready_candidates(
             actor, state, actions, enemies)
+    # Target-effectiveness gate: drop candidates whose action can't affect
+    # the chosen target's creature type (e.g. Hold Person → Humanoid only;
+    # a dragon can never be held). An action with no `target_creature_types`
+    # restriction affects anything. Prevents the AI from wasting a turn on a
+    # spell that's mechanically incapable of working (first-sim: the Bard
+    # cast Hold Person at the dragon three rounds running).
+    candidates = [c for c in candidates if _target_creature_type_ok(c)]
     return candidates
+
+
+def _target_creature_type_ok(candidate: dict) -> bool:
+    """True unless the candidate's action declares `target_creature_types`
+    and the candidate's target is outside that set."""
+    restriction = candidate.get("action", {}).get("target_creature_types")
+    if not restriction:
+        return True
+    target = candidate.get("target")
+    if target is None:
+        return True
+    return getattr(target, "creature_type", None) in restriction
 
 
 def _select_multi_target_group(action: dict, allies: list,
