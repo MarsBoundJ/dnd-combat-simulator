@@ -262,6 +262,20 @@ class Actor:
     # (sourced to the swallower) and Total Cover. See engine/core/swallow.py.
     swallowed_by: str | None = None
     swallow_damage: dict | None = None
+    # On the SWALLOWED creature: the regurgitate spec
+    # {threshold, dc, save} — if the swallower takes `threshold`+ damage
+    # from this victim in one turn it makes a `save` save vs `dc` or expels
+    # it (Prone). On the SWALLOWER: `swallow_damage_taken_this_turn`
+    # accumulates damage from its victim this turn (reset at the victim's
+    # turn start; checked at its turn end). See engine/core/swallow.py.
+    swallow_regurgitate: dict | None = None
+    swallow_damage_taken_this_turn: int = 0
+
+    # `summoned_by`: the id of the creature that summoned this one into the
+    # fight (Wraith → Specter, conjure spells). None for natural
+    # combatants. Used for capacity caps + provenance. See
+    # engine/core/summoning.py.
+    summoned_by: str | None = None
 
     # Racial trait ids (PR #75). Loaded from PC race spec via
     # pc_schema → cli — e.g. `["t_lucky", "t_brave"]` for a Halfling.

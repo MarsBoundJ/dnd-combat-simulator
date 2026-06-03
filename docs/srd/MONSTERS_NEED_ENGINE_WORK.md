@@ -200,8 +200,18 @@ encounter doesn't end while it's down). Plain "if it has ≥1 HP" regen =
 
 ## Summon / call adds
 Monsters that summon or call other creatures into the fight.
-- **Wraith** (CR 5, rating 4) — Create Specter (raises a Specter from a
-  fresh Humanoid corpse). **Built without this action** (Life Drain core).
+**✅ SYSTEM BUILT (engine.core.summoning).** The `summon` primitive
+(params `monster`, `count`, optional `max_total`) spawns creatures
+mid-encounter: each is built from its stat block (via cli._build_actor),
+joins the summoner's side, is tagged `summoned_by`, added to
+`encounter.actors`, and inserted into `turn_order` right after the
+summoner — a full combatant from that moment (targetable, takes its turn).
+A `max_total` cap limits concurrent summons (Wraith: 7).
+- **Wraith** (CR 5) — Create Specter now buildable: a `summon` action with
+  `{ monster: m_specter, max_total: 7 }` (m_specter is built). v1 DEFERS
+  the corpse precondition (a Humanoid that died within 1 min, within
+  10 ft) — battlefield-corpse tracking is a follow-up; v1 summons
+  unconditionally.
 
 ## On-death / triggered effects
 "Death Burst," "When it dies …," ooze split-on-hit, phylactery, etc.
@@ -270,12 +280,14 @@ deals that acid at the swallower's turn start; the swallower's death frees
 the victim. **Swallow is now buildable** for Behir / Remorhaz / Purple
 Worm / Giant Frog/Toad (and Gelatinous Cube's Engulf uses the same
 save→swallow_apply shape).
-- v1 DEFERS (documented): the **regurgitate** counterplay (Behir: 30+
-  damage in a turn from the swallowed creature → CON save or expel +
-  Prone — needs per-turn damage-from-inside tracking); **Engulf-on-move**
-  entry + **multi-capacity** (cube holds 4 Medium); the **grapple-first**
-  precondition (Behir). Until regurgitate lands, the victim is freed by
-  killing the swallower.
+- **✅ Regurgitate counterplay built (v2).** A Swallow action's
+  `swallow_apply` can carry `regurgitate_threshold` / `regurgitate_dc` /
+  `regurgitate_save`: damage the victim deals to the swallower is tracked
+  per turn, and at the victim's turn end a threshold breach makes the
+  swallower save (via forced_save, so Legendary Resistance applies) or
+  expel the victim (freed + Prone). Behir: threshold 30, CON DC 14.
+- Still DEFERRED: **Engulf-on-move** entry + **multi-capacity** (cube
+  holds 4 Medium); the **grapple-first** precondition (Behir).
 - Still deferred on OTHER systems: **Black Pudding / Ochre Jelly**
   (CR 4 / 2) — split-on-hit (On-death / triggered bucket); **Roper**
   (CR 5) — also Reel/Grapple-line mechanics.
@@ -303,14 +315,23 @@ attack redirection). No general monster-reaction declaration path yet.
   tail is entirely GREEN.
 
 ## Aura traits
-Per-turn area effects on nearby creatures ("each creature within X feet
-…", "Frightful Presence"). Some may later map to persistent_aura; defer
-until confirmed.
-- **Ghast** (CR 2, rating 4) — Stench (5-ft emanation, CON save →
-  Poisoned). **Built without this trait** (Bite + Claw are the core).
-- **Harpy** (CR 1, rating 4) — Luring Song (300-ft Concentration
-  emanation, WIS save → Charmed + Incapacitated + forced approach).
-  **Built without this trait** (Claw is the core).
+**✅ SYSTEM BUILT (engine.core.aura_traits).** Always-on emanations: a
+monster `auras: [{id, range_ft, save:{ability,dc}, on_fail, affected,
+immune_on_success}]` is registered at combat start as a caster-anchored
+`persistent_aura` (moves with the monster), and the existing turn-start
+resolver fires it. `immune_on_success` grants per-encounter immunity
+(the "immune for 24h" stand-in).
+- **Ghast** (CR 2) — Stench now buildable: `auras: [{ range_ft: 5,
+  save: {constitution, 10}, immune_on_success: true, on_fail:
+  [apply_condition co_poisoned] }]` (Bite + Claw core already built).
+- **Frightful Presence** (dragons) — NOT a trait aura in 2024 RAW; it's a
+  legendary action that **casts Fear**. Already buildable today via
+  `casts: f_fear` in `legendary_actions.options` (f_fear is built;
+  Spellcasting v2 expands it). No engine work — a dragon LA touch-up.
+- **Harpy** (CR 1) — Luring Song is a Concentration *action* aura (WIS →
+  Charmed + Incapacitated + forced approach), not an always-on trait;
+  rides the persistent_aura cast action. The Charmed-forced-approach
+  movement rider is the remaining gap.
 
 ## Conditional save/attack immunities & resistances (non-declarative)
 "Magic Resistance" (advantage on saves vs spells), damage resistance

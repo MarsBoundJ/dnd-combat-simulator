@@ -634,6 +634,10 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
     if total > 0:
         from engine.core import regeneration as _regeneration
         _regeneration.note_damage(target, dmg_type)
+        # Swallow regurgitate: accumulate damage a swallowed creature deals
+        # to its swallower this turn (feeds the end-of-turn check).
+        from engine.core import swallow as _swallow_mod
+        _swallow_mod.note_damage_to_swallower(actor, target, total)
 
     bus.emit("damage_dealt", {"actor": actor, "target": target,
                                 "amount": total, "type": dmg_type})
@@ -2508,6 +2512,23 @@ def _swallow_apply(params: dict, state: CombatState, bus: EventBus) -> None:
     swallow.apply(swallower, target, params, state)
 
 
+def _summon(params: dict, state: CombatState, bus: EventBus) -> None:
+    """Summon creatures into the fight (Wraith Create Specter, conjure
+    spells). Params: monster (template id, required), count (default 1),
+    max_total (optional capacity cap). The summoner is the current actor;
+    summons join its side and the turn order. Rides engine.core.summoning."""
+    summoner = (state.current_attack or {}).get("actor") or state.current_actor()
+    if summoner is None:
+        raise ValueError("summon requires a current actor")
+    monster_id = params.get("monster")
+    if not monster_id:
+        raise ValueError("summon requires a `monster` template id")
+    from engine.core import summoning
+    summoning.summon(summoner, monster_id, state,
+                       count=int(params.get("count", 1)),
+                       max_total=params.get("max_total"))
+
+
 def _grant_bardic_inspiration(params: dict, state: CombatState,
                                 bus: EventBus) -> None:
     """Grant a Bardic Inspiration die to an ally (current_attack.target).
@@ -2818,6 +2839,7 @@ def _populate_handler_table() -> None:
         "shape_shift": _shape_shift,
         "shape_shift_revert": _shape_shift_revert,
         "swallow_apply": _swallow_apply,
+        "summon": _summon,
     }
 
 
@@ -2913,6 +2935,9 @@ def _all_primitives() -> list[Primitive]:
         # Swallow / Engulf — internalize the target (Total Cover +
         # ongoing acid) via engine.core.swallow.
         Primitive("swallow_apply", _swallow_apply, implemented=True),
+        # Summon creatures into the fight (Wraith Create Specter, conjure)
+        # via engine.core.summoning — dynamic encounter membership.
+        Primitive("summon", _summon, implemented=True),
         Primitive("grant_bardic_inspiration", _grant_bardic_inspiration,
                     implemented=True),
         # College of Lore Cutting Words — reaction that rolls the Bard's
