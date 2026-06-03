@@ -154,6 +154,16 @@ def generate_candidates(actor: Actor, state: CombatState,
     # one creature in the area doesn't exclude them.
     targetable_enemies = [e for e in enemies
                             if getattr(e, "cover", "none") != "total"]
+    # Barrier line-of-effect: an enemy a wall (e.g. Wall of Force) cuts off
+    # from the actor is removed from SINGLE-TARGET candidate emission, so
+    # the AI doesn't try to attack through the barrier. AoE candidates keep
+    # the unfiltered list (occlusion is resolved per-creature at the area-
+    # membership layer). Gated — no walls leaves the list identical.
+    _walls = getattr(state, "walls", None)
+    if _walls:
+        from engine.core.geometry import line_of_effect_blocked
+        targetable_enemies = [e for e in targetable_enemies
+                              if not line_of_effect_blocked(actor, e, _walls)]
     allies = [a for a in state.encounter.actors
               if a.side == actor.side and a.is_alive()]
 
