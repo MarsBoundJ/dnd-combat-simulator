@@ -94,7 +94,7 @@ level_table:
     spellcasting: { cantrips_known: 4, prepared_spells: 12 }
   - level: 9
     proficiency_bonus: 4
-    features: [f_cone_of_cold, f_hold_monster, f_cloudkill]
+    features: [f_cone_of_cold, f_hold_monster, f_cloudkill, f_wall_of_force]
     spellcasting: { cantrips_known: 4, prepared_spells: 14 }
   - level: 10
     proficiency_bonus: 4

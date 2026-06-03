@@ -55,7 +55,7 @@ class WizardSpellListTest(unittest.TestCase):
         ids = _action_ids(_pc(13))
         for expected in ("a_disintegrate", "a_cone_of_cold", "a_polymorph",
                           "a_hold_monster", "a_fireball", "a_finger_of_death",
-                          "a_counterspell", "a_shield"):
+                          "a_counterspell", "a_shield", "a_wall_of_force"):
             self.assertIn(expected, ids, f"L13 Wizard missing {expected}")
 
     def test_cantrips_and_l1_present_from_level_1(self):
@@ -76,6 +76,7 @@ class WizardSpellListTest(unittest.TestCase):
             ("a_web", 2, 3),               # L2 slot → char 3
             ("a_polymorph", 4, 7),         # L4 slot → char 7
             ("a_hold_monster", 5, 9),      # L5 slot → char 9
+            ("a_wall_of_force", 5, 9),     # L5 slot → char 9
             ("a_disintegrate", 6, 11),     # L6 slot → char 11
             ("a_finger_of_death", 7, 13),  # L7 slot → char 13
         ]
