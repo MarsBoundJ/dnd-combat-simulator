@@ -59,7 +59,9 @@ spellbook:
 level_table:
   - level: 1
     proficiency_bonus: 2
-    features: [f_spellcasting_wizard, f_ritual_adept, f_arcane_recovery]
+    features: [f_spellcasting_wizard, f_ritual_adept, f_arcane_recovery,
+               f_fire_bolt, f_ray_of_frost, f_chill_touch,
+               f_magic_missile, f_shield]
     spellcasting: { cantrips_known: 3, prepared_spells: 4 }
   - level: 2
     proficiency_bonus: 2
@@ -67,7 +69,7 @@ level_table:
     spellcasting: { cantrips_known: 3, prepared_spells: 5 }
   - level: 3
     proficiency_bonus: 2
-    features: [grant_subclass]
+    features: [grant_subclass, f_web, f_scorching_ray]
     spellcasting: { cantrips_known: 3, prepared_spells: 6 }
   - level: 4
     proficiency_bonus: 2
@@ -75,7 +77,8 @@ level_table:
     spellcasting: { cantrips_known: 4, prepared_spells: 7 }
   - level: 5
     proficiency_bonus: 3
-    features: [f_memorize_spell]
+    features: [f_memorize_spell, f_fireball, f_counterspell, f_lightning_bolt,
+               f_hypnotic_pattern, f_slow, f_fear]
     spellcasting: { cantrips_known: 4, prepared_spells: 9 }
   - level: 6
     proficiency_bonus: 3
@@ -83,7 +86,7 @@ level_table:
     spellcasting: { cantrips_known: 4, prepared_spells: 10 }
   - level: 7
     proficiency_bonus: 3
-    features: []
+    features: [f_polymorph, f_ice_storm, f_banishment, f_blight]
     spellcasting: { cantrips_known: 4, prepared_spells: 11 }
   - level: 8
     proficiency_bonus: 3
@@ -91,7 +94,7 @@ level_table:
     spellcasting: { cantrips_known: 4, prepared_spells: 12 }
   - level: 9
     proficiency_bonus: 4
-    features: []
+    features: [f_cone_of_cold, f_hold_monster, f_cloudkill]
     spellcasting: { cantrips_known: 4, prepared_spells: 14 }
   - level: 10
     proficiency_bonus: 4
@@ -99,7 +102,7 @@ level_table:
     spellcasting: { cantrips_known: 5, prepared_spells: 15 }
   - level: 11
     proficiency_bonus: 4
-    features: []
+    features: [f_disintegrate]
     spellcasting: { cantrips_known: 5, prepared_spells: 16 }
   - level: 12
     proficiency_bonus: 4
@@ -107,7 +110,7 @@ level_table:
     spellcasting: { cantrips_known: 5, prepared_spells: 16 }
   - level: 13
     proficiency_bonus: 5
-    features: []
+    features: [f_finger_of_death]
     spellcasting: { cantrips_known: 5, prepared_spells: 17 }
   - level: 14
     proficiency_bonus: 5
