@@ -71,7 +71,7 @@ level_table:
       metamagic_known: 2
   - level: 3
     proficiency_bonus: 2
-    features: [grant_subclass, f_scorching_ray]
+    features: [grant_subclass, f_scorching_ray, f_web]
     class_resources:
       spell_slots: { 1: 4, 2: 2 }
       sorcery_points: 3
@@ -85,7 +85,7 @@ level_table:
       metamagic_known: 2
   - level: 5
     proficiency_bonus: 3
-    features: [f_fireball, f_lightning_bolt]
+    features: [f_fireball, f_lightning_bolt, f_hypnotic_pattern]
     class_resources:
       spell_slots: { 1: 4, 2: 3, 3: 2 }
       sorcery_points: 5
@@ -113,7 +113,7 @@ level_table:
       metamagic_known: 2
   - level: 9
     proficiency_bonus: 4
-    features: [f_cone_of_cold]
+    features: [f_cone_of_cold, f_hold_monster]
     class_resources:
       spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 1 }
       sorcery_points: 9

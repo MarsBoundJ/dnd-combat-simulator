@@ -21,13 +21,27 @@ first, then the spell rides it.
 - **Teleport** (L7, P3)
 
 ## Form-replacement system (Polymorph family)
-- **Polymorph** (L4, P5) — replace target's stat block entirely
+- **Polymorph** (L4, P5) — replace target's stat block entirely.
+  DEFERRED in the control-spell content batch: the `polymorph` MERGE
+  POLICY already exists in `engine/core/forms.py` and `assume_form` works
+  on any actor, but it is only ever invoked on the CASTER (Wild Shape /
+  Change Shape). There is no pipeline primitive to transform a TARGET from
+  a failed save — needs a `polymorph_target` primitive (forced_save WIS →
+  on fail `forms.assume_form(target, beast_template, "polymorph", …)` +
+  temp HP = beast HP, spell ends when temp HP gone) plus a beast template
+  to morph into. SRD class lists (from PDF): Bard, Druid, Sorcerer,
+  Wizard. Build the primitive, then add f_polymorph + wire it.
 - **True Polymorph** (L9, P5)
 - **Shapechange** (L9, P5)
 
 ## Wall / Terrain system
 - **Wall of Fire** (L4, P5) — line/ring wall, damage on pass-through or end-turn near
-- **Wall of Force** (L5, P5) — impassable barrier
+- **Wall of Force** (L5, P5) — impassable barrier. DEFERRED in the
+  control-spell content batch: nothing composes from existing primitives —
+  the sim has no positional barrier / line-of-effect / movement-blocking
+  geometry, so an impassable invisible wall has no modelable combat effect
+  yet. Needs the Wall/Terrain system (shared with Wall of Fire / Forcecage
+  / Prismatic Wall). SRD class list (from PDF): Wizard only.
 - **Prismatic Wall** (L9, P5) — multi-layered wall with per-layer effects
 - **Forcecage** (L7, P5) — enclosed barrier
 
