@@ -2529,6 +2529,40 @@ def _summon(params: dict, state: CombatState, bus: EventBus) -> None:
                        max_total=params.get("max_total"))
 
 
+def _polymorph_target(params: dict, state: CombatState,
+                        bus: EventBus) -> None:
+    """Polymorph the current_attack target into a Beast (control spell).
+
+    Runs in the `on_fail` of the spell's WIS forced_save (a successful save
+    means no effect; Legendary Resistance can spend a charge to succeed —
+    handled by _forced_save). On a failure, the target assumes the beast
+    form under the `polymorph` merge policy: all stats replaced by the
+    beast's, HP becomes the beast's pool, and damage beyond it carries over
+    to the true form on revert (carry_overflow). The form is sustained by
+    the CASTER's concentration — end_concentration reverts it — and also
+    reverts when the beast form drops to 0 HP (the _damage death hook).
+
+    Params: `form` (a Beast monster id, default 'm_giant_toad' — a low-
+    threat 'neutralize' choice; the caster's tactical form pick is the AI
+    lane's job, capped at the target's CR per RAW, deferred)."""
+    caster = (state.current_attack or {}).get("actor")
+    target = (state.current_attack or {}).get("target")
+    if caster is None or target is None:
+        raise ValueError("polymorph_target needs a current actor + target")
+    form_id = params.get("form", "m_giant_toad")
+    registry = state.content_registry
+    if registry is None:
+        raise ValueError("polymorph_target requires a content registry")
+    form_template = registry.get("monster", form_id)
+    action_id = (state.current_attack.get("action") or {}).get("id", "a_polymorph")
+    from engine.core import forms
+    forms.assume_form(target, form_template, "polymorph", {
+        "effect": "polymorph", "caster_id": caster.id,
+        "action_id": action_id,
+        "reversion": ["hp_zero", "concentration_end"],
+    }, state)
+
+
 def _grant_bardic_inspiration(params: dict, state: CombatState,
                                 bus: EventBus) -> None:
     """Grant a Bardic Inspiration die to an ally (current_attack.target).
@@ -2838,6 +2872,7 @@ def _populate_handler_table() -> None:
         "wild_shape_revert": _wild_shape_revert,
         "shape_shift": _shape_shift,
         "shape_shift_revert": _shape_shift_revert,
+        "polymorph_target": _polymorph_target,
         "swallow_apply": _swallow_apply,
         "summon": _summon,
     }
@@ -2932,6 +2967,10 @@ def _all_primitives() -> list[Primitive]:
         Primitive("shape_shift", _shape_shift, implemented=True),
         Primitive("shape_shift_revert", _shape_shift_revert,
                     implemented=True),
+        # Polymorph (control) — forced WIS save → transform the TARGET into
+        # a Beast under the polymorph policy (carry_overflow, concentration-
+        # and death-revert). See engine.core.forms.
+        Primitive("polymorph_target", _polymorph_target, implemented=True),
         # Swallow / Engulf — internalize the target (Total Cover +
         # ongoing acid) via engine.core.swallow.
         Primitive("swallow_apply", _swallow_apply, implemented=True),

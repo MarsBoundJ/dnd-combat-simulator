@@ -45,6 +45,10 @@ action_template:
   type: hard_control
   spell_slot_level: 2
   concentration: true
+  # Hold Person only affects Humanoids — the candidate generator's
+  # target-effectiveness gate drops it against any other creature type
+  # (a dragon can never be held). Hold Monster is the any-creature version.
+  target_creature_types: [humanoid]
   named_effect: hold_person
   range_ft: 60
   pipeline:
