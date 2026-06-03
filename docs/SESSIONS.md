@@ -5,6 +5,117 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-06-03 — positional-barrier substrate (Wall of Force) + Polymorph; Wizard spell list (BC)
+
+**Participants:** Phil, Claude (Opus 4.8, 1M ctx) — desktop/engine lane; "BC" (browser Claude) — content lane.
+
+Test suite 2340 → **2398** passed + 1 skipped, zero regressions (desktop
+lane). Theme: built the **positional-barrier / line-of-effect geometry
+substrate** — Foundry-VTT-aligned by design — and shipped **Wall of Force**
+on top of it, plus **Polymorph**. In parallel, BC fixed the "Wizard casts
+nothing" content bug.
+
+### Headline architectural decision (Phil): build geometry Foundry-shaped from day one
+
+Foundry VTT is the planned visualization layer, so the barrier layer mirrors
+Foundry's **data model** — `WallDocument` segments (`c` + move/sight/sound/
+light channels + dir + flags) and `MeasuredTemplate` shapes (circle/cone/
+ray/rect) — but **not** its computational geometry (no `ClockwiseSweepPolygon`
+/ render engine). Boundary: feet-native coords (convert to pixels only at
+export), 2D-now/z-later, provenance in `flags`. Payoff: the Phase D export
+is a coordinate-scale + field pass-through, not a reinterpretation.
+
+### Key discovery: the sim already HAD a geometry layer
+
+`engine/core/geometry.py` already did Chebyshev grid distance (= Foundry's
+5e default 5-5-5 diagonal), `actors_in_radius/cone/line`, `move_toward`,
+`push_creature` — AoE was *already* geometric. `NEEDS_ENGINE_WORK.md`'s "no
+geometry" claim was stale. So "full substrate" was lower-churn than feared:
+no rewrite of the green AoE tests — walls layer on as gated occlusion.
+
+### PR #159 — Polymorph (control spell)
+
+`polymorph_target` primitive rides the form system's `polymorph` merge
+policy: target → Beast on a failed WIS save, carry-overflow death-revert,
+concentration-revert, and Legendary Resistance applies for free. A thin
+spell on existing infra. `f_polymorph` (default m_giant_toad). 5 tests.
+
+### PR #163 — Barrier geometry (Phase A)
+
+Foundry-`WallDocument`-shaped `Wall` dataclass + segment-intersection
+(`segments_cross`, `segment_blocked`, `line_of_effect_blocked`). Pure-
+additive; nothing reads it yet. 18 geometry unit tests. Suite 2363.
+
+### PR #164 — Wall wiring (Phase B)
+
+`CombatState.walls`; walls now affect **movement** (`move_toward`/
+`push_creature` halt at a move-blocking wall), **single-target line of
+effect** (`_attack_roll` auto-miss `no_line_of_effect` + candidate-gen
+filter), and **AoE occlusion** (`_resolve_save_targets` + `offensive_ehp_aoe`
+spare creatures behind a wall from the origin). **All gated on non-empty
+`state.walls`** → wall-free encounters are byte-identical (every new test
+paired with a `walls=[]` gating test). New helper `clear_line_of_effect`.
+10 tests. Suite 2373.
+
+### PR #165 — Wall of Force (Phase C)
+
+`place_barrier` primitive (dual-registered) drops a move-blocking, sight-
+transparent panel perpendicular to the caster→target axis. `f_wall_of_force`
+(5th-level Evocation, Concentration). `end_concentration` scrubs walls by
+`flags.caster_id`+`action_id` (mirrors persistent_auras). Immutability is
+correct by construction (a wall isn't a targetable actor → can't be damaged/
+dispelled); the RAW Disintegrate-destroys-it exception is **deferred** (needs
+wall-as-target modeling; noted in `f_disintegrate.yaml`). AI control-eHP
+scoring of Wall of Force deferred with the broader control-eHP scorer. 8
+tests. Suite 2381.
+
+### PR #166 — Foundry export (Phase D)
+
+`engine/core/foundry_export.py`: one-way serializer. `wall_to_document` /
+`walls_to_documents` → `WallDocument` dicts (grid-units→pixels; channels
+pass through; flags namespaced). `area_to_template` → `MeasuredTemplate`
+(sphere/emanation→circle, cone→cone@53.13°, line→ray, cube→rect; origin→
+square-center px; direction via atan2 in Foundry's +y-down convention). Sim
+stays authoritative; these are render/automation hints. 17 tests incl. real
+loaded Fireball/dragon-breath round-trip. Suite 2398.
+
+### Content lane (BC) — parallel
+
+- **#160** control-spell class-list wiring (Bard learns Hold Monster — the
+  cross-type fix; Hypnotic Pattern/Web onto casters). Merged.
+- **#161** docs (Polymorph flipped to BUILT in NEEDS_ENGINE_WORK). Merged.
+- **#162** Wizard spell list — wired 22 SRD-Wizard spells onto
+  `c_wizard.yaml`'s `level_table` at char level 2N−1 per slot tier (sourced
+  from the SRD PDF). Fixes "Wizard PC casts nothing" (was a content gap, not
+  an engine bug). An L13 Wizard now builds a 22-action big-gun ladder.
+  **Open/pending merge.**
+
+### Reusable infra
+
+`Wall` + segment math + `clear_line_of_effect` (geometry.py); `state.walls`
++ its concentration-teardown channel; `place_barrier` primitive;
+`foundry_export` module. Future Forcecage / Wall of Fire / Prismatic Wall /
+Resilient Sphere and a cover model all ride this.
+
+### Process
+
+**Clean session** (contrast to the rough 2026-05-30). Strict per-phase
+rhythm held: build → targeted tests → full suite (background) → verify GREEN
+→ commit → PR → **pause-and-ask** → merge. Every merge confirmed by Phil
+explicitly; verify-before-PR gate honored throughout; this docs push paused-
+and-asked before main.
+
+### Open items carried forward
+
+- [ ] BC: wire **Wall of Force (L5)** onto the Wizard list; confirm Polymorph
+      (L4) present (follow-on to #162).
+- [ ] AI **control-eHP scorer** for Wall of Force / removal spells (so the AI
+      values lockdown) — deferred with the broader control-eHP work.
+- [ ] **Disintegrate destroys a Wall of Force** — needs wall-as-target model.
+- [ ] WoF **sphere/box** variants + free-point placement (panel-only in v1).
+- [ ] **Re-run the Tier-3 boss sim** once the Wizard casts — first read on
+      casters actually contributing + control-eHP.
+
 ## Session: 2026-05-30 — 7 PRs (PRs #112–#118): the Cleric build-out + 2 latent fixes
 
 **Participants:** Phil, Claude (Opus 4.8)
