@@ -1,0 +1,63 @@
+# f_wall_of_force — Wall of Force (5th-level Evocation, SRD CC v5.2.1)
+#
+# RAW summary: an invisible wall of force springs into existence at a point
+# within 120 ft (a flat panel form, up to ten 10-ft panels, or a sphere).
+# Nothing can physically pass through it; it is immune to damage, can't be
+# dispelled by Dispel Magic, and is destroyed by Disintegrate. Lasts up to
+# 10 minutes (Concentration).
+#
+# Engine modeling: rides the positional-barrier system via the
+# `place_barrier` primitive. The primitive drops a single wall PANEL
+# perpendicular to the caster->target axis, one half-square in front of the
+# target on the caster's side, so it cuts the target off from the caster's
+# side of the field. The wall blocks movement and line of effect (ranged
+# attacks + AoE spread can't cross) and is sight-transparent — so it stops
+# a Fireball's spread and arrows across it while staying see-through, just
+# like Wall of Force. Sustained by the caster's Concentration:
+# end_concentration scrubs the wall by its flags (caster_id + action_id),
+# the same teardown channel persistent_auras / recurring effects use.
+#
+# Immutability is correct by construction: a wall is not a targetable actor,
+# so it already can't be damaged or dispelled. The one RAW exception —
+# Disintegrate destroys it — needs wall-as-target modeling and is DEFERRED
+# (Disintegrate's own YAML already lists force-wall destruction as deferred).
+#
+# AI note: scoring Wall of Force's control value (lockdown / denied
+# action-economy as control-eHP) is the AI lane's job and is deferred along
+# with the broader control-eHP scorer; the mechanic resolves correctly when
+# executed. The panel form is the v1 model; the sphere/box variants and
+# free-point placement are deferred.
+#
+# source: srd_5.2.1
+
+id: f_wall_of_force
+name: Wall of Force
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 9                 # Wizards gain 5th-level slots at L9
+type: active
+spell:
+  class: c_wizard
+  level: 5
+
+description: |
+  Conjure an invisible, immovable wall of force between you and a creature
+  within 120 ft. Nothing can pass through it and ranged attacks / area
+  effects can't cross it, though it is transparent. Concentration, up to
+  10 minutes (immune to damage; destroyed only by Disintegrate).
+
+action_template:
+  id: a_wall_of_force
+  name: Wall of Force
+  type: hard_control
+  spell_slot_level: 5
+  concentration: true
+  named_effect: wall_of_force
+  range_ft: 120
+  pipeline:
+    - primitive: place_barrier
+      params:
+        length_ft: 30
+        move: true
+        sight: false
