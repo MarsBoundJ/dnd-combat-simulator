@@ -129,6 +129,19 @@ def end_concentration(caster: Actor, state: CombatState,
     ]
     removed += before_auras - len(state.persistent_auras)
 
+    # Barrier walls owned by this concentration (Wall of Force ends when the
+    # caster drops concentration). Provenance lives in wall.flags; mirrors
+    # the persistent_auras scrub above.
+    walls = getattr(state, "walls", None)
+    if walls:
+        before_walls = len(walls)
+        state.walls = [
+            w for w in walls
+            if not (getattr(w, "flags", {}).get("caster_id") == caster_id
+                    and getattr(w, "flags", {}).get("action_id") == action_id)
+        ]
+        removed += before_walls - len(state.walls)
+
     # PR #89: scrub recurring damage ticks owned by this concentration
     # (Searing Smite's burn ends when the Paladin drops concentration).
     before_ticks = len(state.recurring_damage)
