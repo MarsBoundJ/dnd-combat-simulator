@@ -194,6 +194,24 @@ def _attack_roll(params: dict, state: CombatState, bus: EventBus) -> dict:
         })
         return {"state": "miss", "reason": "total_cover"}
 
+    # Barrier line-of-effect guard. A wall that breaks line of effect
+    # between attacker and target (e.g. Wall of Force) makes a direct
+    # attack — ranged OR melee across the barrier — impossible: auto-miss
+    # without rolling. Gated on the encounter having walls so a wall-free
+    # fight skips this entirely. AoE is handled separately at the
+    # area-membership layer (_resolve_save_targets), not here.
+    _walls = getattr(state, "walls", None)
+    if _walls:
+        from engine.core.geometry import line_of_effect_blocked
+        if line_of_effect_blocked(actor, target, _walls):
+            state.current_attack["state"] = "miss"
+            state.event_log.append({
+                "event": "attack_roll", "actor": actor.id,
+                "target": target.id, "result": "miss",
+                "reason": "no_line_of_effect",
+            })
+            return {"state": "miss", "reason": "no_line_of_effect"}
+
     # PR #45: reactions fire here. Protection Fighting Style imposes
     # disadvantage on attacks against an adjacent ally. The reaction
     # applies its modifier to the target BEFORE we query
@@ -2760,27 +2778,37 @@ def _resolve_save_targets(params: dict, state: CombatState) -> list[Actor]:
         direction = state.current_attack.get("area_direction")
         living = [a for a in state.encounter.actors if a.is_alive()]
 
+        members: list[Actor] | None = None
         if origin is not None:
             if shape == "sphere":
                 radius_ft = area.get("radius_ft")
                 if radius_ft is not None:
                     from engine.core.geometry import actors_in_radius
-                    return actors_in_radius(tuple(origin), int(radius_ft),
-                                              living)
+                    members = actors_in_radius(tuple(origin), int(radius_ft),
+                                                 living)
             elif shape == "cone":
                 length_ft = area.get("length_ft")
                 if length_ft is not None and direction is not None:
                     from engine.core.geometry import actors_in_cone
-                    return actors_in_cone(tuple(origin), tuple(direction),
-                                            int(length_ft), living)
+                    members = actors_in_cone(tuple(origin), tuple(direction),
+                                               int(length_ft), living)
             elif shape == "line":
                 length_ft = area.get("length_ft")
                 width_ft = area.get("width_ft", 5)
                 if length_ft is not None and direction is not None:
                     from engine.core.geometry import actors_in_line
-                    return actors_in_line(tuple(origin), tuple(direction),
-                                            int(length_ft), int(width_ft),
-                                            living)
+                    members = actors_in_line(tuple(origin), tuple(direction),
+                                               int(length_ft), int(width_ft),
+                                               living)
+        if members is not None:
+            # Barrier occlusion: a creature whose line of effect from the
+            # blast origin is broken by a wall (Wall of Force) is spared.
+            # Gated — no walls leaves membership identical.
+            _walls = getattr(state, "walls", None)
+            if _walls:
+                from engine.core.geometry import clear_line_of_effect
+                members = clear_line_of_effect(tuple(origin), members, _walls)
+            return members
         # Legacy fallback: all living enemies
         return [a for a in state.encounter.actors
                 if a.side != actor.side and a.is_alive()]

@@ -58,7 +58,8 @@ def is_within_ft(a: Actor | tuple[int, int],
 # ============================================================================
 
 def move_toward(mover: Actor, target: Actor | tuple[int, int],
-                 max_ft: int, stop_at_ft: int = 0) -> int:
+                 max_ft: int, stop_at_ft: int = 0,
+                 blockers: list[Wall] | None = None) -> int:
     """Move `mover` toward `target` by up to `max_ft` ft (in 5-ft steps).
 
     Greedy: each step moves one square toward the target in both axes
@@ -67,6 +68,11 @@ def move_toward(mover: Actor, target: Actor | tuple[int, int],
     the target's square, used for non-combat positioning), but the
     runner's engage step passes the actor's reach so creatures land
     adjacent for melee instead of stacking on the target.
+
+    `blockers` (optional) is the encounter's wall list: a step that would
+    cross a `move`-blocking wall is refused, and the mover stops at that
+    square (you can move up to a Wall of Force but not through it).
+    Passing None / [] preserves the original open-battlefield behavior.
 
     Returns the number of feet actually moved (0 if already in range
     or if max_ft < 5).
@@ -89,7 +95,10 @@ def move_toward(mover: Actor, target: Actor | tuple[int, int],
         dy = _step_toward(y, ty)
         if dx == 0 and dy == 0:
             break
-        mover.position = (x + dx, y + dy)
+        nxt = (x + dx, y + dy)
+        if blockers and segment_blocked((x, y), nxt, blockers, "move"):
+            break   # a wall blocks this step — stop short of it
+        mover.position = nxt
         moved_squares += 1
     return moved_squares * SQUARE_SIZE_FT
 
@@ -320,7 +329,8 @@ def _in_line(square: tuple[int, int], origin: tuple[int, int],
     return 1 <= ax <= length_squares
 
 
-def push_creature(pusher: Actor, target: Actor, distance_ft_amount: int) -> int:
+def push_creature(pusher: Actor, target: Actor, distance_ft_amount: int,
+                   blockers: list[Wall] | None = None) -> int:
     """Push `target` straight away from `pusher` up to `distance_ft_amount`
     feet (PR #58 — Push weapon mastery).
 
@@ -330,9 +340,12 @@ def push_creature(pusher: Actor, target: Actor, distance_ft_amount: int) -> int:
     returns 0 (no defined direction).
 
     Movement is step-wise (5 ft per square). Each step moves the
-    target one square in the push direction. v1 doesn't handle
-    collision with other actors or map edges — it always moves the
-    full requested distance. Tracked as a deferred refinement.
+    target one square in the push direction. `blockers` (optional): a
+    step that would cross a `move`-blocking wall is refused and the
+    push stops there (you can be shoved against a Wall of Force, not
+    through it). Passing None / [] keeps the original behavior of
+    moving the full requested distance. v1 still doesn't handle
+    collision with other actors or map edges.
 
     Returns the number of feet actually pushed.
     """
@@ -344,11 +357,15 @@ def push_creature(pusher: Actor, target: Actor, distance_ft_amount: int) -> int:
         return 0
     x, y = target.position
     dx, dy = direction
+    moved_squares = 0
     for _ in range(max_squares):
-        x += dx
-        y += dy
+        nxt = (x + dx, y + dy)
+        if blockers and segment_blocked((x, y), nxt, blockers, "move"):
+            break   # wall stops the push
+        x, y = nxt
+        moved_squares += 1
     target.position = (x, y)
-    return max_squares * SQUARE_SIZE_FT
+    return moved_squares * SQUARE_SIZE_FT
 
 
 def required_movement_ft(mover: Actor, target: Actor | tuple[int, int],
@@ -516,3 +533,16 @@ def line_of_effect_blocked(a: Actor | tuple[float, float],
         return False
     return (segment_blocked(a, b, walls, "move") or
             segment_blocked(a, b, walls, "sight"))
+
+
+def clear_line_of_effect(origin: tuple[float, float],
+                          actors: list[Actor],
+                          walls: list[Wall] | None) -> list[Actor]:
+    """Return the subset of `actors` with a clear line of effect from
+    `origin` (no blocking wall between). Used to occlude AoE membership —
+    a creature behind a Wall of Force from the blast's origin is spared.
+    Empty / None walls returns the list unchanged (order preserved)."""
+    if not walls:
+        return list(actors)
+    return [a for a in actors
+            if not line_of_effect_blocked(origin, a, walls)]

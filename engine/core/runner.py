@@ -444,7 +444,11 @@ class EncounterRunner:
 
         from_pos = actor.position
         from_dist = distance_ft(actor, target)
-        moved_ft = move_toward(actor, target, speed_ft, stop_at_ft=stop_at)
+        # Barriers (Wall of Force) stop movement: the mover halts at the
+        # wall rather than passing through it. Gated inside move_toward —
+        # an empty wall list is the open-battlefield no-op.
+        moved_ft = move_toward(actor, target, speed_ft, stop_at_ft=stop_at,
+                                blockers=getattr(state, "walls", None))
         if moved_ft <= 0:
             return
         actor.moved_this_turn = True
