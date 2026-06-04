@@ -1084,14 +1084,27 @@ class EncounterRunner:
         # Movement phase (main slot only): if no in-range candidates,
         # close on the dial-preferred enemy up to speed and try again.
         # Bonus slot doesn't move (movement is a main-slot resource).
-        if not candidates and slot == "action":
+        # Move-to-engage when the actor has NO candidate that acts on an
+        # ENEMY from here — not merely when the set is empty. A self-targeted
+        # option (e.g. a Ready-for-when-an-enemy-enters-reach) must not freeze
+        # a melee actor at range: it should advance toward the enemy and then
+        # act. We re-generate after moving — if an in-reach attack now exists
+        # we use it; otherwise the pre-move defensive/Ready candidates remain
+        # selectable. Actors that already have an offensive candidate skip
+        # this entirely (the common path is unchanged).
+        def _targets_enemy(cand):
+            t = cand.get("target")
+            return t is not None and getattr(t, "side", actor.side) != actor.side
+        if slot == "action" and not any(_targets_enemy(c) for c in candidates):
+            had_any = bool(candidates)
             self._move_to_engage(actor, state)
-            # Movement may have triggered OAs that dropped the actor —
-            # skip cleanly if so.
+            # Movement may have triggered OAs that dropped the actor.
             if not actor.is_alive():
                 return
-            candidates = pipeline.generate_candidates(actor, state, slot=slot)
-            if not candidates:
+            regen = pipeline.generate_candidates(actor, state, slot=slot)
+            if regen:
+                candidates = regen
+            elif not had_any:
                 state.event_log.append({
                     "event": "passed_turn",
                     "actor": actor.id,
@@ -1099,6 +1112,7 @@ class EncounterRunner:
                     "reason": "out_of_range_after_movement",
                 })
                 return
+            # else: keep the pre-move non-offensive candidates (Ready / buff)
 
         if not candidates:
             return
