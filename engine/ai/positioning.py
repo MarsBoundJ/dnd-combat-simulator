@@ -269,6 +269,12 @@ def best_position(actor: Actor, state: CombatState) -> tuple[int, int] | None:
         return None
 
     cur = tuple(actor.position)
+    # Only reposition for safety when the actor can ALREADY act from where it
+    # stands — otherwise defer to the greedy move-to-engage (which closes into
+    # range). Keeps best_position a "find a safer in-range square" behavior,
+    # not a "move into range" one (a far melee PC still just charges in).
+    if not can_act_from(actor, cur, state):
+        return None
     best_sq = cur
     best_cost = aoe_exposure_ehp(actor, cur, state)
     from engine.core.geometry import distance_ft
