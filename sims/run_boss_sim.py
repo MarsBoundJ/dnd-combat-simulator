@@ -36,6 +36,13 @@ EXTRA_SEEDS = [1, 7, 13, 99]
 
 # Spread approach formation (grid squares; dragon at (0,0)). Fanned across a
 # wide arc ~45-55 ft out so a single 60-ft cone can't catch all four.
+#
+# NOTE (Monte Carlo finding, 2026-06-03): this layout (33% win over 60 seeds)
+# BEATS a "widen the squishiest Wizard to a far flank" variant (13% win) —
+# widening the Wizard eliminated its round-2 death but pushed the CLERIC into
+# the cone, and losing the healer's sustain cost more wins than the Wizard's
+# nova. Lesson: protect the highest-VALUE PC (the healer), not the
+# lowest-HP one. See sims/FINDINGS.md.
 _SPREAD = {
     "Fighter_Champion": [10, 0],
     "Cleric": [9, -8],
