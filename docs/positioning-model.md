@@ -304,3 +304,46 @@ much later, if ever.
 - PC positioning (§2 AoE-exposure term): for a candidate PC destination,
   the cost = the eHP of `max_aoe_coverage` run for the boss over its
   reachable apexes against the resulting formation.
+
+---
+
+## 10. Foundry-VTT interoperability (target acquisition + AoE)
+
+Verified against Foundry/dnd5e behavior. **Verdict: our model folds in
+cleanly — our two core choices ARE Foundry's model.**
+
+- **Membership = Foundry core default.** Foundry core targets a token iff
+  its **square's center** is under the template (all shapes) — exactly our
+  center-based rule. (Strict 5e-PHB "any touched space" — except circles,
+  which use center — is a module override, *DF Template Enhancements*; we
+  use the cleaner center rule = Foundry core, and can opt into 5e-touch
+  later.)
+- **Wall-blocked AoE = the *Walled Templates* module, same channel model.**
+  Foundry templates don't respect walls natively; the standard module adds
+  it and keys off the **exact move / sight / sound / light wall-restriction
+  types we built into `Wall`**, with Block / Spread / Reflect modes. "Wall
+  of Force stops a Fireball's spread" = a template set to **Block,
+  restriction = move** — a ~1:1 map. (It also spreads-around / reflects,
+  which we don't — our Block is a subset.) The Phase-A channel choice was
+  prescient: same vocabulary the Foundry wall ecosystem speaks.
+- **Shapes + angles.** Phase D exports circle / cone@53.13° / ray / rect.
+  **Free-angle + straddling are NATIVE to Foundry** (continuous placement),
+  so our 8-dir grid is the *limiter* — adding free-angle later is zero
+  Foundry-side work.
+- **Large creatures.** Foundry core is also center-point based, matching our
+  single-(x,y)-per-actor model today; they diverge only if we add
+  multi-square footprints (then both sides need the same footprint rule).
+
+**The one architectural lock: the SIM is authoritative for target
+acquisition.** We compute who's in the AoE (our routine + center membership
++ wall occlusion) and hand Foundry the template + resolved targets to
+render — Phase D's one-way export. Foundry's own auto-target need not match
+in *sim mode*. For a future *observation mode* (Foundry/GM drives, we
+record), configure Foundry to match us: **core center targeting + Walled
+Templates (Block, restriction = move)** — Foundry's defaults plus the one
+standard wall module, so alignment is natural.
+
+**Verify when wiring:** (a) cone edge-cell rule (Foundry's rendered cone vs
+our grid `lateral ≤ forward/2` may differ at the rim); (b) the dnd5e
+square/cube template quirk; (c) *Walled Templates* is a known module
+dependency for wall-aware AoE in Foundry.
