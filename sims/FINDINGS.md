@@ -121,3 +121,59 @@ Run 1 proved mechanics-correct / decision-naive. Run 2 shows the first
 wave of decision fixes **working**, and sharpens the remaining list to:
 (1) big-gun/nova selection, (2) AoE-aware positioning, (3) LR-aware
 control. Content is still not the bottleneck — the AI/decision layer is.
+
+---
+
+# Run-3 Findings (2026-06-03) — positioning stack live + spread starts
+
+**What changed:** the full positioning stack landed — `max_aoe_coverage`
+(monster orients its breath to the eHP-max placement, #171) + PC
+**de-cluster** movement (`best_position` wired into `_move_to_engage`,
+#173) — and the boss sim now seeds the party in a **spread approach
+formation** (~45-55 ft, fanned to y=±8) instead of stacked at 15 ft
+(positioning-model §5; needed because the 2024 Adult Red Dragon has
+**Initiative +12** and almost always breathes first — RAW). Artifacts:
+`report_run3_positioning.md` + `events_run3.json`; reproducible via
+`sims/run_boss_sim.py` (seed 42 headline + a 5-seed distribution).
+
+## ✅ The headline: the alpha-strike is defused
+**The round-1 breath caught 2 PCs, not 4 — across ALL FIVE seeds.** The
+flanking Bard + Cleric (y=±8) sat outside the dragon's best cone entirely.
+Fights stretched from 2-4 rounds (runs 1-2) to **9-51**.
+
+| seed | first to act | rounds | breath-1 hits | party dmg | dragon HP | PCs standing |
+|---|---|--:|--:|--:|--:|--:|
+| 42 | Dragon | 9 | **2** | 87 | 169/256 | 0 (1 fled) |
+| 1 | **Cleric** | 30 | **2** | 144 | 119/256 | 0 |
+| 7 | Dragon | 50+ | **2** | 112 | 163/256 | 2 |
+| 13 | Dragon | 8 | **2** | 103 | 153/256 | 0 |
+| 99 | **Bard** | 50+ | **2** | 32 | 243/256 | 2 |
+
+Initiative is genuinely rolled — seeds 1 and 99 show a PC winning it. The
+spread + coverage worked exactly as designed: **breath-1 hits 4 → 2.**
+
+## ❌ New finding: defense-only positioning over-corrects into passivity
+The party still loses or **stalemates to the 50-round cap** (seeds 7, 99)
+with tiny damage (seed 99: **32** over 50+ rounds, dragon barely scratched).
+Cause: `best_position` is **defense-only** — it minimizes AoE exposure
+subject to a *binary* "can act" gate, with **no offensive gradient**. So
+casters pick the safest in-range square and plink, never committing. The
+derived stats are damning: Wizard 1 attack (a 12-dmg cantrip), Bard 0 dmg
+(control-only), Cleric 0 (heals) — the Fighter's 75 is nearly the whole
+party offense, same as run 1.
+
+## ❌ Still open from run 2 (unchanged — these weren't this phase's job)
+- **Big-gun selection** — Wizard still casts a cantrip, not Disintegrate/
+  Polymorph (the deferred nova-pacing / slot-opportunity-cost
+  recalibration; needs Phil's framework call). *Now clearly the #1
+  offensive blocker.*
+- **LR-aware control** — Bard's saves still eaten by Legendary Resistance.
+
+## Takeaway
+Run 3 **confirms the positioning fix** (alpha-strike defused, survival 3-10×
+longer) and isolates the next problem precisely: **the party now survives
+but can't kill**, because (a) positioning is defense-only with no offensive
+pull, and (b) casters still don't fire their big guns. The next levers are
+offensive: an **offensive term** in the positioning utility (stop
+over-prioritizing safety) and the deferred **nova/big-gun selection**.
+Defensive AI is now good; offensive AI is the frontier.
