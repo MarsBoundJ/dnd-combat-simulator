@@ -42,9 +42,16 @@ its scoring is superseded by the utility below.
 ## 2. The terms (all eHP-denominated)
 
 1. **AoE exposure (−).** Expected eHP lost to known enemy area attacks if
-   they catch you. **Party-coupled**: clustering raises the chance one AoE
-   catches multiple members, so this term reads positions of *all* allies,
-   not just self. (A 60-ft cone or 20-ft sphere is the canonical case.)
+   they catch you. **Party-coupled** (reads *all* allies' positions, not
+   just self) **and adversary-aware**: the AoE is mobile and the enemy is a
+   maximizer, so exposure is evaluated against the boss's *best response* —
+   it will move (up to speed) and orient the shape to catch the most PCs,
+   net of the OA / movement cost it's willing to pay. The effective danger
+   is therefore **`AoE footprint + boss reach/move − OA-cost-it'll-eat`**,
+   not "is an ally within radius R right now." Computed by the **AoE
+   coverage routine (§9)**, run **single-ply** (boss places its best AoE
+   against the formation; no deeper recursion — Phil 2026-06-03). The
+   canonical cases are a 60-ft cone and a 20-ft sphere.
 
 2. **Concentration-break risk (−).** If the actor is concentrating, a hit
    forces a CON save, `DC = max(10, floor(damage/2))`. A ~55-damage breath
@@ -96,6 +103,23 @@ that position. Pure computed eHP. Worked intuition:
 
 No "doctrine" override lever for now (Phil). If pure-eHP ever produces a
 clearly-unrealistic choice, revisit then.
+
+### The mobile-adversary refinement (worked example)
+Because the boss repositions (§2), spreading is about **raising the boss's
+marginal cost to group you**, not raw distance. Worked case: a Paladin's
+aura is worth ~6 eHP to a melee Fighter, but standing apart so the breath
+hits *one* PC instead of *two* saves ~37 eHP — spread wins by far. Yet a
+smart dragon will **pay ~15 eHP of opportunity attack to move and line up a
+2-target cone worth ~74** (it pays, since 74 ≫ 15), so two melee PCs get
+grouped *regardless* of which side of the dragon they stand on. The
+emergent optimum the eHP terms produce: **one durable PC tanks melee; the
+rest attack from range, spread beyond the boss's cone-alignment reach** —
+so the boss's best AoE catches ~1 PC/round. Caveats: (a) **composition-
+bound** — a two-melee party can't reach the one-tank ideal, so the model
+outputs "least-bad" (stand far apart, tax the boss's movement + OAs); (b)
+the lever is the boss's *marginal cost* to catch the 2nd target, which wide
+spacing inflates; (c) **flight is a deferred amplifier** — a flying boss
+repositions in ~3D nearly for free, so our 2D v1 understates its mobility.
 
 ---
 
@@ -194,3 +218,62 @@ positioning and the control-spell work (this session's Wall of
 Force/Polymorph/Hold Monster) **the same problem**: a controller that eats
 the breath loses its control. No Trusight-facing signal crosses; firewall
 intact.
+
+---
+
+## 9. AoE coverage routine (shared monster-offense / PC-exposure spec)
+
+**One function, both directions.** A single routine answers "how many
+agents can this area shape catch, given the caster's movement?" — used by
+
+- **monster offense**: maximize targets hit by a breath / Fireball / line;
+- **the PC AoE-exposure term (§2)**: run the *boss's* routine adversarially
+  (single-ply) → "the worst AoE the boss can land on our formation."
+
+```
+max_aoe_coverage(shape, attacker, reachable_apexes, targets, state)
+  -> { apex, orientation/center, covered: [agent_id...], n_covered }
+```
+
+### Unifying principle
+The optimal placement can always be slid/rotated until its boundary grazes
+actual target points, so enumerate a **finite, target-derived candidate
+set** rather than sweeping continuous space. Per shape:
+
+| Shape | Method | Cost / apex |
+|---|---|---|
+| **Cone / sector** | **Angular interval stabbing** — each in-range target `p` gives an arc `[β_p−α, β_p+α]` of facings that hit it (`β_p = atan2(Δy,Δx)`); the best orientation is the **max-overlap of arcs** (sort 2n endpoints, +1/−1 sweep). Optimal facing is always an arc endpoint. | O(n log n) |
+| **Line / slab** | "Max points through the apex" — bucket targets by snapped bearing (thin line), or fatten to angular arcs by `width÷distance` (slab) and stab as above. | O(n log n) |
+| **Sphere / burst** | **Max-coverage disk** — candidate centers are the (≤2) radius-`r` circles through each target *pair* ≤ `2r` apart; score coverage at each. | O(n²) |
+| **Cube (axis-aligned)** | **Sliding-window sweep** — sort by x, slide an `s`-wide strip; within it slide an `s`-tall window in y (two pointers). Axis-alignment (no tilt) is what keeps this cheap. | O(n log n) |
+
+### Movement (apex isn't fixed)
+The caster may move before placing the shape. Useful apexes are
+**target-derived** (reachable squares within the shape's length of ≥2
+targets), not the whole move region. Prune with the existing **grid /
+spatial-hash** to fetch only nearby agents; conceptually an **influence
+map** (rasterize "agents hit if placed here" and pick the hot cell).
+
+### Implementation: now vs. scalable
+- **Now (our scale: ≤ ~8 agents, cones snapped to 8 grid directions):**
+  brute-force **pruned-apex × 8 directions** using the existing
+  `actors_in_cone / actors_in_line / actors_in_radius` — exact on the grid,
+  no new geometry, trivially fast.
+- **Scalable upgrade** (finer/continuous orientation, or a wizard nuking 20
+  goblins): the **angular-stabbing** method above. Clean hybrid — the
+  angular method *proposes* candidate facings; the grid functions *verify*
+  membership so results stay grid-exact.
+
+### Minimax depth
+**Single-ply** (Phil 2026-06-03): the boss places its single best AoE
+against the PCs' formation; PCs evaluate a move against that one best
+response. No deeper back-and-forth (we-move-anticipating-its-move-…) until
+much later, if ever.
+
+### Where it plugs in
+- Monster turn: pick the AoE action + apex + orientation maximizing
+  `n_covered` (weighted by per-target eHP, allies-as-negatives for the
+  monster's own friendly fire).
+- PC positioning (§2 AoE-exposure term): for a candidate PC destination,
+  the cost = the eHP of `max_aoe_coverage` run for the boss over its
+  reachable apexes against the resulting formation.
