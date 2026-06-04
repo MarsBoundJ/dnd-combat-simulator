@@ -246,9 +246,11 @@ def spell_slot_ehp_value(slot_level: int, slots_remaining: int,
     The eHP value of conserving a spell slot scales with scarcity.
     A 3rd-level slot in encounter 6 of 6 is worth less than in encounter 1 of 6.
     """
-    scarcity = 1.0 / max(1, slots_remaining)
-    urgency  = encounters_remaining / 6.0  # normalized to standard adventuring day
-    return slot_level * 3.0 * scarcity * (1.0 - urgency)
+    scarcity     = 1.0 / max(1, slots_remaining)
+    day_pressure = encounters_remaining / 6.0  # fights still to come; clamp [0,1]
+    # NOVA-LATE: cost rises with fights remaining (conserve early); on the
+    # last fight (encounters_remaining = 0) the cost is 0 — nova freely.
+    return slot_level * 3.0 * scarcity * day_pressure
 ```
 
 **Note:** Full strategic resource conservation (when to spend slots across an
