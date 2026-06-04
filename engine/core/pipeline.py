@@ -477,6 +477,36 @@ def generate_candidates(actor: Actor, state: CombatState,
                         "actor": actor,
                     })
 
+            # Phase 1b: also offer the eHP-MAX placement from the AoE
+            # coverage routine. The per-enemy candidates above only aim
+            # directly AT an enemy; the coverage routine also tries
+            # orientations between enemies (e.g. a cone rotated to catch two
+            # foes that straddle the axis when neither single-enemy aim
+            # would). Additive — the scorer picks whichever placement wins.
+            from engine.ai.positioning import max_aoe_coverage
+            best_cov = max_aoe_coverage(action, actor, state)
+            if best_cov is not None:
+                cov_origin = tuple(best_cov["origin"])
+                cov_dir = best_cov["direction"]
+                # Only add when this placement isn't already among the
+                # per-enemy candidates for this action. Single-enemy and
+                # sphere cases reduce to an existing aim (no-op); the
+                # coverage candidate earns its place only as a NEW
+                # orientation (e.g. a cone between two foes).
+                dup = any(
+                    c.get("kind") == "aoe_attack" and c.get("action") is action
+                    and tuple(c.get("origin_point", ())) == cov_origin
+                    and c.get("direction") == cov_dir
+                    for c in candidates)
+                if not dup:
+                    cov = {"kind": "aoe_attack", "action": action,
+                           "origin_point": best_cov["origin"], "actor": actor,
+                           "target": _nearest_enemy_to(best_cov["origin"],
+                                                       enemies)}
+                    if cov_dir is not None:
+                        cov["direction"] = cov_dir
+                    candidates.append(cov)
+
     # PR #86: Ready Action candidate emission. Only fires for the
     # main slot (Ready is a full Action; bonus-slot Ready isn't a
     # thing in RAW). Generates ONE candidate per (sub_action × trigger)
@@ -503,6 +533,16 @@ def generate_candidates(actor: Actor, state: CombatState,
     # cast Hold Person at the dragon three rounds running).
     candidates = [c for c in candidates if _target_creature_type_ok(c)]
     return candidates
+
+
+def _nearest_enemy_to(origin, enemies):
+    """The living enemy closest to `origin` — used to stamp a representative
+    `target` on the coverage-routine AoE candidate (whose optimal placement
+    may not be aimed at any single enemy). Returns None if `enemies` empty."""
+    if not enemies:
+        return None
+    from engine.core.geometry import distance_ft
+    return min(enemies, key=lambda e: distance_ft(origin, e.position))
 
 
 def _target_creature_type_ok(candidate: dict) -> bool:
