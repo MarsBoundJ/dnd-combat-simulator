@@ -1,29 +1,29 @@
 {
   "seed": 42,
   "summary": {
-    "rounds": 9,
+    "rounds": 13,
     "reason": "side_enemy_victory",
     "first": "Adult_Red_Dragon",
     "breath1_hits": 2,
-    "party_dmg": 87,
-    "dragon_hp": "169/256",
+    "party_dmg": 247,
+    "dragon_hp": "9/256",
     "pcs_standing": 0
   },
-  "rounds": 9,
+  "rounds": 13,
   "final": [
     {
       "id": "Fighter_Champion",
       "side": "pc",
       "hp_current": 0,
-      "hp_max": 121,
+      "hp_max": 126,
       "is_dead": true,
       "is_fled": false
     },
     {
       "id": "Cleric",
       "side": "pc",
-      "hp_current": 41,
-      "hp_max": 107,
+      "hp_current": 112,
+      "hp_max": 112,
       "is_dead": false,
       "is_fled": true
     },
@@ -31,7 +31,7 @@
       "id": "Wizard_Evoker",
       "side": "pc",
       "hp_current": 0,
-      "hp_max": 80,
+      "hp_max": 85,
       "is_dead": true,
       "is_fled": false
     },
@@ -39,14 +39,14 @@
       "id": "Bard_Lore",
       "side": "pc",
       "hp_current": 0,
-      "hp_max": 94,
+      "hp_max": 99,
       "is_dead": true,
       "is_fled": false
     },
     {
       "id": "Adult_Red_Dragon",
       "side": "enemy",
-      "hp_current": 169,
+      "hp_current": 9,
       "hp_max": 256,
       "is_dead": false,
       "is_fled": false
@@ -193,23 +193,35 @@
       "round": 1
     },
     {
-      "event": "attack_roll",
+      "event": "aoe_origin_placed",
       "actor": "Wizard_Evoker",
-      "target": "Adult_Red_Dragon",
-      "d20": 11,
-      "total": 21,
-      "vs_ac": 19,
-      "result": "hit",
-      "advantage_state": "normal",
-      "crit_threshold": 20
+      "action": "a_hypnotic_pattern",
+      "origin": [
+        0,
+        0
+      ]
     },
     {
-      "event": "damage_dealt",
-      "actor": "Wizard_Evoker",
+      "event": "forced_save",
       "target": "Adult_Red_Dragon",
-      "amount": 12,
-      "type": "cold",
-      "target_hp_remaining": 244
+      "ability": "wisdom",
+      "dc": 18,
+      "d20": 11,
+      "total": 18,
+      "outcome": "success"
+    },
+    {
+      "event": "concentration_started",
+      "caster": "Wizard_Evoker",
+      "action": "a_hypnotic_pattern",
+      "round": 1
+    },
+    {
+      "event": "spell_slot_consumed",
+      "actor": "Wizard_Evoker",
+      "slot_level": 3,
+      "remaining": 2,
+      "action": "a_hypnotic_pattern"
     },
     {
       "event": "turn_end",
@@ -231,8 +243,8 @@
     {
       "event": "healed",
       "target": "Fighter_Champion",
-      "amount": 19,
-      "hp_current": 87
+      "amount": 18,
+      "hp_current": 86
     },
     {
       "event": "feature_use_consumed",
@@ -244,7 +256,7 @@
     {
       "event": "turn_end",
       "actor": "Fighter_Champion",
-      "hp_remaining": 87
+      "hp_remaining": 86
     },
     {
       "event": "turn_start",
@@ -254,8 +266,8 @@
     {
       "event": "healed",
       "target": "Wizard_Evoker",
-      "amount": 9,
-      "hp_current": 25
+      "amount": 12,
+      "hp_current": 28
     },
     {
       "event": "spell_slot_consumed",
@@ -313,38 +325,51 @@
       "target": "Fighter_Champion",
       "ability": "dexterity",
       "dc": 21,
-      "d20": 13,
-      "total": 15,
+      "d20": 11,
+      "total": 13,
       "outcome": "fail"
     },
     {
       "event": "damage_dealt",
       "actor": "Adult_Red_Dragon",
       "target": "Fighter_Champion",
-      "amount": 59,
+      "amount": 51,
       "type": "fire",
-      "target_hp_remaining": 28
+      "target_hp_remaining": 35
     },
     {
       "event": "forced_save",
       "target": "Wizard_Evoker",
       "ability": "dexterity",
       "dc": 21,
-      "d20": 19,
-      "total": 21,
+      "d20": 20,
+      "total": 22,
       "outcome": "success"
     },
     {
       "event": "damage_dealt",
       "actor": "Adult_Red_Dragon",
       "target": "Wizard_Evoker",
-      "amount": 25,
+      "amount": 26,
       "type": "fire",
-      "target_hp_remaining": 0
+      "target_hp_remaining": 2
     },
     {
-      "event": "creature_dropped",
-      "creature": "Wizard_Evoker"
+      "event": "concentration_save",
+      "caster": "Wizard_Evoker",
+      "action": "a_hypnotic_pattern",
+      "dc": 13,
+      "damage_taken": 26,
+      "d20": 6,
+      "total": 8,
+      "outcome": "fail"
+    },
+    {
+      "event": "concentration_ended",
+      "caster": "Wizard_Evoker",
+      "action": "a_hypnotic_pattern",
+      "reason": "failed_con_save",
+      "removed_count": 0
     },
     {
       "event": "recharge_spent",
@@ -355,7 +380,7 @@
     {
       "event": "turn_end",
       "actor": "Adult_Red_Dragon",
-      "hp_remaining": 244
+      "hp_remaining": 256
     },
     {
       "event": "turn_start",
@@ -411,6 +436,47 @@
       "hp_remaining": 94
     },
     {
+      "event": "turn_start",
+      "actor": "Wizard_Evoker",
+      "round": 2
+    },
+    {
+      "event": "aoe_origin_placed",
+      "actor": "Wizard_Evoker",
+      "action": "a_hypnotic_pattern",
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "event": "forced_save",
+      "target": "Adult_Red_Dragon",
+      "ability": "wisdom",
+      "dc": 18,
+      "d20": 12,
+      "total": 19,
+      "outcome": "success"
+    },
+    {
+      "event": "concentration_started",
+      "caster": "Wizard_Evoker",
+      "action": "a_hypnotic_pattern",
+      "round": 2
+    },
+    {
+      "event": "spell_slot_consumed",
+      "actor": "Wizard_Evoker",
+      "slot_level": 3,
+      "remaining": 1,
+      "action": "a_hypnotic_pattern"
+    },
+    {
+      "event": "turn_end",
+      "actor": "Wizard_Evoker",
+      "hp_remaining": 2
+    },
+    {
       "event": "ready_action_discarded",
       "actor": "Fighter_Champion",
       "sub_action": "a_greatsword",
@@ -434,7 +500,7 @@
       "event": "healed",
       "target": "Fighter_Champion",
       "amount": 17,
-      "hp_current": 45
+      "hp_current": 52
     },
     {
       "event": "feature_use_consumed",
@@ -446,7 +512,7 @@
     {
       "event": "turn_end",
       "actor": "Fighter_Champion",
-      "hp_remaining": 45
+      "hp_remaining": 52
     },
     {
       "event": "turn_start",
@@ -455,9 +521,9 @@
     },
     {
       "event": "healed",
-      "target": "Fighter_Champion",
+      "target": "Wizard_Evoker",
       "amount": 12,
-      "hp_current": 57
+      "hp_current": 14
     },
     {
       "event": "spell_slot_consumed",
@@ -467,9 +533,17 @@
       "action": "a_cure_wounds"
     },
     {
-      "event": "bonus_action_skipped",
+      "event": "healed",
+      "target": "Wizard_Evoker",
+      "amount": 9,
+      "hp_current": 23
+    },
+    {
+      "event": "spell_slot_consumed",
       "actor": "Cleric",
-      "candidate": "a_shield_of_faith"
+      "slot_level": 1,
+      "remaining": 0,
+      "action": "a_healing_word"
     },
     {
       "event": "turn_end",
@@ -486,7 +560,7 @@
       "actor": "Adult_Red_Dragon",
       "action": "a_fire_breath",
       "recharge": "5-6",
-      "roll": 1,
+      "roll": 2,
       "recharged": false
     },
     {
@@ -498,66 +572,23 @@
       ],
       "to": [
         8,
-        0
+        5
       ],
       "ft": 40,
-      "toward": "Fighter_Champion",
-      "distance_before": 50,
-      "distance_after": 10
+      "toward": "Wizard_Evoker",
+      "distance_before": 55,
+      "distance_after": 15
     },
     {
-      "event": "attack_roll",
+      "event": "passed_turn",
       "actor": "Adult_Red_Dragon",
-      "target": "Fighter_Champion",
-      "d20": 20,
-      "total": 34,
-      "vs_ac": 22,
-      "result": "crit",
-      "advantage_state": "normal",
-      "crit_threshold": 20
-    },
-    {
-      "event": "attack_roll",
-      "actor": "Adult_Red_Dragon",
-      "target": "Fighter_Champion",
-      "d20": 6,
-      "total": 20,
-      "vs_ac": 22,
-      "result": "miss",
-      "advantage_state": "normal",
-      "crit_threshold": 20
-    },
-    {
-      "event": "attack_roll",
-      "actor": "Adult_Red_Dragon",
-      "target": "Fighter_Champion",
-      "d20": 18,
-      "total": 32,
-      "vs_ac": 22,
-      "result": "hit",
-      "advantage_state": "normal",
-      "crit_threshold": 20
-    },
-    {
-      "event": "damage_dealt",
-      "actor": "Adult_Red_Dragon",
-      "target": "Fighter_Champion",
-      "amount": 12,
-      "type": "slashing",
-      "target_hp_remaining": 45
-    },
-    {
-      "event": "damage_dealt",
-      "actor": "Adult_Red_Dragon",
-      "target": "Fighter_Champion",
-      "amount": 6,
-      "type": "fire",
-      "target_hp_remaining": 39
+      "slot": "action",
+      "reason": "out_of_range_after_movement"
     },
     {
       "event": "turn_end",
       "actor": "Adult_Red_Dragon",
-      "hp_remaining": 244
+      "hp_remaining": 256
     },
     {
       "event": "turn_start",
@@ -565,12 +596,19 @@
       "round": 3
     },
     {
+      "event": "legendary_resistance_used",
+      "actor": "Adult_Red_Dragon",
+      "ability": "wisdom",
+      "dc": 18,
+      "remaining": 2
+    },
+    {
       "event": "forced_save",
       "target": "Adult_Red_Dragon",
       "ability": "wisdom",
       "dc": 18,
-      "d20": 13,
-      "total": 20,
+      "d20": 6,
+      "total": 13,
       "outcome": "success"
     },
     {
@@ -595,9 +633,9 @@
     },
     {
       "event": "healed",
-      "target": "Fighter_Champion",
-      "amount": 10,
-      "hp_current": 49
+      "target": "Wizard_Evoker",
+      "amount": 13,
+      "hp_current": 36
     },
     {
       "event": "spell_slot_consumed",
@@ -610,6 +648,52 @@
       "event": "turn_end",
       "actor": "Bard_Lore",
       "hp_remaining": 94
+    },
+    {
+      "event": "turn_start",
+      "actor": "Wizard_Evoker",
+      "round": 3
+    },
+    {
+      "event": "legendary_resistance_used",
+      "actor": "Adult_Red_Dragon",
+      "ability": "charisma",
+      "dc": 18,
+      "remaining": 1
+    },
+    {
+      "event": "forced_save",
+      "target": "Adult_Red_Dragon",
+      "ability": "charisma",
+      "dc": 18,
+      "d20": 9,
+      "total": 15,
+      "outcome": "success"
+    },
+    {
+      "event": "concentration_ended",
+      "caster": "Wizard_Evoker",
+      "action": "a_hypnotic_pattern",
+      "reason": "new_cast_replaced",
+      "removed_count": 0
+    },
+    {
+      "event": "concentration_started",
+      "caster": "Wizard_Evoker",
+      "action": "a_banishment",
+      "round": 3
+    },
+    {
+      "event": "spell_slot_consumed",
+      "actor": "Wizard_Evoker",
+      "slot_level": 4,
+      "remaining": 2,
+      "action": "a_banishment"
+    },
+    {
+      "event": "turn_end",
+      "actor": "Wizard_Evoker",
+      "hp_remaining": 36
     },
     {
       "event": "ready_action_discarded",
@@ -632,20 +716,20 @@
         0
       ],
       "to": [
-        9,
-        0
+        8,
+        4
       ],
-      "ft": 5,
+      "ft": 20,
       "toward": "Adult_Red_Dragon",
-      "distance_before": 10,
+      "distance_before": 25,
       "distance_after": 5
     },
     {
       "event": "attack_roll",
       "actor": "Fighter_Champion",
       "target": "Adult_Red_Dragon",
-      "d20": 11,
-      "total": 21,
+      "d20": 18,
+      "total": 28,
       "vs_ac": 21,
       "result": "hit",
       "advantage_state": "normal",
@@ -655,45 +739,21 @@
       "event": "damage_dealt",
       "actor": "Fighter_Champion",
       "target": "Adult_Red_Dragon",
-      "amount": 8,
+      "amount": 13,
       "type": "slashing",
-      "target_hp_remaining": 236
+      "target_hp_remaining": 243
     },
     {
-      "event": "attack_roll",
+      "event": "action_downgraded",
       "actor": "Fighter_Champion",
-      "target": "Adult_Red_Dragon",
-      "d20": 2,
-      "total": 12,
-      "vs_ac": 21,
-      "result": "miss",
-      "advantage_state": "normal",
-      "crit_threshold": 20
-    },
-    {
-      "event": "attack_roll",
-      "actor": "Fighter_Champion",
-      "target": "Adult_Red_Dragon",
-      "d20": 11,
-      "total": 21,
-      "vs_ac": 21,
-      "result": "hit",
-      "advantage_state": "normal",
-      "crit_threshold": 20
-    },
-    {
-      "event": "damage_dealt",
-      "actor": "Fighter_Champion",
-      "target": "Adult_Red_Dragon",
-      "amount": 12,
-      "type": "slashing",
-      "target_hp_remaining": 224
+      "from": "a_extra_attack",
+      "to": "a_greatsword"
     },
     {
       "event": "healed",
       "target": "Fighter_Champion",
-      "amount": 15,
-      "hp_current": 64
+      "amount": 19,
+      "hp_current": 71
     },
     {
       "event": "feature_use_consumed",
@@ -705,14 +765,14 @@
     {
       "event": "turn_end",
       "actor": "Fighter_Champion",
-      "hp_remaining": 64
+      "hp_remaining": 71
     },
     {
       "event": "attack_roll",
       "actor": "Adult_Red_Dragon",
       "target": "Fighter_Champion",
-      "d20": 7,
-      "total": 21,
+      "d20": 2,
+      "total": 16,
       "vs_ac": 22,
       "result": "miss",
       "advantage_state": "normal",
@@ -731,17 +791,18 @@
       "round": 3
     },
     {
-      "event": "healed",
-      "target": "Fighter_Champion",
-      "amount": 15,
-      "hp_current": 79
+      "event": "hp_max_granted",
+      "target": "Cleric",
+      "amount": 5,
+      "new_hp_max": 112,
+      "new_hp_current": 112
     },
     {
       "event": "spell_slot_consumed",
       "actor": "Cleric",
-      "slot_level": 1,
-      "remaining": 0,
-      "action": "a_cure_wounds"
+      "slot_level": 2,
+      "remaining": 2,
+      "action": "a_aid"
     },
     {
       "event": "persistent_aura_registered",
@@ -778,66 +839,14 @@
     {
       "event": "turn_end",
       "actor": "Cleric",
-      "hp_remaining": 107
-    },
-    {
-      "event": "attack_roll",
-      "actor": "Adult_Red_Dragon",
-      "target": "Fighter_Champion",
-      "d20": 16,
-      "total": 30,
-      "vs_ac": 20,
-      "result": "hit",
-      "advantage_state": "normal",
-      "crit_threshold": 20
-    },
-    {
-      "event": "damage_dealt",
-      "actor": "Adult_Red_Dragon",
-      "target": "Fighter_Champion",
-      "amount": 15,
-      "type": "slashing",
-      "target_hp_remaining": 64
-    },
-    {
-      "event": "damage_dealt",
-      "actor": "Adult_Red_Dragon",
-      "target": "Fighter_Champion",
-      "amount": 6,
-      "type": "fire",
-      "target_hp_remaining": 58
-    },
-    {
-      "event": "legendary_action_used",
-      "actor": "Adult_Red_Dragon",
-      "option": "la_pounce",
-      "cost": 1,
-      "remaining": 1
-    },
-    {
-      "event": "turn_start",
-      "actor": "Adult_Red_Dragon",
-      "round": 4
-    },
-    {
-      "event": "recharge_roll",
-      "actor": "Adult_Red_Dragon",
-      "action": "a_fire_breath",
-      "recharge": "5-6",
-      "roll": 4,
-      "recharged": false
-    },
-    {
-      "event": "legendary_actions_reset",
-      "actor": "Adult_Red_Dragon",
-      "uses": 3
+      "hp_remaining": 112
     },
     {
       "event": "cutting_words_resolved",
       "bard": "Bard_Lore",
       "defender": "Fighter_Champion",
       "die": "d10",
-      "roll": 3
+      "roll": 1
     },
     {
       "event": "feature_use_consumed",
@@ -856,9 +865,9 @@
       "event": "attack_roll",
       "actor": "Adult_Red_Dragon",
       "target": "Fighter_Champion",
-      "d20": 9,
-      "total": 23,
-      "vs_ac": 23,
+      "d20": 8,
+      "total": 22,
+      "vs_ac": 21,
       "result": "hit",
       "advantage_state": "normal",
       "crit_threshold": 20
@@ -867,9 +876,9 @@
       "event": "damage_dealt",
       "actor": "Adult_Red_Dragon",
       "target": "Fighter_Champion",
-      "amount": 12,
+      "amount": 14,
       "type": "slashing",
-      "target_hp_remaining": 46
+      "target_hp_remaining": 57
     },
     {
       "event": "damage_dealt",
@@ -877,14 +886,77 @@
       "target": "Fighter_Champion",
       "amount": 7,
       "type": "fire",
-      "target_hp_remaining": 39
+      "target_hp_remaining": 50
+    },
+    {
+      "event": "legendary_action_used",
+      "actor": "Adult_Red_Dragon",
+      "option": "la_pounce",
+      "cost": 1,
+      "remaining": 1
+    },
+    {
+      "event": "turn_start",
+      "actor": "Adult_Red_Dragon",
+      "round": 4
+    },
+    {
+      "event": "recharge_roll",
+      "actor": "Adult_Red_Dragon",
+      "action": "a_fire_breath",
+      "recharge": "5-6",
+      "roll": 3,
+      "recharged": false
+    },
+    {
+      "event": "legendary_actions_reset",
+      "actor": "Adult_Red_Dragon",
+      "uses": 3
     },
     {
       "event": "attack_roll",
       "actor": "Adult_Red_Dragon",
       "target": "Fighter_Champion",
-      "d20": 19,
-      "total": 33,
+      "d20": 3,
+      "total": 17,
+      "vs_ac": 20,
+      "result": "miss",
+      "advantage_state": "normal",
+      "crit_threshold": 20
+    },
+    {
+      "event": "attack_roll",
+      "actor": "Adult_Red_Dragon",
+      "target": "Fighter_Champion",
+      "d20": 7,
+      "total": 21,
+      "vs_ac": 20,
+      "result": "hit",
+      "advantage_state": "normal",
+      "crit_threshold": 20
+    },
+    {
+      "event": "damage_dealt",
+      "actor": "Adult_Red_Dragon",
+      "target": "Fighter_Champion",
+      "amount": 18,
+      "type": "slashing",
+      "target_hp_remaining": 32
+    },
+    {
+      "event": "damage_dealt",
+      "actor": "Adult_Red_Dragon",
+      "target": "Fighter_Champion",
+      "amount": 5,
+      "type": "fire",
+      "target_hp_remaining": 27
+    },
+    {
+      "event": "attack_roll",
+      "actor": "Adult_Red_Dragon",
+      "target": "Fighter_Champion",
+      "d20": 16,
+      "total": 30,
       "vs_ac": 20,
       "result": "hit",
       "advantage_state": "normal",
@@ -896,31 +968,20 @@
       "target": "Fighter_Champion",
       "amount": 15,
       "type": "slashing",
-      "target_hp_remaining": 24
+      "target_hp_remaining": 12
     },
     {
       "event": "damage_dealt",
       "actor": "Adult_Red_Dragon",
       "target": "Fighter_Champion",
-      "amount": 5,
+      "amount": 6,
       "type": "fire",
-      "target_hp_remaining": 19
-    },
-    {
-      "event": "attack_roll",
-      "actor": "Adult_Red_Dragon",
-      "target": "Fighter_Champion",
-      "d20": 5,
-      "total": 19,
-      "vs_ac": 20,
-      "result": "miss",
-      "advantage_state": "normal",
-      "crit_threshold": 20
+      "target_hp_remaining": 6
     },
     {
       "event": "turn_end",
       "actor": "Adult_Red_Dragon",
-      "hp_remaining": 224
+      "hp_remaining": 243
     },
     {
       "event": "turn_start",
@@ -928,12 +989,19 @@
       "round": 4
     },
     {
+      "event": "legendary_resistance_used",
+      "actor": "Adult_Red_Dragon",
+      "ability": "wisdom",
+      "dc": 18,
+      "remaining": 0
+    },
+    {
       "event": "forced_save",
       "target": "Adult_Red_Dragon",
       "ability": "wisdom",
       "dc": 18,
-      "d20": 17,
-      "total": 24,
+      "d20": 9,
+      "total": 16,
       "outcome": "success"
     },
     {
@@ -970,28 +1038,12 @@
       "event": "attack_roll",
       "actor": "Adult_Red_Dragon",
       "target": "Fighter_Champion",
-      "d20": 16,
-      "total": 30,
+      "d20": 5,
+      "total": 19,
       "vs_ac": 20,
-      "result": "hit",
+      "result": "miss",
       "advantage_state": "normal",
       "crit_threshold": 20
-    },
-    {
-      "event": "damage_dealt",
-      "actor": "Adult_Red_Dragon",
-      "target": "Fighter_Champion",
-      "amount": 10,
-      "type": "slashing",
-      "target_hp_remaining": 9
-    },
-    {
-      "event": "damage_dealt",
-      "actor": "Adult_Red_Dragon",
-      "target": "Fighter_Champion",
-      "amount": 2,
-      "type": "fire",
-      "target_hp_remaining": 7
     },
     {
       "event": "legendary_action_used",
@@ -999,6 +1051,51 @@
       "option": "la_pounce",
       "cost": 1,
       "remaining": 2
+    },
+    {
+      "event": "turn_start",
+      "actor": "Wizard_Evoker",
+      "round": 4
+    },
+    {
+      "event": "forced_save",
+      "target": "Adult_Red_Dragon",
+      "ability": "charisma",
+      "dc": 18,
+      "d20": 8,
+      "total": 14,
+      "outcome": "fail"
+    },
+    {
+      "event": "condition_applied",
+      "target": "Adult_Red_Dragon",
+      "condition": "co_incapacitated",
+      "source": "Wizard_Evoker"
+    },
+    {
+      "event": "concentration_ended",
+      "caster": "Wizard_Evoker",
+      "action": "a_banishment",
+      "reason": "new_cast_replaced",
+      "removed_count": 0
+    },
+    {
+      "event": "concentration_started",
+      "caster": "Wizard_Evoker",
+      "action": "a_banishment",
+      "round": 4
+    },
+    {
+      "event": "spell_slot_consumed",
+      "actor": "Wizard_Evoker",
+      "slot_level": 4,
+      "remaining": 1,
+      "action": "a_banishment"
+    },
+    {
+      "event": "turn_end",
+      "actor": "Wizard_Evoker",
+      "hp_remaining": 36
     },
     {
       "event": "turn_start",
@@ -1016,23 +1113,39 @@
       "event": "attack_roll",
       "actor": "Fighter_Champion",
       "target": "Adult_Red_Dragon",
-      "d20": 5,
-      "total": 15,
+      "d20": 18,
+      "total": 28,
       "vs_ac": 19,
-      "result": "miss",
+      "result": "hit",
       "advantage_state": "normal",
       "crit_threshold": 20
     },
     {
-      "event": "attack_roll",
+      "event": "damage_dealt",
       "actor": "Fighter_Champion",
       "target": "Adult_Red_Dragon",
-      "d20": 6,
-      "total": 16,
-      "vs_ac": 19,
-      "result": "miss",
-      "advantage_state": "normal",
-      "crit_threshold": 20
+      "amount": 13,
+      "type": "slashing",
+      "target_hp_remaining": 230
+    },
+    {
+      "event": "action_downgraded",
+      "actor": "Fighter_Champion",
+      "from": "a_extra_attack",
+      "to": "a_greatsword"
+    },
+    {
+      "event": "healed",
+      "target": "Fighter_Champion",
+      "amount": 23,
+      "hp_current": 29
+    },
+    {
+      "event": "feature_use_consumed",
+      "actor": "Fighter_Champion",
+      "resource": "second_wind_uses_remaining",
+      "remaining": 0,
+      "action": "a_second_wind"
     },
     {
       "event": "attack_roll",
@@ -1049,347 +1162,9 @@
       "event": "damage_dealt",
       "actor": "Fighter_Champion",
       "target": "Adult_Red_Dragon",
-      "amount": 11,
-      "type": "slashing",
-      "target_hp_remaining": 213
-    },
-    {
-      "event": "healed",
-      "target": "Fighter_Champion",
-      "amount": 20,
-      "hp_current": 27
-    },
-    {
-      "event": "feature_use_consumed",
-      "actor": "Fighter_Champion",
-      "resource": "second_wind_uses_remaining",
-      "remaining": 0,
-      "action": "a_second_wind"
-    },
-    {
-      "event": "attack_roll",
-      "actor": "Fighter_Champion",
-      "target": "Adult_Red_Dragon",
-      "d20": 13,
-      "total": 23,
-      "vs_ac": 19,
-      "result": "hit",
-      "advantage_state": "normal",
-      "crit_threshold": 20
-    },
-    {
-      "event": "damage_dealt",
-      "actor": "Fighter_Champion",
-      "target": "Adult_Red_Dragon",
       "amount": 14,
       "type": "slashing",
-      "target_hp_remaining": 199
-    },
-    {
-      "event": "attack_roll",
-      "actor": "Fighter_Champion",
-      "target": "Adult_Red_Dragon",
-      "d20": 17,
-      "total": 27,
-      "vs_ac": 19,
-      "result": "hit",
-      "advantage_state": "normal",
-      "crit_threshold": 20
-    },
-    {
-      "event": "damage_dealt",
-      "actor": "Fighter_Champion",
-      "target": "Adult_Red_Dragon",
-      "amount": 13,
-      "type": "slashing",
-      "target_hp_remaining": 186
-    },
-    {
-      "event": "attack_roll",
-      "actor": "Fighter_Champion",
-      "target": "Adult_Red_Dragon",
-      "d20": 1,
-      "total": 11,
-      "vs_ac": 19,
-      "result": "miss",
-      "advantage_state": "normal",
-      "crit_threshold": 20
-    },
-    {
-      "event": "turn_end",
-      "actor": "Fighter_Champion",
-      "hp_remaining": 27
-    },
-    {
-      "event": "attack_roll",
-      "actor": "Adult_Red_Dragon",
-      "target": "Fighter_Champion",
-      "d20": 4,
-      "total": 18,
-      "vs_ac": 20,
-      "result": "miss",
-      "advantage_state": "normal",
-      "crit_threshold": 20
-    },
-    {
-      "event": "legendary_action_used",
-      "actor": "Adult_Red_Dragon",
-      "option": "la_pounce",
-      "cost": 1,
-      "remaining": 1
-    },
-    {
-      "event": "turn_start",
-      "actor": "Cleric",
-      "round": 4
-    },
-    {
-      "event": "attack_roll",
-      "actor": "Cleric",
-      "target": "Adult_Red_Dragon",
-      "result": "miss",
-      "reason": "out_of_range",
-      "distance_ft": 40,
-      "reach_ft": 5
-    },
-    {
-      "event": "action_downgraded",
-      "actor": "Cleric",
-      "from": "a_sacred_flame",
-      "to": "a_mace"
-    },
-    {
-      "event": "persistent_aura_registered",
-      "caster": "Cleric",
-      "action": "a_spirit_guardians",
-      "shape": "sphere",
-      "radius_ft": 15,
-      "size_ft": 0,
-      "anchor": "caster",
-      "origin": null,
-      "trigger_event": "target_turn_start_in_area",
-      "creates_zone": null
-    },
-    {
-      "event": "concentration_ended",
-      "caster": "Cleric",
-      "action": "a_spirit_guardians",
-      "reason": "new_cast_replaced",
-      "removed_count": 2
-    },
-    {
-      "event": "concentration_started",
-      "caster": "Cleric",
-      "action": "a_spirit_guardians",
-      "round": 4
-    },
-    {
-      "event": "spell_slot_consumed",
-      "actor": "Cleric",
-      "slot_level": 3,
-      "remaining": 1,
-      "action": "a_spirit_guardians"
-    },
-    {
-      "event": "turn_end",
-      "actor": "Cleric",
-      "hp_remaining": 107
-    },
-    {
-      "event": "attack_roll",
-      "actor": "Adult_Red_Dragon",
-      "target": "Fighter_Champion",
-      "d20": 18,
-      "total": 32,
-      "vs_ac": 20,
-      "result": "hit",
-      "advantage_state": "normal",
-      "crit_threshold": 20
-    },
-    {
-      "event": "damage_dealt",
-      "actor": "Adult_Red_Dragon",
-      "target": "Fighter_Champion",
-      "amount": 13,
-      "type": "slashing",
-      "target_hp_remaining": 14
-    },
-    {
-      "event": "damage_dealt",
-      "actor": "Adult_Red_Dragon",
-      "target": "Fighter_Champion",
-      "amount": 4,
-      "type": "fire",
-      "target_hp_remaining": 10
-    },
-    {
-      "event": "legendary_action_used",
-      "actor": "Adult_Red_Dragon",
-      "option": "la_pounce",
-      "cost": 1,
-      "remaining": 0
-    },
-    {
-      "event": "turn_start",
-      "actor": "Adult_Red_Dragon",
-      "round": 5
-    },
-    {
-      "event": "recharge_roll",
-      "actor": "Adult_Red_Dragon",
-      "action": "a_fire_breath",
-      "recharge": "5-6",
-      "roll": 5,
-      "recharged": true
-    },
-    {
-      "event": "legendary_actions_reset",
-      "actor": "Adult_Red_Dragon",
-      "uses": 3
-    },
-    {
-      "event": "aoe_origin_placed",
-      "actor": "Adult_Red_Dragon",
-      "action": "a_fire_breath",
-      "origin": [
-        8,
-        0
-      ],
-      "direction": [
-        0,
-        -1
-      ]
-    },
-    {
-      "event": "forced_save",
-      "target": "Cleric",
-      "ability": "dexterity",
-      "dc": 21,
-      "d20": 10,
-      "total": 10,
-      "outcome": "fail"
-    },
-    {
-      "event": "damage_dealt",
-      "actor": "Adult_Red_Dragon",
-      "target": "Cleric",
-      "amount": 66,
-      "type": "fire",
-      "target_hp_remaining": 41
-    },
-    {
-      "event": "concentration_save",
-      "caster": "Cleric",
-      "action": "a_spirit_guardians",
-      "dc": 33,
-      "damage_taken": 66,
-      "d20": 5,
-      "total": 8,
-      "outcome": "fail"
-    },
-    {
-      "event": "concentration_ended",
-      "caster": "Cleric",
-      "action": "a_spirit_guardians",
-      "reason": "failed_con_save",
-      "removed_count": 0
-    },
-    {
-      "event": "recharge_spent",
-      "actor": "Adult_Red_Dragon",
-      "action": "a_fire_breath",
-      "recharge": "5-6"
-    },
-    {
-      "event": "turn_end",
-      "actor": "Adult_Red_Dragon",
-      "hp_remaining": 186
-    },
-    {
-      "event": "turn_start",
-      "actor": "Bard_Lore",
-      "round": 5
-    },
-    {
-      "event": "healed",
-      "target": "Fighter_Champion",
-      "amount": 14,
-      "hp_current": 24
-    },
-    {
-      "event": "spell_slot_consumed",
-      "actor": "Bard_Lore",
-      "slot_level": 1,
-      "remaining": 2,
-      "action": "a_cure_wounds"
-    },
-    {
-      "event": "bonus_action_skipped",
-      "actor": "Bard_Lore",
-      "candidate": "a_healing_word"
-    },
-    {
-      "event": "turn_end",
-      "actor": "Bard_Lore",
-      "hp_remaining": 94
-    },
-    {
-      "event": "attack_roll",
-      "actor": "Adult_Red_Dragon",
-      "target": "Fighter_Champion",
-      "d20": 18,
-      "total": 32,
-      "vs_ac": 20,
-      "result": "hit",
-      "advantage_state": "normal",
-      "crit_threshold": 20
-    },
-    {
-      "event": "damage_dealt",
-      "actor": "Adult_Red_Dragon",
-      "target": "Fighter_Champion",
-      "amount": 17,
-      "type": "slashing",
-      "target_hp_remaining": 7
-    },
-    {
-      "event": "damage_dealt",
-      "actor": "Adult_Red_Dragon",
-      "target": "Fighter_Champion",
-      "amount": 4,
-      "type": "fire",
-      "target_hp_remaining": 3
-    },
-    {
-      "event": "legendary_action_used",
-      "actor": "Adult_Red_Dragon",
-      "option": "la_pounce",
-      "cost": 1,
-      "remaining": 2
-    },
-    {
-      "event": "turn_start",
-      "actor": "Fighter_Champion",
-      "round": 5
-    },
-    {
-      "event": "attack_roll",
-      "actor": "Fighter_Champion",
-      "target": "Adult_Red_Dragon",
-      "d20": 16,
-      "total": 26,
-      "vs_ac": 19,
-      "result": "hit",
-      "advantage_state": "normal",
-      "crit_threshold": 20
-    },
-    {
-      "event": "damage_dealt",
-      "actor": "Fighter_Champion",
-      "target": "Adult_Red_Dragon",
-      "amount": 7,
-      "type": "slashing",
-      "target_hp_remaining": 179
+      "target_hp_remaining": 216
     },
     {
       "event": "attack_roll",
@@ -1406,408 +1181,60 @@
       "event": "damage_dealt",
       "actor": "Fighter_Champion",
       "target": "Adult_Red_Dragon",
-      "amount": 10,
+      "amount": 9,
       "type": "slashing",
-      "target_hp_remaining": 169
+      "target_hp_remaining": 207
     },
     {
       "event": "attack_roll",
       "actor": "Fighter_Champion",
       "target": "Adult_Red_Dragon",
-      "d20": 2,
-      "total": 12,
+      "d20": 17,
+      "total": 27,
       "vs_ac": 19,
-      "result": "miss",
-      "advantage_state": "normal",
-      "crit_threshold": 20
-    },
-    {
-      "event": "turn_end",
-      "actor": "Fighter_Champion",
-      "hp_remaining": 3
-    },
-    {
-      "event": "cutting_words_resolved",
-      "bard": "Bard_Lore",
-      "defender": "Fighter_Champion",
-      "die": "d10",
-      "roll": 10
-    },
-    {
-      "event": "feature_use_consumed",
-      "actor": "Bard_Lore",
-      "resource": "bardic_inspiration_uses_remaining",
-      "remaining": 3,
-      "action": "a_cutting_words"
-    },
-    {
-      "event": "reaction_fired",
-      "reactor": "Bard_Lore",
-      "action": "a_cutting_words",
-      "trigger": "attack_roll_pending"
-    },
-    {
-      "event": "attack_roll",
-      "actor": "Adult_Red_Dragon",
-      "target": "Fighter_Champion",
-      "d20": 8,
-      "total": 22,
-      "vs_ac": 30,
-      "result": "miss",
-      "advantage_state": "normal",
-      "crit_threshold": 20
-    },
-    {
-      "event": "legendary_action_used",
-      "actor": "Adult_Red_Dragon",
-      "option": "la_pounce",
-      "cost": 1,
-      "remaining": 1
-    },
-    {
-      "event": "turn_start",
-      "actor": "Cleric",
-      "round": 5
-    },
-    {
-      "event": "legendary_resistance_used",
-      "actor": "Adult_Red_Dragon",
-      "ability": "dexterity",
-      "dc": 18,
-      "remaining": 2
-    },
-    {
-      "event": "forced_save",
-      "target": "Adult_Red_Dragon",
-      "ability": "dexterity",
-      "dc": 18,
-      "d20": 3,
-      "total": 9,
-      "outcome": "success"
-    },
-    {
-      "event": "persistent_aura_registered",
-      "caster": "Cleric",
-      "action": "a_spirit_guardians",
-      "shape": "sphere",
-      "radius_ft": 15,
-      "size_ft": 0,
-      "anchor": "caster",
-      "origin": null,
-      "trigger_event": "target_turn_start_in_area",
-      "creates_zone": null
-    },
-    {
-      "event": "concentration_started",
-      "caster": "Cleric",
-      "action": "a_spirit_guardians",
-      "round": 5
-    },
-    {
-      "event": "spell_slot_consumed",
-      "actor": "Cleric",
-      "slot_level": 3,
-      "remaining": 0,
-      "action": "a_spirit_guardians"
-    },
-    {
-      "event": "turn_end",
-      "actor": "Cleric",
-      "hp_remaining": 41
-    },
-    {
-      "event": "attack_roll",
-      "actor": "Adult_Red_Dragon",
-      "target": "Fighter_Champion",
-      "d20": 3,
-      "total": 17,
-      "vs_ac": 20,
-      "result": "miss",
-      "advantage_state": "normal",
-      "crit_threshold": 20
-    },
-    {
-      "event": "legendary_action_used",
-      "actor": "Adult_Red_Dragon",
-      "option": "la_pounce",
-      "cost": 1,
-      "remaining": 0
-    },
-    {
-      "event": "turn_start",
-      "actor": "Adult_Red_Dragon",
-      "round": 6
-    },
-    {
-      "event": "recharge_roll",
-      "actor": "Adult_Red_Dragon",
-      "action": "a_fire_breath",
-      "recharge": "5-6",
-      "roll": 6,
-      "recharged": true
-    },
-    {
-      "event": "legendary_actions_reset",
-      "actor": "Adult_Red_Dragon",
-      "uses": 3
-    },
-    {
-      "event": "aoe_origin_placed",
-      "actor": "Adult_Red_Dragon",
-      "action": "a_fire_breath",
-      "origin": [
-        8,
-        0
-      ],
-      "direction": [
-        0,
-        1
-      ]
-    },
-    {
-      "event": "forced_save",
-      "target": "Bard_Lore",
-      "ability": "dexterity",
-      "dc": 21,
-      "d20": 16,
-      "total": 24,
-      "outcome": "success"
-    },
-    {
-      "event": "damage_dealt",
-      "actor": "Adult_Red_Dragon",
-      "target": "Bard_Lore",
-      "amount": 32,
-      "type": "fire",
-      "target_hp_remaining": 62
-    },
-    {
-      "event": "concentration_save",
-      "caster": "Bard_Lore",
-      "action": "a_hold_monster",
-      "dc": 16,
-      "damage_taken": 32,
-      "d20": 10,
-      "total": 12,
-      "outcome": "fail"
-    },
-    {
-      "event": "concentration_ended",
-      "caster": "Bard_Lore",
-      "action": "a_hold_monster",
-      "reason": "failed_con_save",
-      "removed_count": 0
-    },
-    {
-      "event": "recharge_spent",
-      "actor": "Adult_Red_Dragon",
-      "action": "a_fire_breath",
-      "recharge": "5-6"
-    },
-    {
-      "event": "turn_end",
-      "actor": "Adult_Red_Dragon",
-      "hp_remaining": 169
-    },
-    {
-      "event": "turn_start",
-      "actor": "Bard_Lore",
-      "round": 6
-    },
-    {
-      "event": "healed",
-      "target": "Fighter_Champion",
-      "amount": 18,
-      "hp_current": 21
-    },
-    {
-      "event": "spell_slot_consumed",
-      "actor": "Bard_Lore",
-      "slot_level": 1,
-      "remaining": 1,
-      "action": "a_cure_wounds"
-    },
-    {
-      "event": "healed",
-      "target": "Fighter_Champion",
-      "amount": 13,
-      "hp_current": 34
-    },
-    {
-      "event": "spell_slot_consumed",
-      "actor": "Bard_Lore",
-      "slot_level": 1,
-      "remaining": 0,
-      "action": "a_healing_word"
-    },
-    {
-      "event": "turn_end",
-      "actor": "Bard_Lore",
-      "hp_remaining": 62
-    },
-    {
-      "event": "attack_roll",
-      "actor": "Adult_Red_Dragon",
-      "target": "Fighter_Champion",
-      "d20": 4,
-      "total": 18,
-      "vs_ac": 20,
-      "result": "miss",
-      "advantage_state": "normal",
-      "crit_threshold": 20
-    },
-    {
-      "event": "legendary_action_used",
-      "actor": "Adult_Red_Dragon",
-      "option": "la_pounce",
-      "cost": 1,
-      "remaining": 2
-    },
-    {
-      "event": "turn_start",
-      "actor": "Fighter_Champion",
-      "round": 6
-    },
-    {
-      "event": "attack_roll",
-      "actor": "Fighter_Champion",
-      "target": "Adult_Red_Dragon",
-      "d20": 8,
-      "total": 18,
-      "vs_ac": 19,
-      "result": "miss",
-      "advantage_state": "normal",
-      "crit_threshold": 20
-    },
-    {
-      "event": "attack_roll",
-      "actor": "Fighter_Champion",
-      "target": "Adult_Red_Dragon",
-      "d20": 8,
-      "total": 18,
-      "vs_ac": 19,
-      "result": "miss",
-      "advantage_state": "normal",
-      "crit_threshold": 20
-    },
-    {
-      "event": "attack_roll",
-      "actor": "Fighter_Champion",
-      "target": "Adult_Red_Dragon",
-      "d20": 3,
-      "total": 13,
-      "vs_ac": 19,
-      "result": "miss",
-      "advantage_state": "normal",
-      "crit_threshold": 20
-    },
-    {
-      "event": "turn_end",
-      "actor": "Fighter_Champion",
-      "hp_remaining": 34
-    },
-    {
-      "event": "cutting_words_resolved",
-      "bard": "Bard_Lore",
-      "defender": "Fighter_Champion",
-      "die": "d10",
-      "roll": 1
-    },
-    {
-      "event": "feature_use_consumed",
-      "actor": "Bard_Lore",
-      "resource": "bardic_inspiration_uses_remaining",
-      "remaining": 2,
-      "action": "a_cutting_words"
-    },
-    {
-      "event": "reaction_fired",
-      "reactor": "Bard_Lore",
-      "action": "a_cutting_words",
-      "trigger": "attack_roll_pending"
-    },
-    {
-      "event": "attack_roll",
-      "actor": "Adult_Red_Dragon",
-      "target": "Fighter_Champion",
-      "d20": 11,
-      "total": 25,
-      "vs_ac": 21,
       "result": "hit",
       "advantage_state": "normal",
       "crit_threshold": 20
     },
     {
       "event": "damage_dealt",
-      "actor": "Adult_Red_Dragon",
-      "target": "Fighter_Champion",
-      "amount": 18,
+      "actor": "Fighter_Champion",
+      "target": "Adult_Red_Dragon",
+      "amount": 10,
       "type": "slashing",
-      "target_hp_remaining": 16
+      "target_hp_remaining": 197
     },
     {
-      "event": "damage_dealt",
-      "actor": "Adult_Red_Dragon",
-      "target": "Fighter_Champion",
-      "amount": 4,
-      "type": "fire",
-      "target_hp_remaining": 12
-    },
-    {
-      "event": "legendary_action_used",
-      "actor": "Adult_Red_Dragon",
-      "option": "la_pounce",
-      "cost": 1,
-      "remaining": 1
+      "event": "turn_end",
+      "actor": "Fighter_Champion",
+      "hp_remaining": 29
     },
     {
       "event": "turn_start",
       "actor": "Cleric",
-      "round": 6
+      "round": 4
     },
     {
-      "event": "legendary_resistance_used",
-      "actor": "Adult_Red_Dragon",
-      "ability": "dexterity",
-      "dc": 18,
-      "remaining": 1
+      "event": "ready_action_taken",
+      "actor": "Cleric",
+      "sub_action": "a_aid",
+      "trigger": "ally_takes_damage",
+      "round": 4
     },
     {
-      "event": "forced_save",
-      "target": "Adult_Red_Dragon",
-      "ability": "dexterity",
-      "dc": 18,
-      "d20": 1,
-      "total": 7,
-      "outcome": "success"
+      "event": "bonus_action_skipped",
+      "actor": "Cleric",
+      "candidate": "a_spirit_guardians"
     },
     {
       "event": "turn_end",
       "actor": "Cleric",
-      "hp_remaining": 41
-    },
-    {
-      "event": "attack_roll",
-      "actor": "Adult_Red_Dragon",
-      "target": "Fighter_Champion",
-      "d20": 3,
-      "total": 17,
-      "vs_ac": 20,
-      "result": "miss",
-      "advantage_state": "normal",
-      "crit_threshold": 20
-    },
-    {
-      "event": "legendary_action_used",
-      "actor": "Adult_Red_Dragon",
-      "option": "la_pounce",
-      "cost": 1,
-      "remaining": 0
+      "hp_remaining": 112
     },
     {
       "event": "turn_start",
       "actor": "Adult_Red_Dragon",
-      "round": 7
+      "round": 5
     },
     {
       "event": "recharge_roll",
@@ -1837,8 +1264,260 @@
       "event": "attack_roll",
       "actor": "Adult_Red_Dragon",
       "target": "Fighter_Champion",
-      "d20": 8,
-      "total": 22,
+      "d20": 4,
+      "total": 18,
+      "vs_ac": 20,
+      "result": "miss",
+      "advantage_state": "normal",
+      "crit_threshold": 20
+    },
+    {
+      "event": "attack_roll",
+      "actor": "Adult_Red_Dragon",
+      "target": "Fighter_Champion",
+      "d20": 5,
+      "total": 19,
+      "vs_ac": 20,
+      "result": "miss",
+      "advantage_state": "normal",
+      "crit_threshold": 20
+    },
+    {
+      "event": "recurring_save",
+      "target": "Adult_Red_Dragon",
+      "ability": "charisma",
+      "dc": 18,
+      "d20": 3,
+      "total": 9,
+      "outcome": "fail",
+      "for_condition": "co_incapacitated"
+    },
+    {
+      "event": "turn_end",
+      "actor": "Adult_Red_Dragon",
+      "hp_remaining": 197
+    },
+    {
+      "event": "turn_start",
+      "actor": "Bard_Lore",
+      "round": 5
+    },
+    {
+      "event": "healed",
+      "target": "Fighter_Champion",
+      "amount": 15,
+      "hp_current": 44
+    },
+    {
+      "event": "spell_slot_consumed",
+      "actor": "Bard_Lore",
+      "slot_level": 1,
+      "remaining": 2,
+      "action": "a_cure_wounds"
+    },
+    {
+      "event": "healed",
+      "target": "Fighter_Champion",
+      "amount": 10,
+      "hp_current": 54
+    },
+    {
+      "event": "spell_slot_consumed",
+      "actor": "Bard_Lore",
+      "slot_level": 1,
+      "remaining": 1,
+      "action": "a_healing_word"
+    },
+    {
+      "event": "turn_end",
+      "actor": "Bard_Lore",
+      "hp_remaining": 94
+    },
+    {
+      "event": "turn_start",
+      "actor": "Wizard_Evoker",
+      "round": 5
+    },
+    {
+      "event": "forced_save",
+      "target": "Adult_Red_Dragon",
+      "ability": "charisma",
+      "dc": 18,
+      "d20": 13,
+      "total": 19,
+      "outcome": "success"
+    },
+    {
+      "event": "concentration_ended",
+      "caster": "Wizard_Evoker",
+      "action": "a_banishment",
+      "reason": "new_cast_replaced",
+      "removed_count": 0
+    },
+    {
+      "event": "concentration_started",
+      "caster": "Wizard_Evoker",
+      "action": "a_banishment",
+      "round": 5
+    },
+    {
+      "event": "spell_slot_consumed",
+      "actor": "Wizard_Evoker",
+      "slot_level": 4,
+      "remaining": 0,
+      "action": "a_banishment"
+    },
+    {
+      "event": "turn_end",
+      "actor": "Wizard_Evoker",
+      "hp_remaining": 36
+    },
+    {
+      "event": "turn_start",
+      "actor": "Fighter_Champion",
+      "round": 5
+    },
+    {
+      "event": "attack_roll",
+      "actor": "Fighter_Champion",
+      "target": "Adult_Red_Dragon",
+      "d20": 20,
+      "total": 30,
+      "vs_ac": 19,
+      "result": "crit",
+      "advantage_state": "normal",
+      "crit_threshold": 20
+    },
+    {
+      "event": "attack_roll",
+      "actor": "Fighter_Champion",
+      "target": "Adult_Red_Dragon",
+      "d20": 15,
+      "total": 25,
+      "vs_ac": 19,
+      "result": "hit",
+      "advantage_state": "normal",
+      "crit_threshold": 20
+    },
+    {
+      "event": "damage_dealt",
+      "actor": "Fighter_Champion",
+      "target": "Adult_Red_Dragon",
+      "amount": 13,
+      "type": "slashing",
+      "target_hp_remaining": 184
+    },
+    {
+      "event": "attack_roll",
+      "actor": "Fighter_Champion",
+      "target": "Adult_Red_Dragon",
+      "d20": 18,
+      "total": 28,
+      "vs_ac": 19,
+      "result": "hit",
+      "advantage_state": "normal",
+      "crit_threshold": 20
+    },
+    {
+      "event": "damage_dealt",
+      "actor": "Fighter_Champion",
+      "target": "Adult_Red_Dragon",
+      "amount": 12,
+      "type": "slashing",
+      "target_hp_remaining": 172
+    },
+    {
+      "event": "turn_end",
+      "actor": "Fighter_Champion",
+      "hp_remaining": 54
+    },
+    {
+      "event": "ready_action_discarded",
+      "actor": "Cleric",
+      "sub_action": "a_aid",
+      "trigger": "ally_takes_damage",
+      "reason": "turn_start",
+      "round": 5
+    },
+    {
+      "event": "turn_start",
+      "actor": "Cleric",
+      "round": 5
+    },
+    {
+      "event": "ready_action_taken",
+      "actor": "Cleric",
+      "sub_action": "a_aid",
+      "trigger": "ally_takes_damage",
+      "round": 5
+    },
+    {
+      "event": "persistent_aura_registered",
+      "caster": "Cleric",
+      "action": "a_spirit_guardians",
+      "shape": "sphere",
+      "radius_ft": 15,
+      "size_ft": 0,
+      "anchor": "caster",
+      "origin": null,
+      "trigger_event": "target_turn_start_in_area",
+      "creates_zone": null
+    },
+    {
+      "event": "concentration_ended",
+      "caster": "Cleric",
+      "action": "a_spirit_guardians",
+      "reason": "new_cast_replaced",
+      "removed_count": 2
+    },
+    {
+      "event": "concentration_started",
+      "caster": "Cleric",
+      "action": "a_spirit_guardians",
+      "round": 5
+    },
+    {
+      "event": "spell_slot_consumed",
+      "actor": "Cleric",
+      "slot_level": 3,
+      "remaining": 1,
+      "action": "a_spirit_guardians"
+    },
+    {
+      "event": "turn_end",
+      "actor": "Cleric",
+      "hp_remaining": 112
+    },
+    {
+      "event": "turn_start",
+      "actor": "Adult_Red_Dragon",
+      "round": 6
+    },
+    {
+      "event": "recharge_roll",
+      "actor": "Adult_Red_Dragon",
+      "action": "a_fire_breath",
+      "recharge": "5-6",
+      "roll": 3,
+      "recharged": false
+    },
+    {
+      "event": "attack_roll",
+      "actor": "Adult_Red_Dragon",
+      "target": "Fighter_Champion",
+      "d20": 4,
+      "total": 18,
+      "vs_ac": 20,
+      "result": "miss",
+      "advantage_state": "normal",
+      "crit_threshold": 20
+    },
+    {
+      "event": "attack_roll",
+      "actor": "Adult_Red_Dragon",
+      "target": "Fighter_Champion",
+      "d20": 18,
+      "total": 32,
       "vs_ac": 20,
       "result": "hit",
       "advantage_state": "normal",
@@ -1848,9 +1527,32 @@
       "event": "damage_dealt",
       "actor": "Adult_Red_Dragon",
       "target": "Fighter_Champion",
-      "amount": 10,
+      "amount": 13,
       "type": "slashing",
-      "target_hp_remaining": 2
+      "target_hp_remaining": 41
+    },
+    {
+      "event": "hp_max_granted",
+      "target": "Fighter_Champion",
+      "amount": 5,
+      "new_hp_max": 126,
+      "new_hp_current": 46
+    },
+    {
+      "event": "ready_action_fired",
+      "actor": "Cleric",
+      "target": "Fighter_Champion",
+      "sub_action": "a_aid",
+      "trigger": "ally_takes_damage",
+      "reason": "ally_took_damage"
+    },
+    {
+      "event": "ready_action_discarded",
+      "actor": "Cleric",
+      "sub_action": "a_aid",
+      "trigger": "ally_takes_damage",
+      "reason": "fired",
+      "round": 6
     },
     {
       "event": "damage_dealt",
@@ -1858,25 +1560,353 @@
       "target": "Fighter_Champion",
       "amount": 4,
       "type": "fire",
-      "target_hp_remaining": 0
+      "target_hp_remaining": 42
     },
     {
-      "event": "creature_dropped",
-      "creature": "Fighter_Champion"
+      "event": "cutting_words_resolved",
+      "bard": "Bard_Lore",
+      "defender": "Fighter_Champion",
+      "die": "d10",
+      "roll": 7
+    },
+    {
+      "event": "feature_use_consumed",
+      "actor": "Bard_Lore",
+      "resource": "bardic_inspiration_uses_remaining",
+      "remaining": 3,
+      "action": "a_cutting_words"
+    },
+    {
+      "event": "reaction_fired",
+      "reactor": "Bard_Lore",
+      "action": "a_cutting_words",
+      "trigger": "attack_roll_pending"
     },
     {
       "event": "attack_roll",
       "actor": "Adult_Red_Dragon",
-      "target": "Cleric",
+      "target": "Fighter_Champion",
+      "d20": 10,
+      "total": 24,
+      "vs_ac": 27,
       "result": "miss",
-      "reason": "out_of_range",
-      "distance_ft": 40,
-      "reach_ft": 10
+      "advantage_state": "normal",
+      "crit_threshold": 20
+    },
+    {
+      "event": "recurring_save",
+      "target": "Adult_Red_Dragon",
+      "ability": "charisma",
+      "dc": 18,
+      "d20": 12,
+      "total": 18,
+      "outcome": "success",
+      "for_condition": "co_incapacitated"
     },
     {
       "event": "turn_end",
       "actor": "Adult_Red_Dragon",
-      "hp_remaining": 169
+      "hp_remaining": 172
+    },
+    {
+      "event": "turn_start",
+      "actor": "Bard_Lore",
+      "round": 6
+    },
+    {
+      "event": "healed",
+      "target": "Fighter_Champion",
+      "amount": 16,
+      "hp_current": 58
+    },
+    {
+      "event": "spell_slot_consumed",
+      "actor": "Bard_Lore",
+      "slot_level": 1,
+      "remaining": 0,
+      "action": "a_cure_wounds"
+    },
+    {
+      "event": "bardic_inspiration_granted",
+      "target": "Fighter_Champion",
+      "source": "Bard_Lore",
+      "die": "d10"
+    },
+    {
+      "event": "feature_use_consumed",
+      "actor": "Bard_Lore",
+      "resource": "bardic_inspiration_uses_remaining",
+      "remaining": 2,
+      "action": "a_bardic_inspiration"
+    },
+    {
+      "event": "turn_end",
+      "actor": "Bard_Lore",
+      "hp_remaining": 94
+    },
+    {
+      "event": "attack_roll",
+      "actor": "Adult_Red_Dragon",
+      "target": "Fighter_Champion",
+      "d20": 1,
+      "total": 15,
+      "vs_ac": 20,
+      "result": "miss",
+      "advantage_state": "normal",
+      "crit_threshold": 20
+    },
+    {
+      "event": "legendary_action_used",
+      "actor": "Adult_Red_Dragon",
+      "option": "la_pounce",
+      "cost": 1,
+      "remaining": 2
+    },
+    {
+      "event": "turn_start",
+      "actor": "Wizard_Evoker",
+      "round": 6
+    },
+    {
+      "event": "forced_save",
+      "target": "Adult_Red_Dragon",
+      "ability": "wisdom",
+      "dc": 18,
+      "d20": 9,
+      "total": 16,
+      "outcome": "fail"
+    },
+    {
+      "event": "condition_applied",
+      "target": "Adult_Red_Dragon",
+      "condition": "co_paralyzed",
+      "source": "Wizard_Evoker"
+    },
+    {
+      "event": "concentration_ended",
+      "caster": "Wizard_Evoker",
+      "action": "a_banishment",
+      "reason": "new_cast_replaced",
+      "removed_count": 0
+    },
+    {
+      "event": "concentration_started",
+      "caster": "Wizard_Evoker",
+      "action": "a_hold_monster",
+      "round": 6
+    },
+    {
+      "event": "spell_slot_consumed",
+      "actor": "Wizard_Evoker",
+      "slot_level": 5,
+      "remaining": 1,
+      "action": "a_hold_monster"
+    },
+    {
+      "event": "turn_end",
+      "actor": "Wizard_Evoker",
+      "hp_remaining": 36
+    },
+    {
+      "event": "turn_start",
+      "actor": "Fighter_Champion",
+      "round": 6
+    },
+    {
+      "event": "attack_roll",
+      "actor": "Fighter_Champion",
+      "target": "Adult_Red_Dragon",
+      "d20": 17,
+      "total": 27,
+      "vs_ac": 19,
+      "result": "hit",
+      "advantage_state": "advantage",
+      "crit_threshold": 20
+    },
+    {
+      "event": "damage_dealt",
+      "actor": "Fighter_Champion",
+      "target": "Adult_Red_Dragon",
+      "amount": 11,
+      "type": "slashing",
+      "target_hp_remaining": 161
+    },
+    {
+      "event": "attack_roll",
+      "actor": "Fighter_Champion",
+      "target": "Adult_Red_Dragon",
+      "d20": 17,
+      "total": 27,
+      "vs_ac": 19,
+      "result": "hit",
+      "advantage_state": "advantage",
+      "crit_threshold": 20
+    },
+    {
+      "event": "damage_dealt",
+      "actor": "Fighter_Champion",
+      "target": "Adult_Red_Dragon",
+      "amount": 12,
+      "type": "slashing",
+      "target_hp_remaining": 149
+    },
+    {
+      "event": "attack_roll",
+      "actor": "Fighter_Champion",
+      "target": "Adult_Red_Dragon",
+      "d20": 12,
+      "total": 22,
+      "vs_ac": 19,
+      "result": "hit",
+      "advantage_state": "advantage",
+      "crit_threshold": 20
+    },
+    {
+      "event": "damage_dealt",
+      "actor": "Fighter_Champion",
+      "target": "Adult_Red_Dragon",
+      "amount": 12,
+      "type": "slashing",
+      "target_hp_remaining": 137
+    },
+    {
+      "event": "turn_end",
+      "actor": "Fighter_Champion",
+      "hp_remaining": 58
+    },
+    {
+      "event": "turn_start",
+      "actor": "Cleric",
+      "round": 6
+    },
+    {
+      "event": "ready_action_taken",
+      "actor": "Cleric",
+      "sub_action": "a_aid",
+      "trigger": "ally_takes_damage",
+      "round": 6
+    },
+    {
+      "event": "persistent_aura_registered",
+      "caster": "Cleric",
+      "action": "a_spirit_guardians",
+      "shape": "sphere",
+      "radius_ft": 15,
+      "size_ft": 0,
+      "anchor": "caster",
+      "origin": null,
+      "trigger_event": "target_turn_start_in_area",
+      "creates_zone": null
+    },
+    {
+      "event": "concentration_ended",
+      "caster": "Cleric",
+      "action": "a_spirit_guardians",
+      "reason": "new_cast_replaced",
+      "removed_count": 1
+    },
+    {
+      "event": "concentration_started",
+      "caster": "Cleric",
+      "action": "a_spirit_guardians",
+      "round": 6
+    },
+    {
+      "event": "spell_slot_consumed",
+      "actor": "Cleric",
+      "slot_level": 3,
+      "remaining": 0,
+      "action": "a_spirit_guardians"
+    },
+    {
+      "event": "turn_end",
+      "actor": "Cleric",
+      "hp_remaining": 112
+    },
+    {
+      "event": "turn_start",
+      "actor": "Adult_Red_Dragon",
+      "round": 7
+    },
+    {
+      "event": "recharge_roll",
+      "actor": "Adult_Red_Dragon",
+      "action": "a_fire_breath",
+      "recharge": "5-6",
+      "roll": 6,
+      "recharged": true
+    },
+    {
+      "event": "legendary_actions_reset",
+      "actor": "Adult_Red_Dragon",
+      "uses": 3
+    },
+    {
+      "event": "aoe_origin_placed",
+      "actor": "Adult_Red_Dragon",
+      "action": "a_fire_breath",
+      "origin": [
+        8,
+        5
+      ],
+      "direction": [
+        0,
+        -1
+      ]
+    },
+    {
+      "event": "forced_save",
+      "target": "Fighter_Champion",
+      "ability": "dexterity",
+      "dc": 21,
+      "d20": 17,
+      "total": 19,
+      "outcome": "fail"
+    },
+    {
+      "event": "damage_dealt",
+      "actor": "Adult_Red_Dragon",
+      "target": "Fighter_Champion",
+      "amount": 44,
+      "type": "fire",
+      "target_hp_remaining": 14
+    },
+    {
+      "event": "ready_action_fired",
+      "actor": "Cleric",
+      "target": "Fighter_Champion",
+      "sub_action": "a_aid",
+      "trigger": "ally_takes_damage",
+      "reason": "ally_took_damage"
+    },
+    {
+      "event": "ready_action_discarded",
+      "actor": "Cleric",
+      "sub_action": "a_aid",
+      "trigger": "ally_takes_damage",
+      "reason": "fired",
+      "round": 7
+    },
+    {
+      "event": "recharge_spent",
+      "actor": "Adult_Red_Dragon",
+      "action": "a_fire_breath",
+      "recharge": "5-6"
+    },
+    {
+      "event": "recurring_save",
+      "target": "Adult_Red_Dragon",
+      "ability": "wisdom",
+      "dc": 18,
+      "d20": 8,
+      "total": 15,
+      "outcome": "fail",
+      "for_condition": "co_paralyzed"
+    },
+    {
+      "event": "turn_end",
+      "actor": "Adult_Red_Dragon",
+      "hp_remaining": 137
     },
     {
       "event": "turn_start",
@@ -1884,46 +1914,29 @@
       "round": 7
     },
     {
-      "event": "aoe_origin_placed",
-      "actor": "Bard_Lore",
-      "action": "a_hypnotic_pattern",
-      "origin": [
-        8,
-        0
-      ]
+      "event": "hp_max_granted",
+      "target": "Wizard_Evoker",
+      "amount": 5,
+      "new_hp_max": 85,
+      "new_hp_current": 41
     },
     {
-      "event": "legendary_resistance_used",
-      "actor": "Adult_Red_Dragon",
-      "ability": "wisdom",
-      "dc": 18,
-      "remaining": 0
-    },
-    {
-      "event": "forced_save",
-      "target": "Adult_Red_Dragon",
-      "ability": "wisdom",
-      "dc": 18,
-      "d20": 3,
-      "total": 10,
-      "outcome": "success"
-    },
-    {
-      "event": "concentration_started",
-      "caster": "Bard_Lore",
-      "action": "a_hypnotic_pattern",
-      "round": 7
+      "event": "hp_max_granted",
+      "target": "Bard_Lore",
+      "amount": 5,
+      "new_hp_max": 99,
+      "new_hp_current": 99
     },
     {
       "event": "spell_slot_consumed",
       "actor": "Bard_Lore",
-      "slot_level": 3,
-      "remaining": 0,
-      "action": "a_hypnotic_pattern"
+      "slot_level": 2,
+      "remaining": 2,
+      "action": "a_aid"
     },
     {
       "event": "bardic_inspiration_granted",
-      "target": "Cleric",
+      "target": "Fighter_Champion",
       "source": "Bard_Lore",
       "die": "d10"
     },
@@ -1937,7 +1950,91 @@
     {
       "event": "turn_end",
       "actor": "Bard_Lore",
-      "hp_remaining": 62
+      "hp_remaining": 99
+    },
+    {
+      "event": "turn_start",
+      "actor": "Wizard_Evoker",
+      "round": 7
+    },
+    {
+      "event": "attack_roll",
+      "actor": "Wizard_Evoker",
+      "target": "Adult_Red_Dragon",
+      "result": "miss",
+      "reason": "out_of_range",
+      "distance_ft": 15,
+      "reach_ft": 5
+    },
+    {
+      "event": "action_downgraded",
+      "actor": "Wizard_Evoker",
+      "from": "a_disintegrate",
+      "to": "a_dagger"
+    },
+    {
+      "event": "turn_end",
+      "actor": "Wizard_Evoker",
+      "hp_remaining": 41
+    },
+    {
+      "event": "turn_start",
+      "actor": "Fighter_Champion",
+      "round": 7
+    },
+    {
+      "event": "attack_roll",
+      "actor": "Fighter_Champion",
+      "target": "Adult_Red_Dragon",
+      "d20": 18,
+      "total": 28,
+      "vs_ac": 19,
+      "result": "hit",
+      "advantage_state": "advantage",
+      "crit_threshold": 20
+    },
+    {
+      "event": "damage_dealt",
+      "actor": "Fighter_Champion",
+      "target": "Adult_Red_Dragon",
+      "amount": 13,
+      "type": "slashing",
+      "target_hp_remaining": 124
+    },
+    {
+      "event": "attack_roll",
+      "actor": "Fighter_Champion",
+      "target": "Adult_Red_Dragon",
+      "d20": 18,
+      "total": 28,
+      "vs_ac": 19,
+      "result": "hit",
+      "advantage_state": "advantage",
+      "crit_threshold": 20
+    },
+    {
+      "event": "damage_dealt",
+      "actor": "Fighter_Champion",
+      "target": "Adult_Red_Dragon",
+      "amount": 10,
+      "type": "slashing",
+      "target_hp_remaining": 114
+    },
+    {
+      "event": "attack_roll",
+      "actor": "Fighter_Champion",
+      "target": "Adult_Red_Dragon",
+      "d20": 20,
+      "total": 30,
+      "vs_ac": 19,
+      "result": "crit",
+      "advantage_state": "advantage",
+      "crit_threshold": 20
+    },
+    {
+      "event": "turn_end",
+      "actor": "Fighter_Champion",
+      "hp_remaining": 14
     },
     {
       "event": "turn_start",
@@ -1945,18 +2042,16 @@
       "round": 7
     },
     {
-      "event": "forced_save",
-      "target": "Adult_Red_Dragon",
-      "ability": "dexterity",
-      "dc": 18,
-      "d20": 17,
-      "total": 23,
-      "outcome": "success"
+      "event": "ready_action_taken",
+      "actor": "Cleric",
+      "sub_action": "a_aid",
+      "trigger": "ally_takes_damage",
+      "round": 7
     },
     {
       "event": "turn_end",
       "actor": "Cleric",
-      "hp_remaining": 41
+      "hp_remaining": 112
     },
     {
       "event": "turn_start",
@@ -1977,7 +2072,7 @@
       "action": "a_fire_breath",
       "origin": [
         8,
-        0
+        5
       ],
       "direction": [
         0,
@@ -1989,38 +2084,556 @@
       "target": "Bard_Lore",
       "ability": "dexterity",
       "dc": 21,
-      "d20": 8,
-      "total": 16,
-      "outcome": "fail"
+      "d20": 14,
+      "total": 22,
+      "outcome": "success"
     },
     {
       "event": "damage_dealt",
       "actor": "Adult_Red_Dragon",
       "target": "Bard_Lore",
-      "amount": 62,
+      "amount": 33,
       "type": "fire",
-      "target_hp_remaining": 0
+      "target_hp_remaining": 66
     },
     {
       "event": "concentration_save",
       "caster": "Bard_Lore",
-      "action": "a_hypnotic_pattern",
-      "dc": 31,
-      "damage_taken": 62,
-      "d20": 14,
-      "total": 16,
+      "action": "a_hold_monster",
+      "dc": 17,
+      "damage_taken": 33,
+      "d20": 3,
+      "total": 5,
       "outcome": "fail"
     },
     {
       "event": "concentration_ended",
       "caster": "Bard_Lore",
-      "action": "a_hypnotic_pattern",
+      "action": "a_hold_monster",
+      "reason": "failed_con_save",
+      "removed_count": 0
+    },
+    {
+      "event": "recharge_spent",
+      "actor": "Adult_Red_Dragon",
+      "action": "a_fire_breath",
+      "recharge": "5-6"
+    },
+    {
+      "event": "recurring_save",
+      "target": "Adult_Red_Dragon",
+      "ability": "wisdom",
+      "dc": 18,
+      "d20": 2,
+      "total": 9,
+      "outcome": "fail",
+      "for_condition": "co_paralyzed"
+    },
+    {
+      "event": "turn_end",
+      "actor": "Adult_Red_Dragon",
+      "hp_remaining": 114
+    },
+    {
+      "event": "turn_start",
+      "actor": "Bard_Lore",
+      "round": 8
+    },
+    {
+      "event": "forced_save",
+      "target": "Adult_Red_Dragon",
+      "ability": "wisdom",
+      "dc": 18,
+      "d20": 11,
+      "total": 18,
+      "outcome": "success"
+    },
+    {
+      "event": "concentration_started",
+      "caster": "Bard_Lore",
+      "action": "a_suggestion",
+      "round": 8
+    },
+    {
+      "event": "spell_slot_consumed",
+      "actor": "Bard_Lore",
+      "slot_level": 2,
+      "remaining": 1,
+      "action": "a_suggestion"
+    },
+    {
+      "event": "bardic_inspiration_granted",
+      "target": "Fighter_Champion",
+      "source": "Bard_Lore",
+      "die": "d10"
+    },
+    {
+      "event": "feature_use_consumed",
+      "actor": "Bard_Lore",
+      "resource": "bardic_inspiration_uses_remaining",
+      "remaining": 0,
+      "action": "a_bardic_inspiration"
+    },
+    {
+      "event": "turn_end",
+      "actor": "Bard_Lore",
+      "hp_remaining": 66
+    },
+    {
+      "event": "turn_start",
+      "actor": "Wizard_Evoker",
+      "round": 8
+    },
+    {
+      "event": "forced_save",
+      "target": "Adult_Red_Dragon",
+      "ability": "dexterity",
+      "dc": 18,
+      "d20": null,
+      "total": null,
+      "outcome": "fail"
+    },
+    {
+      "event": "damage_dealt",
+      "actor": "Wizard_Evoker",
+      "target": "Adult_Red_Dragon",
+      "amount": 74,
+      "type": "force",
+      "target_hp_remaining": 40
+    },
+    {
+      "event": "spell_slot_consumed",
+      "actor": "Wizard_Evoker",
+      "slot_level": 6,
+      "remaining": 0,
+      "action": "a_disintegrate"
+    },
+    {
+      "event": "turn_end",
+      "actor": "Wizard_Evoker",
+      "hp_remaining": 41
+    },
+    {
+      "event": "turn_start",
+      "actor": "Fighter_Champion",
+      "round": 8
+    },
+    {
+      "event": "bardic_inspiration_added",
+      "actor": "Fighter_Champion",
+      "die": "d10",
+      "roll": 2,
+      "old_total": 18,
+      "new_total": 20,
+      "effective_ac": 19
+    },
+    {
+      "event": "attack_roll",
+      "actor": "Fighter_Champion",
+      "target": "Adult_Red_Dragon",
+      "d20": 8,
+      "total": 20,
+      "vs_ac": 19,
+      "result": "hit",
+      "advantage_state": "advantage",
+      "crit_threshold": 20
+    },
+    {
+      "event": "damage_dealt",
+      "actor": "Fighter_Champion",
+      "target": "Adult_Red_Dragon",
+      "amount": 9,
+      "type": "slashing",
+      "target_hp_remaining": 31
+    },
+    {
+      "event": "attack_roll",
+      "actor": "Fighter_Champion",
+      "target": "Adult_Red_Dragon",
+      "d20": 17,
+      "total": 27,
+      "vs_ac": 19,
+      "result": "hit",
+      "advantage_state": "advantage",
+      "crit_threshold": 20
+    },
+    {
+      "event": "damage_dealt",
+      "actor": "Fighter_Champion",
+      "target": "Adult_Red_Dragon",
+      "amount": 10,
+      "type": "slashing",
+      "target_hp_remaining": 21
+    },
+    {
+      "event": "attack_roll",
+      "actor": "Fighter_Champion",
+      "target": "Adult_Red_Dragon",
+      "d20": 16,
+      "total": 26,
+      "vs_ac": 19,
+      "result": "hit",
+      "advantage_state": "advantage",
+      "crit_threshold": 20
+    },
+    {
+      "event": "damage_dealt",
+      "actor": "Fighter_Champion",
+      "target": "Adult_Red_Dragon",
+      "amount": 12,
+      "type": "slashing",
+      "target_hp_remaining": 9
+    },
+    {
+      "event": "turn_end",
+      "actor": "Fighter_Champion",
+      "hp_remaining": 14
+    },
+    {
+      "event": "ready_action_discarded",
+      "actor": "Cleric",
+      "sub_action": "a_aid",
+      "trigger": "ally_takes_damage",
+      "reason": "turn_start",
+      "round": 8
+    },
+    {
+      "event": "turn_start",
+      "actor": "Cleric",
+      "round": 8
+    },
+    {
+      "event": "ready_action_taken",
+      "actor": "Cleric",
+      "sub_action": "a_aid",
+      "trigger": "ally_takes_damage",
+      "round": 8
+    },
+    {
+      "event": "turn_end",
+      "actor": "Cleric",
+      "hp_remaining": 112
+    },
+    {
+      "event": "turn_start",
+      "actor": "Adult_Red_Dragon",
+      "round": 9
+    },
+    {
+      "event": "recharge_roll",
+      "actor": "Adult_Red_Dragon",
+      "action": "a_fire_breath",
+      "recharge": "5-6",
+      "roll": 5,
+      "recharged": true
+    },
+    {
+      "event": "aoe_origin_placed",
+      "actor": "Adult_Red_Dragon",
+      "action": "a_fire_breath",
+      "origin": [
+        8,
+        5
+      ],
+      "direction": [
+        0,
+        1
+      ]
+    },
+    {
+      "event": "forced_save",
+      "target": "Bard_Lore",
+      "ability": "dexterity",
+      "dc": 21,
+      "d20": 19,
+      "total": 27,
+      "outcome": "success"
+    },
+    {
+      "event": "damage_dealt",
+      "actor": "Adult_Red_Dragon",
+      "target": "Bard_Lore",
+      "amount": 30,
+      "type": "fire",
+      "target_hp_remaining": 36
+    },
+    {
+      "event": "concentration_save",
+      "caster": "Bard_Lore",
+      "action": "a_suggestion",
+      "dc": 15,
+      "damage_taken": 30,
+      "d20": 4,
+      "total": 6,
+      "outcome": "fail"
+    },
+    {
+      "event": "concentration_ended",
+      "caster": "Bard_Lore",
+      "action": "a_suggestion",
+      "reason": "failed_con_save",
+      "removed_count": 0
+    },
+    {
+      "event": "recharge_spent",
+      "actor": "Adult_Red_Dragon",
+      "action": "a_fire_breath",
+      "recharge": "5-6"
+    },
+    {
+      "event": "recurring_save",
+      "target": "Adult_Red_Dragon",
+      "ability": "wisdom",
+      "dc": 18,
+      "d20": 11,
+      "total": 18,
+      "outcome": "success",
+      "for_condition": "co_paralyzed"
+    },
+    {
+      "event": "turn_end",
+      "actor": "Adult_Red_Dragon",
+      "hp_remaining": 9
+    },
+    {
+      "event": "turn_start",
+      "actor": "Bard_Lore",
+      "round": 9
+    },
+    {
+      "event": "ready_action_taken",
+      "actor": "Bard_Lore",
+      "sub_action": "a_aid",
+      "trigger": "ally_takes_damage",
+      "round": 9
+    },
+    {
+      "event": "turn_end",
+      "actor": "Bard_Lore",
+      "hp_remaining": 36
+    },
+    {
+      "event": "attack_roll",
+      "actor": "Adult_Red_Dragon",
+      "target": "Fighter_Champion",
+      "d20": 2,
+      "total": 16,
+      "vs_ac": 20,
+      "result": "miss",
+      "advantage_state": "normal",
+      "crit_threshold": 20
+    },
+    {
+      "event": "legendary_action_used",
+      "actor": "Adult_Red_Dragon",
+      "option": "la_pounce",
+      "cost": 1,
+      "remaining": 2
+    },
+    {
+      "event": "turn_start",
+      "actor": "Wizard_Evoker",
+      "round": 9
+    },
+    {
+      "event": "forced_save",
+      "target": "Adult_Red_Dragon",
+      "ability": "wisdom",
+      "dc": 18,
+      "d20": 13,
+      "total": 20,
+      "outcome": "success"
+    },
+    {
+      "event": "concentration_ended",
+      "caster": "Wizard_Evoker",
+      "action": "a_hold_monster",
+      "reason": "new_cast_replaced",
+      "removed_count": 0
+    },
+    {
+      "event": "concentration_started",
+      "caster": "Wizard_Evoker",
+      "action": "a_hold_monster",
+      "round": 9
+    },
+    {
+      "event": "spell_slot_consumed",
+      "actor": "Wizard_Evoker",
+      "slot_level": 5,
+      "remaining": 0,
+      "action": "a_hold_monster"
+    },
+    {
+      "event": "turn_end",
+      "actor": "Wizard_Evoker",
+      "hp_remaining": 41
+    },
+    {
+      "event": "attack_roll",
+      "actor": "Adult_Red_Dragon",
+      "target": "Fighter_Champion",
+      "d20": 11,
+      "total": 25,
+      "vs_ac": 20,
+      "result": "hit",
+      "advantage_state": "normal",
+      "crit_threshold": 20
+    },
+    {
+      "event": "damage_dealt",
+      "actor": "Adult_Red_Dragon",
+      "target": "Fighter_Champion",
+      "amount": 10,
+      "type": "slashing",
+      "target_hp_remaining": 4
+    },
+    {
+      "event": "ready_action_fired",
+      "actor": "Bard_Lore",
+      "target": "Fighter_Champion",
+      "sub_action": "a_aid",
+      "trigger": "ally_takes_damage",
+      "reason": "ally_took_damage"
+    },
+    {
+      "event": "ready_action_discarded",
+      "actor": "Bard_Lore",
+      "sub_action": "a_aid",
+      "trigger": "ally_takes_damage",
+      "reason": "fired",
+      "round": 9
+    },
+    {
+      "event": "ready_action_fired",
+      "actor": "Cleric",
+      "target": "Fighter_Champion",
+      "sub_action": "a_aid",
+      "trigger": "ally_takes_damage",
+      "reason": "ally_took_damage"
+    },
+    {
+      "event": "ready_action_discarded",
+      "actor": "Cleric",
+      "sub_action": "a_aid",
+      "trigger": "ally_takes_damage",
+      "reason": "fired",
+      "round": 9
+    },
+    {
+      "event": "damage_dealt",
+      "actor": "Adult_Red_Dragon",
+      "target": "Fighter_Champion",
+      "amount": 4,
+      "type": "fire",
+      "target_hp_remaining": 0
+    },
+    {
+      "event": "creature_dropped",
+      "creature": "Fighter_Champion"
+    },
+    {
+      "event": "legendary_action_used",
+      "actor": "Adult_Red_Dragon",
+      "option": "la_pounce",
+      "cost": 1,
+      "remaining": 1
+    },
+    {
+      "event": "turn_start",
+      "actor": "Cleric",
+      "round": 9
+    },
+    {
+      "event": "attack_roll",
+      "actor": "Cleric",
+      "target": "Cleric",
+      "d20": 7,
+      "total": 13,
+      "vs_ac": 18,
+      "result": "miss",
+      "advantage_state": "normal",
+      "crit_threshold": 20
+    },
+    {
+      "event": "action_downgraded",
+      "actor": "Cleric",
+      "from": "a_ready__a_aid__on__ally_takes_damage",
+      "to": "a_mace"
+    },
+    {
+      "event": "turn_end",
+      "actor": "Cleric",
+      "hp_remaining": 112
+    },
+    {
+      "event": "turn_start",
+      "actor": "Adult_Red_Dragon",
+      "round": 10
+    },
+    {
+      "event": "recharge_roll",
+      "actor": "Adult_Red_Dragon",
+      "action": "a_fire_breath",
+      "recharge": "5-6",
+      "roll": 6,
+      "recharged": true
+    },
+    {
+      "event": "legendary_actions_reset",
+      "actor": "Adult_Red_Dragon",
+      "uses": 3
+    },
+    {
+      "event": "aoe_origin_placed",
+      "actor": "Adult_Red_Dragon",
+      "action": "a_fire_breath",
+      "origin": [
+        8,
+        5
+      ],
+      "direction": [
+        1,
+        0
+      ]
+    },
+    {
+      "event": "forced_save",
+      "target": "Wizard_Evoker",
+      "ability": "dexterity",
+      "dc": 21,
+      "d20": 18,
+      "total": 20,
+      "outcome": "fail"
+    },
+    {
+      "event": "damage_dealt",
+      "actor": "Adult_Red_Dragon",
+      "target": "Wizard_Evoker",
+      "amount": 48,
+      "type": "fire",
+      "target_hp_remaining": 0
+    },
+    {
+      "event": "concentration_save",
+      "caster": "Wizard_Evoker",
+      "action": "a_hold_monster",
+      "dc": 24,
+      "damage_taken": 48,
+      "d20": 6,
+      "total": 8,
+      "outcome": "fail"
+    },
+    {
+      "event": "concentration_ended",
+      "caster": "Wizard_Evoker",
+      "action": "a_hold_monster",
       "reason": "failed_con_save",
       "removed_count": 0
     },
     {
       "event": "creature_dropped",
-      "creature": "Bard_Lore"
+      "creature": "Wizard_Evoker"
     },
     {
       "event": "recharge_spent",
@@ -2031,12 +2644,349 @@
     {
       "event": "turn_end",
       "actor": "Adult_Red_Dragon",
-      "hp_remaining": 169
+      "hp_remaining": 9
+    },
+    {
+      "event": "turn_start",
+      "actor": "Bard_Lore",
+      "round": 10
+    },
+    {
+      "event": "aoe_origin_placed",
+      "actor": "Bard_Lore",
+      "action": "a_hypnotic_pattern",
+      "origin": [
+        8,
+        5
+      ]
+    },
+    {
+      "event": "forced_save",
+      "target": "Bard_Lore",
+      "ability": "wisdom",
+      "dc": 18,
+      "d20": 14,
+      "total": 14,
+      "outcome": "fail"
+    },
+    {
+      "event": "condition_applied",
+      "target": "Bard_Lore",
+      "condition": "co_incapacitated",
+      "source": "Bard_Lore"
+    },
+    {
+      "event": "forced_save",
+      "target": "Adult_Red_Dragon",
+      "ability": "wisdom",
+      "dc": 18,
+      "d20": 16,
+      "total": 23,
+      "outcome": "success"
+    },
+    {
+      "event": "concentration_started",
+      "caster": "Bard_Lore",
+      "action": "a_hypnotic_pattern",
+      "round": 10
+    },
+    {
+      "event": "spell_slot_consumed",
+      "actor": "Bard_Lore",
+      "slot_level": 3,
+      "remaining": 0,
+      "action": "a_hypnotic_pattern"
+    },
+    {
+      "event": "recurring_save",
+      "target": "Bard_Lore",
+      "ability": "wisdom",
+      "dc": 18,
+      "d20": 8,
+      "total": 8,
+      "outcome": "fail",
+      "for_condition": "co_incapacitated"
+    },
+    {
+      "event": "turn_end",
+      "actor": "Bard_Lore",
+      "hp_remaining": 36
     },
     {
       "event": "turn_start",
       "actor": "Cleric",
-      "round": 8
+      "round": 10
+    },
+    {
+      "event": "ready_action_taken",
+      "actor": "Cleric",
+      "sub_action": "a_aid",
+      "trigger": "ally_takes_damage",
+      "round": 10
+    },
+    {
+      "event": "turn_end",
+      "actor": "Cleric",
+      "hp_remaining": 112
+    },
+    {
+      "event": "turn_start",
+      "actor": "Adult_Red_Dragon",
+      "round": 11
+    },
+    {
+      "event": "recharge_roll",
+      "actor": "Adult_Red_Dragon",
+      "action": "a_fire_breath",
+      "recharge": "5-6",
+      "roll": 5,
+      "recharged": true
+    },
+    {
+      "event": "aoe_origin_placed",
+      "actor": "Adult_Red_Dragon",
+      "action": "a_fire_breath",
+      "origin": [
+        8,
+        5
+      ],
+      "direction": [
+        1,
+        1
+      ]
+    },
+    {
+      "event": "forced_save",
+      "target": "Bard_Lore",
+      "ability": "dexterity",
+      "dc": 21,
+      "d20": 16,
+      "total": 24,
+      "outcome": "success"
+    },
+    {
+      "event": "damage_dealt",
+      "actor": "Adult_Red_Dragon",
+      "target": "Bard_Lore",
+      "amount": 32,
+      "type": "fire",
+      "target_hp_remaining": 4
+    },
+    {
+      "event": "concentration_save",
+      "caster": "Bard_Lore",
+      "action": "a_hypnotic_pattern",
+      "dc": 16,
+      "damage_taken": 32,
+      "d20": 5,
+      "total": 7,
+      "outcome": "fail"
+    },
+    {
+      "event": "concentration_ended",
+      "caster": "Bard_Lore",
+      "action": "a_hypnotic_pattern",
+      "reason": "failed_con_save",
+      "removed_count": 0
+    },
+    {
+      "event": "recharge_spent",
+      "actor": "Adult_Red_Dragon",
+      "action": "a_fire_breath",
+      "recharge": "5-6"
+    },
+    {
+      "event": "turn_end",
+      "actor": "Adult_Red_Dragon",
+      "hp_remaining": 9
+    },
+    {
+      "event": "turn_start",
+      "actor": "Bard_Lore",
+      "round": 11
+    },
+    {
+      "event": "forced_save",
+      "target": "Adult_Red_Dragon",
+      "ability": "wisdom",
+      "dc": 18,
+      "d20": 7,
+      "total": 14,
+      "outcome": "fail"
+    },
+    {
+      "event": "condition_applied",
+      "target": "Adult_Red_Dragon",
+      "condition": "co_charmed",
+      "source": "Bard_Lore"
+    },
+    {
+      "event": "concentration_started",
+      "caster": "Bard_Lore",
+      "action": "a_suggestion",
+      "round": 11
+    },
+    {
+      "event": "spell_slot_consumed",
+      "actor": "Bard_Lore",
+      "slot_level": 2,
+      "remaining": 0,
+      "action": "a_suggestion"
+    },
+    {
+      "event": "recurring_save",
+      "target": "Bard_Lore",
+      "ability": "wisdom",
+      "dc": 18,
+      "d20": 19,
+      "total": 19,
+      "outcome": "success",
+      "for_condition": "co_incapacitated"
+    },
+    {
+      "event": "turn_end",
+      "actor": "Bard_Lore",
+      "hp_remaining": 4
+    },
+    {
+      "event": "ready_action_discarded",
+      "actor": "Cleric",
+      "sub_action": "a_aid",
+      "trigger": "ally_takes_damage",
+      "reason": "turn_start",
+      "round": 11
+    },
+    {
+      "event": "turn_start",
+      "actor": "Cleric",
+      "round": 11
+    },
+    {
+      "event": "ready_action_taken",
+      "actor": "Cleric",
+      "sub_action": "a_aid",
+      "trigger": "ally_takes_damage",
+      "round": 11
+    },
+    {
+      "event": "turn_end",
+      "actor": "Cleric",
+      "hp_remaining": 112
+    },
+    {
+      "event": "turn_start",
+      "actor": "Adult_Red_Dragon",
+      "round": 12
+    },
+    {
+      "event": "recharge_roll",
+      "actor": "Adult_Red_Dragon",
+      "action": "a_fire_breath",
+      "recharge": "5-6",
+      "roll": 2,
+      "recharged": false
+    },
+    {
+      "event": "moved",
+      "actor": "Adult_Red_Dragon",
+      "from": [
+        8,
+        5
+      ],
+      "to": [
+        9,
+        6
+      ],
+      "ft": 5,
+      "toward": "Bard_Lore",
+      "distance_before": 15,
+      "distance_after": 10
+    },
+    {
+      "event": "attack_roll",
+      "actor": "Adult_Red_Dragon",
+      "target": "Bard_Lore",
+      "d20": 10,
+      "total": 24,
+      "vs_ac": 18,
+      "result": "hit",
+      "advantage_state": "normal",
+      "crit_threshold": 20
+    },
+    {
+      "event": "damage_dealt",
+      "actor": "Adult_Red_Dragon",
+      "target": "Bard_Lore",
+      "amount": 12,
+      "type": "slashing",
+      "target_hp_remaining": 0
+    },
+    {
+      "event": "concentration_save",
+      "caster": "Bard_Lore",
+      "action": "a_suggestion",
+      "dc": 10,
+      "damage_taken": 12,
+      "d20": 2,
+      "total": 4,
+      "outcome": "fail"
+    },
+    {
+      "event": "concentration_ended",
+      "caster": "Bard_Lore",
+      "action": "a_suggestion",
+      "reason": "failed_con_save",
+      "removed_count": 0
+    },
+    {
+      "event": "creature_dropped",
+      "creature": "Bard_Lore"
+    },
+    {
+      "event": "damage_dealt",
+      "actor": "Adult_Red_Dragon",
+      "target": "Bard_Lore",
+      "amount": 4,
+      "type": "fire",
+      "target_hp_remaining": 0
+    },
+    {
+      "event": "creature_dropped",
+      "creature": "Bard_Lore"
+    },
+    {
+      "event": "action_downgraded",
+      "actor": "Adult_Red_Dragon",
+      "from": "a_multiattack",
+      "to": "a_rend"
+    },
+    {
+      "event": "recurring_save",
+      "target": "Adult_Red_Dragon",
+      "ability": "wisdom",
+      "dc": 18,
+      "d20": 5,
+      "total": 12,
+      "outcome": "fail",
+      "for_condition": "co_charmed"
+    },
+    {
+      "event": "turn_end",
+      "actor": "Adult_Red_Dragon",
+      "hp_remaining": 9
+    },
+    {
+      "event": "ready_action_discarded",
+      "actor": "Cleric",
+      "sub_action": "a_aid",
+      "trigger": "ally_takes_damage",
+      "reason": "turn_start",
+      "round": 12
+    },
+    {
+      "event": "turn_start",
+      "actor": "Cleric",
+      "round": 12
     },
     {
       "event": "retreat_triggered",
@@ -2057,7 +3007,7 @@
     {
       "event": "turn_end",
       "actor": "Cleric",
-      "hp_remaining": 41
+      "hp_remaining": 112
     }
   ]
 }

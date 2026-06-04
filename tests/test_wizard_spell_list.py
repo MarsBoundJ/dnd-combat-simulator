@@ -87,5 +87,40 @@ class WizardSpellListTest(unittest.TestCase):
                             f"{action_id} (tier {tier}) absent at char {unlock}")
 
 
+class WizardSpellSlotsTest(unittest.TestCase):
+    """The run-3 finding: the Wizard had a wired spell LIST but no spell
+    SLOTS (c_wizard declared no class_resources.spell_slots), so every
+    leveled spell was filtered at candidate generation and the Wizard could
+    only cantrip. These pin the full-caster slot progression."""
+
+    def test_l1_wizard_has_one_first_level_pair(self):
+        self.assertEqual(_pc(1)["spell_slots"], {1: 2})
+
+    def test_l13_wizard_has_full_caster_slots(self):
+        # Standard SRD full-caster table at char 13 (incl. a 6th and 7th).
+        self.assertEqual(
+            _pc(13)["spell_slots"],
+            {1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1, 7: 1})
+
+    def test_slots_match_cleric_full_caster_table(self):
+        # Wizard slots must equal the (already-correct) Cleric full-caster
+        # table at the same level — both are full casters.
+        from engine.pc_schema import build_pc_template
+        for lvl in (1, 5, 9, 11, 13, 17, 20):
+            wiz = _pc(lvl)["spell_slots"]
+            cleric = build_pc_template(
+                {"class": "c_cleric", "level": lvl,
+                 "ability_scores": {"str": 10, "dex": 10, "con": 12,
+                                     "int": 10, "wis": 18, "cha": 10}},
+                _registry())["spell_slots"]
+            self.assertEqual(wiz, cleric, f"slot mismatch vs Cleric at L{lvl}")
+
+    def test_high_tier_slots_arrive_on_schedule(self):
+        self.assertNotIn(6, _pc(10)["spell_slots"])   # 6th-level slot: char 11
+        self.assertIn(6, _pc(11)["spell_slots"])
+        self.assertNotIn(7, _pc(12)["spell_slots"])   # 7th-level slot: char 13
+        self.assertIn(7, _pc(13)["spell_slots"])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -177,3 +177,29 @@ pull, and (b) casters still don't fire their big guns. The next levers are
 offensive: an **offensive term** in the positioning utility (stop
 over-prioritizing safety) and the deferred **nova/big-gun selection**.
 Defensive AI is now good; offensive AI is the frontier.
+
+### Run-3 ROOT CAUSE + fix (2026-06-03) — it was an empty dict
+A round-1 candidate **trace** corrected the "casters don't fire big guns"
+diagnosis: it was **neither the slot-cost formula nor knowledge** — the L13
+Wizard had **`spell_slots: {}`**. All 22 leveled spells were filtered at
+candidate generation (no slot to cast them), leaving only 2 cantrips; it
+cast Ray of Frost because Fire Bolt scored 0 vs the fire-immune dragon.
+Cause: `c_wizard.yaml` declared no `class_resources.spell_slots` (the #162
+spell-list wiring never added the slot table; every other caster has it).
+
+**Fix:** added the full-caster slot progression to `c_wizard`'s level_table
+(mirrors `c_cleric`). The `report_run3_positioning.md` artifact is
+regenerated post-fix:
+
+| seed | party dmg (pre-fix) | **party dmg (slots fixed)** | dragon HP |
+|---|--:|--:|--:|
+| 42 | 87 | **247** | **9/256** (nearly dead) |
+| 1 | 144 | **272** | **3/256** |
+
+The Wizard now novas (Disintegrate / Cone of Cold). **Lesson: trace before
+recalibrating** — we nearly rebuilt the slot-cost formula for a bug that
+was an empty dict. Two findings survive the fix: (1) **defense-only
+positioning** still over-corrects into passivity on some seeds (7, 99 →
+low damage / 50-round cap) — needs an offensive term; (2) the slot-cost
+nova-PACING work (encounters-remaining + danger heuristic) is now a
+multi-encounter-day refinement, not the cause of anything here.
