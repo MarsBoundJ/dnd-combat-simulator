@@ -147,6 +147,11 @@ Encode as a `dial → (info_quality, active_terms)` config, consistent with
 the calibration doc. **The clustering we observe is the dial-1 baseline**;
 the shelved v1 is roughly "dial-2, no-aura."
 
+**Third axis added (red-team pass, §11): risk tolerance λ** — how heavily an
+actor weights catastrophic tails (being dropped, losing concentration).
+High λ = cautious; λ ≈ 0 = reckless. Equal info + breadth can still yield
+different *plausible* play (a careful caster vs a reckless bruiser).
+
 ---
 
 ## 5. Starting geometry + initiative (encounter setup)
@@ -347,3 +352,91 @@ standard wall module, so alignment is natural.
 our grid `lateral ≤ forward/2` may differ at the rim); (b) the dnd5e
 square/cube template quirk; (c) *Walled Templates* is a known module
 dependency for wall-aware AoE in Foundry.
+
+---
+
+## 11. Red-team revisions (2026-06-03 cadre pass)
+
+Two independent external reviews. Accepted changes below amend the model
+above; the originals are kept for provenance.
+
+### 11.1 Risk-adjusted eHP (the headline)
+The utility is **risk-ADJUSTED**, not risk-neutral expectation:
+
+```
+U(dest) = E[eHP] − λ · tail_risk
+```
+
+- **`tail_risk`** is dominated by **threshold nonlinearities** — crossing
+  **0 HP** (downed: a lost turn + a rescue cost), **losing concentration**,
+  and being reachable by multiple enemies (a **convex "dogpile"** penalty)
+  are *superlinearly* bad, not linear in HP.
+- **`λ` is the third dial axis — risk tolerance.** High λ = cautious
+  (squishy / concentrating casters avoid catastrophic-tail squares); λ ≈ 0
+  = reckless (high-HP, no-concentration bruisers ignore the tail for output).
+- **Not a doctrine override** — no rule beats the math (we never hard-code
+  "casters don't melee"); λ only sets how heavily bad tails weigh. This
+  resolves the cadre's loss-aversion / razor-edge / death-spiral critiques
+  **without abandoning "no doctrine."** Worked: two squares of equal *average*
+  eHP differ when one has a branch that drops the caster + breaks her control
+  spell — risk-adjusted picks the safe one; a Barbarian (λ≈0) takes the
+  aggressive one. Same math, one knob.
+
+So risk-tolerance, threshold-nonlinearity, and the dogpile penalty are **one
+mechanism**, not three.
+
+### 11.2 Enablement broadened (was too narrow)
+Action enablement = "≥1 **useful** action in range + clear LoE," where
+*useful* = **offensive OR support / heal / buff** (a Cleric moving to revive
+a downed ally is enabled). Two enablement-family terms added:
+- **Reaction value (+)** — preserve Shield / Counterspell range / Sentinel
+  threat / OA coverage even when current-turn offense is unchanged.
+- **Escape lanes (+)** — squares with several un-threatened exits beat a
+  corner with one (partial mitigation of single-turn myopia, §11.8).
+
+### 11.3 New / refined terms
+- **Line-of-sight breakage (+):** a square with **no LoS** to an enemy caster
+  defeats its "a target you can see" spells outright (binary) — distinct from
+  cover's AC bonus, and cheap via our existing `sight` wall channel.
+- **Body-block / chokepoint:** *not* a bespoke term — modeled as the blocker
+  **lowering allies' party-coupled melee-exposure** (enemies can't reach the
+  squishies behind it).
+
+### 11.4 Coverage routine ranks by eHP, not count
+`max_aoe_coverage` maximizes **Σ per-target eHP**, with raw target count only
+as a tiebreak — a cone catching the Wizard + Rogue beats one catching the
+Fighter + Barbarian.
+
+### 11.5 Boss runs the SAME utility (no "suicide-dive")
+A monster placing an AoE nets the coverage gain against **its own** exposure
+(melee / focus-fire / risk-adjusted) terms, so it won't dive into four melee
+PCs to catch three in a cone. The coverage routine finds the best *shape*;
+the **move choice** still pays the boss's own positioning utility.
+
+### 11.6 Concentration: multi-hit correctness
+Multi-projectile effects (Magic Missile, Scorching Ray) force **separate**
+concentration saves (DC 10 *each*), **not** one amalgamated DC from summed
+damage. **CODE-VERIFY** the existing concentration trigger fires per damage
+*instance*, and that multi-projectile spells emit separate instances.
+
+### 11.7 Mutual-dependency / collision — the "Clown Car"
+Confirmed real and **currently unhandled** (actors are points; movement is
+per-actor greedy; no square reservation). Fix: a **sequential ally-claim /
+soft-repulsion** pass — each committed ally projects a negative "presence"
+on nearby squares, lowering their utility for later-moving allies — plus
+real **square-occupancy** (can't end on an occupied square). Cheaper than a
+joint multi-agent solve.
+
+### 11.8 Accepted as limitations / verify-on-wiring (not solved now)
+- **Single-ply kiting/bait** — a fast PC standing just outside the boss's
+  move+AoE range baits a wasted AoE. The accepted *cost* of single-ply.
+- **Tempo / next-turn myopia** — a single-turn utility can pick a square
+  that's good now but bad next round; partly covered by escape-lanes (§11.2);
+  full multi-turn lookahead deferred.
+- **OA-model exactness** — the minimax cost term leans on it; verify vs 2024
+  wording (the "creature," reach edges, movement source).
+- **Large-creature membership** — when footprints land: a creature is hit iff
+  **any** square it occupies has its center in the shape (even-size creatures
+  center on a grid *vertex*, not a square center).
+- **Foundry** — verify the exact measurement mode on wiring; the sim stays
+  authoritative regardless.
