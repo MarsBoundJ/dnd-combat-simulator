@@ -416,6 +416,36 @@ class EncounterRunner:
         from engine.ai.behavior_profile import resolve_targeting_preset
         from engine.ai.targeting import pick_target
 
+        # Phase 1c-ii: AoE-aware de-cluster (PCs). If a living enemy has an
+        # area attack and this PC (with allies) can act from a SAFER square,
+        # reposition there instead of greedily closing/holding. Gated inside
+        # best_position (returns None -> fall through to greedy engage):
+        # requires an AoE threat, living allies, and that the PC can already
+        # act from its current square. Monster-side de-cluster is a follow-up.
+        if actor.side == "pc":
+            from engine.ai.positioning import best_position
+            spread = best_position(actor, state)
+            if spread is not None:
+                from_pos = actor.position
+                actor.position = spread
+                actor.moved_this_turn = True
+                state.event_log.append({
+                    "event": "moved", "actor": actor.id,
+                    "from": list(from_pos), "to": list(spread),
+                    "ft": distance_ft(from_pos, spread),
+                    "reason": "aoe_spacing",
+                })
+                from engine.core import reactions
+                reactions.resolve_opportunity_attacks(
+                    actor, from_pos, state,
+                    self.event_bus, self.primitives, self.rng)
+                if actor.is_alive():
+                    from engine.core import ready_action as _ra
+                    _ra.on_movement_completed(
+                        actor, from_pos, state,
+                        self.event_bus, self.primitives)
+                return
+
         enemies = [a for a in state.encounter.actors
                     if a.side != actor.side and a.is_alive()]
         if not enemies:
