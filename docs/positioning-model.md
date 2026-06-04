@@ -123,19 +123,39 @@ the shelved v1 is roughly "dial-2, no-aura."
 
 ---
 
-## 5. Starting geometry (encounter setup)
+## 5. Starting geometry + initiative (encounter setup)
 
 Boss fights open with the party **entering the lair** — they generally know
 the boss room is the boss room. So:
 
 - Seed PCs at an **approach distance (~50–75 ft)** with maneuver room, not
-  stacked at 15 ft. The round-1 alpha-strike problem is mostly a
-  *starting-geometry* artifact (the dragon acts before anyone moves), so
-  realistic setup matters as much as movement AI.
+  stacked at 15 ft. Realistic setup matters as much as movement AI.
 - Setup is itself **dial-flavored**: a high-dial party enters spread and
   cautious; a dial-1 party bunches in the doorway.
 - `sims/run_first_sim.py`'s 15-ft cluster is a worst-case (dial-1) setup;
   future sims should place PCs realistically and/or pre-spread at high dial.
+
+**The boss does NOT automatically act first.** Initiative is rolled every
+encounter, so boss-first is *probabilistic*, not guaranteed — there is a
+good chance one or more PCs act before the boss. Implications:
+
+- **2024 surprise = Disadvantage on the initiative roll**, NOT a lost turn
+  (the 2014 "skip your first turn" rule is gone). Even a surprised party
+  still rolls, and some PCs may beat the boss.
+- An **intelligent, high-dial boss engineers initiative advantage** — sets
+  up surprise, casts Invisibility / uses advantage-granting effects, or
+  simply has a high initiative bonus (a genius lich plans the ambush; a
+  dragon in its lair may gain surprise). But this only *shifts the odds*;
+  it does not guarantee acting first. This is a **sibling dial-gated
+  behavior** to positioning (smarter actors optimize the pre-fight),
+  tracked separately from this doc.
+- So the **round-1 alpha strike is a RISK, not a certainty.** The first sim
+  (the dragon won initiative on seed 42) is *one draw*, not the rule.
+  Starting geometry hedges the risk; PCs who *do* act first can preempt —
+  spread out, take cover, or land control before the breath. **The
+  positioning model must not assume the party always eats a turn-1 AoE**;
+  it weighs AoE exposure as an expected cost over the initiative
+  distribution, not a guaranteed one.
 
 ---
 
