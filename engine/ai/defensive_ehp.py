@@ -1103,11 +1103,35 @@ def _resolve_dc_for_action(action_intent: dict, caster: Actor) -> int:
     return 13
 
 
+def lr_control_factor(target: Actor) -> float:
+    """Scoring discount for a save-or-lose control vs a Legendary Resistance
+    target.
+
+    LR (engine v1 policy) spends a charge to turn ANY failed save into a
+    success while charges remain, so a control's lockdown won't LAND while
+    the target has LR — casting it only DRAINS one charge. We model the
+    per-cast value as `1 / (lr_remaining + 1)`: ~0 while LRs are stacked,
+    rising to full (1.0) as they deplete. This (a) stops the AI from wasting
+    premium control at full value into LR — the observed boss-sim bug — and
+    (b) gives a monotone drain-then-land incentive without a multi-turn
+    planner. Returns 1.0 when the target has no LR.
+
+    NOTE: optimal sequencing (drain with the CHEAPEST save-forcer, save the
+    premium control for lr=0) is superagent-level and deferred — and since
+    LR is spent greedily on any save, PC *damage* save-spells also drain it,
+    so LRs deplete fast in practice. See engine.core.legendary_resistance.
+    """
+    from engine.core.legendary_resistance import RESOURCE_KEY
+    lr = int((getattr(target, "resources", {}) or {}).get(RESOURCE_KEY, 0))
+    return 1.0 / (lr + 1) if lr > 0 else 1.0
+
+
 def defensive_ehp_hard_control(actor: Actor, target_enemy: Actor,
                                  action: dict, state: CombatState) -> float:
     """Defensive eHP from a save-or-lose control action.
 
       eHP = enemy_DPR × fail_prob × expected_rounds × denial_fraction
+            × lr_control_factor   (LR discount — see below)
 
     Returns 0.0 if the action doesn't match the control shape or the
     target is dead.
@@ -1124,7 +1148,7 @@ def defensive_ehp_hard_control(actor: Actor, target_enemy: Actor,
                                      dc, state)
     enemy_dpr = estimate_dpr(target_enemy)
     return (enemy_dpr * p_fail * EXPECTED_CONTROL_ROUNDS
-            * intent["denial_fraction"])
+            * intent["denial_fraction"] * lr_control_factor(target_enemy))
 
 
 # ============================================================================

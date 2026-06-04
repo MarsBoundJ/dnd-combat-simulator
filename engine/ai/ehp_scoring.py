@@ -1332,7 +1332,7 @@ def _aoe_target_control_ehp(target: Actor,
     if not components:
         return 0.0
     from engine.ai.defensive_ehp import (
-        EXPECTED_CONTROL_ROUNDS, estimate_dpr,
+        EXPECTED_CONTROL_ROUNDS, estimate_dpr, lr_control_factor,
     )
     target_dpr = estimate_dpr(target)
     if target_dpr <= 0:
@@ -1340,7 +1340,10 @@ def _aoe_target_control_ehp(target: Actor,
     total = 0.0
     for c in components:
         total += target_dpr * EXPECTED_CONTROL_ROUNDS * c["denial_fraction"]
-    return total
+    # Legendary Resistance discount (same model as the single-target
+    # control scorer): a target with LR negates the lockdown until its
+    # charges drain, so per-target control value is 1/(lr+1) of full.
+    return total * lr_control_factor(target)
 
 
 def _aoe_target_damage(target: Actor, components: list[dict]) -> float:
