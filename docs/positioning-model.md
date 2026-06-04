@@ -51,7 +51,9 @@ its scoring is superseded by the utility below.
    not "is an ally within radius R right now." Computed by the **AoE
    coverage routine (§9)**, run **single-ply** (boss places its best AoE
    against the formation; no deeper recursion — Phil 2026-06-03). The
-   canonical cases are a 60-ft cone and a 20-ft sphere.
+   canonical cases are a 60-ft cone and a 20-ft sphere; **a line is
+   effectively up to 2 rows wide (straddling) and freely angled** (§9), so
+   spread *perpendicular* to it, not just along it.
 
 2. **Concentration-break risk (−).** If the actor is concentrating, a hit
    forces a CON save, `DC = max(10, floor(damage/2))`. A ~55-damage breath
@@ -243,7 +245,7 @@ set** rather than sweeping continuous space. Per shape:
 | Shape | Method | Cost / apex |
 |---|---|---|
 | **Cone / sector** | **Angular interval stabbing** — each in-range target `p` gives an arc `[β_p−α, β_p+α]` of facings that hit it (`β_p = atan2(Δy,Δx)`); the best orientation is the **max-overlap of arcs** (sort 2n endpoints, +1/−1 sweep). Optimal facing is always an arc endpoint. | O(n log n) |
-| **Line / slab** | "Max points through the apex" — bucket targets by snapped bearing (thin line), or fatten to angular arcs by `width÷distance` (slab) and stab as above. | O(n log n) |
+| **Line / slab** | "Max points through the apex" — bucket targets by snapped bearing (thin line), or fatten to angular arcs by `width÷distance` (slab) and stab as above. **Evaluate centered *and* straddled placements** (see below). | O(n log n) |
 | **Sphere / burst** | **Max-coverage disk** — candidate centers are the (≤2) radius-`r` circles through each target *pair* ≤ `2r` apart; score coverage at each. | O(n²) |
 | **Cube (axis-aligned)** | **Sliding-window sweep** — sort by x, slide an `s`-wide strip; within it slide an `s`-tall window in y (two pointers). Axis-alignment (no tilt) is what keeps this cheap. | O(n log n) |
 
@@ -263,6 +265,31 @@ map** (rasterize "agents hit if placed here" and pick the hot cell).
   goblins): the **angular-stabbing** method above. Clean hybrid — the
   angular method *proposes* candidate facings; the grid functions *verify*
   membership so results stay grid-exact.
+
+### Line width, straddling & angling
+A "5-ft-wide" line is a **floor, not a ceiling**, for an optimizing caster:
+- **Straddling (Xanathar variant) ≈ 2-wide.** Aiming the line down a grid
+  *border* instead of a row center catches **both adjacent rows** —
+  effectively doubling coverage. `max_aoe_coverage` therefore evaluates
+  **both** the row-centered (1-wide) and border-straddled (2-wide)
+  placements per direction and keeps the better. Roughly doubles a line's
+  threat/value over the naive reading (matters for blue/bronze dragon
+  lightning breath and a foe's Lightning Bolt).
+- **Free angling.** Lines needn't follow rows/columns; a clever angle
+  threads off-axis targets. Same deferred upgrade as continuous cone
+  orientation — today: **8 grid directions + the straddle offset**; later:
+  thin-slab angular stabbing with a straddle-inclusive width tolerance.
+- **Membership convention: center-based** (a square is hit iff its center
+  lies in the strip) — consistent with `actors_in_radius/cone`. The
+  "any-square-the-template-touches" table variant is more generous and is
+  **out of scope**; straddling is the one sanctioned way to get a 2-wide
+  line. **Dial-gated:** dial-5 straddles/angles to maximize; dial-1 fires
+  straight down a row.
+- **Exposure implication (§2):** an enemy line is effectively up to **2
+  rows wide and freely angled**, so PCs in *adjacent* rows aren't safe —
+  spread **perpendicular** to the likely line, not just along it.
+- **Implementation gap:** current `actors_in_line` is 8-dir, center-based,
+  **no straddle** → Phase 1 adds the straddle option; free-angle deferred.
 
 ### Minimax depth
 **Single-ply** (Phil 2026-06-03): the boss places its single best AoE
