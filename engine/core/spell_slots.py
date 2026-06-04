@@ -54,28 +54,39 @@ def slot_cost_ehp(slot_level: int, slots_remaining: int,
                     encounters_remaining: int) -> float:
     """Opportunity cost (in eHP) of spending a slot of `slot_level`.
 
-    Per ehp-action-framework.md:
+    Per ehp-action-framework.md (NOVA-LATE pacing):
 
-        scarcity = 1 / max(1, slots_remaining)
-        urgency  = encounters_remaining / 6.0   (clamped to [0, 1])
-        cost = slot_level × 3.0 × scarcity × (1 - urgency)
+        scarcity      = 1 / max(1, slots_remaining)
+        day_pressure  = encounters_remaining / 6.0   (clamped to [0, 1])
+        cost = slot_level × 3.0 × scarcity × day_pressure
 
-    Behavior:
+    `encounters_remaining` = fights still to come AFTER this one.
+
+    Behavior (conserve early, NOVA on the last fight — matches the
+    framework doc's worked example "a slot in encounter 6-of-6 is worth
+    LESS than in encounter 1-of-6"):
+      - More encounters remaining → HIGHER cost (those future fights still
+        need slots, so spending now is more costly).
+      - LAST fight (encounters_remaining = 0) → cost 0 → nova freely
+        (nothing left to conserve for).
       - More slots remaining → lower cost (each individual slot is less
         precious).
-      - More encounters remaining → lower cost (you can replenish later;
-        spend freely early in the day).
-      - Higher level slot → higher cost (your last 5th-level slot is
-        worth more than your last 1st).
+      - Higher level slot → higher cost.
 
-    slots_remaining is the count BEFORE consumption — pass the
-    pre-cast count.
+    NOTE (2026-06-03): this fixes a prior inversion — the formula was
+    `(1 - day_pressure)`, which made the LAST fight the MOST expensive
+    (hoard late / spend early), contradicting the doc's own prose +
+    docstring intent. A *deadly*-fight override (collapse the cost so the
+    caster novas even early in the day) is a follow-up danger heuristic.
+
+    slots_remaining is the count BEFORE consumption — pass the pre-cast
+    count.
     """
     if slot_level <= 0:
         return 0.0   # cantrips / free actions
     scarcity = 1.0 / max(1, slots_remaining)
-    urgency = min(1.0, max(0.0, encounters_remaining / ENCOUNTER_DAY_DIVISOR))
-    return slot_level * SLOT_COST_BASE_MULTIPLIER * scarcity * (1.0 - urgency)
+    day_pressure = min(1.0, max(0.0, encounters_remaining / ENCOUNTER_DAY_DIVISOR))
+    return slot_level * SLOT_COST_BASE_MULTIPLIER * scarcity * day_pressure
 
 
 # ============================================================================

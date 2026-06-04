@@ -100,32 +100,38 @@ class SlotCostFormulaTest(unittest.TestCase):
         self.assertEqual(slot_cost_ehp(0, 1, 0), 0.0)
 
     def test_framework_fireball_reference_value(self) -> None:
-        """Per ehp-action-framework.md worked example: 3rd-level slot,
-        scarcity max (1 slot left), end-of-day (urgency 0) → 9.0 eHP."""
+        """NOVA-LATE pacing: a 3rd-level slot, scarcity max (1 slot left),
+        with a FULL day ahead (day_pressure 1.0) is at MAX cost → 9.0 eHP
+        (conserve early). On the LAST fight it's free (see below)."""
         cost = slot_cost_ehp(slot_level=3, slots_remaining=1,
-                                encounters_remaining=0)
+                                encounters_remaining=6)
         self.assertAlmostEqual(cost, 9.0)
 
+    def test_last_fight_is_free_to_nova(self) -> None:
+        """Last fight (0 encounters remaining) → cost 0: nova freely."""
+        self.assertEqual(slot_cost_ehp(3, 1, 0), 0.0)
+
     def test_higher_level_costs_more(self) -> None:
-        c1 = slot_cost_ehp(1, 1, 0)
-        c5 = slot_cost_ehp(5, 1, 0)
+        c1 = slot_cost_ehp(1, 1, 6)
+        c5 = slot_cost_ehp(5, 1, 6)
         self.assertGreater(c5, c1)
 
     def test_more_slots_lower_cost(self) -> None:
-        c1 = slot_cost_ehp(3, 1, 0)
-        c5 = slot_cost_ehp(3, 5, 0)
+        c1 = slot_cost_ehp(3, 1, 6)
+        c5 = slot_cost_ehp(3, 5, 6)
         self.assertGreater(c1, c5,
                             "Last slot should cost more than 1-of-5")
 
-    def test_more_encounters_remaining_lower_cost(self) -> None:
-        late = slot_cost_ehp(3, 1, 0)    # last encounter
-        early = slot_cost_ehp(3, 1, 6)   # full day ahead
-        self.assertGreater(late, early,
-                            "Last-encounter cost > early-day cost")
+    def test_more_encounters_remaining_higher_cost(self) -> None:
+        late = slot_cost_ehp(3, 1, 0)    # last encounter → nova → 0
+        early = slot_cost_ehp(3, 1, 6)   # full day ahead → conserve
+        self.assertGreater(early, late,
+                            "Early-day cost > last-encounter cost (conserve "
+                            "early, nova late)")
 
-    def test_urgency_clamped(self) -> None:
-        """encounters_remaining > 6 → urgency capped at 1.0 → cost 0."""
-        self.assertEqual(slot_cost_ehp(3, 1, 100), 0.0)
+    def test_day_pressure_clamped(self) -> None:
+        """encounters_remaining > 6 → day_pressure capped at 1.0 → MAX cost."""
+        self.assertAlmostEqual(slot_cost_ehp(3, 1, 100), 9.0)
 
 
 # ============================================================================
