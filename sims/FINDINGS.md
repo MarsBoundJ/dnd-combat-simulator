@@ -231,10 +231,52 @@ than the Wizard's nova. So the original formation is kept. **Design lesson
 its eHP CONTRIBUTION — the healer's party-wide sustain outranks the
 glass-cannon's offense — not its raw HP.**
 
-**Conclusion:** the "squishy alpha-death" concern is **largely resolved** —
-no PC dies to the round-1 breath anymore. The residual is (a) the Wizard's
-slightly-exposed start (27% R2 death) and (b) inherent deadliness (33% win
-is a real calibration datapoint for a solo-CR-17 boss, useful to Trusight).
-No engine fix warranted; the AI/formation is behaving reasonably. The
-Monte Carlo harness itself is the deliverable — a reusable per-encounter
-distribution / metric tool.
+**Conclusion (Monte Carlo):** the "squishy alpha-death" concern is **largely
+resolved** — no PC dies to the round-1 breath anymore. The residual is (a)
+the Wizard's slightly-exposed start (27% R2 death) and (b) inherent
+deadliness (33% win is a real calibration datapoint for a solo-CR-17 boss,
+useful to Trusight). No engine fix warranted; the AI/formation is behaving
+reasonably. The Monte Carlo harness itself is the deliverable.
+
+---
+
+# Adventuring-day harness (2026-06-03) — nova-pacing exercised
+
+Built `sims/adventuring_day.py`: one L13 party run through a graduated
+6-encounter day (manticores → ogres → *short rest* → wyverns → vampire
+spawn → *short rest* → fire giant → **Adult Red Dragon climax**), with
+persistent HP / slots / resources, `encounters_remaining` decrementing each
+fight, a Hit-Dice short-rest heal approximation, and an end-of-day long
+rest. This is what finally *exercises* the nova-late slot-cost fix (#180)
+and seeds the adventuring-day build-rubric.
+
+**Result (seed 42):** the party clears all five mediums, then **wipes on
+the dragon in 2 rounds** — but the *high-level* slot count tells the story:
+
+| enc | rem | spent (all) | **hi-slots (≥4) left** | outcome |
+|---|--:|--:|--:|---|
+| manticores | 5 | 12 | 15 | win |
+| ogres | 4 | 11 | 13 | win |
+| wyverns | 3 | 3 | 13 | win |
+| vampire spawn | 2 | 0 | 13 | win |
+| fire giant | 1 | 0 | 13 | win |
+| **dragon** | 0 | 0 | **13** | **LOSS** |
+
+**Nova-pacing IS working** — the casters spent only **2 high-level slots
+all day** (15→13), winning the mediums on *low* slots + the martials, and
+arrived at the climax with **13 big guns conserved**. The early "12/11
+spent" were 1st–2nd-level slots. (Initial hypothesis "they blew big slots
+early" was *wrong* — the hi-slot column disproved it before write-up.)
+
+**The real bottleneck is survival, not pacing.** The party reached the
+dragon *depleted* (HP) and got alpha-struck before deploying the conserved
+nova — a 2-round wipe with 13 high slots unspent. *"You conserved for the
+boss but arrive too wounded to use it."* So the **danger-override (c) is
+moot here** (climax `rem=0` ⇒ cost already 0; nothing to override) — it
+only matters for a deadly fight *early* in the day. The dominant lever is
+the same **climax-deadliness / arrive-depleted** dynamic, not slot pacing.
+
+**Status:** PR-1 (nova-late formula) validated end-to-end; the day harness
+is the deliverable (+ adventuring-day build-rubric foundation). Deferred:
+(c) early-deadly-fight override; richer rest/recovery (real Hit-Dice, a
+pre-boss long rest); encounter XP-budget tuning.
