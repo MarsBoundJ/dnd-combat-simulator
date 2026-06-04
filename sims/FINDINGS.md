@@ -198,8 +198,43 @@ regenerated post-fix:
 
 The Wizard now novas (Disintegrate / Cone of Cold). **Lesson: trace before
 recalibrating** — we nearly rebuilt the slot-cost formula for a bug that
-was an empty dict. Two findings survive the fix: (1) **defense-only
-positioning** still over-corrects into passivity on some seeds (7, 99 →
-low damage / 50-round cap) — needs an offensive term; (2) the slot-cost
-nova-PACING work (encounters-remaining + danger heuristic) is now a
-multi-encounter-day refinement, not the cause of anything here.
+was an empty dict.
+
+---
+
+# Monte Carlo calibration (2026-06-03) — squishy alpha-death + variance
+
+Ran the boss encounter over **60 seeds** (`sims/boss_montecarlo.py`) to
+quantify the variance/alpha-death finding instead of guessing from 5 seeds.
+
+**Headline numbers (full positioning + spell stack + engage fix):**
+- **WIN 33% / LOSS 66%** vs a *solo* Adult Red Dragon (CR 17) — a
+  legitimate "deadly-but-winnable" result for an unoptimized L13 party, not
+  a broken AI. Party damage median **131** (of the dragon's 256), max 285.
+- **Round-1 alpha-death = 0** across all four PCs. The original "one breath
+  kills the whole party" is **solved** by the spread + positioning work.
+
+**Per-PC death timing (the alpha-death signal):**
+| PC | dies R1 | dies R2 | survives | note |
+|---|--:|--:|--:|---|
+| Bard | 0 | 0 | 95% | wide flank — escapes the breath |
+| Cleric | 0 | 0 | 35% | flank; dies ~R7 |
+| Wizard | 0 | 27% | 27% | residual: starts partially IN the cone |
+| Fighter | 0 | ~2% | ~3% | tank, dies ~R4 absorbing |
+
+**Counterintuitive result — protect VALUE, not HP.** Widening the
+lowest-HP Wizard to a far flank eliminated its round-2 death (16 → 0 runs)
+**but dropped the win rate 33% → 13%** — because it pushed the *Cleric*
+(healer) into the cone, and losing the healer's sustain costs more wins
+than the Wizard's nova. So the original formation is kept. **Design lesson
+(feeds the positioning-value / superagent work): a PC's protect-priority is
+its eHP CONTRIBUTION — the healer's party-wide sustain outranks the
+glass-cannon's offense — not its raw HP.**
+
+**Conclusion:** the "squishy alpha-death" concern is **largely resolved** —
+no PC dies to the round-1 breath anymore. The residual is (a) the Wizard's
+slightly-exposed start (27% R2 death) and (b) inherent deadliness (33% win
+is a real calibration datapoint for a solo-CR-17 boss, useful to Trusight).
+No engine fix warranted; the AI/formation is behaving reasonably. The
+Monte Carlo harness itself is the deliverable — a reusable per-encounter
+distribution / metric tool.
