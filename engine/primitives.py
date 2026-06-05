@@ -2585,9 +2585,16 @@ def _summon(params: dict, state: CombatState, bus: EventBus) -> None:
     if not monster_id:
         raise ValueError("summon requires a `monster` template id")
     from engine.core import summoning
-    summoning.summon(summoner, monster_id, state,
-                       count=int(params.get("count", 1)),
-                       max_total=params.get("max_total"))
+    new_actors = summoning.summon(summoner, monster_id, state,
+                                   count=int(params.get("count", 1)),
+                                   max_total=params.get("max_total"))
+    # Tie the summons to the caster's CONCENTRATION if this is a concentration
+    # spell (Bigby's Hand, Animate Objects) — they vanish when it ends.
+    action = (state.current_attack or {}).get("action") or {}
+    if action.get("concentration") and action.get("id"):
+        for a in new_actors:
+            a.summon_concentration = {"caster_id": summoner.id,
+                                       "action_id": action.get("id")}
 
 
 def _polymorph_target(params: dict, state: CombatState,

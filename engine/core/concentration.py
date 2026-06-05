@@ -211,6 +211,38 @@ def end_concentration(caster: Actor, state: CombatState,
                 and src.get("action_id") == action_id):
             forms.revert_form(target, state, reason="concentration_ended")
 
+    # Summoning system: dismiss any creatures summoned BY this concentration
+    # (Bigby's Hand, Animate Objects vanish when the caster's concentration
+    # ends). Mirrors the walls/persistent_auras scrub — match summons whose
+    # summon_concentration stamp == (this caster_id, this action_id), then
+    # remove them from the encounter roster AND the turn order so they take
+    # no further turns. Permanent summons (summon_concentration is None) are
+    # left untouched.
+    if state.encounter is not None:
+        dismissed_ids = [
+            a.id for a in state.encounter.actors
+            if a.summon_concentration
+            and a.summon_concentration.get("caster_id") == caster_id
+            and a.summon_concentration.get("action_id") == action_id
+        ]
+        if dismissed_ids:
+            dismissed = set(dismissed_ids)
+            state.encounter.actors = [
+                a for a in state.encounter.actors if a.id not in dismissed
+            ]
+            state.turn_order = [
+                tid for tid in state.turn_order if tid not in dismissed
+            ]
+            removed += len(dismissed_ids)
+            for sid in dismissed_ids:
+                state.event_log.append({
+                    "event": "summon_dismissed",
+                    "summon": sid,
+                    "caster": caster.id,
+                    "action": action_id,
+                    "reason": "concentration_ended",
+                })
+
     caster.concentration_on = None
     state.event_log.append({
         "event": "concentration_ended",

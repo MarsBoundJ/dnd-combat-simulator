@@ -292,6 +292,13 @@ class Actor:
     # engine/core/summoning.py.
     summoned_by: str | None = None
 
+    # `summon_concentration`: {caster_id, action_id} when this creature was
+    # summoned by a CONCENTRATION spell (Bigby's Hand, Animate Objects). The
+    # summon vanishes when that concentration ends (end_concentration scrub).
+    # None for permanent summons (Finger of Death's zombie) and natural
+    # combatants.
+    summon_concentration: dict | None = None
+
     # Racial trait ids (PR #75). Loaded from PC race spec via
     # pc_schema → cli — e.g. `["t_lucky", "t_brave"]` for a Halfling.
     # Read at runtime by query_save_modifiers (Brave / Fey Ancestry /
