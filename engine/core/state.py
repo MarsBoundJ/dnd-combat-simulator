@@ -583,6 +583,10 @@ class CombatState:
     # "cheap" to spend); lower = late-day (preserve remaining slots).
     encounters_remaining_today: int = 3
 
+    # Per-side optimization dial (1-5) — {side: dial}. Empty/absent → dial 1
+    # (casual: no focus-fire). Read via engine.core.optimization_dial.dial_for.
+    optimization_dials: dict = field(default_factory=dict)
+
     def current_actor(self) -> Actor | None:
         if not self.turn_order:
             return None
