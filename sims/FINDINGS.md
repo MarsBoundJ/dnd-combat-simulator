@@ -340,3 +340,37 @@ decision efficiency (focus-fire / target selection / stop the grind), not
 content or pacing.** `slot_cost_ehp`'s `ENCOUNTER_DAY_DIVISOR` reframed as
 an explicit tunable (2024 has no daily budget to cite). Long-rest-before-boss
 stays a deferred *measured* flag, not a default (would collapse the gradient).
+
+---
+
+## Decision-layer grind diagnosed: the control-thrash death-spiral
+
+Traced the 3-fire-giant Moderate fight at full resources (`sims/_trace_grind.py`,
+reconstructs each turn's action from the event log). The grind has a clear
+cause — **only 6 of 35 PC turns (17%) dealt any damage**; the rest were
+CONTROL (11) / CAST (9) / HEAL (3). The casters **re-cast Hypnotic Pattern
+every round** (rounds 1-3), then **Cloudkill every round** (4-7); when stopped
+from re-casting the *same* spell they **thrash between control spells**, each
+switch DROPPING the working concentration to deploy another. They never
+transition from control to *killing*. The giants ended at 103/103/61 of 162;
+the party lost.
+
+**Fix (this PR): concentration-aware candidate filter.** While already
+concentrating, `generate_candidates` suppresses every concentration-spell
+candidate (you hold only one effect; casting another wastes it or churns it).
+The caster keeps its control and falls through to damage. Result on the
+isolated 3-fire-giant fight: **~certain loss → 8/10 wins** (seeds 1-10, median
+~13 rounds). Unit-locked in `test_concentration_candidate_filter.py`; the 51
+Hex/Hunter's-Mark/Ranger/Warlock/Spirit-Guardians/Bless tests still pass.
+
+**v1 limitation + revealed follow-ups:**
+- The blunt rule also forbids a legitimate concentration *upgrade* (drop a
+  stale Hunter's Mark for Hold Monster on the boss). Principled fix = score a
+  concentration candidate NET of the active effect's value (cast only if
+  strictly better). **Deferred (bug C-proper).**
+- **Bug D — idle-while-concentrating:** the two long losses (seeds 4/10, 27/36
+  rounds) and the IDLE(hold)=21 tally show casters going *passive* once
+  concentrating instead of chipping with cantrips. Next decision-efficiency
+  item.
+- Healing un-threatened allies (HEAL spam) — heal eHP should scale with actual
+  incoming danger, not missing HP. **Deferred (bug B).**
