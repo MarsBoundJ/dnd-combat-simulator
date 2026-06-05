@@ -1182,7 +1182,8 @@ class EncounterRunner:
                                       "to": chosen["action"].get("id")})
 
     def run(self, seed: int | None = None,
-            encounters_remaining_today: int = 3) -> CombatState:
+            encounters_remaining_today: int = 3,
+            optimization_dials: dict | None = None) -> CombatState:
         """Run the encounter to termination. Returns final CombatState.
 
         `encounters_remaining_today` (default 3 = mid-day baseline)
@@ -1191,6 +1192,11 @@ class EncounterRunner:
         Session runners pass per-encounter values so the AI sees
         urgency decrease across the day. Single-encounter sims use
         the default.
+
+        `optimization_dials` ({side: 1-5}) sets each side's play-skill dial
+        (engine.core.optimization_dial). Default/absent → dial 1 (casual: no
+        focus-fire), preserving prior behavior; sims set it to measure the
+        power-level curve.
         """
         if seed is not None:
             self.rng = random.Random(seed)
@@ -1198,6 +1204,7 @@ class EncounterRunner:
             encounter=self.encounter,
             content_registry=self.content_registry,
             encounters_remaining_today=encounters_remaining_today,
+            optimization_dials=dict(optimization_dials or {}),
         )
         self.event_bus.emit("round_start", {"round": 1})
         self.roll_initiative(state)

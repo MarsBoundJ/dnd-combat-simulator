@@ -2929,6 +2929,13 @@ def set_rng(rng: _random_module.Random) -> None:
     _rng = rng
 
 
+def get_rng() -> _random_module.Random:
+    """The shared seeded RNG (set per-sim via set_rng). Lets decision-layer
+    code that isn't handed an rng (e.g. the optimization-dial focus-fire roll)
+    draw reproducibly from the same stream as every other combat roll."""
+    return _rng
+
+
 # ============================================================================
 # Registry assembly + handler lookup table for subprimitives
 # ============================================================================

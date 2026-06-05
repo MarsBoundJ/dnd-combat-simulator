@@ -74,6 +74,41 @@ def score_candidates_v1(candidates: list[dict], actor: Actor,
     )
     aggression = aggression_coefficient(actor)
 
+    # Focus-fire (optimization dial): when this side's dial says to concentrate
+    # fire THIS decision (situational gate + dial-probability roll), LOCK
+    # single-target offense onto the lowest-HP enemy. A bonus wouldn't suffice
+    # — the eHP overkill-cap actively prefers fat high-HP targets (that's WHY
+    # the party spreads), so we drop the other single-target offensive options
+    # and retarget multiattack onto the focus enemy. AoE / heal / buff / control
+    # are LEFT to compete normally, so a minion swarm still routes to AoE (it
+    # out-scores the locked single-target) — exactly the right call.
+    from engine.core.optimization_dial import (
+        should_focus_fire, focus_fire_target)
+    _ST_OFFENSE = {"weapon_attack", "save_attack", "multiattack"}
+
+    def _is_st_offense(c: dict) -> bool:
+        return (c.get("kind") in _ST_OFFENSE
+                or (c.get("action") or {}).get("type") in _ST_OFFENSE)
+
+    if should_focus_fire(actor, state):
+        focus = focus_fire_target(actor, state, enemies)
+        if focus is not None and any(
+                _is_st_offense(c) and c.get("target")
+                and c["target"].id == focus.id for c in candidates):
+            kept = []
+            for c in candidates:
+                if not _is_st_offense(c):
+                    kept.append(c)            # AoE / heal / buff / control
+                    continue
+                kind = c.get("kind") or (c.get("action") or {}).get("type")
+                if kind == "multiattack":
+                    c["target"] = focus       # focus the whole multiattack
+                    kept.append(c)
+                elif c.get("target") and c["target"].id == focus.id:
+                    kept.append(c)            # the focus-target single attack
+                # else: a spread option — dropped
+            candidates = kept
+
     # Lazy import to keep core engine free of AI ↔ core circularity
     from engine.core.spell_slots import candidate_slot_cost
 

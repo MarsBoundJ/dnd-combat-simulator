@@ -553,3 +553,33 @@ vs ~490 over 18 — survivable. So 4 L13 PCs SHOULD beat this Moderate; they los
 because they don't concentrate damage. **Next task: focus-fire / kill-priority**
 (drop the fastest-to-kill enemy first; each kill cuts incoming). The ledger will
 measure it: kills/round up, fight length down.
+
+### Optimization dial (1-5) + focus-fire (dial's first consumer)
+
+Per Phil (2026-06-05): focus-fire is an OPTIMIZATION strategy, not universal —
+casual tables don't do it, and it only matters with 2-5 comparable tough
+enemies (lone boss = auto; minion swarm = AoE). So it belongs on a **per-side
+optimization dial**, symmetric for PCs and monsters (a lich = 5).
+
+Built `engine/core/optimization_dial.py`: a per-side dial on
+`CombatState.optimization_dials` ({side: 1-5}, default 1), threaded through
+`EncounterRunner.run(optimization_dials=...)`. The dial is the probability that,
+when a tactic is warranted, the side applies it:
+`{1:0.0, 2:1/3, 3:2/3, 4:0.875, 5:1.0}` (dial 5 = perfect, always optimal).
+
+**Focus-fire** is the first consumer. When `should_focus_fire` fires (≥2 living
+enemies + dial roll), the decision layer LOCKS single-target offense onto the
+lowest-HP enemy — drops the spread options, retargets multiattack — while AoE /
+heal / control still compete (so a minion swarm auto-routes to AoE). A bonus
+wouldn't work: the eHP **overkill-cap** actively prefers fat high-HP targets,
+which is *why* the party spreads — focus-fire must override target selection,
+not nudge it.
+
+**Measured dial-curve** (wyvern stoop, PC dial 1→5, monsters held at dial 1,
+10 seeds): win rate **0 → 2 → 2 → 3 → 3**; at dial 5 the fight is shorter
+(seed-1: 18 → 10 rounds) and kills come faster (3rd kill round 11 → 9). The
+effect is real but modest here because much of this party's damage is AoE
+(rightly hitting multiple) — focus-fire only steers the single-target /
+multiattack share. The 6-enemy max-Moderate is genuinely hard; further PC-play
+levers + the monster-dial calibration are separate. **Default dial 1 → no
+focus-fire → all existing sims/tests unchanged.**
