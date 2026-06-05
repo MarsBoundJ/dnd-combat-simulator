@@ -368,9 +368,17 @@ Hex/Hunter's-Mark/Ranger/Warlock/Spirit-Guardians/Bless tests still pass.
   stale Hunter's Mark for Hold Monster on the boss). Principled fix = score a
   concentration candidate NET of the active effect's value (cast only if
   strictly better). **Deferred (bug C-proper).**
-- **Bug D — idle-while-concentrating:** the two long losses (seeds 4/10, 27/36
-  rounds) and the IDLE(hold)=21 tally show casters going *passive* once
-  concentrating instead of chipping with cantrips. Next decision-efficiency
-  item.
+- **Bug D — idle-while-concentrating: FIXED.** The IDLE(hold)=21 tally was
+  **16 the Bard** — its only damage action was a melee rapier (no ranged
+  cantrip), so a concentrating Bard at range had nothing to chip with.
+  Root cause was a **content gap**: `f_vicious_mockery` + its save-cantrip
+  builder existed but were never granted to / dispatched for the Bard. Wired
+  it (pc_schema builder gate + `f_vicious_mockery` on the Bard's L1 features).
+  Result on the isolated 3-fire-giant fight: **8/10 → 10/10 wins** (both
+  long-loss tail seeds 4/10 flipped to 12-round wins); Bard idle 16→1; CONTROL
+  14→3; damage-no turns 83%→58%. Unit-locked in `test_vicious_mockery.py`.
+- **Newly surfaced — Fighter idles 6/12 turns** (melee engagement, not caster
+  idle): the Champion now leads the residual IDLE tally. Likely a reach /
+  move-to-engage gap. Next decision-efficiency item.
 - Healing un-threatened allies (HEAL spam) — heal eHP should scale with actual
   incoming danger, not missing HP. **Deferred (bug B).**

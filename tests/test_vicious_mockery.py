@@ -85,5 +85,33 @@ class ViciousMockeryTest(unittest.TestCase):
         self.assertLess(foe.hp_current, 30)
 
 
+class BardKnowsViciousMockeryTest(unittest.TestCase):
+    """Wiring (grind bug D): a built Bard must actually HAVE Vicious Mockery
+    — its only ranged damage option, so a concentrating Bard chips instead of
+    idling. The feature + builder existed but were never granted/dispatched."""
+
+    def _bard_actions(self, level):
+        from engine.pc_schema import build_pc_template
+        spec = {"class": "c_bard", "level": level,
+                "ability_scores": {"str": 8, "dex": 14, "con": 12,
+                                    "int": 10, "wis": 12, "cha": 18}}
+        template = build_pc_template(spec, _registry())
+        return {a.get("id"): a for a in template.get("actions", [])}
+
+    def test_bard_has_vicious_mockery_from_level_1(self):
+        self.assertIn("a_vicious_mockery", self._bard_actions(1))
+        self.assertIn("a_vicious_mockery", self._bard_actions(13))
+
+    def test_built_action_is_ranged_save_cantrip(self):
+        vm = self._bard_actions(13)["a_vicious_mockery"]
+        self.assertEqual(vm["type"], "save_attack")
+        self.assertEqual(vm["spell_slot_level"], 0)         # cantrip, no slot
+        self.assertEqual(vm["save_ability"], "wisdom")
+        self.assertEqual(vm["range_ft"], 60)                # ranged chip option
+        on_fail = vm["pipeline"][0]["params"]["on_fail"][0]["params"]
+        self.assertEqual(on_fail["type"], "psychic")
+        self.assertEqual(on_fail["dice"], "3d6")            # L13 → 3 dice
+
+
 if __name__ == "__main__":
     unittest.main()
