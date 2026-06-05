@@ -1141,6 +1141,8 @@ def _build_feature_actions(features_known: set[str], level: int,
         actions.append(_build_sacred_flame_action(level))
     if "f_toll_the_dead" in features_known:
         actions.append(_build_toll_the_dead_action(level))
+    if "f_vicious_mockery" in features_known:
+        actions.append(_build_vicious_mockery_action(level))
     # Fire Bolt — the arcane ranged-spell-attack cantrip. Mirrors the
     # Eldritch Blast single-beam path (attack bonus = spell ability mod
     # + PB, damage gated on hit), but the cantrip upgrade scales the
@@ -1333,6 +1335,19 @@ def _build_sacred_flame_action(level: int) -> dict:
     return _build_save_cantrip_action(
         "a_sacred_flame", "Sacred Flame", level,
         save_ability="dexterity", damage_type="radiant", die=8,
+        range_ft=60)
+
+
+def _build_vicious_mockery_action(level: int) -> dict:
+    """Vicious Mockery — the Bard's signature ranged cantrip: 60 ft, WIS
+    save or Nd6 psychic. The WIS/psychic sibling of Sacred Flame (params
+    mirror f_vicious_mockery.yaml's pc_builder block). Disadvantage-on-
+    next-attack rider deferred; the psychic damage is the load-bearing
+    effect. Wiring this gives a concentrating Bard a ranged chip option so
+    it stops idling once it has a control spell up (grind diagnosis bug D)."""
+    return _build_save_cantrip_action(
+        "a_vicious_mockery", "Vicious Mockery", level,
+        save_ability="wisdom", damage_type="psychic", die=6,
         range_ft=60)
 
 
