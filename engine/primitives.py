@@ -938,7 +938,14 @@ def _heal(params: dict, state: CombatState, bus: EventBus) -> dict:
     # PR #116 — Cure Wounds healed dice-only).
     amount += int(params.get("modifier", 0))
 
-    target.hp_current = min(target.hp_max, target.hp_current + amount)
+    # Death-save revival (Stage 2): ANY positive healing on a dying creature
+    # brings it back to consciousness at that many HP and clears the death-save
+    # tally (RAW). A 0-point heal does NOT revive.
+    from engine.core import death_saves as _ds
+    if getattr(target, "is_dying", False) and not target.is_dead and amount > 0:
+        _ds.revive(target, amount, state, reason="healed")
+    else:
+        target.hp_current = min(target.hp_max, target.hp_current + amount)
     state.event_log.append({"event": "healed", "target": target.id,
                             "amount": amount, "hp_current": target.hp_current})
     return {"amount": amount, "hp_current": target.hp_current}

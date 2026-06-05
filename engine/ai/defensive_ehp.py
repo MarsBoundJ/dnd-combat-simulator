@@ -106,12 +106,21 @@ def defensive_ehp_healing(actor: Actor, target_ally: Actor, action: dict,
     missing HP (you can't restore more than was lost — overkill cap on
     the upside).
 
-    Returns 0.0 if the target is at full HP, dead, or not actually an ally.
+    Returns 0.0 if the target is at full HP, truly dead, or not an ally.
+
+    A DYING (downed, 0-HP, unconscious) ally is a valid REVIVAL target even
+    though is_alive() is False — any healing brings it back into the fight
+    (Stage 2). It scores at maximum desperation (hp_frac 0), so the AI weights
+    picking a downed ally up heavily; the missing-HP cap is the full HP max.
     """
-    if target_ally is None or not target_ally.is_alive():
+    if target_ally is None:
         return 0.0
-    if target_ally.hp_current >= target_ally.hp_max:
-        return 0.0
+    _dying = getattr(target_ally, "is_dying", False) and not target_ally.is_dead
+    if not _dying:
+        if not target_ally.is_alive():
+            return 0.0   # truly dead / fled — can't heal
+        if target_ally.hp_current >= target_ally.hp_max:
+            return 0.0   # full HP — no value
     missing = float(target_ally.hp_max - target_ally.hp_current)
     if missing <= 0:
         return 0.0

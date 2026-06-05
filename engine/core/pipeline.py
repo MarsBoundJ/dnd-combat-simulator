@@ -187,6 +187,15 @@ def generate_candidates(actor: Actor, state: CombatState,
                               if not line_of_effect_blocked(actor, e, _walls)]
     allies = [a for a in state.encounter.actors
               if a.side == actor.side and a.is_alive()]
+    # Death-save revival (Stage 2): a DYING (downed, not-dead) ally is a valid
+    # HEAL target — any healing brings it back to consciousness. It is NOT
+    # is_alive (so it's excluded from `allies`), and is NOT a valid buff target
+    # (buffing an unconscious ally is wasted), so heals use this wider pool
+    # while buffs keep `allies`.
+    heal_targets = allies + [
+        a for a in state.encounter.actors
+        if a.side == actor.side and not a.is_alive()
+        and getattr(a, "is_dying", False) and not a.is_dead]
 
     for action in actions:
         action_type = action.get("type")
@@ -269,6 +278,9 @@ def generate_candidates(actor: Actor, state: CombatState,
                 or (action_type == "heal"
                     and is_self_targeted_heal(action))
             )
+            # Heals can target a downed (dying) ally to revive it; buffs
+            # can't (an unconscious ally gets nothing from Bless/Aid).
+            pool = heal_targets if action_type == "heal" else allies
             if self_only:
                 candidates.append({
                     "kind": action_type,
@@ -282,7 +294,7 @@ def generate_candidates(actor: Actor, state: CombatState,
                 # instead of N single-target candidates. Scoring sums
                 # the per-target value across the group.
                 group = _select_multi_target_group(
-                    action, allies, actor, state)
+                    action, pool, actor, state)
                 if group:
                     candidates.append({
                         "kind": action_type,
@@ -292,7 +304,7 @@ def generate_candidates(actor: Actor, state: CombatState,
                         "actor": actor,
                     })
             else:
-                for ally in allies:
+                for ally in pool:
                     candidates.append({
                         "kind": action_type,
                         "action": action,
