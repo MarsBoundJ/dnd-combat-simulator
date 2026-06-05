@@ -115,6 +115,12 @@ class EncounterRunner:
         if actor is not None:
             from engine.core import regeneration as _regeneration
             _regeneration.resolve_turn_start(actor, state)
+            # Death saves resolve at the start of a dying PC's turn — BEFORE
+            # the is_alive gate (a dying actor is is_alive False and would
+            # otherwise be skipped without ever rolling). 3 successes -> stable,
+            # 3 failures -> dead, nat 20 -> revive at 1 HP and take a turn.
+            from engine.core import death_saves as _death_saves
+            _death_saves.resolve_turn_start(actor, state, self.rng)
         if actor is None or not actor.is_alive():
             state.advance_turn()
             return

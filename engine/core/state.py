@@ -87,6 +87,15 @@ class Actor:
     is_dead: bool = False
     is_fled: bool = False
 
+    # PC downed / death-save lifecycle (death_saves.py). A death-save creature
+    # (a PC) at 0 HP is is_dying (unconscious), NOT is_dead — it rolls death
+    # saves at turn start and can be revived by healing. is_stable = 3 successes
+    # (still 0 HP, no longer rolling). Monsters die outright (these stay False).
+    is_dying: bool = False
+    is_stable: bool = False
+    death_save_successes: int = 0
+    death_save_failures: int = 0
+
     # Concentration tracking — at most ONE concentration spell active.
     # None when not concentrating; otherwise:
     #   {action_id: str, caster_id: str, applied_at_round: int}

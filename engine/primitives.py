@@ -691,14 +691,29 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
                 "event": "downed_pending_regeneration", "actor": target.id,
             })
         else:
-            target.is_dead = True
-            # Death ends any concentration the deceased was maintaining
-            if target.concentration_on is not None:
-                from engine.core.concentration import end_concentration
-                end_concentration(target, state, reason="caster_died")
-            # A dying swallower frees whatever it had swallowed.
-            from engine.core import swallow as _swallow
-            _swallow.release_victims_of(target, state, reason="swallower_died")
+            from engine.core import death_saves as _ds
+            # Massive damage (RAW): leftover after dropping to 0 >= HP max =
+            # instant death, even for a death-save creature.
+            _massive = _ds.is_massive_damage(_form_overflow, target.hp_max)
+            _is_crit = bool((state.current_attack or {}).get("is_crit"))
+            if _ds.uses_death_saves(target) and not _massive:
+                # PCs fall UNCONSCIOUS and roll death saves instead of dying.
+                if target.is_dying:
+                    # Already down — another hit is an auto death-save failure
+                    # (two on a crit); may finish them off.
+                    _ds.damage_while_dying(target, state, is_crit=_is_crit)
+                else:
+                    _ds.enter_dying(target, state)
+            else:
+                target.is_dead = True
+                # Death ends any concentration the deceased was maintaining
+                if target.concentration_on is not None:
+                    from engine.core.concentration import end_concentration
+                    end_concentration(target, state, reason="caster_died")
+                # A dying swallower frees whatever it had swallowed.
+                from engine.core import swallow as _swallow
+                _swallow.release_victims_of(target, state,
+                                              reason="swallower_died")
         bus.emit("creature_dropped", {"creature": target})
         state.event_log.append({"event": "creature_dropped", "creature": target.id})
     elif target.is_bloodied():
