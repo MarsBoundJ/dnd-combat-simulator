@@ -18,6 +18,9 @@ for 9 eHP cost = net 66" against alternatives.
   - Filter at candidate generation: skip if required slot unavailable
   - Subtract cost at scoring: in decision_layer.score_candidates_v1
   - Consume at execution: in pipeline._execute_single
+  - Early-deadly-fight override: `encounter_danger` collapses the
+    conserve-early penalty when the current fight turns acutely dangerous
+    (applied in `candidate_slot_cost`)
 
 **Deferred:**
   - Upcasting (cast 1st-level Bless with a 3rd-level slot for amplified
@@ -44,6 +47,23 @@ ENCOUNTER_DAY_DIVISOR = 6.0
 # (only 1 left) on the last encounter (urgency 0) costs 3 × 3 × 1 × 1 = 9
 # eHP, matching the framework's "Fireball cost ≈ 9.0 eHP" example.
 SLOT_COST_BASE_MULTIPLIER = 3.0
+
+# --- Deadly-fight danger override (PR: early-deadly-fight override) ---------
+# The nova-late slot-cost penalty assumes the party can AFFORD to conserve
+# for future fights. When the CURRENT fight turns acutely dangerous, that
+# assumption breaks — a slot saved for a future encounter is worthless if a
+# PC dies now — so a danger signal collapses the conserve-early penalty,
+# letting casters nova EARLY in the day when survival demands it (vs only on
+# the last fight). At the climax the penalty is already 0 (rem=0), so the
+# override is a no-op there by construction — it only bites mid-day.
+#
+# Aggregate party-depletion ramp: no danger at/above HIGH, full danger
+# at/below LOW (linear between).
+DANGER_PARTY_HP_HIGH = 0.50
+DANGER_PARTY_HP_LOW = 0.15
+# Acute single-ally peril: an ally at/below this fraction of its OWN max HP
+# is in danger of dropping; its peril ramps to full as it nears 0.
+DANGER_ALLY_CRITICAL_FRAC = 0.25
 
 
 # ============================================================================
@@ -76,8 +96,10 @@ def slot_cost_ehp(slot_level: int, slots_remaining: int,
     NOTE (2026-06-03): this fixes a prior inversion — the formula was
     `(1 - day_pressure)`, which made the LAST fight the MOST expensive
     (hoard late / spend early), contradicting the doc's own prose +
-    docstring intent. A *deadly*-fight override (collapse the cost so the
-    caster novas even early in the day) is a follow-up danger heuristic.
+    docstring intent. The *deadly*-fight override (collapse the cost so the
+    caster novas even early in the day) is implemented as `encounter_danger`
+    and applied in `candidate_slot_cost` — this pure formula stays
+    danger-free so its reference values remain stable.
 
     slots_remaining is the count BEFORE consumption — pass the pre-cast
     count.
@@ -223,19 +245,79 @@ def consume_slot(actor: Actor, slot_level: int, state: CombatState,
 # Public eHP cost helper — used by decision_layer.score_candidates_v1
 # ============================================================================
 
+def encounter_danger(actor: Actor, state: CombatState) -> float:
+    """Danger of the CURRENT encounter to `actor`'s side, in [0.0, 1.0].
+
+    0.0 = safe (conserve slots normally for future fights); 1.0 = deadly
+    (nova NOW — a conserved slot is worthless if the party dies here).
+    Used by `candidate_slot_cost` to collapse the nova-late conserve-early
+    penalty mid-day (the early-deadly-fight override).
+
+    Only meaningful while living enemies remain — returns 0.0 if the fight
+    is already won (no living enemies) or `actor` has no living allies.
+
+    Two signals, combined by max() (worst-case governs):
+      - AGGREGATE party depletion: total ally HP fraction ramps from 0
+        danger at DANGER_PARTY_HP_HIGH (50%) to full danger at
+        DANGER_PARTY_HP_LOW (15%).
+      - ACUTE single-ally peril: any ally at/below DANGER_ALLY_CRITICAL_FRAC
+        (25%) of its OWN max HP contributes peril ramping to 1.0 as it
+        nears 0 HP. A near-dead Wizard makes the fight "deadly" even if the
+        party's aggregate HP still looks healthy.
+
+    This is REACTIVE (HP-based) by design: the party novas once a fight
+    REVEALS itself as deadly, not pre-emptively on turn 1 at full HP (when
+    conserving is still correct). A predictive enemy-threat-ratio term
+    (incoming DPR vs party eHP) is a deferred v2 enhancement.
+    """
+    by_side = state.living_actors_by_side()
+    allies = by_side.get(actor.side, [])
+    enemies = [a for side, lst in by_side.items() if side != actor.side
+               for a in lst]
+    if not allies or not enemies:
+        return 0.0
+
+    # Aggregate party depletion.
+    hp_cur = sum(max(0, a.hp_current) for a in allies)
+    hp_max = sum(a.hp_max for a in allies) or 1
+    frac = hp_cur / hp_max
+    span = DANGER_PARTY_HP_HIGH - DANGER_PARTY_HP_LOW
+    aggregate = min(1.0, max(0.0, (DANGER_PARTY_HP_HIGH - frac) / span))
+
+    # Acute single-ally peril.
+    acute = 0.0
+    for a in allies:
+        a_frac = max(0, a.hp_current) / (a.hp_max or 1)
+        if a_frac <= DANGER_ALLY_CRITICAL_FRAC:
+            peril = (DANGER_ALLY_CRITICAL_FRAC - a_frac) / DANGER_ALLY_CRITICAL_FRAC
+            acute = max(acute, min(1.0, peril))
+
+    return max(aggregate, acute)
+
+
 def candidate_slot_cost(actor: Actor, action: dict,
                           state: CombatState) -> float:
     """eHP cost of casting this action given the actor's current state.
 
-    Returns 0.0 for non-spell actions and cantrips. Otherwise computes
-    cost via `slot_cost_ehp` using the actor's current slots_remaining
-    at the required level and state.encounters_remaining_today.
+    Returns 0.0 for non-spell actions and cantrips. Otherwise computes the
+    nova-late base cost via `slot_cost_ehp` (using the actor's current
+    slots_remaining at the required level and state.encounters_remaining_today),
+    then applies the early-deadly-fight override: the cost is scaled by
+    `(1 - encounter_danger)`, so an acutely dangerous fight collapses the
+    conserve-early penalty toward 0 and the caster novas now.
+
+    At the climax (encounters_remaining = 0) the base is already 0, so the
+    override is a no-op there — it only bites on a deadly fight EARLIER in
+    the day, which is exactly where conserving for "future fights" is a
+    false economy.
     """
     level = required_slot_level(action)
     if level <= 0:
         return 0.0
-    return slot_cost_ehp(
+    base = slot_cost_ehp(
         slot_level=level,
         slots_remaining=remaining_slots(actor, level),
         encounters_remaining=state.encounters_remaining_today,
     )
+    danger = encounter_danger(actor, state)
+    return base * (1.0 - danger)

@@ -278,5 +278,17 @@ the same **climax-deadliness / arrive-depleted** dynamic, not slot pacing.
 
 **Status:** PR-1 (nova-late formula) validated end-to-end; the day harness
 is the deliverable (+ adventuring-day build-rubric foundation). Deferred:
-(c) early-deadly-fight override; richer rest/recovery (real Hit-Dice, a
-pre-boss long rest); encounter XP-budget tuning.
+richer rest/recovery (a pre-boss long rest); encounter XP-budget tuning.
+
+**(c) early-deadly-fight override — DONE.** `encounter_danger(actor, state)`
+(in `engine/core/spell_slots.py`) returns 0→1 from two reactive HP signals
+(aggregate party depletion ramping 50%→15%; acute single-ally peril below
+25% own-HP), and `candidate_slot_cost` scales the nova-late penalty by
+`(1 − danger)` — so a deadly EARLY fight collapses the conserve-early cost
+and casters nova now. Reactive by design (nova once a fight *reveals* itself
+deadly, not pre-emptively at full HP); predictive enemy-DPR term deferred to
+v2. No-op at the climax by construction (rem=0 ⇒ base already 0), matching
+the moot-at-climax note above. Unit-locked in `test_deadly_fight_override.py`;
+the graduated day-42 seed is survivable-to-climax so the override rarely
+fires there — its job is the *off-curve* deadly fight, and the dominant
+remaining lever stays the climax arrive-depleted dynamic (separate item).
