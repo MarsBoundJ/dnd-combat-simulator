@@ -391,5 +391,58 @@ Hex/Hunter's-Mark/Ranger/Warlock/Spirit-Guardians/Bless tests still pass.
   *5-eHP* kill when the only reachable enemy is near-dead (removing a whole
   creature is worth more than its scrap of HP). Defensive over-valuation +
   "finish the low-HP enemy" remain. Deferred.
+
+### Cumulative checkpoint — end-to-end calibrated day (after 4 decision fixes)
+
+After concentration-thrash (#187) + Vicious Mockery (#188) + multiattack-stamp
+(#189), re-ran the full calibrated day (seeds 1/2/3/7/42). **Failure point
+moved from encounter 0-1 → encounter 3-4:**
+
+| seed | wipes at | encounters cleared |
+|---|---|--:|
+| 1 | enc 4 Giant vanguard | 4 |
+| 2 | enc 1 Giant raiders | 1 |
+| 3 | enc 3 Wyvern stoop | 3 |
+| 42 | enc 3 Wyvern stoop | 3 |
+| 7 | enc 4 Giant vanguard | 4 |
+
+Baseline (pre-fixes) TPK'd at enc 0-1 every seed. The party now survives
+**3-4 of 6** encounters; the dragon (enc 5) is still unreached but the binding
+constraint has shifted off the early fights.
+
+**New lead — Vampire ambush round-cap grind.** Enc 2 (6 vampire spawn + 2
+wyvern, 8 creatures) consistently runs **49-51 rounds → `round_cap_reached`**
+(seeds 1, 42). A *different* grind than the fire-giant one — likely
+target-selection thrash across many small **regenerating** enemies (vampire
+spawn regen). It's both a time-sink and the attrition source that softens the
+party for the enc 3-4 wipes. **Next diagnostic target** (trace the vampire
+ambush the way `_trace_grind.py` traced the fire giants).
+
+### Vampire-ambush grind diagnosed → it's PERMANENT DEATH AT 0 HP (no revival)
+
+Traced it, and the round-cap is a **symptom, not an encounter bug**:
+- The vampire ambush in **isolation at full resources** is a 6-round crush
+  (851 dmg, zero regen, clean win) — so the encounter AI is fine.
+- In the **day**, enc 1 (Giant raiders) runs 23 rounds and **kills the Fighter
+  AND the Wizard** — the party's two damage dealers. Enc 2 then has only the
+  **Cleric + Bard** (both support) vs 8 enemies → 51-round stalemate
+  (`round_cap_reached`), 42% idle, 4 enemies still near full HP, **Cleric ends
+  at full HP (107/107)**.
+
+Root cause: **`primitives.py` sets `is_dead = True` the instant a PC hits 0 HP**
+— there is **no downed / dying / death-saving-throw state for PCs**, and no
+revival. RAW 2024: a PC at 0 falls unconscious and **any healing returns it to
+the fight**. The Cleric finishing enc 2 at full HP with Healing Word + Cure
+Wounds unused is the tell — in real play it would pop the downed Fighter/Wizard
+back up and the party would keep its damage. Instead they're permanently dead
+from enc 1, so every later fight is a 2-support-PC stalemate.
+
+**This is the dominant day-level lever — a RAW correctness gap, not a decision
+bug.** A downed/death-save/revival subsystem (0 HP = unconscious + death saves;
+healing revives; massive-damage instant-death rule; stabilization) would let
+the party recover its fallen damage dealers mid-fight and likely transform the
+end-to-end day result. Bigger than any single decision fix; scoped as its own
+feature. (Secondary: a 2-PC fight that can neither win nor lose should *resolve*
+or flee, not idle 42% to the round cap.)
 - Healing un-threatened allies (HEAL spam) — heal eHP should scale with actual
   incoming danger, not missing HP. **Deferred (bug B).**
