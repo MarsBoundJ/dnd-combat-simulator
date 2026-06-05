@@ -641,3 +641,23 @@ and the dial no longer goes backwards. The fight stays a stiff ~4/10 (3 fast
 CR-9 giants), but Hypnotic Pattern finally WORKS and the lock→peel tactic is
 sound. Lesson: AI tactics that exploit a mechanic need the mechanic modeled
 correctly first (control-awareness was premature while locks eroded non-RAW).
+
+### Lever B Stage 1: Synaptic Static — the repeatable non-conc AoE casters needed
+
+The action-economy doubling needs two streams: a recurring CONCENTRATION effect
++ a non-concentration ACTION every round. The Wizard had no good non-conc
+repeatable vs Fire Giants — its fire spells do 0 (immunity) and control was
+over-prioritized. Built **Synaptic Static** (5th-level, INT save, 8d6 PSYCHIC
+AoE, half on success, NOT concentration; Wizard + Bard lists; -1d6 muddle rider
+deferred). Mirrors the Fireball shape.
+
+Effect (3 fire giants, isolation): **~4/10 → 7/10 wins, median 10 → 8 rounds**
+(dials 3 and 5); the Wizard casts it ~3-4×/fight (33-37 over 10 seeds). Psychic
+sidesteps fire immunity and INT is the giants' weak save, so it's the per-round
+nuke the Wizard was missing — cast WHILE concentrating on control (validated:
+the concentration-candidate filter doesn't suppress it). Biggest single
+caster-effectiveness gain.
+
+Lever B Stage 2 (next): Animate Objects + Bigby's Hand — recurring-ATTACKER
+concentration spells (ride the summoning module) for the concentration-stream
+half of the doubling.
