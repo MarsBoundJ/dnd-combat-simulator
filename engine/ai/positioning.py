@@ -248,8 +248,100 @@ def reachable_squares(actor: Actor,
     return out
 
 
+def offensive_reach_ehp(actor: Actor, dest: tuple[int, int],
+                         state: CombatState) -> float:
+    """Best offensive eHP `actor` can DELIVER standing at `dest` — the
+    positive (offense) counterpart to `aoe_exposure_ehp`'s cost term.
+
+    Max over the actor's offensive/control actions of the best eHP achievable
+    from `dest`, accounting for range + line of effect:
+      - AoE actions (`area`): `max_aoe_coverage` with the actor at `dest`, so
+        the cone apex / sphere anchoring move WITH the actor — this is the
+        term that rewards stepping to a square whose cone catches more
+        enemies. Skipped when ≤1 living enemy (an AoE on a lone target is just
+        single-target value, and the 8-direction scan is the expensive part —
+        bounding it here keeps the boss sim fast).
+      - weapon_attack / multiattack / save_attack: best in-range, LoE-clear
+        living-enemy target via the matching offensive eHP scorer.
+
+    The single-target damage scorers are position-INVARIANT (they read hit
+    probability + expected damage, not distance), so this term is CONSTANT
+    across squares for a pure single-target attacker — which is exactly why
+    adding it leaves the de-cluster (exposure-minimizing) behavior unchanged
+    and only differentiates squares for AoE shapes / multi-enemy reach.
+
+    Temporarily moves the actor to `dest` (positions drive the AoE apex and
+    range/LoE) and restores it — pure aside from that.
+    """
+    from engine.ai.ehp_scoring import (
+        offensive_ehp_single_attack, offensive_ehp_multiattack,
+        offensive_ehp_save_attack,
+    )
+    from engine.core.geometry import line_of_effect_blocked
+
+    saved = actor.position
+    actor.position = tuple(dest)
+    try:
+        walls = getattr(state, "walls", None)
+        enemies = [a for a in state.encounter.actors
+                   if a.is_alive() and a.side != actor.side]
+        if not enemies:
+            return 0.0
+        best = 0.0
+        multi_enemy = len(enemies) >= 2
+        for action in (actor.template.get("actions") or []):
+            if action.get("area"):
+                # AoE coverage only differentiates squares with 2+ targets;
+                # on a lone enemy it reduces to single-target value (and the
+                # 8-dir scan is costly), so skip the scan in 1-enemy fights.
+                if not multi_enemy:
+                    continue
+                cov = max_aoe_coverage(action, actor, state)
+                if cov is not None:
+                    best = max(best, cov["ehp"])
+                continue
+            kind = action.get("type")
+            if kind not in ("weapon_attack", "multiattack", "save_attack"):
+                continue
+            rng = _action_range_ft(action)
+            for e in enemies:
+                if not is_within_ft(dest, e.position, rng):
+                    continue
+                if walls and line_of_effect_blocked(dest, e.position, walls):
+                    continue
+                if kind == "weapon_attack":
+                    v = offensive_ehp_single_attack(actor, e, action, state)
+                elif kind == "multiattack":
+                    v = offensive_ehp_multiattack(actor, e, action, state)
+                else:   # save_attack
+                    v = offensive_ehp_save_attack(actor, e, action, state)
+                best = max(best, v)
+        return best
+    finally:
+        actor.position = saved
+
+
+def position_utility(actor: Actor, dest: tuple[int, int],
+                      state: CombatState) -> float:
+    """eHP utility of standing at `dest` (per docs/positioning-model.md §2):
+    delivered offense minus AoE exposure. Higher is better. The other
+    documented terms (ally-aura, melee exposure, cover, concentration risk)
+    are follow-ups — this is the offense − AoE-exposure core."""
+    return (offensive_reach_ehp(actor, dest, state)
+            - aoe_exposure_ehp(actor, dest, state))
+
+
 def best_position(actor: Actor, state: CombatState) -> tuple[int, int] | None:
-    """The reachable, still-able-to-act square minimizing AoE exposure.
+    """The reachable, still-able-to-act square MAXIMIZING position utility
+    (delivered offense − AoE exposure).
+
+    Previously this minimized AoE exposure alone (defense-only), so it could
+    flee to a safe square that gutted the actor's own offense. The offensive
+    term (`offensive_reach_ehp`) makes the trade explicit: a square is better
+    if it both dodges the breath AND lands a fatter cone — and the actor
+    won't retreat to a corner where it can only plink. For a pure
+    single-target attacker the offense term is position-invariant, so this
+    still reduces to exposure-minimization (de-cluster behavior preserved).
 
     Gated to the party-coupled finding: only repositions when a living enemy
     has an area attack AND the actor has allies to de-cluster from. Returns
@@ -269,22 +361,22 @@ def best_position(actor: Actor, state: CombatState) -> tuple[int, int] | None:
         return None
 
     cur = tuple(actor.position)
-    # Only reposition for safety when the actor can ALREADY act from where it
-    # stands — otherwise defer to the greedy move-to-engage (which closes into
-    # range). Keeps best_position a "find a safer in-range square" behavior,
-    # not a "move into range" one (a far melee PC still just charges in).
+    # Only reposition when the actor can ALREADY act from where it stands —
+    # otherwise defer to the greedy move-to-engage (which closes into range).
+    # Keeps best_position a "find a better in-range square" behavior, not a
+    # "move into range" one (a far melee PC still just charges in).
     if not can_act_from(actor, cur, state):
         return None
     best_sq = cur
-    best_cost = aoe_exposure_ehp(actor, cur, state)
+    best_util = position_utility(actor, cur, state)
     from engine.core.geometry import distance_ft
     for cand in reachable_squares(actor, state):
         if cand == cur or not can_act_from(actor, cand, state):
             continue
-        cost = aoe_exposure_ehp(actor, cand, state)
-        if (cost < best_cost - 1e-9
-                or (abs(cost - best_cost) <= 1e-9
+        util = position_utility(actor, cand, state)
+        if (util > best_util + 1e-9
+                or (abs(util - best_util) <= 1e-9
                     and distance_ft(cand, cur) < distance_ft(best_sq, cur))):
-            best_cost, best_sq = cost, cand
+            best_util, best_sq = util, cand
     return best_sq if best_sq != cur else None
 
