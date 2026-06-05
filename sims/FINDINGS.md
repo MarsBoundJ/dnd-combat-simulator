@@ -583,3 +583,35 @@ effect is real but modest here because much of this party's damage is AoE
 multiattack share. The 6-enemy max-Moderate is genuinely hard; further PC-play
 levers + the monster-dial calibration are separate. **Default dial 1 → no
 focus-fire → all existing sims/tests unchanged.**
+
+### Day dial-curve tooling + monster-DPR verification → the day is over-stuffed, NOT buggy
+
+Wired the optimization dial into the day harness (`adventuring_day.run_day(...,
+pc_dial, enemy_dial)`; CLI `[seed] [pc_dial] [enemy_dial]`) and built
+`sims/dial_curve.py` (sweep PC dial 1-5 × N seeds → avg cleared / % reach
+dragon / % survive). **Headline: post-reach-fix the day is unwinnable at EVERY
+dial — 0% reach the dragon, ~0.4-1.4 of 6 cleared** (5-seed curve), including
+dial 1. The (correct) monster reach fix (#196) moved the wipe point from
+enc 3-4 back to enc 0-1: monsters now land their multiattacks, so every fight
+is deadlier. Focus-fire (PC dial) gives only a small noisy bump — it matters in
+later fights the party rarely survives to.
+
+**Verified it's legitimate, not a bug** (`sims/_verify_monster_dpr.py`, enc-0
+Low, fresh party):
+- Monster DPR sits at/below 25%-of-max (wyverns 0.56-0.87×, manticores
+  0.44-1.39×) — NOT over-firing.
+- HP accounting reconciles exactly (replayed damage/heal/temp-HP → actual final
+  HP). No double-count / phantom loss.
+- The enc-0 wipe is real: 7 multiattackers at fair DPR deal ~75 dmg/round into
+  a ~400-HP party → ~6-round wipe. It's the CREATURE COUNT, not per-monster
+  strength.
+
+**Root: 2024 removed the encounter multiplier**, so a 7-creature 9,700-XP fight
+is priced "Low" while 7 multiattackers landing hits play far above it (the
+"Many Creatures" advisory flags but doesn't price the lucky-streak). The
+budget-calibrated day leaned on many-creature fights (Skirmish 7, Vampire 8),
+now deadly with proper monster play. **Fix = re-calibrate the day to
+fewer-but-tougher monsters per encounter** (same XP tier, fewer attackers →
+less aggregate DPR), so encounters play at their intended difficulty. (2024 has
+no daily XP table; re-calibration is encounter shape + count, not a daily
+number.)

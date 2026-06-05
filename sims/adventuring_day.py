@@ -93,17 +93,23 @@ def _hi_slots(pc):
     return sum(int(v) for lvl, v in (pc.spell_slots or {}).items() if int(lvl) >= 4)
 
 
-def main():
-    seed = int(sys.argv[1]) if len(sys.argv) > 1 else 42
-    registry = load_content(REPO / "schema" / "content", validate=True,
-                             schema_root=REPO / "schema" / "definitions")
+def run_day(registry, seed, pc_dial=1, enemy_dial=1):
+    """Run the full calibrated day once and return a summary dict:
+      {rows, survived, cleared, reached_dragon, seed, pc_dial, enemy_dial}.
+    `pc_dial` / `enemy_dial` (1-5) set each side's optimization dial
+    (engine.core.optimization_dial); default 1 = casual (no focus-fire)."""
     party = _build_party(registry)
     casters = [p for p in party if _slot_total(p) > 0 or p.spell_slots]
     primitives_module.set_rng(__import__("random").Random(seed))
+    dials = {"pc": pc_dial, "enemy": enemy_dial}
 
     rows = []
     party_alive = True
+    cleared = 0
+    reached_dragon = False
     for i, (name, monster_counts) in enumerate(DAY):
+        if i == len(DAY) - 1:
+            reached_dragon = True   # got to the climax (win or lose)
         remaining = len(DAY) - i - 1   # fights still to come AFTER this one
         slots_before = {p.id: _slot_total(p) for p in party}
         monsters = _build_monsters(registry, monster_counts)
@@ -113,10 +119,13 @@ def main():
                                       content_registry=registry)
         primitives_module.set_rng(runner.rng)
         state = runner.run(seed=seed + i,
-                            encounters_remaining_today=remaining)
+                            encounters_remaining_today=remaining,
+                            optimization_dials=dials)
 
         pcs_up = sum(1 for p in party
                      if p.is_alive() and not getattr(p, "is_fled", False))
+        if state.termination_reason == "side_pc_victory":
+            cleared += 1
         slots_after = {p.id: _slot_total(p) for p in party}
         spent = sum(slots_before[p.id] - slots_after[p.id] for p in casters)
         rows.append({
@@ -150,12 +159,28 @@ def main():
     if party_alive:
         for p in party:
             if p.is_alive():
-                apply_long_rest(p, party and state)
+                apply_long_rest(p, state)
+
+    return {"rows": rows, "survived": party_alive, "cleared": cleared,
+            "reached_dragon": reached_dragon, "seed": seed,
+            "pc_dial": pc_dial, "enemy_dial": enemy_dial}
+
+
+def main():
+    seed = int(sys.argv[1]) if len(sys.argv) > 1 else 42
+    pc_dial = int(sys.argv[2]) if len(sys.argv) > 2 else 1
+    enemy_dial = int(sys.argv[3]) if len(sys.argv) > 3 else 1
+    registry = load_content(REPO / "schema" / "content", validate=True,
+                             schema_root=REPO / "schema" / "definitions")
+    res = run_day(registry, seed, pc_dial=pc_dial, enemy_dial=enemy_dial)
+    rows = res["rows"]
 
     from engine.core.encounter_budget import budgets_for
     b = budgets_for(PARTY_LEVEL, PARTY_SIZE)
-    print(f"=== ADVENTURING DAY — seed {seed} "
-          f"({'survived' if party_alive else 'WIPED'}) ===")
+    print(f"=== ADVENTURING DAY — seed {seed}  "
+          f"dial pc={pc_dial}/enemy={enemy_dial}  "
+          f"({'survived' if res['survived'] else 'WIPED'}, "
+          f"cleared {res['cleared']}/{len(DAY)}) ===")
     print(f"2024 XP budget (party {PARTY_SIZE}×L{PARTY_LEVEL}): "
           f"low={b['low']:,} / moderate={b['moderate']:,} / "
           f"high={b['high']:,}\n")
@@ -167,10 +192,8 @@ def main():
               f"{r['remaining']:>3} {r['rounds']:>6} {r['pcs_up']:>6} "
               f"{r['slots_spent']:>11} {r['slots_left']:>5} "
               f"{r['hi_left']:>12}  {r['reason']}")
-    print("\nNova-late check: slots_spent should rise as 'rem' falls "
-          "(conserve early, dump late).")
-    print("Day is 2024-budget-calibrated: Low -> 4× Moderate -> High climax, "
-          "so resources genuinely attrite before the boss.")
+    print("\nUsage: python sims/adventuring_day.py [seed] [pc_dial] [enemy_dial]"
+          "  (dials 1-5, default 1). See sims/dial_curve.py for the curve.")
 
 
 if __name__ == "__main__":
