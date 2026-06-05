@@ -473,3 +473,30 @@ wyvern-stoop grind (5 wyvern + 1 fire giant — flying/kiting target-selection?)
 Dice between fights). Also still deferred: bug B (heal-spam on un-threatened
 allies), and the unconscious-condition effects (advantage to attackers,
 auto-fail STR/DEX) the death-save subsystem hasn't modeled yet.
+
+### Wyvern-stoop grind diagnosed → carried-over-dying bug; between-encounter recovery SHIPPED → party reaches the dragon
+
+The wyvern stoop is a 6-round crush in **isolation** (4/5 wins) — so, again, NOT
+an encounter bug. The day probe found the real cause: **the Fighter enters enc 3
+already `DYING`** (it went down in enc 2; enc 2→3 has no short rest, and the rest
+loop skipped non-`is_alive` PCs), so it rolls a death save on turn 1 and *dies*
+— the party fights enc 3+ down its main damage dealer. The death-save subsystem
+didn't handle the **encounter boundary**.
+
+**Fix — between-encounter recovery** (`engine/core/rest.py`):
+- `_recover_downed`: a dying/stable (not-dead) PC stabilizes + wakes once combat
+  ends (death-save clock cleared) — no longer carries into the next fight.
+- `_apply_hit_dice_heal` now heals up to **~85% of max** (`RECOVERY_TARGET_FRAC`),
+  not to max — PCs don't burn a whole die for the last few HP to max (Phil's
+  no-waste rule). Used by both short rests and recovery.
+- `apply_between_encounter_recovery`: stabilize-downed + Hit-Dice heal to ~85%,
+  applied after EVERY fight in the harness (RAW play: parties heal up between
+  fights whether or not they formally short-rest), distinct from short-rest
+  RESOURCE recharge.
+
+**Result: the party reaches the dragon for the first time** (seed 3 cleared all
+5 Moderates → CLIMAX). Depths across seeds 1/2/3/7/42 = 4 / 1 / **5** / 3 / 4.
+Still an unwon gauntlet (loses to the dragon), but the carried-dying death that
+was permanently kneecapping the party is gone. Deferred: out-of-combat healing
+via SPELLS / Lay on Hands / potions (real parties also top up with these — v1
+uses Hit Dice, the canonical short-rest heal).
