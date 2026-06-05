@@ -500,3 +500,42 @@ Still an unwon gauntlet (loses to the dragon), but the carried-dying death that
 was permanently kneecapping the party is gone. Deferred: out-of-combat healing
 via SPELLS / Lay on Hands / potions (real parties also top up with these — v1
 uses Hit Dice, the canonical short-rest heal).
+
+### Per-round contribution ledger built → the per-fight grind is MELEE OUT-OF-RANGE flailing
+
+Built `engine/core/combat_metrics.py` — a per-round, per-actor contribution
+ledger from the event log (damage dealt/taken, **real attacks vs out-of-range
+auto-misses**, control eHP = denied-enemy DPR × denial fraction, heal eHP).
+Reusable for PC-build / monster power-level calibration + the Trusight per-sim
+metric buckets. Ran it on the Wyvern stoop (fresh isolation, seed 1, a 13-round
+win):
+
+| actor | dmg | dpr | real atk | hit% | out-of-range |
+|---|--:|--:|--:|--:|--:|
+| Wizard (saves) | 638 | 49 | 0 | — | 2 |
+| Fighter | 14 | **1.1** | **1** | 100% | **27** |
+| fire giant | 86 | 6.6 | 2 | 100% | 19 |
+
+**The to-hit math is FINE** — every real roll hits at a sane rate (Fighter 1/1,
+giant 2/2, wyverns 25-33%). The grind is that **melee actors are out of reach
+almost every turn**: the Fighter made 27 out-of-range auto-misses (DPR 1.1 vs a
+~40 expected), so the fight is carried entirely by the Wizard's **save-based**
+AoE — and drags badly once the Wizard is depleted in the day.
+
+**Root cause (verified): `_execute_multiattack` is a SKELETON.** Line 1422:
+`target = enemies[0]` — it fires EVERY sub-attack at the first living enemy by
+actor order, with **no reach check** and **ignoring the chosen/stamped target**,
+re-picking only if that enemy dies. So a multiattacker whose `enemies[0]` is out
+of reach dumps its whole multiattack into out-of-range auto-misses (Fighter: 27
+at one wyvern it was 15 ft from). This hits **every multiattacker** — the
+Fighter AND most monsters (fire giant 19 oor, wyverns 7-14 each) — which is why
+both sides under-deliver and the fight grinds. (Ruled out: monster movement —
+`Actor.speed = {'walk': 30}`, monsters DO close; and the to-hit math — every
+real roll lands at a sane rate. The earlier "speed=None" read the wrong template
+key; the Actor speed is populated.)
+
+**Next fix:** `_execute_multiattack` should pick an IN-REACH target per
+sub-attack (prefer the chosen / highest-HP target when reachable, else the
+nearest reachable enemy; auto-miss only when nothing is in reach). Should
+compress the 30-49-round Moderate grinds toward the ~3-round norm. The ledger
+is the instrument that localized it and will measure the fix.
