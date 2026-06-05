@@ -30,6 +30,19 @@ Aura of Protection may correctly **cluster** (the aura's saved-eHP beats
 the breath risk); a party without one **spreads**. The model decides — no
 hand-coded doctrine (Phil, 2026-06-03: pure computed eHP for now).
 
+> **Implementation status (2026-06-04).** `engine/ai/positioning.py` now
+> maximizes `position_utility = offensive_reach_ehp − aoe_exposure_ehp` —
+> i.e. the **delivered-offense** term (below, item 6) is a graded positive
+> maximand, no longer only the binary action-enablement constraint (item 5).
+> `best_position` picks the reachable square with the highest utility, so a
+> PC won't retreat to a safe-but-offensively-dead square, and steps to a
+> square whose cone catches more enemies. For a pure single-target attacker
+> the offense term is position-invariant, so the prior de-cluster
+> (exposure-minimizing) behavior is preserved exactly. Still gated to
+> AoE-threat + has-allies; the ally-aura / melee / cover / concentration
+> terms remain follow-ups. On a lone enemy the AoE-coverage scan is skipped
+> (it reduces to single-target value) to keep the boss sim fast.
+
 ### Why a single "maximize ally separation" heuristic is wrong
 The shelved v1 (`shelf/aoe-spacing-v1`) maximizes min-distance-to-allies
 whenever an enemy has an AoE. That ignores the aura-benefit term and would
