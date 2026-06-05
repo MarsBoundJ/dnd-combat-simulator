@@ -39,8 +39,16 @@ from __future__ import annotations
 from engine.core.state import Actor, CombatState
 
 
-# 5e standard adventuring day = 6-8 medium encounters. The framework's
-# default uses 6 as the divisor. Matches PHB DMG guidance.
+# Nova-pacing divisor: the number of encounters the day_pressure ramp is
+# normalized against (encounters_remaining / DIVISOR, clamped to [0,1]).
+#
+# NOTE (2026-06-04): this is an explicit MODELING ASSUMPTION, not a RAW
+# figure. The 2014 DMG had a daily XP budget implying ~6-8 encounters per
+# long rest; the **2024 DMG dropped the daily budget entirely** (see
+# engine/core/encounter_budget.py — 2024 sizes individual encounters Low/
+# Moderate/High and says nothing about a "day"). Attrition across encounters
+# is still a real play dynamic, so we keep a tunable "expected encounters
+# before a long rest" knob; 6 is a reasonable default, not a rules citation.
 ENCOUNTER_DAY_DIVISOR = 6.0
 
 # Per-slot-level base cost multiplier. A 3rd-level slot at full scarcity
