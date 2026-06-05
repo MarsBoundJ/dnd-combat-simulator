@@ -73,11 +73,11 @@ action_template:
         on_fail:
           - primitive: apply_condition
             params: { condition_id: co_incapacitated, duration: until_spell_ends, break_on_damage: true }
-          - primitive: recurring_save
-            params:
-              ability: wisdom
-              dc_source: caster_spell_save_dc
-              trigger_event: target_turn_end
-              on_success: end_spell_on_target
-              condition_id: co_incapacitated
+        # RAW: Hypnotic Pattern has NO recurring save — once a creature fails,
+        # it stays Incapacitated for the duration and only escapes by taking
+        # DAMAGE (now modeled via break_on_damage) or by an ally taking an
+        # action to shake it (deferred). The earlier turn-end WIS save was a
+        # non-RAW substitute for break-on-damage; with that modeled it's removed
+        # so locks are reliable (which is what makes lock -> peel-one-at-a-time
+        # play correct).
         on_success: []

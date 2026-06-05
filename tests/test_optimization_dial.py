@@ -93,6 +93,48 @@ class FocusFireGateTest(unittest.TestCase):
         self.assertEqual(target.id, "lo")
 
 
+def _lock(enemy, break_on_damage=True):
+    enemy.applied_conditions = [{"condition_id": "co_incapacitated",
+                                 "break_on_damage": break_on_damage}]
+    return enemy
+
+
+class ControlAwareTargetTest(unittest.TestCase):
+    """Control-aware focus-fire: don't gratuitously break break-on-damage locks
+    (lock -> peel one at a time)."""
+
+    def test_prefers_unlocked_over_lower_hp_locked(self):
+        pc = _actor("pc", "pc")
+        locked = _lock(_actor("locked", "enemy", hp=20))   # lower HP, but LOCKED
+        unlocked = _actor("unlocked", "enemy", hp=60)
+        target = od.focus_fire_target(pc, _state([pc, locked, unlocked]))
+        self.assertEqual(target.id, "unlocked")   # don't wake the lock
+
+    def test_near_death_locked_is_finishable(self):
+        pc = _actor("pc", "pc", hp=40)
+        # Locked giant at 10% HP -> worth dispatching (lock loss is moot).
+        nearly = _lock(_actor("nearly", "enemy", hp=4))
+        nearly.hp_max = 40
+        unlocked = _actor("unlocked", "enemy", hp=60)
+        target = od.focus_fire_target(pc, _state([pc, nearly, unlocked]))
+        self.assertEqual(target.id, "nearly")    # finish the near-dead lock
+
+    def test_all_healthy_locked_peels_one(self):
+        pc = _actor("pc", "pc")
+        a = _lock(_actor("a", "enemy", hp=50))
+        b = _lock(_actor("b", "enemy", hp=30))
+        target = od.focus_fire_target(pc, _state([pc, a, b]))
+        self.assertEqual(target.id, "b")         # only locked left -> peel lowest
+
+    def test_persistent_control_is_not_soft_locked(self):
+        # Hold Monster (no break_on_damage flag) -> hit it freely (lowest HP).
+        pc = _actor("pc", "pc")
+        held = _lock(_actor("held", "enemy", hp=15), break_on_damage=False)
+        other = _actor("other", "enemy", hp=60)
+        target = od.focus_fire_target(pc, _state([pc, held, other]))
+        self.assertEqual(target.id, "held")
+
+
 class FocusFireDecisionTest(unittest.TestCase):
     """Integration: at dial 5 the decision layer locks single-target offense
     onto the lowest-HP enemy and drops the spread options."""
