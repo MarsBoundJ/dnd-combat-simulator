@@ -292,3 +292,51 @@ the moot-at-climax note above. Unit-locked in `test_deadly_fight_override.py`;
 the graduated day-42 seed is survivable-to-climax so the override rarely
 fires there — its job is the *off-curve* deadly fight, and the dominant
 remaining lever stays the climax arrive-depleted dynamic (separate item).
+
+---
+
+## 2024 DMG budget calibration — the day was never a real attrition day
+
+Built `engine/core/encounter_budget.py` (2024 DMG model: Low/Moderate/High,
+per-character × party-size, spend = **raw stat-block XP sum, no 2014
+multiplier, no daily budget**) and ran the *old* `adventuring_day.py` roster
+through it for the 4×L13 party (budgets: low **10,400** / mod **16,800** /
+high **21,600**):
+
+| old encounter | spent XP | 2024 difficulty |
+|---|--:|---|
+| Manticore flight | 2,100 | sub-Low |
+| Ogre raiders | 1,800 | sub-Low |
+| Wyvern pair | 4,600 | sub-Low |
+| Vampire spawn ambush | 5,400 | sub-Low |
+| Fire giant | 5,000 | sub-Low |
+| **Adult Red Dragon** | **18,000** | **High** (3,600 headroom) |
+
+So **every pre-climax fight was SUB-LOW** — the "day" was five trivial
+skirmishes then a High boss, *not* a graduated attrition day. The earlier
+"arrive depleted" reading was an artifact: depletion came from fights
+*grinding 20-30 rounds* (decision-layer inefficiency), not from honest
+budget pressure. (The climax itself is a textbook RAW **High** for 4×L13 —
+**not** over-budget — so the boss difficulty was never the problem.)
+
+**Recalibrated the day** to a real budget ramp — `Skirmish line` (Low 9,700)
+→ four Moderates (15,000-16,500, two short rests) → `Adult Red Dragon` (High
+18,000); all ≤2 monsters/character (no "Many Creatures" advisory).
+
+**The calibrated day exposes the binding constraint.** Across seeds 1/7/42
+the party can't reliably clear even the **Low** warm-up (seed 7 TPK'd on it)
+or the first **Moderate** (seeds 1, 42 wiped on `Giant raiders`, a 3-fire-
+giant Moderate that ground **45 rounds**). A Moderate 3-monster fight should
+end in ~4-6 rounds. The cascade: **naive decision-layer → fights run ~10×
+too long → PCs drop → the danger-override (PR #184) novas → 25-31 slots gone
+on a *Low* fight → next fight unwinnable.** The override isn't wrong (the
+party genuinely *is* depleted after a 23-round slog); the **upstream combat
+decision-quality is the root cause** — which is exactly the #1 lever the
+stocktake named ("optimized buildable, not accurate; decision layer naive").
+
+The sub-Low day masked this (trivial fights win despite inefficiency); the
+budget-calibrated day makes it measurable. **Next dominant lever: combat
+decision efficiency (focus-fire / target selection / stop the grind), not
+content or pacing.** `slot_cost_ehp`'s `ENCOUNTER_DAY_DIVISOR` reframed as
+an explicit tunable (2024 has no daily budget to cite). Long-rest-before-boss
+stays a deferred *measured* flag, not a default (would collapse the gradient).
