@@ -63,6 +63,12 @@ class Actor:
     # ledger for clean removal. Reusable for Heroes' Feast,
     # False Life's max-HP variants, etc.
     hp_max_bonuses: list = field(default_factory=list)
+    # Hit Dice (PCs): RAW you have `level` Hit Dice of your class hit die,
+    # spent on a SHORT rest to heal (each = avg(die) + CON mod); you regain
+    # half your total (round down, min 1) on a LONG rest. 0 for monsters /
+    # actors that don't track them (so the rest hooks no-op for them).
+    hit_dice_remaining: int = 0
+    hit_dice_max: int = 0
     ac: int = 10
     speed: dict = field(default_factory=lambda: {"walk": 30})
     position: tuple[int, int] = (0, 0)          # grid coords; (0,0) until movement matters
