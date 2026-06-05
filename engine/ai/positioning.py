@@ -321,14 +321,74 @@ def offensive_reach_ehp(actor: Actor, dest: tuple[int, int],
         actor.position = saved
 
 
+# Weight on incoming melee-threat DPR when concentrating — roughly the eHP you
+# forfeit by risking the held concentration (P(fail the CON save) × the spell's
+# ongoing value). A blunt constant for v1, tuned so a caster backs out of enemy
+# melee reach to keep its spell up (Lever C).
+CONCENTRATION_RISK_WEIGHT = 1.0
+
+
+def _enemy_melee_reach_ft(enemy: Actor) -> int:
+    """Max MELEE reach (ft) across an enemy's attacks (reach_ft, not ranged
+    range_ft); default 5. Reads weapon_attack actions + multiattack sub-actions.
+    Used to size the melee threat radius for concentration protection."""
+    template = enemy.template or {}
+    by_id = {a.get("id"): a for a in (template.get("actions") or [])}
+    best = 5
+
+    def _scan(action):
+        nonlocal best
+        for step in action.get("pipeline") or []:
+            if step.get("primitive") == "attack_roll":
+                p = step.get("params") or {}
+                if "reach_ft" in p and "range_ft" not in p:
+                    best = max(best, int(p["reach_ft"]))
+
+    for a in (template.get("actions") or []):
+        if a.get("type") == "weapon_attack":
+            _scan(a)
+        elif a.get("type") == "multiattack":
+            for sid in (a.get("sub_actions") or []):
+                if sid in by_id:
+                    _scan(by_id[sid])
+    return best
+
+
+def concentration_break_risk_ehp(actor: Actor, dest: tuple[int, int],
+                                  state: CombatState) -> float:
+    """eHP risk of LOSING a held concentration by standing at `dest` (Lever C):
+    the incoming MELEE threat there — every living enemy that could move-and-
+    reach `dest` this turn (distance ≤ its walk speed + melee reach) contributes
+    its estimated DPR — weighted by CONCENTRATION_RISK_WEIGHT. 0 if the actor
+    isn't concentrating.
+
+    This makes a concentrating caster back out of enemy melee reach to protect
+    its spell — the dominant, AVOIDABLE concentration-breaker for a back-line
+    caster (a hit forces a CON save that can drop the whole effect). Ranged
+    threat isn't distance-avoidable (only cover) and is a documented follow-up."""
+    if not getattr(actor, "concentration_on", None):
+        return 0.0
+    from engine.ai.defensive_ehp import estimate_dpr
+    from engine.core.geometry import distance_ft
+    risk = 0.0
+    for e in state.encounter.actors:
+        if not e.is_alive() or e.side == actor.side:
+            continue
+        reach = _enemy_melee_reach_ft(e)
+        speed = int((e.speed or {}).get("walk", 30))
+        if distance_ft(e.position, dest) <= speed + reach:
+            risk += estimate_dpr(e)
+    return risk * CONCENTRATION_RISK_WEIGHT
+
+
 def position_utility(actor: Actor, dest: tuple[int, int],
                       state: CombatState) -> float:
     """eHP utility of standing at `dest` (per docs/positioning-model.md §2):
-    delivered offense minus AoE exposure. Higher is better. The other
-    documented terms (ally-aura, melee exposure, cover, concentration risk)
-    are follow-ups — this is the offense − AoE-exposure core."""
+    delivered offense − AoE exposure − concentration-break risk. Higher is
+    better. (Ally-aura, cover are still follow-ups.)"""
     return (offensive_reach_ehp(actor, dest, state)
-            - aoe_exposure_ehp(actor, dest, state))
+            - aoe_exposure_ehp(actor, dest, state)
+            - concentration_break_risk_ehp(actor, dest, state))
 
 
 def best_position(actor: Actor, state: CombatState) -> tuple[int, int] | None:
@@ -353,12 +413,19 @@ def best_position(actor: Actor, state: CombatState) -> tuple[int, int] | None:
     square — no explicit ally-claim needed for turn-by-turn play (only batch
     planning, i.e. the future superagent, would).
     """
-    if largest_enemy_aoe_radius(actor, state) <= 0:
-        return None
-    allies = [a for a in state.encounter.actors
-              if a.is_alive() and a.side == actor.side and a.id != actor.id]
-    if not allies:
-        return None
+    # A CONCENTRATING actor always considers repositioning — to back out of
+    # enemy melee reach and protect its spell (Lever C), regardless of AoE
+    # threat / allies. Otherwise keep the party-coupled de-cluster gate: only
+    # reposition when an enemy has an area attack AND there are allies to
+    # spread from.
+    concentrating = bool(getattr(actor, "concentration_on", None))
+    if not concentrating:
+        if largest_enemy_aoe_radius(actor, state) <= 0:
+            return None
+        allies = [a for a in state.encounter.actors
+                  if a.is_alive() and a.side == actor.side and a.id != actor.id]
+        if not allies:
+            return None
 
     cur = tuple(actor.position)
     # Only reposition when the actor can ALREADY act from where it stands —
