@@ -92,14 +92,34 @@ def should_focus_fire(actor: Actor, state: CombatState,
     return rng.random() < chance
 
 
+# A break-on-damage-locked enemy at/below this fraction of its max HP is
+# "finishable" — worth waking to dispatch (it dies; the lost lock is moot).
+FINISHABLE_LOCKED_FRAC = 0.25
+
+
+def _is_soft_locked(enemy: Actor) -> bool:
+    """True if `enemy` is held by a BREAK-ON-DAMAGE control (Hypnotic Pattern,
+    Sleep) — damaging it would WAKE it. Persistent control (Hold Monster's
+    paralysis) doesn't carry the flag, so it isn't 'soft' (you can hit it
+    freely)."""
+    return any(c.get("break_on_damage")
+               for c in (getattr(enemy, "applied_conditions", None) or []))
+
+
 def focus_fire_target(actor: Actor, state: CombatState,
                       candidates_targets: list[Actor] | None = None) -> Actor | None:
-    """The enemy to concentrate fire on: the lowest current-HP living enemy
-    (closest to dead → fastest to finish → soonest its damage is removed).
-    This deliberately COUNTERACTS the eHP overkill-cap (which otherwise pushes
-    attackers onto fat high-HP targets and spreads damage). Restricted to
-    `candidates_targets` when given (the set the actor can actually hit this
-    turn), else all living enemies."""
+    """The enemy to concentrate fire on — CONTROL-AWARE (the lock → peel
+    one-at-a-time tactic).
+
+    Base pick: lowest current-HP living enemy (closest to dead → fastest to
+    remove; counteracts the eHP overkill-cap that otherwise spreads damage).
+
+    Control-aware: don't gratuitously break the party's break-on-damage locks.
+    Prefer UN-locked enemies (the real, still-acting threats) plus any locked
+    enemy already near death (finishable — killing it makes the lost lock
+    moot). Only target a HEALTHY locked enemy when nothing else is available
+    (then you peel ONE, leaving the rest locked). Restricted to
+    `candidates_targets` when given (what the actor can hit this turn)."""
     pool = (candidates_targets if candidates_targets is not None
             else _living_enemies(actor, state))
     pool = [e for e in pool
@@ -107,4 +127,8 @@ def focus_fire_target(actor: Actor, state: CombatState,
             and getattr(e, "side", None) != actor.side]
     if not pool:
         return None
-    return min(pool, key=lambda e: e.hp_current)
+    preferred = [e for e in pool
+                 if not _is_soft_locked(e)
+                 or e.hp_current <= FINISHABLE_LOCKED_FRAC * (e.hp_max or 1)]
+    chosen = preferred if preferred else pool
+    return min(chosen, key=lambda e: e.hp_current)

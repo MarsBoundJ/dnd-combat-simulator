@@ -130,9 +130,16 @@ class EndToEndTest(unittest.TestCase):
             self.assertIn("co_incapacitated", conds)
         self.assertNotIn("co_incapacitated",
                           [c["condition_id"] for c in far.applied_conditions])
-        # Re-saves registered only for the in-sphere enemies
-        rs_targets = {e["target_id"] for e in state.recurring_saves}
-        self.assertEqual(rs_targets, {"e1", "e2"})
+        # RAW: Hypnotic Pattern has NO recurring (turn-end) save — the
+        # in-sphere enemies stay locked until they take DAMAGE (break_on_damage)
+        # or are shaken. The old non-RAW turn-end save was removed once
+        # break-on-damage was modeled.
+        self.assertEqual(state.recurring_saves, [])
+        for e in (e1, e2):
+            self.assertTrue(
+                any(c.get("break_on_damage") for c in e.applied_conditions),
+                "in-sphere enemy should be locked via a break_on_damage "
+                "condition (its only escape)")
 
 
 if __name__ == "__main__":

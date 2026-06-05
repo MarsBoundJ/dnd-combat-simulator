@@ -615,3 +615,29 @@ fewer-but-tougher monsters per encounter** (same XP tier, fewer attackers →
 less aggregate DPR), so encounters play at their intended difficulty. (2024 has
 no daily XP table; re-calibration is encounter shape + count, not a daily
 number.)
+
+### Reliable Hypnotic Pattern (RAW) + control-aware target selection
+
+Building "casters hit at their level," the Wizard's control (Hypnotic Pattern,
+correctly scored ~300) wasn't paying off — the locks kept dropping. Two coupled
+fixes (after break-on-damage #199 + concentration-protection #200):
+
+1. **Removed the non-RAW turn-end WIS save** from Hypnotic Pattern. It was a v1
+   STAND-IN for break-on-damage; now that break-on-damage is modeled it's
+   redundant AND wrong (RAW Hypnotic Pattern has NO recurring save — escapes are
+   damage or being shaken). Locks are now RELIABLE.
+2. **Control-aware focus-fire** (`focus_fire_target`): prefer UN-locked enemies
+   (the real threats) + finishable near-death locked ones; only peel a HEALTHY
+   locked enemy when nothing else is available (peel one at a time, leaving the
+   rest locked). Don't gratuitously break break-on-damage locks. (`Hold Monster`
+   paralysis isn't `break_on_damage`, so it's hit freely.)
+
+Why they're coupled: with the eroding turn-end-save lock, control-aware play was
+NET-NEGATIVE — a rigid "never damage locked enemies" party waited out giants
+whose locks then dropped at full HP, and **dial 5 went WORSE than dial 3**
+(1/10 vs 4/10). Removing the turn-end save (reliable locks) fixes that: win
+rates roughly DOUBLED across dials (3 fire giants: dial 1 1→4, dial 5 1→4 of 10)
+and the dial no longer goes backwards. The fight stays a stiff ~4/10 (3 fast
+CR-9 giants), but Hypnotic Pattern finally WORKS and the lock→peel tactic is
+sound. Lesson: AI tactics that exploit a mechanic need the mechanic modeled
+correctly first (control-awareness was premature while locks eroded non-RAW).
