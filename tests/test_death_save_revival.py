@@ -112,5 +112,42 @@ class RevivalCandidateAndScoringTest(unittest.TestCase):
         self.assertEqual(defensive_ehp_healing(cleric, dead, _CURE, st), 0.0)
 
 
+def _weapon(dmg_dice, bonus):
+    return {"id": "a_w", "type": "weapon_attack", "reach_ft": 5,
+            "pipeline": [{"primitive": "attack_roll",
+                          "params": {"bonus": bonus}},
+                         {"primitive": "damage",
+                          "params": {"dice": dmg_dice, "modifier": 0,
+                                     "type": "slashing"}}]}
+
+
+class RevivalPriorityTest(unittest.TestCase):
+    """Stage 3: reviving a downed ally is valued above topping off a healthy
+    one and scales with the revived ally's DPR (revive the bigger threat)."""
+
+    def test_revive_beats_conscious_topoff_at_same_missing_hp(self):
+        cleric = _actor("cleric", actions=[_CURE], spell_slots={1: 3})
+        # Both at ~0 HP fraction (same desperation + missing), but one is
+        # DYING (revivable combatant) and one is conscious at 1 HP.
+        dying = _actor("dying", hp=0, hp_max=40, actions=[_weapon("2d6", 5)])
+        conscious = _actor("hurt", hp=1, hp_max=40, actions=[_weapon("2d6", 5)])
+        st = _state([cleric, dying, conscious])
+        ds.enter_dying(dying, st)
+        revive_score = defensive_ehp_healing(cleric, dying, _CURE, st)
+        topoff_score = defensive_ehp_healing(cleric, conscious, _CURE, st)
+        self.assertGreater(revive_score, topoff_score)
+
+    def test_revival_bonus_scales_with_dpr(self):
+        cleric = _actor("cleric", actions=[_CURE], spell_slots={1: 3})
+        bruiser = _actor("bruiser", hp=0, hp_max=40, actions=[_weapon("4d6", 8)])
+        squishy = _actor("squishy", hp=0, hp_max=40, actions=[_weapon("1d4", 2)])
+        st = _state([cleric, bruiser, squishy])
+        ds.enter_dying(bruiser, st)
+        ds.enter_dying(squishy, st)
+        self.assertGreater(
+            defensive_ehp_healing(cleric, bruiser, _CURE, st),
+            defensive_ehp_healing(cleric, squishy, _CURE, st))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -446,3 +446,30 @@ feature. (Secondary: a 2-PC fight that can neither win nor lose should *resolve*
 or flee, not idle 42% to the round cap.)
 - Healing un-threatened allies (HEAL spam) — heal eHP should scale with actual
   incoming danger, not missing HP. **Deferred (bug B).**
+
+### Death-save subsystem SHIPPED (Stages 1-3) → day reaches encounter 4
+
+Built the downed/death-save/revival subsystem the diagnosis called for:
+- **Stage 1** (#191): 0 HP = unconscious + dying (death saves at turn start,
+  3 successes stable / 3 fails dead, nat20 revive, damage-while-dying auto-fail,
+  massive-damage instant death). Monsters still die outright.
+- **Stage 2** (#192): any positive heal revives a dying ally; dying allies join
+  the heal target pool; the heal scorer values reviving at max desperation.
+- **Stage 3**: revival is explicitly prioritized — a "back in the fight" bonus
+  = one round of the revived ally's DPR, so the AI prefers reviving (and prefers
+  reviving the bigger damage dealer) over chip damage / topping off a healthy PC.
+
+**End-to-end day (seeds 1/2/3/7/42): TPK at enc 0-1 → consistently reaching
+enc 4** (the 5th of 6 fights). The **Vampire ambush no longer round-caps** — it
+resolves as a win (30-40 rounds); the party **holds 3 PCs through enc 2** via
+mid-fight revival (was dropping to 2). Seed 2 is a fast unlucky enc-1 wipe
+(variance). The full subsystem is the single biggest day-level mover so far.
+
+**New bottleneck (next):** the **Wyvern stoop (enc 3) grinds 43-45 rounds** and
+drops the party to 2 PCs; with no long rest, terminal attrition finishes them at
+enc 4 (Giant vanguard) — the dragon (enc 5) stays unreached. Two leads: (1) the
+wyvern-stoop grind (5 wyvern + 1 fire giant — flying/kiting target-selection?),
+(2) the recovery question (the deferred pre-boss long-rest *measured flag* / Hit
+Dice between fights). Also still deferred: bug B (heal-spam on un-threatened
+allies), and the unconscious-condition effects (advantage to attackers,
+auto-fail STR/DEX) the death-save subsystem hasn't modeled yet.
