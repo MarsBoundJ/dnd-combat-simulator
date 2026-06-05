@@ -1070,7 +1070,8 @@ def execute(chosen: dict, state: CombatState, event_bus, primitives) -> None:
             "slot_level": chosen_slot_level,
         })
     elif action.get("type") == "multiattack":
-        _execute_multiattack(actor, action, state, event_bus, primitives)
+        _execute_multiattack(actor, action, state, event_bus, primitives,
+                             preferred=chosen.get("target"))
     elif action.get("type") == "disengage":
         # Disengage: utility action; sets actor.disengaging = True for
         # the rest of the turn so movement skips OA triggers. No pipeline
@@ -1396,43 +1397,54 @@ def _execute_search(actor, action: dict, state: CombatState,
 
 
 def _execute_multiattack(actor, action: dict, state: CombatState,
-                         event_bus, primitives) -> None:
-    """Loop the attack pipeline N times for a multiattack action.
+                         event_bus, primitives, preferred=None) -> None:
+    """Loop the attack pipeline N times for a multiattack action, picking an
+    IN-REACH target PER sub-attack.
 
     action shape:
       type: multiattack
       count: 2
       sub_actions: [a_scimitar, a_shortbow]   # ids of attacks in actor.template.actions
-      target_per_attack: independent | same    # skeleton: same target (closest)
-    """
+
+    Per sub-attack, reach is re-checked from the actor's CURRENT position
+    (it may have moved to engage this turn) and the target is chosen:
+      1. the `preferred` (chosen-candidate) target, if alive and in reach,
+      2. else the nearest reachable living enemy,
+      3. else the nearest living enemy at all (out of reach → the attack
+         auto-misses, but we never blind-fire at a fixed `enemies[0]`).
+    Re-selected each sub-attack so a kill (or a different sub-action's reach)
+    retargets correctly. This fixed the grind where a multiattacker dumped its
+    whole multiattack at one out-of-range enemy while a reachable one stood
+    adjacent (combat-metrics ledger: Fighter 27/28 attacks out-of-range)."""
+    from engine.core.geometry import is_within_ft, distance_ft
+
     count = action.get("count", 1)
     sub_action_ids = action.get("sub_actions", [])
     if not sub_action_ids:
         return
-
-    # Find the sub-actions in the actor's template
-    template_actions = actor.template.get("actions", [])
-    sub_actions_by_id = {a.get("id"): a for a in template_actions}
-
-    # Pick target: closest living enemy (skeleton)
-    enemies = [a for a in state.encounter.actors
-               if a.side != actor.side and a.is_alive()]
-    if not enemies:
-        return
-    target = enemies[0]  # skeleton: just the first
+    sub_actions_by_id = {a.get("id"): a
+                         for a in actor.template.get("actions", [])}
 
     for i in range(count):
-        # If target died, pick next
-        if not target.is_alive():
-            remaining = [a for a in state.encounter.actors
-                         if a.side != actor.side and a.is_alive()]
-            if not remaining:
-                return
-            target = remaining[0]
         sub_action_id = sub_action_ids[i % len(sub_action_ids)]
         sub_action = sub_actions_by_id.get(sub_action_id)
         if sub_action is None:
             continue
+        enemies = [a for a in state.encounter.actors
+                   if a.side != actor.side and a.is_alive()]
+        if not enemies:
+            return
+        reach = _action_reach_ft(sub_action)
+        in_reach = [e for e in enemies if is_within_ft(actor, e, reach)]
+        if (preferred is not None and preferred.is_alive()
+                and is_within_ft(actor, preferred, reach)):
+            target = preferred
+        elif in_reach:
+            target = min(in_reach,
+                         key=lambda e: distance_ft(actor.position, e.position))
+        else:
+            target = min(enemies,
+                         key=lambda e: distance_ft(actor.position, e.position))
         sub_chosen = {"actor": actor, "target": target, "action": sub_action,
                        "kind": "weapon_attack"}
         _execute_single(sub_chosen, state, event_bus, primitives)

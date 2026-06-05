@@ -534,8 +534,22 @@ both sides under-deliver and the fight grinds. (Ruled out: monster movement —
 real roll lands at a sane rate. The earlier "speed=None" read the wrong template
 key; the Actor speed is populated.)
 
-**Next fix:** `_execute_multiattack` should pick an IN-REACH target per
-sub-attack (prefer the chosen / highest-HP target when reachable, else the
-nearest reachable enemy; auto-miss only when nothing is in reach). Should
-compress the 30-49-round Moderate grinds toward the ~3-round norm. The ledger
-is the instrument that localized it and will measure the fix.
+**Fix SHIPPED:** `_execute_multiattack` now picks an in-reach target per
+sub-attack (preferred/chosen target if reachable, else nearest reachable enemy,
+else nearest at all). Reach is read per sub-action (`reach_ft`), so glaive /
+Polearm Master / Bugbear / monster-size 10-ft reaches are honored, not
+hardcoded to 5. Fighter went DPR 1.1 (27 out-of-range) → **DPR 16.6, 0
+out-of-range, 56% hit**. No to-hit bug, confirmed.
+
+**But it EXPOSED the next lever — PC focus-fire.** The fix helps monsters land
+their multiattacks too (enemy dmg/round 18.8 → 27.3), and the wyvern stoop went
+4/5 → **0/10** in isolation. Diagnosis (held the merge to investigate per Phil):
+**it's PC under-play, not monster over-strength.** In an 18-round loss the party
+SPREAD damage (5 distinct enemies in round 3, 4 in round 4) and killed only
+**3 of 6** enemies — wyvern_2 died round 3, then NOTHING until rounds 10/11, so
+5 enemies kept swinging the whole fight. Monsters played normally (focused the
+Fighter, 272 dmg). Math: focus-firing to end in ~5-6 rounds takes ~150 incoming
+vs ~490 over 18 — survivable. So 4 L13 PCs SHOULD beat this Moderate; they lose
+because they don't concentrate damage. **Next task: focus-fire / kill-priority**
+(drop the fastest-to-kill enemy first; each kill cuts incoming). The ledger will
+measure it: kills/round up, fight length down.
