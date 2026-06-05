@@ -118,7 +118,7 @@ level_table:
       spell_slots: { 1: 4, 2: 3, 3: 3, 4: 2 }
   - level: 9
     proficiency_bonus: 4
-    features: [f_hold_monster]
+    features: [f_hold_monster, f_synaptic_static]
     class_resources:
       bardic_die: d8
       spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 1 }

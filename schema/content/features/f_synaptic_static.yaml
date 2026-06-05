@@ -1,0 +1,66 @@
+# f_synaptic_static — Synaptic Static (Level 5 Enchantment, SRD CC v5.2.1)
+#
+# RAW summary: 20-ft-radius Sphere within 120 ft. Each creature in the area
+# makes an Intelligence save: 8d6 Psychic on a fail (half on a success). A
+# creature that FAILS also has "muddled" minds — it subtracts 1d6 from its
+# attack rolls, ability checks, and Concentration saves until 1 minute passes.
+# NOT a Concentration spell.
+#
+# Why it matters (Lever B): this is the caster's REPEATABLE non-concentration
+# AoE — the action they spend EVERY round while concentrating on a recurring
+# effect (Spirit Guardians / Animate Objects / Bigby's Hand). The
+# action-economy doubling depends on a strong non-concentration nuke like this.
+#
+# Engine modeling: aoe_attack + forced_save (INT) — the Fireball shape, psychic.
+# On the Wizard AND Bard 5th-level lists (granted via both class level_tables).
+#
+# Deferred RAW bits:
+#   - The "-1d6 to attacks / checks / concentration" muddle rider — no clean
+#     recurring d6-penalty condition in v1; the 8d6 psychic AoE is the
+#     load-bearing effect (same posture as Toll the Dead / Vicious Mockery
+#     deferred riders). Documented for a debuff-condition follow-up.
+#
+# source: srd_5.2.1
+
+id: f_synaptic_static
+name: Synaptic Static
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 9            # 5th-level slot -> full caster at character level 9
+type: active
+spell:
+  class: c_wizard
+  level: 5
+
+description: |
+  20-ft radius sphere within 120 ft. INT save vs spell DC: 8d6 psychic on
+  a fail, half on a success. NOT concentration. (-1d6 muddle rider deferred.)
+  +1d6 per slot level above 5th.
+
+action_template:
+  id: a_synaptic_static
+  name: Synaptic Static
+  type: aoe_attack
+  spell_slot_level: 5
+  named_effect: synaptic_static
+  range_ft: 120
+  area:
+    shape: sphere
+    radius_ft: 20
+    range_ft: 120
+  upcast_scaling:
+    extra_dice_per_level: "1d6"
+    damage_type: psychic
+  pipeline:
+    - primitive: forced_save
+      params:
+        ability: intelligence
+        dc_source: caster_spell_save_dc
+        affected: all_creatures_in_area
+        on_fail:
+          - primitive: damage
+            params: { dice: "8d6", modifier: 0, type: psychic }
+        on_success:
+          - primitive: damage
+            params: { dice: "8d6", modifier: 0, type: psychic, multiplier: 0.5 }
