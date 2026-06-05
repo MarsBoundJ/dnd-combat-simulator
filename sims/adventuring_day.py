@@ -121,13 +121,9 @@ def main():
         if i in SHORT_REST_AFTER:
             for p in party:
                 if p.is_alive():
+                    # apply_short_rest now spends Hit Dice to heal (real
+                    # recovery; the prior half-HP stand-in is gone).
                     apply_short_rest(p, state)
-                    # Hit-Dice approximation: a short rest recovers ~half the
-                    # missing HP (real parties spend Hit Dice + a bit of
-                    # healing). Without this the party can't recover between
-                    # fights and the pacing signal is pure attrition noise.
-                    p.hp_current = min(p.hp_max,
-                                        p.hp_current + (p.hp_max - p.hp_current) // 2)
     # End-of-day long rest (for completeness / multi-day extension).
     if party_alive:
         for p in party:

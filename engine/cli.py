@@ -294,7 +294,7 @@ def _build_actor(actor_spec: dict, registry) -> Actor:
                        or template.get("creature_type")
                        or "humanoid")
 
-    return Actor(
+    actor = Actor(
         id=instance_id,
         name=actor_spec.get("name", template.get("name", instance_id)),
         template=template,
@@ -318,6 +318,13 @@ def _build_actor(actor_spec: dict, registry) -> Actor:
         creature_type=creature_type,
         racial_traits=racial_traits,
     )
+    # Hit Dice: PCs have `level` dice (spent to heal on a short rest). Monsters
+    # don't track them, so they stay 0 and the rest hooks no-op.
+    pc_level = int((template.get("derived_from_pc_schema") or {}).get("level", 0))
+    if pc_level > 0:
+        actor.hit_dice_max = pc_level
+        actor.hit_dice_remaining = pc_level
+    return actor
 
 
 if __name__ == "__main__":

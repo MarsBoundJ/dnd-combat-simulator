@@ -93,12 +93,62 @@ def apply_short_rest(actor: Actor, state: CombatState) -> dict:
         pact = _apply_pact_magic_short_rest_refresh(actor, state)
         if pact is not None:
             summary["pact_magic_refresh"] = pact
+    # Hit-Dice HP recovery: spend Hit Dice to heal (each = avg(hit die) +
+    # CON mod). Spend just enough to top up — don't waste dice. No-op for
+    # monsters (hit_dice_remaining == 0) and for actors already at full HP.
+    hd = _apply_hit_dice_heal(actor)
+    if hd is not None:
+        summary["hit_dice"] = hd
     state.event_log.append({
         "event": "short_rest_applied",
         "actor": actor.id,
         "summary": summary,
     })
     return summary
+
+
+def _hit_die_size(actor: Actor) -> int:
+    """The class hit-die size (e.g. 6 for d6). Parsed from the template's
+    combat.hit_points.dice ('NdX'), with a core_traits.hit_die fallback."""
+    dice = ((actor.template.get("combat") or {}).get("hit_points") or {}).get("dice", "")
+    if "d" in str(dice):
+        try:
+            return int(str(dice).split("d")[1])
+        except (ValueError, IndexError):
+            pass
+    hd = (actor.template.get("core_traits") or {}).get("hit_die", "d8")
+    try:
+        return int(str(hd).lstrip("d"))
+    except ValueError:
+        return 8
+
+
+def _con_modifier(actor: Actor) -> int:
+    score = int((actor.abilities.get("con") or {}).get("score", 10))
+    return (score - 10) // 2
+
+
+def _apply_hit_dice_heal(actor: Actor) -> dict | None:
+    """Spend Hit Dice on a short rest to heal `actor`. Each die restores
+    avg(die) + CON mod (5e average-HP rounding: d6→4, d8→5, d10→6, d12→7).
+    Spends only enough dice to reach full (rounded up), capped by the pool.
+    Returns a {spent, healed, remaining} summary, or None if nothing to do."""
+    hd = int(getattr(actor, "hit_dice_remaining", 0))
+    if hd <= 0 or actor.hp_current >= actor.hp_max:
+        return None
+    heal_per = max(1, _hit_die_size(actor) // 2 + 1 + _con_modifier(actor))
+    missing = actor.hp_max - actor.hp_current
+    need = min(hd, (missing + heal_per - 1) // heal_per)   # ceil(missing/heal)
+    healed = 0
+    for _ in range(need):
+        gain = min(heal_per, actor.hp_max - actor.hp_current)
+        if gain <= 0:
+            break
+        actor.hp_current += gain
+        healed += gain
+    actor.hit_dice_remaining = hd - need
+    return {"spent": need, "healed": healed,
+            "remaining": actor.hit_dice_remaining}
 
 
 # ============================================================================
@@ -162,6 +212,14 @@ def apply_long_rest(actor: Actor, state: CombatState) -> dict:
     actor.hp_current = int(actor.hp_max)
     if actor.hp_current > hp_before:
         summary["hp_restored"] = actor.hp_current - hp_before
+
+    # ---- Universal: Hit Dice regain (RAW: half your total, min 1) ----
+    if actor.hit_dice_max > 0 and actor.hit_dice_remaining < actor.hit_dice_max:
+        regain = max(1, actor.hit_dice_max // 2)
+        before = actor.hit_dice_remaining
+        actor.hit_dice_remaining = min(actor.hit_dice_max, before + regain)
+        if actor.hit_dice_remaining > before:
+            summary["hit_dice_regained"] = actor.hit_dice_remaining - before
 
     # ---- Universal: temp HP cleared (PR #94) ----
     # RAW PHB 2024 p.244: "Any temporary Hit Points you have are
