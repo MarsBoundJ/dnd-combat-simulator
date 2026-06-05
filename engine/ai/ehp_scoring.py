@@ -1510,6 +1510,91 @@ def knockback_ehp(actor: Actor, target: Actor, action: dict,
 
 
 # ============================================================================
+# Summon spell value (Bigby's Hand, Animate Objects) — Lever B Stage 2b
+# ============================================================================
+
+# A concentration summon is a one-action investment that pays a recurring
+# damage stream every round for the spell's lifetime — the action-economy
+# doubling Phil described (the summon attacks WHILE the caster's action does
+# something else). Matches EXPECTED_AURA_ROUNDS (Spirit Guardians-shape): a
+# concentration effect lasts ~2.5 effective rounds in a typical encounter.
+EXPECTED_SUMMON_ROUNDS = 2.5
+
+
+def _summon_step_params(action: dict) -> dict | None:
+    """Return the params of the first `summon` primitive in the action's
+    pipeline (monster / count / max_total), or None if it has no summon step."""
+    for step in (action.get("pipeline") or []):
+        if step.get("primitive") == "summon":
+            return step.get("params") or {}
+    return None
+
+
+def offensive_ehp_summon(actor: Actor, action: dict,
+                          state: CombatState) -> float:
+    """eHP value of a summon spell (Bigby's Hand, Animate Objects).
+
+      eHP = per_creature_DPR × creatable_count × EXPECTED_SUMMON_ROUNDS
+
+    The summoned creatures deal recurring damage for the spell's duration —
+    that's the whole value of the summon (the caster spends their own action
+    on something else each round). DPR is estimated by building one throwaway
+    instance of the summoned monster from the registry and running it through
+    `estimate_dpr` (the same observable-proxy used for buff / control scoring),
+    so the score reflects the creature's REAL combat output.
+
+    Capacity-aware: respects `max_total` minus the summoner's existing
+    summons (a Wraith at its 7-specter cap gets 0 value from another Create
+    Specter). Capped at total living enemy HP so the summon isn't overvalued
+    in an almost-won fight (overkill discipline, mirroring the aura scorer).
+
+    Returns 0.0 when the action has no summon step, no monster id, no
+    registry, the cap is already reached, or the creature has no DPR.
+    """
+    params = _summon_step_params(action)
+    if params is None:
+        return 0.0
+    monster_id = params.get("monster")
+    if not monster_id:
+        return 0.0
+    registry = getattr(state, "content_registry", None)
+    if registry is None:
+        return 0.0
+
+    count = int(params.get("count", 1))
+    max_total = params.get("max_total")
+    if max_total is not None:
+        from engine.core.summoning import count_summons
+        existing = count_summons(actor, state)
+        count = min(count, max(0, int(max_total) - existing))
+    if count <= 0:
+        return 0.0
+
+    # Build a throwaway probe instance to read its real DPR.
+    from engine.cli import _build_actor
+    from engine.ai.defensive_ehp import estimate_dpr
+    try:
+        probe = _build_actor(
+            {"template_ref": {"entity_type": "monster", "id": monster_id},
+             "instance_id": "__summon_probe__",
+             "position": list(actor.position)},
+            registry)
+    except Exception:
+        return 0.0
+    per_creature_dpr = estimate_dpr(probe)
+    if per_creature_dpr <= 0:
+        return 0.0
+
+    raw = per_creature_dpr * count * EXPECTED_SUMMON_ROUNDS
+    # Overkill cap: can't deliver more eHP than the enemies have left.
+    enemy_hp = sum(max(0, a.hp_current) for a in state.encounter.actors
+                    if a.side != actor.side and a.is_alive())
+    if enemy_hp > 0:
+        raw = min(raw, float(enemy_hp))
+    return raw
+
+
+# ============================================================================
 # Public scoring entry point — score one candidate
 # ============================================================================
 
@@ -1531,6 +1616,16 @@ def score_candidate(candidate: dict, state: CombatState) -> float:
     target: Actor = candidate.get("target")
     action: dict = candidate.get("action") or {}
     kind = candidate.get("kind")
+
+    # Summon spells (Bigby's Hand, Animate Objects) — value comes from the
+    # recurring damage the summoned creatures deal, NOT from an enemy target.
+    # Score BEFORE the target guard below, which would reject a targetless
+    # summon candidate (target is self / None).
+    if kind == "summon" or action.get("type") == "summon":
+        if not actor or not action:
+            return 0.0
+        return offensive_ehp_summon(actor, action, state)
+
     if not actor or not target or not action:
         return 0.0
     if not target.is_alive():
