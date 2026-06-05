@@ -377,8 +377,19 @@ Hex/Hunter's-Mark/Ranger/Warlock/Spirit-Guardians/Bless tests still pass.
   Result on the isolated 3-fire-giant fight: **8/10 → 10/10 wins** (both
   long-loss tail seeds 4/10 flipped to 12-round wins); Bard idle 16→1; CONTROL
   14→3; damage-no turns 83%→58%. Unit-locked in `test_vicious_mockery.py`.
-- **Newly surfaced — Fighter idles 6/12 turns** (melee engagement, not caster
-  idle): the Champion now leads the residual IDLE tally. Likely a reach /
-  move-to-engage gap. Next decision-efficiency item.
+- **Bug E — Fighter idles ~half its turns: FIXED (and it was NOT engagement).**
+  The Champion had valid in-reach attack candidates yet did nothing. Cause: the
+  single `multiattack` candidate was stamped with `in_range[0]` (the FIRST
+  enemy by actor order = a 5-HP incapacitated giant), and the scorer
+  overkill-caps multiattack eHP at the stamped target's HP → score ~5, beaten
+  by a self `defensive_buff` (~10.7) — while a 23-HP giant in reach went unhit.
+  Fix: stamp the **highest-HP in-reach enemy** (the un-capped full-output
+  value; execution re-picks targets anyway). Result: total idle 12→5 (Fighter
+  6→3), median 12→10 rounds, 10/10 held. Unit-locked in
+  `test_multiattack_target_stamp.py`.
+- **Residual (bug B-ish):** a self `defensive_buff` scoring ~10.7 still edges a
+  *5-eHP* kill when the only reachable enemy is near-dead (removing a whole
+  creature is worth more than its scrap of HP). Defensive over-valuation +
+  "finish the low-HP enemy" remain. Deferred.
 - Healing un-threatened allies (HEAL spam) — heal eHP should scale with actual
   incoming danger, not missing HP. **Deferred (bug B).**

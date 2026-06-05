@@ -236,7 +236,18 @@ def generate_candidates(actor: Actor, state: CombatState,
                           if is_within_ft(actor, e, reach)]
             if not in_range:
                 continue
-            primary_target = in_range[0]
+            # Stamp the HIGHEST-HP in-reach enemy as the (informational)
+            # primary target, NOT the first by actor order. The multiattack
+            # scorer overkill-caps eHP at the stamped target's remaining HP,
+            # and execution re-picks targets to maximize damage anyway — so
+            # stamping a near-dead enemy (first-in-list) under-scores the whole
+            # multiattack to that scrap of HP, and a mediocre self-buff then
+            # outscores it. The grind trace: a Champion sat idle for rounds
+            # while a 5-HP incapacitated giant (first in order) pinned its
+            # multiattack score to ~5, losing to a self defensive_buff (~10),
+            # with a 23-HP giant in reach unhit. Highest-HP = the un-capped
+            # full-output value, which is what "do my multiattack" is worth.
+            primary_target = max(in_range, key=lambda e: e.hp_current)
             candidates.append({
                 "kind": "multiattack",
                 "action": action,
