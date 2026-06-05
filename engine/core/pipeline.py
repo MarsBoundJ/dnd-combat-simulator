@@ -118,6 +118,27 @@ def generate_candidates(actor: Actor, state: CombatState,
     from engine.core.recharge import is_available as _recharge_available
     actions = [a for a in actions
                 if _recharge_available(actor, a)]
+    # Decision-efficiency fix (grind diagnosis #70): while the actor is ALREADY
+    # concentrating, suppress every concentration-spell candidate. You can hold
+    # only one concentration effect, so casting another either re-applies the
+    # same effect (pure waste) or DROPS a working effect to deploy a new one —
+    # and the decision layer, left alone, does this every single turn: the
+    # grind trace showed casters re-cast Hypnotic Pattern / Cloudkill, or
+    # thrash between control spells, contributing ~no damage (6/35 turns) and
+    # LOSING a Moderate fight. Forcing the caster to keep its concentration and
+    # fall through to damage (cantrip / attack) instead took the isolated
+    # 3-fire-giant fight from a near-certain loss to 8/10 wins.
+    #
+    # v1 LIMITATION: this also forbids a legitimate concentration UPGRADE
+    # (drop a stale Hunter's Mark for Hold Monster on the boss). The principled
+    # fix is to score a concentration candidate NET of the active effect's
+    # value (cast only if strictly better) — a documented follow-up; the blunt
+    # rule is the conservative, measured first cut. First cast (not yet
+    # concentrating) is unaffected — concentration_on is None, so opening with
+    # a control spell is still allowed.
+    _conc = getattr(actor, "concentration_on", None)
+    if _conc and _conc.get("action_id"):
+        actions = [a for a in actions if not a.get("concentration")]
     # PR #79: Silence zone gate. RAW: actors within a silence_zone
     # can't cast spells with Verbal components. v1 simplification:
     # treat ALL spells as having a Verbal component (RAW: most do)
