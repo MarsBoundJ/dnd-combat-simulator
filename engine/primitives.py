@@ -663,6 +663,21 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
                             "target": target.id, "amount": total, "type": dmg_type,
                             "target_hp_remaining": target.hp_current})
 
+    # Break-on-damage control (RAW): any damage ends a break_on_damage
+    # condition FOR THE DAMAGED CREATURE (Hypnotic Pattern's charm, Sleep).
+    # The spell continues for OTHER affected creatures — we only scrub this
+    # target's application, not the caster's concentration. So damaging a
+    # hypnotized enemy wakes it; leaving it alone keeps it locked (the
+    # peel-one-at-a-time tactic).
+    if total > 0 and target.applied_conditions:
+        _broken = [a for a in target.applied_conditions
+                   if a.get("break_on_damage")]
+        for a in _broken:
+            remove_condition(target, a["condition_id"], a.get("source_id"))
+            state.event_log.append({
+                "event": "condition_ended_by_damage",
+                "target": target.id, "condition": a["condition_id"]})
+
     # Concentration check on damage taken (5e RAW: DC = max(10,
     # ceil(damage/2))). Lives in primitives.py so all damage paths get
     # the check uniformly — AoE on_fail / on_success, weapon attack
@@ -768,6 +783,11 @@ def _apply_condition(params: dict, state: CombatState, bus: EventBus) -> None:
         "source_id": actor.id if actor else None,
         "applied_at_round": state.round,
         "duration": params.get("duration"),
+        # RAW: some control effects (Hypnotic Pattern's charm, Sleep, etc.)
+        # END FOR AN AFFECTED CREATURE if it takes any damage. Tagged per
+        # application (a property of the spell, NOT the condition — Hold
+        # Monster's paralysis is co_incapacitated too but does NOT break).
+        "break_on_damage": bool(params.get("break_on_damage")),
     }
     target.applied_conditions.append(application)
     state.event_log.append({"event": "condition_applied",
@@ -846,6 +866,7 @@ def _instantiate_condition_effects(target: Actor, application: dict,
             "applied_at_round": state.round,
             "duration": application.get("duration"),
             "parent_condition": application["condition_id"],
+            "break_on_damage": application.get("break_on_damage", False),
         }
         target.applied_conditions.append(sub_application)
         for effect in inherited_def.get("effects") or []:

@@ -23,10 +23,11 @@
 # Deferred RAW bits:
 #   - The full Charmed + Speed-0 stack — v1 applies Incapacitated only
 #     (the action-denial is the load-bearing combat effect).
-#   - "Ends if it takes damage / someone shakes it" — v1 substitutes a
-#     turn-end WIS save as the escape (which also guarantees the
-#     condition lifts even though apply_condition isn't scrubbed on the
-#     caster's concentration end yet — see NEEDS_ENGINE_WORK).
+#   - "Ends if it takes damage" — MODELED: the apply_condition is tagged
+#     `break_on_damage: true`, so _damage ends the incapacitation for any
+#     affected creature that takes damage (the spell continues for others).
+#     "Someone shakes it out" (an ally's action) is still deferred; the
+#     turn-end WIS save remains as the other escape.
 #   - "Who can see the pattern" — no line-of-sight gate on the save in v1.
 #   - Cube geometry: forced_save's AoE resolver supports sphere/cone/line
 #     (not cube), so the 30-ft Cube is approximated as a 15-ft-radius
@@ -71,7 +72,7 @@ action_template:
         affected: all_creatures_in_area
         on_fail:
           - primitive: apply_condition
-            params: { condition_id: co_incapacitated, duration: until_spell_ends }
+            params: { condition_id: co_incapacitated, duration: until_spell_ends, break_on_damage: true }
           - primitive: recurring_save
             params:
               ability: wisdom
