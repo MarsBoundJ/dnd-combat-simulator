@@ -44,6 +44,12 @@ import math
 
 from engine.core.state import Actor, CombatState
 
+# Between-encounter / short-rest HP recovery target. PCs heal up to NEAR max
+# (not to max) using Hit Dice — topping the last few HP would spend a whole die
+# for a few points and waste the overspill, which players don't do (Phil, 2026-
+# 06-05). ~85% is the "heal up after the fight" resting point.
+RECOVERY_TARGET_FRAC = 0.85
+
 
 def apply_short_rest(actor: Actor, state: CombatState) -> dict:
     """Run all short-rest effects for `actor`. Returns a dict
@@ -93,9 +99,13 @@ def apply_short_rest(actor: Actor, state: CombatState) -> dict:
         pact = _apply_pact_magic_short_rest_refresh(actor, state)
         if pact is not None:
             summary["pact_magic_refresh"] = pact
-    # Hit-Dice HP recovery: spend Hit Dice to heal (each = avg(hit die) +
-    # CON mod). Spend just enough to top up — don't waste dice. No-op for
-    # monsters (hit_dice_remaining == 0) and for actors already at full HP.
+    # A short rest also recovers a downed (dying/stable) PC — stabilize + wake
+    # so it doesn't carry the death-save clock into the next fight.
+    if _recover_downed(actor, state):
+        summary["recovered_downed"] = True
+    # Hit-Dice HP recovery: spend Hit Dice to heal up to ~85% of max (not to
+    # max — don't waste dice topping the last few HP). No-op for monsters
+    # (hit_dice_remaining == 0) and for actors already at/above the target.
     hd = _apply_hit_dice_heal(actor)
     if hd is not None:
         summary["hit_dice"] = hd
@@ -129,26 +139,84 @@ def _con_modifier(actor: Actor) -> int:
 
 
 def _apply_hit_dice_heal(actor: Actor) -> dict | None:
-    """Spend Hit Dice on a short rest to heal `actor`. Each die restores
-    avg(die) + CON mod (5e average-HP rounding: d6→4, d8→5, d10→6, d12→7).
-    Spends only enough dice to reach full (rounded up), capped by the pool.
-    Returns a {spent, healed, remaining} summary, or None if nothing to do."""
+    """Spend Hit Dice to heal `actor` up to NEAR max (RECOVERY_TARGET_FRAC of
+    hp_max), not all the way to max. Each die restores avg(die) + CON mod (5e
+    average-HP rounding: d6→4, d8→5, d10→6, d12→7). Spends dice until current
+    HP reaches the ~85% target (the crossing die may overspill a little, capped
+    at max), so PCs heal up after the fight without burning whole dice for the
+    last few HP to max. Capped by the pool. Returns a {spent, healed,
+    remaining} summary, or None if nothing to do."""
+    if actor.is_dead:
+        return None   # the dead don't heal (Raise Dead etc. not modeled)
     hd = int(getattr(actor, "hit_dice_remaining", 0))
-    if hd <= 0 or actor.hp_current >= actor.hp_max:
+    target = int(actor.hp_max * RECOVERY_TARGET_FRAC)
+    if hd <= 0 or actor.hp_current >= target:
         return None
     heal_per = max(1, _hit_die_size(actor) // 2 + 1 + _con_modifier(actor))
-    missing = actor.hp_max - actor.hp_current
-    need = min(hd, (missing + heal_per - 1) // heal_per)   # ceil(missing/heal)
     healed = 0
-    for _ in range(need):
-        gain = min(heal_per, actor.hp_max - actor.hp_current)
+    spent = 0
+    while spent < hd and actor.hp_current < target:
+        gain = min(heal_per, actor.hp_max - actor.hp_current)   # never past max
         if gain <= 0:
             break
         actor.hp_current += gain
         healed += gain
-    actor.hit_dice_remaining = hd - need
-    return {"spent": need, "healed": healed,
+        spent += 1
+    actor.hit_dice_remaining = hd - spent
+    if spent == 0:
+        return None
+    return {"spent": spent, "healed": healed,
             "remaining": actor.hit_dice_remaining}
+
+
+def _recover_downed(actor: Actor, state: CombatState) -> bool:
+    """Between-encounter: a DYING / STABLE (not-dead) PC stabilizes and comes
+    round once combat is over — the death-save clock is cleared so it does NOT
+    carry into the next fight and die on its first death save. The actor stays
+    at 0 HP here; the Hit-Dice heal that follows climbs it back up (no Hit Dice
+    left → it stays down at 0, a real consequence). No-op for conscious or
+    truly-dead actors. Returns True if it recovered a downed actor."""
+    if actor.is_dead:
+        return False
+    if not (getattr(actor, "is_dying", False)
+            or getattr(actor, "is_stable", False)):
+        return False
+    actor.is_dying = False
+    actor.is_stable = False
+    actor.death_save_successes = 0
+    actor.death_save_failures = 0
+    state.event_log.append({"event": "recovered_downed", "actor": actor.id})
+    return True
+
+
+def apply_between_encounter_recovery(actor: Actor, state: CombatState) -> dict:
+    """Post-combat recovery applied after EVERY encounter (RAW play behavior:
+    PCs heal up near max between fights whether or not they take a formal short
+    rest — Phil, 2026-06-05). Two parts:
+      1. stabilize + wake a downed (dying/stable) PC (clears the death-save
+         clock so it doesn't carry into the next fight),
+      2. spend Hit Dice to heal up to ~85% of max (downed PCs climb off 0).
+    No short-rest RESOURCE recharge here (Second Wind / Action Surge / Arcane
+    Recovery / Pact Magic) — that only happens on a designated short rest. No-op
+    for truly-dead or monster actors. Logs `between_encounter_recovery`.
+
+    Deferred: out-of-combat healing via SPELLS / Lay on Hands / potions (which
+    real parties also use to top up); v1 uses Hit Dice — the canonical
+    short-rest heal — which captures the core "heal up between fights" effect.
+    """
+    summary: dict = {}
+    if _recover_downed(actor, state):
+        summary["recovered_downed"] = True
+    hd = _apply_hit_dice_heal(actor)
+    if hd is not None:
+        summary["hit_dice"] = hd
+    if summary:
+        state.event_log.append({
+            "event": "between_encounter_recovery",
+            "actor": actor.id,
+            "summary": summary,
+        })
+    return summary
 
 
 # ============================================================================

@@ -22,7 +22,8 @@ from pathlib import Path
 import engine.primitives as primitives_module
 from engine.cli import _build_actor
 from engine.core.encounter_budget import encounter_report
-from engine.core.rest import apply_short_rest, apply_long_rest
+from engine.core.rest import (apply_short_rest, apply_long_rest,
+                               apply_between_encounter_recovery)
 from engine.core.runner import EncounterRunner
 from engine.core.state import Encounter
 from engine.loader import load_content
@@ -131,12 +132,20 @@ def main():
         if pcs_up == 0:
             party_alive = False
             break
+        # Between-encounter recovery after EVERY fight (RAW play: PCs stabilize
+        # downed allies and heal up to ~85% via Hit Dice whether or not they
+        # take a formal short rest). At SHORT_REST_AFTER indices the party ALSO
+        # takes a real short rest (resource recharge: Second Wind / Action
+        # Surge / Arcane Recovery / Pact Magic) — apply_short_rest already
+        # folds in the same downed-recovery + Hit-Dice heal.
         if i in SHORT_REST_AFTER:
             for p in party:
-                if p.is_alive():
-                    # apply_short_rest now spends Hit Dice to heal (real
-                    # recovery; the prior half-HP stand-in is gone).
+                if not p.is_dead:
                     apply_short_rest(p, state)
+        else:
+            for p in party:
+                if not p.is_dead:
+                    apply_between_encounter_recovery(p, state)
     # End-of-day long rest (for completeness / multi-day extension).
     if party_alive:
         for p in party:

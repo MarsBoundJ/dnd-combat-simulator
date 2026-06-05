@@ -8,7 +8,8 @@ import unittest
 from pathlib import Path
 
 from engine.cli import _build_actor
-from engine.core.rest import apply_short_rest, apply_long_rest
+from engine.core.rest import (apply_short_rest, apply_long_rest,
+                              RECOVERY_TARGET_FRAC)
 from engine.core.state import Encounter, CombatState
 from engine.loader import load_content
 
@@ -48,23 +49,27 @@ class ShortRestHitDiceTest(unittest.TestCase):
         self.assertEqual(pc.hit_dice_max, 13)
         self.assertEqual(pc.hit_dice_remaining, 13)
 
-    def test_short_rest_spends_hd_to_heal(self):
+    def test_short_rest_heals_up_to_near_max(self):
+        # Heavily wounded -> heals up to ~85% of max (NOT to max).
         pc = _pc(13)
-        pc.hp_current = pc.hp_max - 30          # wounded
+        pc.hp_current = max(1, int(pc.hp_max * 0.30))
         summary = apply_short_rest(pc, _state([pc]))
         self.assertIn("hit_dice", summary)
-        self.assertGreater(pc.hp_current, pc.hp_max - 30)   # healed
-        self.assertLessEqual(pc.hp_current, pc.hp_max)      # not over max
         self.assertLess(pc.hit_dice_remaining, 13)          # dice spent
-        self.assertGreater(summary["hit_dice"]["spent"], 0)
+        self.assertGreaterEqual(
+            pc.hp_current, int(pc.hp_max * RECOVERY_TARGET_FRAC))  # near max
+        self.assertLessEqual(pc.hp_current, pc.hp_max)      # never over max
 
-    def test_only_spends_enough_to_top_up(self):
-        # 5 HP missing on a d6/con+2 wizard (heal ~6/die) -> spends 1 die.
+    def test_does_not_waste_dice_near_max(self):
+        # Above the ~85% target -> spends NO dice (topping the last few HP to
+        # max would burn a whole die for a few points — Phil's no-waste rule).
         pc = _pc(13)
-        pc.hp_current = pc.hp_max - 5
-        apply_short_rest(pc, _state([pc]))
-        self.assertEqual(pc.hp_current, pc.hp_max)
-        self.assertEqual(pc.hit_dice_remaining, 12)         # only 1 spent
+        pc.hp_current = int(pc.hp_max * 0.95)
+        before = pc.hp_current
+        summary = apply_short_rest(pc, _state([pc]))
+        self.assertNotIn("hit_dice", summary)
+        self.assertEqual(pc.hit_dice_remaining, 13)         # none spent
+        self.assertEqual(pc.hp_current, before)             # unchanged
 
     def test_full_hp_spends_nothing(self):
         pc = _pc(13)
