@@ -451,6 +451,20 @@ def generate_candidates(actor: Actor, state: CombatState,
                 "target": actor,
                 "actor": actor,
             })
+        elif action_type == "summon":
+            # Summon spells (Bigby's Hand, Animate Objects) — caster-side
+            # creature creation with no enemy target. Single candidate per
+            # turn; the value is the recurring damage the summoned creatures
+            # deal (scored via offensive_ehp_summon). Concentration summons
+            # are already suppressed by the concentration filter above while
+            # the caster is concentrating, so this only emits when the slot
+            # is free — exactly the open-with-the-summon behavior we want.
+            candidates.append({
+                "kind": "summon",
+                "action": action,
+                "target": actor,    # self for telemetry; no enemy target
+                "actor": actor,
+            })
         elif action_type == "hard_control":
             # Spells have a `range_ft` in the action; default to 60 ft for
             # v1 since most save-or-lose spells in 5e are 30-90 ft range.
