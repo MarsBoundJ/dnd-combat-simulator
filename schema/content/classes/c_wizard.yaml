@@ -116,7 +116,7 @@ level_table:
   - level: 9
     proficiency_bonus: 4
     features: [f_cone_of_cold, f_hold_monster, f_cloudkill, f_wall_of_force,
-                f_synaptic_static]
+                f_synaptic_static, f_bigbys_hand]
     spellcasting: { cantrips_known: 4, prepared_spells: 14 }
     class_resources:
       spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 1 }

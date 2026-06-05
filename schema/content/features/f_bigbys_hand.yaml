@@ -1,0 +1,62 @@
+# f_bigbys_hand — Bigby's Hand (Level 5 Conjuration, SRD CC v5.2.1)
+#
+# RAW summary: you conjure a Large hand of shimmering force within 120 ft.
+# It lasts for the duration (Concentration, up to 1 minute) and has AC 20 +
+# HP equal to your hit point maximum. On the turn you cast it and as a Bonus
+# Action thereafter you direct it; the Clenched Fist form makes a melee spell
+# attack for 5d8 Force damage. (Wizard.)
+#
+# Why it matters (Lever B Stage 2c): this is the first PC concentration SUMMON
+# — the canonical action-economy doubling. The hand deals recurring Force
+# damage every round WHILE the Wizard's own action drops a Synaptic Static or
+# a cantrip. It plugs straight into the Stage 2a lifecycle (the hand vanishes
+# when concentration ends) and the Stage 2b summon scorer (the AI now values +
+# casts it).
+#
+# Engine modeling: a `summon` action_template (concentration) whose pipeline
+# summons one m_bigbys_hand (the Clenched-Fist creature, max_total 1). On the
+# Wizard 5th-level list (granted at character level 9, when 5th-level slots
+# arrive).
+#
+# Deferred RAW bits:
+#   - The control forms (Forceful Hand push, Grasping Hand grapple +4d6,
+#     Interposing Hand cover) — the Clenched Fist damage form is the
+#     load-bearing effect. Documented for a multi-form follow-up.
+#   - Bonus-Action-to-direct economy: the summon framework gives the hand its
+#     own turn rather than a caster bonus action; nets to the same recurring
+#     damage stream (see m_bigbys_hand header).
+#   - Upcast (+2d8 Force per slot above 5th) — deferred with the static stat
+#     block; base 5d8 is the load-bearing effect.
+#
+# source: srd_5.2.1
+
+id: f_bigbys_hand
+name: Bigby's Hand
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 9            # 5th-level slot -> full caster at character level 9
+type: active
+spell:
+  class: c_wizard
+  level: 5
+
+description: |
+  Conjure a Large hand of force (AC 20) within 120 ft for the duration
+  (Concentration). Its Clenched Fist makes a melee spell attack for 5d8
+  force damage each round. (Control forms + upcast deferred.)
+
+action_template:
+  id: a_bigbys_hand
+  name: Bigby's Hand
+  type: summon
+  spell_slot_level: 5
+  concentration: true
+  named_effect: bigbys_hand
+  range_ft: 120
+  pipeline:
+    - primitive: summon
+      params:
+        monster: m_bigbys_hand
+        count: 1
+        max_total: 1
