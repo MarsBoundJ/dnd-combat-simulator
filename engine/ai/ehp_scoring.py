@@ -1218,18 +1218,52 @@ def offensive_ehp_persistent_aura(actor: Actor, action: dict,
                     e for e in living_enemies
                     if distance_ft(e.position, area_origin) <= radius]
 
-        total_per_turn = 0.0
-        for e in enemies_in_aura:
-            if ability is None:
-                # No-save: full damage every turn (Cloud of Daggers shape)
-                per_turn = full_dmg
+        def _per_turn(creature: Actor) -> float:
+            if ability is None:    # no-save zone (Cloud of Daggers shape)
+                pt = full_dmg
             else:
-                p_fail = save_fail_probability(e, ability, dc, state)
-                per_turn = p_fail * full_dmg + (1.0 - p_fail) * half_dmg
-            # Cap per-turn at enemy remaining HP
-            per_turn = min(per_turn, float(max(0, e.hp_current)))
-            total_per_turn += per_turn
+                p_fail = save_fail_probability(creature, ability, dc, state)
+                pt = p_fail * full_dmg + (1.0 - p_fail) * half_dmg
+            return min(pt, float(max(0, creature.hp_current)))
+
+        total_per_turn = sum(_per_turn(e) for e in enemies_in_aura)
         damage_value = total_per_turn * EXPECTED_AURA_ROUNDS
+
+        # Friendly fire: an `affected: all_creatures` damage zone (Cloudkill,
+        # Moonbeam) hits the caster's OWN allies standing in it every turn —
+        # a recurring cost the scorer must pay or the AI gasses its own party
+        # (surfaced by the sculpt-fireball demo: the Evoker dropped Cloudkill
+        # on its Fighters). `affected: enemies` auras (Spirit Guardians) skip
+        # this. An evoker's EVOCATION aura sculpts allies out (no friendly
+        # fire); Cloudkill is conjuration, so the cost stands.
+        if aura_params.get("affected") == "all_creatures":
+            sculpt_budget = 0
+            if action.get("school") == "evocation" and "f_sculpt_spells" in (
+                    (actor.template or {}).get("features_known") or []):
+                sculpt_budget = 1 + int(action.get("spell_slot_level", 0) or 0)
+            # Exclude the CASTER: it places a point/anchored zone away from
+            # itself and repositions out of the area, so it isn't its own
+            # friendly-fire victim (and the no-origin default falls on the
+            # caster only as a scoring artifact). Allies that get caught DO
+            # cost friendly fire (below), unless sculpted.
+            living_allies = [a for a in state.encounter.actors
+                             if a.side == actor.side and a.is_alive()
+                             and a.id != actor.id]
+            if shape == "cube":
+                size_ft = int(aura_params.get("size_ft", 0))
+                allies_in_aura = (actors_in_cube(area_origin, size_ft,
+                                                 living_allies)
+                                  if size_ft > 0 else [])
+            else:
+                radius = int(aura_params.get("radius_ft", 0))
+                allies_in_aura = [a for a in living_allies
+                                  if radius > 0 and distance_ft(
+                                      a.position, area_origin) <= radius]
+            for a in allies_in_aura:
+                if sculpt_budget > 0:      # sculpted ally: no friendly fire
+                    sculpt_budget -= 1
+                    continue
+                damage_value -= _per_turn(a) * EXPECTED_AURA_ROUNDS
 
     # PR #78: hybrid zone-component score. If the aura also creates
     # a vision-denial zone (magical_dark or heavy_obscurement),
@@ -1382,12 +1416,13 @@ def offensive_ehp_aoe(actor: Actor, origin: tuple[int, int], action: dict,
                 kbonus = kill_value(target, p_kill)
 
         target_total = capped_dmg + expected_ctrl + kbonus
-        # Allies subtract (friendly fire applies to control + kill-value too).
-        # Sculpt Spells: the first `sculpt_budget` allies in the blast are
-        # protected (0 damage) → no friendly-fire cost.
         if target.side == actor.side:
-            if sculpt_budget > 0:
-                sculpt_budget -= 1   # sculpted ally: zero cost
+            # Friendly fire. Sculpt Spells protects the first `sculpt_budget`
+            # NON-CASTER allies (0 damage). The caster is NOT a sculpt target
+            # (contested RAW → conservatively excluded), so it always pays the
+            # friendly fire — this is the "don't fireball yourself" guard.
+            if target.id != actor.id and sculpt_budget > 0:
+                sculpt_budget -= 1   # sculpted non-caster ally: zero cost
             else:
                 total -= target_total
         else:

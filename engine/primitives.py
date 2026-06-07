@@ -1208,9 +1208,13 @@ def _forced_save(params: dict, state: CombatState, bus: EventBus) -> dict:
         # Sculpt Spells (Evoker): a chosen caster-ally auto-succeeds and takes
         # NO damage from this evocation AoE (same shape as Careful Spell). This
         # is what lets the evoker drop a fireball through its own swarmed
-        # martials to clear the enemies cleanly.
+        # martials to clear the enemies cleanly. The CASTER is NOT an eligible
+        # sculpt target (whether it may choose itself is a contested RAW point;
+        # we take the conservative reading), so if it stands in its own blast
+        # it takes the damage like anyone else.
         if (sculpt_protected and mm_caster is not None
                 and target.side == mm_caster.side
+                and target.id != mm_caster.id
                 and sculpt_used < sculpt_protected):
             sculpt_used += 1
             rolls.append({"target_id": target.id, "outcome": "success",

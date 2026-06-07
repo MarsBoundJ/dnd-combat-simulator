@@ -23,7 +23,7 @@ from engine.core.state import Actor, Encounter, CombatState
 from engine.core.events import EventBus
 import engine.primitives as pm
 from engine.primitives import _forced_save, _sculpt_protected_count
-from engine.ai.ehp_scoring import offensive_ehp_aoe
+from engine.ai.ehp_scoring import offensive_ehp_aoe, offensive_ehp_persistent_aura
 
 
 def _abil():
@@ -114,8 +114,10 @@ class SculptExecutionTest(unittest.TestCase):
                          "Sculpted ally must take ZERO damage")
         self.assertLess(e1.hp_current, e1.hp_max, "enemy should burn")
         self.assertLess(e2.hp_current, e2.hp_max, "enemy should burn")
-        # The evoker (a caster-ally, also in the blast) is protected too.
-        self.assertEqual(evoker.hp_current, evoker.hp_max)
+        # The CASTER is NOT an eligible sculpt target (contested RAW → excluded),
+        # so standing in its own blast it takes the damage like anyone else.
+        self.assertLess(evoker.hp_current, evoker.hp_max,
+                        "caster is not sculpt-protected in its own blast")
         sculpt_events = [x for x in st.event_log
                          if x.get("sculpt_spells")]
         self.assertTrue(sculpt_events)
@@ -145,6 +147,67 @@ class SculptScoringTest(unittest.TestCase):
         score_plain = offensive_ehp_aoe(plain, (0, 0), action2, st_pl)
         # Same blast, but the evoker doesn't pay the ally's friendly fire.
         self.assertGreater(score_ev, score_plain)
+
+
+def _aura(affected="all_creatures", school="conjuration", slot_level=5):
+    """A Cloudkill-shaped damaging persistent aura (sphere, CON save)."""
+    return {"id": "a_cloudkill", "name": "Cloudkill", "type": "persistent_aura",
+            "spell_slot_level": slot_level, "school": school,
+            "pipeline": [{"primitive": "persistent_aura",
+                          "params": {"shape": "sphere", "radius_ft": 20,
+                                     "anchor": "point", "affected": affected,
+                                     "ability": "constitution", "dc": 16,
+                                     "on_fail": [{"primitive": "damage",
+                                                  "params": {"dice": "5d8",
+                                                             "type": "poison"}}]}}]}
+
+
+class AuraFriendlyFireTest(unittest.TestCase):
+    """A damaging `affected: all_creatures` aura (Cloudkill) must pay for the
+    allies it gasses; an `affected: enemies` aura (Spirit Guardians) must not;
+    an evoker's EVOCATION aura sculpts allies out."""
+
+    def _setup(self):
+        caster = _actor("ev", "pc", hp=40, pos=(0, 0))
+        ally = _actor("ally", "pc", hp=40, pos=(0, 0))
+        e1 = _actor("e1", "enemy", hp=60, pos=(0, 0))
+        e2 = _actor("e2", "enemy", hp=60, pos=(0, 0))
+        return caster, ally, e1, e2
+
+    def test_all_creatures_aura_subtracts_ally_friendly_fire(self):
+        caster, ally, e1, e2 = self._setup()
+        st_no = _state([caster, e1, e2])           # no ally in blast
+        st_ff = _state([caster, ally, e1, e2])     # ally in blast
+        action = _aura(affected="all_creatures")
+        score_no = offensive_ehp_persistent_aura(caster, action, st_no, (0, 0))
+        score_ff = offensive_ehp_persistent_aura(caster, action, st_ff, (0, 0))
+        self.assertLess(score_ff, score_no,
+                        "ally in an all_creatures zone should cost friendly fire")
+
+    def test_enemies_only_aura_no_friendly_fire(self):
+        caster, ally, e1, e2 = self._setup()
+        st_no = _state([caster, e1, e2])
+        st_ally = _state([caster, ally, e1, e2])
+        action = _aura(affected="enemies")
+        self.assertAlmostEqual(
+            offensive_ehp_persistent_aura(caster, action, st_no, (0, 0)),
+            offensive_ehp_persistent_aura(caster, action, st_ally, (0, 0)),
+            msg="Spirit-Guardians-style enemies-only aura hits no allies")
+
+    def test_evoker_evocation_aura_sculpts_ally_out(self):
+        ev = _actor("ev", "pc", hp=40, pos=(0, 0), features=SCULPT)
+        ally = _actor("ally", "pc", hp=40, pos=(0, 0))
+        e1 = _actor("e1", "enemy", hp=60, pos=(0, 0))
+        plain = _actor("pl", "pc", hp=40, pos=(0, 0))   # no Sculpt
+        ally2 = _actor("ally2", "pc", hp=40, pos=(0, 0))
+        e2 = _actor("e2", "enemy", hp=60, pos=(0, 0))
+        action = _aura(affected="all_creatures", school="evocation")
+        st_ev = _state([ev, ally, e1])
+        st_pl = _state([plain, ally2, e2])
+        # The evoker sculpts the ally out → no friendly-fire penalty → higher.
+        self.assertGreater(
+            offensive_ehp_persistent_aura(ev, action, st_ev, (0, 0)),
+            offensive_ehp_persistent_aura(plain, action, st_pl, (0, 0)))
 
 
 if __name__ == "__main__":
