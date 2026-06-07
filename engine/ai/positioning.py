@@ -223,11 +223,18 @@ def can_act_from(actor: Actor, dest: tuple[int, int],
 
 def reachable_squares(actor: Actor,
                        state: CombatState) -> list[tuple[int, int]]:
-    """Squares the actor can reach this turn (walk speed, Chebyshev,
-    straight-line wall-aware), excluding squares occupied by other living
-    actors. Includes the current square (staying put is an option)."""
+    """Squares the actor can reach this turn (best of walk/fly speed,
+    Chebyshev, straight-line wall-aware), excluding squares occupied by other
+    living actors. Includes the current square (staying put is an option).
+
+    Uses the actor's best open-field movement speed — `max(walk, fly)` — so a
+    flier relocates its full fly speed: an Adult Dragon (walk 40, fly 80)
+    reaches 16 squares, not 8, which the breath chase needs to flank a spread
+    formation. Swim/climb are terrain-gated and excluded from the open-field
+    budget. (No current PC flies, so PC de-cluster behavior is unchanged.)"""
     from engine.core.geometry import SQUARE_SIZE_FT, segment_blocked
-    speed = int((actor.speed or {}).get("walk", 30))
+    speeds = actor.speed or {}
+    speed = max(int(speeds.get("walk", 30)), int(speeds.get("fly", 0)))
     budget = speed // SQUARE_SIZE_FT
     walls = getattr(state, "walls", None)
     occupied = {tuple(a.position) for a in state.encounter.actors
@@ -480,18 +487,34 @@ def best_aoe_attack_position(actor: Actor,
     every area action regardless of recharge, so a monster with TWO area
     actions (one spent) could still be valued on the spent one — fine for the
     single-breath bosses this targets, noted for multi-AoE casters."""
-    if not _available_aoe_actions(actor, state):
+    aoe_actions = _available_aoe_actions(actor, state)
+    if not aoe_actions:
         return None
     enemies = [a for a in state.encounter.actors
                if a.is_alive() and a.side != actor.side]
     if len(enemies) < 2:
         return None
+    # Max AoE reach (cone/line length, sphere/emanation range) among the
+    # available area actions. A candidate apex farther than this from EVERY
+    # enemy can't catch anyone — pruning those keeps the (large, for a fly-80
+    # flier) reachable scan tractable AND keeps this an OFFENSIVE reposition: a
+    # far square has zero AoE offense, so without the prune a high-exposure
+    # boss could "chase" by fleeing to a safe-but-useless corner.
+    aoe_reach = 0
+    for a in aoe_actions:
+        area = a.get("area") or {}
+        aoe_reach = max(aoe_reach, int(area.get("length_ft") or 0),
+                        int(area.get("range_ft") or 0),
+                        int(area.get("size_ft") or 0))
     cur = tuple(actor.position)
     best_sq = cur
     best_util = position_utility(actor, cur, state)
     from engine.core.geometry import distance_ft
     for cand in reachable_squares(actor, state):
         if cand == cur:
+            continue
+        if aoe_reach and all(distance_ft(cand, e.position) > aoe_reach
+                             for e in enemies):
             continue
         util = position_utility(actor, cand, state)
         if (util > best_util + 1e-9
