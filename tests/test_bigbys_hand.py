@@ -24,6 +24,7 @@ from engine.ai.defensive_ehp import estimate_dpr
 from engine.ai.ehp_scoring import offensive_ehp_summon
 from engine.cli import _build_actor
 from engine.core import summoning
+from engine.core.summoning import caster_spell_attack_bonus
 from engine.core.concentration import apply_concentration, end_concentration
 from engine.core.events import EventBus
 from engine.core.state import Actor, CombatState, Encounter
@@ -51,6 +52,14 @@ def _wizard_actions(level):
             .get("actions", [])}
 
 
+def _sorcerer_actions(level):
+    spec = {"class": "c_sorcerer", "level": level,
+            "ability_scores": {"str": 8, "dex": 12, "con": 14,
+                                "int": 10, "wis": 12, "cha": 18}}
+    return {a.get("id"): a for a in build_pc_template(spec, _registry())
+            .get("actions", [])}
+
+
 def _build_hand():
     return _build_actor(
         {"template_ref": {"entity_type": "monster", "id": "m_bigbys_hand"},
@@ -59,8 +68,10 @@ def _build_hand():
 
 class BigbysHandContentTest(unittest.TestCase):
 
-    def test_on_wizard_list_at_l13(self):
+    def test_on_sorcerer_and_wizard_at_l13(self):
+        # SRD Arcane Hand: Sorcerer + Wizard (NOT Bard).
         self.assertIn("a_bigbys_hand", _wizard_actions(13))
+        self.assertIn("a_bigbys_hand", _sorcerer_actions(13))
 
     def test_gated_to_char_level_9(self):
         self.assertNotIn("a_bigbys_hand", _wizard_actions(8))
@@ -123,6 +134,14 @@ class BigbysHandIntegrationTest(unittest.TestCase):
         self.assertEqual(hands[0].summon_concentration,
                          {"caster_id": "wiz", "action_id": "a_bigbys_hand"})
         self.assertIn(hands[0].id, st.turn_order)
+        # RAW: Clenched Fist uses the caster's spell attack modifier, not the
+        # static +9 stat-block fallback.
+        fist_bonus = None
+        for act in (hands[0].template.get("actions") or []):
+            for step in (act.get("pipeline") or []):
+                if step.get("primitive") == "attack_roll":
+                    fist_bonus = (step.get("params") or {}).get("bonus")
+        self.assertEqual(fist_bonus, caster_spell_attack_bonus(wiz))
 
         # Concentration ends → hand vanishes.
         end_concentration(wiz, st, reason="dropped")

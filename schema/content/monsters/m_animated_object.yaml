@@ -1,0 +1,75 @@
+# m_animated_object — Animated Object (Medium or smaller), the creature half
+# of the Animate Objects spell (f_animate_objects).
+# Source: SRD CC v5.2.1 (Animate Objects stat block, verbatim). Summoned by
+# the spell's `summon` primitive; lives only while the caster concentrates
+# (Stage 2a lifecycle dismisses them on concentration end).
+#
+# Triage: GREEN (spell-summon). This is the SRD 5.2.1 Animated Object stat
+# block for a Medium-or-smaller target (the "counts as one object" case).
+#
+# Caster-scaled per RAW (resolved at cast time by the summon system, NOT baked
+# into this static block):
+#   - COUNT = the caster's spellcasting ability modifier (f_animate_objects
+#     uses count_from: spellcasting_modifier). NOT a flat ten.
+#   - Slam to-hit = the caster's SPELL ATTACK modifier (proficiency bonus +
+#     spellcasting ability modifier). f_animate_objects sets
+#     attack_bonus_from: caster_spell_attack; the `bonus: 5` below is only a
+#     static fallback for summons cast without that flag.
+#
+# v1 scope / deferrals:
+#   - Only the Medium-or-smaller row is modeled (Slam 1d4+3 Force, HP 10). The
+#     Large (counts as two, HP 20, 2d6+3+mod) and Huge (counts as three,
+#     HP 40, 2d12+3+mod) rows + the upcast Slam scaling are deferred.
+#   - "Reverts to object form, damage carries over" on reaching 0 HP is
+#     modeled as a plain death (the construct simply leaves play).
+
+id: m_animated_object
+name: Animated Object
+source: srd_5.2.1
+
+size: medium
+creature_type: construct
+alignment: unaligned
+
+combat:
+  armor_class: 15
+  hit_points: { average: 10, dice: "0d0", con_contribution: 0 }
+  speed: { walk: 30 }
+  initiative: { modifier: 0, score: 10 }
+
+abilities:
+  str: { score: 16, save: 3 }
+  dex: { score: 10, save: 0 }
+  con: { score: 10, save: 0 }
+  int: { score: 3, save: -4 }
+  wis: { score: 3, save: -4 }
+  cha: { score: 1, save: -5 }
+
+skills: {}
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: [poison, psychic]
+condition_immunities: [co_charmed, co_exhaustion, co_frightened, co_paralyzed, co_poisoned]
+
+senses: { passive_perception: 6, special: { blindsight: 30 } }
+languages: []
+
+cr: { value: 0, xp: 0, proficiency_bonus: 2 }
+
+actions:
+  - id: a_animated_slam
+    name: Slam
+    type: weapon_attack
+    # Medium-or-smaller: 1d4 + 3 Force (the +3 is the object's Str mod). The
+    # to-hit bonus below is a STATIC FALLBACK; the spell overrides it with the
+    # caster's spell attack modifier (attack_bonus_from: caster_spell_attack).
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 5, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d4", modifier: 3, type: force, average: 5 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: pack_hunter
+  presets: { retreat: never, ability_selection: default, targeting: lowest_hp_target, action_economy: signature }

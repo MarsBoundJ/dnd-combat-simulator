@@ -2585,9 +2585,11 @@ def _summon(params: dict, state: CombatState, bus: EventBus) -> None:
     if not monster_id:
         raise ValueError("summon requires a `monster` template id")
     from engine.core import summoning
-    new_actors = summoning.summon(summoner, monster_id, state,
-                                   count=int(params.get("count", 1)),
-                                   max_total=params.get("max_total"))
+    # Caster-aware count / cap (Animate Objects: count = spellcasting modifier).
+    new_actors = summoning.summon(
+        summoner, monster_id, state,
+        count=summoning.resolve_summon_count(params, summoner),
+        max_total=summoning.resolve_summon_max_total(params, summoner))
     # Tie the summons to the caster's CONCENTRATION if this is a concentration
     # spell (Bigby's Hand, Animate Objects) — they vanish when it ends.
     action = (state.current_attack or {}).get("action") or {}
@@ -2595,6 +2597,11 @@ def _summon(params: dict, state: CombatState, bus: EventBus) -> None:
         for a in new_actors:
             a.summon_concentration = {"caster_id": summoner.id,
                                        "action_id": action.get("id")}
+    # Caster-aware attack bonus (Animate Objects / Bigby's Hand: the summoned
+    # creature attacks with the CASTER's spell attack modifier, not the static
+    # stat-block fallback).
+    if params.get("attack_bonus_from") == "caster_spell_attack":
+        summoning.apply_caster_attack_bonus(new_actors, summoner)
 
 
 def _polymorph_target(params: dict, state: CombatState,

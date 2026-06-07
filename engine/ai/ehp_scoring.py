@@ -1561,11 +1561,12 @@ def offensive_ehp_summon(actor: Actor, action: dict,
     if registry is None:
         return 0.0
 
-    count = int(params.get("count", 1))
-    max_total = params.get("max_total")
+    # Caster-aware count / cap (Animate Objects: count = spellcasting modifier).
+    from engine.core import summoning
+    count = summoning.resolve_summon_count(params, actor)
+    max_total = summoning.resolve_summon_max_total(params, actor)
     if max_total is not None:
-        from engine.core.summoning import count_summons
-        existing = count_summons(actor, state)
+        existing = summoning.count_summons(actor, state)
         count = min(count, max(0, int(max_total) - existing))
     if count <= 0:
         return 0.0
@@ -1581,6 +1582,10 @@ def offensive_ehp_summon(actor: Actor, action: dict,
             registry)
     except Exception:
         return 0.0
+    # Match execution: tune the probe's attack bonus to the caster's spell
+    # attack modifier so its DPR reflects what the summon will actually deal.
+    if params.get("attack_bonus_from") == "caster_spell_attack":
+        summoning.apply_caster_attack_bonus([probe], actor)
     per_creature_dpr = estimate_dpr(probe)
     if per_creature_dpr <= 0:
         return 0.0

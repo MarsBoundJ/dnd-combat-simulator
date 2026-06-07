@@ -1,0 +1,69 @@
+# f_animate_objects — Animate Objects (Level 5 Transmutation, SRD CC v5.2.1)
+#
+# RAW summary (SRD 5.2.1): animate nonmagical objects within range. The
+# MAXIMUM number of objects EQUALS YOUR SPELLCASTING ABILITY MODIFIER (a
+# Medium-or-smaller target counts as one, Large as two, Huge as three). Each
+# becomes a Construct using the Animated Object stat block, shares your
+# Initiative, and acts immediately after you. Concentration, up to 1 minute.
+# (Bard, Sorcerer, Wizard.)
+#
+# Why it matters (Lever B Stage 2d): the Bard's concentration summon — the
+# spell Phil named for the Bard's action-economy rotation (Animate Objects +
+# Synaptic Static). The animated objects deal a recurring Force-damage stream
+# every round WHILE the Bard's own action drops a Synaptic Static. It reuses
+# the Bigby's-Hand (2c) summon pipeline and plugs into the Stage 2a lifecycle
+# (they vanish when concentration ends) + Stage 2b summon scorer.
+#
+# Engine modeling (corrected to SRD 5.2.1 after Phil's stat-block check):
+#   - count_from: spellcasting_modifier — the object count is the CASTER's
+#     spellcasting ability modifier (≈4-5 at level 9), NOT a flat ten. Each
+#     object is the Medium-or-smaller m_animated_object.
+#   - attack_bonus_from: caster_spell_attack — each object's Slam uses the
+#     CASTER's spell attack modifier (proficiency bonus + ability modifier),
+#     resolved at cast time by the summon system.
+# On the Bard, Sorcerer, and Wizard 5th-level lists (granted at character
+# level 9).
+#
+# Deferred RAW bits:
+#   - The Large (counts as two) / Huge (counts as three) object rows — only
+#     the Medium-or-smaller object is modeled; see the m_animated_object
+#     header.
+#   - Bonus-Action-to-command economy: the summon framework gives each object
+#     its own turn rather than a caster bonus action; nets to the same
+#     recurring damage stream.
+#   - Upcast (Slam damage scaling per slot above 5th) — deferred.
+#
+# source: srd_5.2.1
+
+id: f_animate_objects
+name: Animate Objects
+source: srd_5.2.1
+granted_by:
+  class: c_bard
+  level: 9            # 5th-level slot -> full caster at character level 9
+type: active
+spell:
+  class: c_bard
+  level: 5
+
+description: |
+  Animate up to (your spellcasting ability modifier) Medium-or-smaller
+  objects within 120 ft as creatures under your control for the duration
+  (Concentration). Each makes a Slam attack (1d4+3 force) at your spell
+  attack modifier on your turn. (Large/Huge object rows + upcast deferred.)
+
+action_template:
+  id: a_animate_objects
+  name: Animate Objects
+  type: summon
+  spell_slot_level: 5
+  concentration: true
+  named_effect: animate_objects
+  range_ft: 120
+  pipeline:
+    - primitive: summon
+      params:
+        monster: m_animated_object
+        count_from: spellcasting_modifier
+        max_total: spellcasting_modifier
+        attack_bonus_from: caster_spell_attack
