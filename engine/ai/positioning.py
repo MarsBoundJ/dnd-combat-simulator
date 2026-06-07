@@ -232,10 +232,9 @@ def reachable_squares(actor: Actor,
     reaches 16 squares, not 8, which the breath chase needs to flank a spread
     formation. Swim/climb are terrain-gated and excluded from the open-field
     budget. (No current PC flies, so PC de-cluster behavior is unchanged.)"""
-    from engine.core.geometry import SQUARE_SIZE_FT, segment_blocked
-    speeds = actor.speed or {}
-    speed = max(int(speeds.get("walk", 30)), int(speeds.get("fly", 0)))
-    budget = speed // SQUARE_SIZE_FT
+    from engine.core.geometry import (SQUARE_SIZE_FT, segment_blocked,
+                                        best_move_speed_ft)
+    budget = best_move_speed_ft(actor) // SQUARE_SIZE_FT
     walls = getattr(state, "walls", None)
     occupied = {tuple(a.position) for a in state.encounter.actors
                 if a.is_alive() and a.id != actor.id}

@@ -17,7 +17,7 @@ alignment: neutral_evil
 combat:
   armor_class: 13
   hit_points: { average: 67, dice: "9d8", con_contribution: 27 }
-  speed: { walk: 30 }
+  speed: { walk: 5, fly: 60 }
   initiative: { modifier: 3, score: 13 }
 
 abilities:
