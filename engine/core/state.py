@@ -597,6 +597,12 @@ class CombatState:
     def current_actor(self) -> Actor | None:
         if not self.turn_order:
             return None
+        # Guard the index: legendary actions / reactions can resolve BETWEEN
+        # turns (current_turn_idx transiently past the end), and turn_order can
+        # shrink when a creature dies. Return None rather than IndexError so
+        # callers fall back gracefully (e.g. _resolve_modifier_owner).
+        if not 0 <= self.current_turn_idx < len(self.turn_order):
+            return None
         return self._actor_by_id(self.turn_order[self.current_turn_idx])
 
     def _actor_by_id(self, actor_id: str) -> Actor | None:

@@ -403,6 +403,42 @@ class ShieldEndToEndTest(unittest.TestCase):
 
 
 # ============================================================================
+# Regression: reaction self-modifier owner when firing between turns
+# ============================================================================
+
+class ReactionSelfModifierOwnerTest(unittest.TestCase):
+    """A self-targeted reaction modifier (Shield's +5 AC) owns to the REACTOR,
+    even when the reaction fires BETWEEN turns — current_turn_idx out of range,
+    as during a legendary action. This reproduces the Adult Brass Dragon crash
+    (IndexError in current_actor via _resolve_modifier_owner) and verifies the
+    fix: current_actor() returns None instead of raising, and the reaction's
+    self-modifier resolves to current_attack['actor'] (the reactor)."""
+
+    def test_shield_owner_is_reactor_when_turn_idx_out_of_range(self) -> None:
+        from engine.core.reactions import try_use_reaction
+        wizard = _make_actor("wiz", ac=14, actions=[_shield_action()],
+                              spell_slots={1: 1})
+        attacker = _make_actor("att", side="enemy",
+                                actions=[_weapon_attack(bonus=10)])
+        state = _state_with([wizard, attacker])
+        state.encounters_remaining_today = 1
+        # Reaction fires between turns (legendary-action timing): the turn
+        # index points past the end of turn_order.
+        state.current_turn_idx = len(state.turn_order)
+        self.assertIsNone(state.current_actor())   # hardened — no IndexError
+
+        ed = {"target": wizard, "total": 18, "current_ac": 14,
+              "actor": attacker}
+        result = try_use_reaction(wizard, _shield_action(), ed, state, bus=None)
+        self.assertTrue(result)
+        # The +5 AC attaches to the REACTOR (wizard), never the attacker.
+        self.assertTrue(wizard.active_modifiers,
+                        "Shield's AC modifier should own to the reactor")
+        self.assertEqual(attacker.active_modifiers, [],
+                         "Reaction self-buff must NOT attach to the turn-holder")
+
+
+# ============================================================================
 # Protection end-to-end
 # ============================================================================
 
