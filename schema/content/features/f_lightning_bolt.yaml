@@ -36,6 +36,7 @@ action_template:
   type: aoe_attack
   spell_slot_level: 3
   named_effect: lightning_bolt
+  school: evocation
   range_ft: 100
   area:
     shape: line

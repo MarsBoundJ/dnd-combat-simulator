@@ -35,6 +35,7 @@ action_template:
   type: aoe_attack
   spell_slot_level: 5
   named_effect: cone_of_cold
+  school: evocation
   range_ft: 60
   area:
     shape: cone

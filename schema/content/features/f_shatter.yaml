@@ -37,6 +37,7 @@ action_template:
   type: aoe_attack
   spell_slot_level: 2
   named_effect: shatter
+  school: evocation
   range_ft: 60
   area:
     shape: sphere

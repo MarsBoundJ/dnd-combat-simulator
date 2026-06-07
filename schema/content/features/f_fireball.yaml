@@ -49,6 +49,7 @@ action_template:
   type: aoe_attack
   spell_slot_level: 3
   named_effect: fireball
+  school: evocation
   range_ft: 150
   area:
     shape: sphere
