@@ -1,0 +1,61 @@
+# f_animate_objects — Animate Objects (Level 5 Transmutation, SRD CC v5.2.1)
+#
+# RAW summary: objects within range animate into creatures under your control
+# for the duration (Concentration, up to 1 minute). You command them as a
+# Bonus Action; they attack on your turn. The number you can animate depends
+# on size — one Huge, two Large, or up to ten Small/Tiny. (Bard, Sorcerer,
+# Wizard.)
+#
+# Why it matters (Lever B Stage 2d): the Bard's big concentration summon — the
+# spell Phil named for the Bard's action-economy rotation (Animate Objects +
+# Synaptic Static). Ten Tiny objects deal a large recurring Force-damage
+# stream every round WHILE the Bard's own action drops a Synaptic Static. It
+# reuses the Bigby's-Hand (2c) summon pipeline wholesale — only the monster id
+# and count differ — and plugs into the Stage 2a lifecycle (all ten vanish
+# when concentration ends) + Stage 2b summon scorer (the AI values + casts it).
+#
+# Engine modeling: a `summon` action_template (concentration) that summons ten
+# m_animated_object (the Tiny Slam attackers, max_total 10). On the Bard,
+# Sorcerer, and Wizard 5th-level lists (granted at character level 9).
+#
+# Deferred RAW bits:
+#   - The size-vs-count trade (one Huge / two Large / ten Small-or-Tiny, each
+#     with its own attack + damage row) — only the ten-Tiny build is modeled;
+#     see the m_animated_object header.
+#   - Bonus-Action-to-command economy: the summon framework gives each object
+#     its own turn rather than a caster bonus action; nets to the same
+#     recurring damage stream.
+#   - Upcast (+2 objects per slot above 5th) — deferred with the fixed count.
+#
+# source: srd_5.2.1
+
+id: f_animate_objects
+name: Animate Objects
+source: srd_5.2.1
+granted_by:
+  class: c_bard
+  level: 9            # 5th-level slot -> full caster at character level 9
+type: active
+spell:
+  class: c_bard
+  level: 5
+
+description: |
+  Animate ten Tiny objects within 120 ft as creatures under your control
+  for the duration (Concentration). Each makes a Slam attack (1d4+4 force)
+  on your turn. (Size-vs-count trade + upcast deferred.)
+
+action_template:
+  id: a_animate_objects
+  name: Animate Objects
+  type: summon
+  spell_slot_level: 5
+  concentration: true
+  named_effect: animate_objects
+  range_ft: 120
+  pipeline:
+    - primitive: summon
+      params:
+        monster: m_animated_object
+        count: 10
+        max_total: 10

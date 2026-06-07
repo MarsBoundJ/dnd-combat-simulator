@@ -1,0 +1,69 @@
+# m_animated_object — Animated Object (Tiny), the creature half of the
+# Animate Objects spell (f_animate_objects).
+# Source: SRD CC v5.2.1 — summoned by the spell's `summon` primitive; lives
+# only while the caster concentrates (Stage 2a lifecycle dismisses them on
+# concentration end).
+#
+# Triage: GREEN (spell-summon). Models the canonical optimizer configuration:
+# ten TINY animated objects, each a Slam attacker. This is the highest-value
+# and most-played Animate Objects build (and the one Phil cited for the Bard's
+# concentration-summon rotation).
+#
+# v1 scope / proxies (documented, not the full RAW size table):
+#   - Only the Tiny object line is modeled (Slam +8, 1d4+4 Force). The
+#     size-vs-count trade (one Huge / two Large / ten Small-or-Tiny, each with
+#     its own attack + damage row) is deferred — the ten-Tiny build is the
+#     load-bearing case. A size-parameterized stat block is the follow-up.
+#   - Damage type Force (2024 magical-construct convention). HP is a flat
+#     proxy; the summon scorer reads DPR, not HP, and AC 18 keeps the objects
+#     alive long enough for the recurring stream.
+
+id: m_animated_object
+name: Animated Object
+source: srd_5.2.1
+
+size: tiny
+creature_type: construct
+alignment: unaligned
+
+combat:
+  armor_class: 18
+  hit_points: { average: 20, dice: "0d0", con_contribution: 0 }
+  speed: { walk: 30 }
+  initiative: { modifier: 4, score: 14 }
+
+abilities:
+  str: { score: 4, save: -3 }
+  dex: { score: 18, save: 4 }
+  con: { score: 10, save: 0 }
+  int: { score: 3, save: -4 }
+  wis: { score: 3, save: -4 }
+  cha: { score: 1, save: -5 }
+
+skills: {}
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: [poison, psychic]
+condition_immunities: [co_blinded, co_charmed, co_deafened, co_exhaustion, co_frightened, co_paralyzed, co_petrified, co_poisoned, co_unconscious]
+
+senses: { passive_perception: 8, special: { blindsight: 30 } }
+languages: []
+
+cr: { value: 1, xp: 200, proficiency_bonus: 2 }
+
+actions:
+  - id: a_animated_slam
+    name: Slam
+    type: weapon_attack
+    # Tiny animated object: melee attack +8, 1d4+4 Force. Attack bonus is a
+    # static proxy for the caster's spell modifier (summon-system limitation).
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 8, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d4", modifier: 4, type: force, average: 6 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: pack_hunter
+  presets: { retreat: never, ability_selection: default, targeting: lowest_hp_target, action_economy: signature }
