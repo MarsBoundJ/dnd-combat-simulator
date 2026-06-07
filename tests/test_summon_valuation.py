@@ -102,7 +102,9 @@ class SummonValuationTest(unittest.TestCase):
         return estimate_dpr(probe)
 
     def test_summon_value_is_dpr_times_rounds(self):
-        c, f = _caster(), _foe(hp=500)        # plenty of enemy HP, no cap
+        # Foe ADJACENT to the caster (within the summon's reach) → no
+        # reach-delay, so the value is the clean DPR × count × full-duration.
+        c, f = _caster(), _foe(hp=500, pos=(1, 0))   # plenty of HP, no cap
         st = _state([c, f])
         action = _summon_action(count=1)
         val = offensive_ehp_summon(c, action, st)
@@ -116,6 +118,24 @@ class SummonValuationTest(unittest.TestCase):
         one = offensive_ehp_summon(c, _summon_action(count=1), st)
         three = offensive_ehp_summon(c, _summon_action(count=3), st)
         self.assertAlmostEqual(three, one * 3, places=4)
+
+    def test_far_unreachable_enemy_zeros_summon(self):
+        # A lone enemy far beyond what the melee summons can close over the
+        # spell's life → ~0 realized value (the boss-fight fix: summoning a
+        # swarm on a distant/mobile boss is a waste).
+        c = _caster()
+        far = _foe(hp=500, pos=(40, 0))   # 200 ft from the caster
+        st = _state([c, far])
+        self.assertEqual(offensive_ehp_summon(c, _summon_action(count=4), st),
+                         0.0)
+
+    def test_adjacent_scores_higher_than_distant(self):
+        c = _caster()
+        st_near = _state([c, _foe(hp=500, pos=(1, 0))])    # 5 ft
+        st_far = _state([c, _foe(hp=500, pos=(10, 0))])    # 50 ft
+        self.assertGreater(
+            offensive_ehp_summon(c, _summon_action(count=4), st_near),
+            offensive_ehp_summon(c, _summon_action(count=4), st_far))
 
     def test_overkill_capped_at_enemy_hp(self):
         c, f = _caster(), _foe(hp=5)          # almost-dead enemy
