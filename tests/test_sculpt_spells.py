@@ -114,8 +114,10 @@ class SculptExecutionTest(unittest.TestCase):
                          "Sculpted ally must take ZERO damage")
         self.assertLess(e1.hp_current, e1.hp_max, "enemy should burn")
         self.assertLess(e2.hp_current, e2.hp_max, "enemy should burn")
-        # The evoker (a caster-ally, also in the blast) is protected too.
-        self.assertEqual(evoker.hp_current, evoker.hp_max)
+        # The CASTER is NOT an eligible sculpt target (contested RAW → excluded),
+        # so standing in its own blast it takes the damage like anyone else.
+        self.assertLess(evoker.hp_current, evoker.hp_max,
+                        "caster is not sculpt-protected in its own blast")
         sculpt_events = [x for x in st.event_log
                          if x.get("sculpt_spells")]
         self.assertTrue(sculpt_events)
