@@ -38,6 +38,39 @@ _HIT_RESULTS = {"hit", "crit", "critical"}
 _CRIT_RESULTS = {"crit", "critical"}
 
 
+# Tom Dunn's empirical encounter-difficulty bands ("Variability: Encounter
+# Difficulty", The Finished Book — verified Jun 2026). d_iff = damage the PCs
+# TOOK in the encounter / party total max HP. Dunn ESTIMATES d_iff via a
+# 2-combatant rounds-ratio model; we measure the EMPIRICAL value from the
+# realized log (actual gross damage taken). His win-probability anchors at our
+# party tier: Hard(0.45) ~89%, Deadly(0.70) ~69%, d_iff=1.0 ~50%.
+#
+# Caveats carried with the metric:
+#   - GROSS damage taken (healing lets PCs survive d_iff > 1; the metric is
+#     incoming pressure, not net HP). Matches Dunn's numerator definition.
+#   - Single-run d_iff is noisy (Tier-3 CV ~0.4); average across seeds for a
+#     stable difficulty read.
+#   - Dunn's bands were fit to 2014 monsters; 2024 monsters hit ~harder (esp.
+#     legendary CR10+ ~+40% DPR / CR13+ ~+15% HP), so a 2024 encounter's d_iff
+#     runs hotter than its XP-budget label implies.
+DIFFICULTY_BANDS = (
+    ("Trivial", 0.0, 0.15),
+    ("Easy", 0.15, 0.30),
+    ("Medium", 0.30, 0.45),
+    ("Hard", 0.45, 0.70),
+    ("Deadly", 0.70, 1.00),
+    ("TPK", 1.00, float("inf")),
+)
+
+
+def classify_diff(d_iff: float) -> str:
+    """Map an empirical d_iff to Dunn's difficulty band name."""
+    for name, lo, hi in DIFFICULTY_BANDS:
+        if lo <= d_iff < hi:
+            return name
+    return "TPK"
+
+
 def _control_fraction(condition_id: str) -> float:
     """Action-denial fraction for a condition: 1.0 for full denial (stunned/
     paralyzed/incapacitated/...), the partial fraction for restrained/prone/
@@ -159,6 +192,17 @@ def build_contribution_ledger(state: CombatState) -> dict:
     for aid, r in per_actor.items():
         r["dpr"] = round(r["damage_dealt"] / rounds, 1)
 
+    # Empirical encounter difficulty (Dunn's d_iff): gross damage the PC side
+    # took / party total max HP, classified into his bands. The realized
+    # measurement of the metric our XP-budget labels only estimate.
+    pc_actors = [a for a in state.encounter.actors
+                 if getattr(a, "side", None) == "pc"]
+    pc_total_hp = sum(max(1, int(getattr(a, "hp_max", 0) or 0))
+                      for a in pc_actors)
+    pc_damage_taken = sum(r["damage_taken"] for r in per_actor.values()
+                          if r["side"] == "pc")
+    d_iff = (pc_damage_taken / pc_total_hp) if pc_total_hp else 0.0
+
     def side_totals(side: str) -> dict:
         rows = [r for r in per_actor.values() if r["side"] == side]
         return {
@@ -174,6 +218,10 @@ def build_contribution_ledger(state: CombatState) -> dict:
         "per_actor": per_actor,
         "per_round": per_round,
         "sides": {"pc": side_totals("pc"), "enemy": side_totals("enemy")},
+        "d_iff": d_iff,
+        "difficulty_band": classify_diff(d_iff),
+        "pc_total_hp": pc_total_hp,
+        "pc_damage_taken": pc_damage_taken,
     }
 
 
@@ -199,5 +247,7 @@ def format_ledger(state: CombatState, ledger: dict | None = None) -> str:
         "",
         f"PC offensive eHP/round (dmg+ctrl): {pc_per_round:6.1f}",
         f"Enemy damage/round:                {en_per_round:6.1f}",
+        f"d_iff (dmg taken / party HP):      {led['d_iff']:6.2f} "
+        f"({led['difficulty_band']})",
     ]
     return "\n".join(lines)

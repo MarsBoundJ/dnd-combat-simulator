@@ -11,7 +11,9 @@ from __future__ import annotations
 
 import unittest
 
-from engine.core.combat_metrics import build_contribution_ledger
+from engine.core.combat_metrics import (
+    build_contribution_ledger, classify_diff,
+)
 from engine.core.state import Actor, Encounter, CombatState
 
 
@@ -121,6 +123,57 @@ class LedgerParseTest(unittest.TestCase):
         ]
         led, _ = _ledger_for(events)
         self.assertEqual(led["per_actor"].get("pc", {}).get("control_ehp", 0), 0)
+
+
+class DiffMetricTest(unittest.TestCase):
+    """Empirical Dunn d_iff = gross damage PCs took / party total max HP."""
+
+    def test_diff_is_damage_taken_over_party_hp(self):
+        # 2 PCs at hp_max 40 → party HP 80. Foe deals 24 to pc → d_iff 0.30.
+        events = [
+            {"event": "turn_start", "actor": "foe", "round": 1},
+            {"event": "damage_dealt", "actor": "foe", "target": "pc",
+             "amount": 24},
+        ]
+        led, _ = _ledger_for(events)
+        self.assertEqual(led["pc_total_hp"], 80)
+        self.assertEqual(led["pc_damage_taken"], 24)
+        self.assertAlmostEqual(led["d_iff"], 24 / 80)         # 0.30
+        self.assertEqual(led["difficulty_band"], "Medium")    # 0.30 → Medium
+
+    def test_diff_spreads_across_pcs(self):
+        events = [
+            {"event": "turn_start", "actor": "foe", "round": 1},
+            {"event": "damage_dealt", "actor": "foe", "target": "pc",
+             "amount": 20},
+            {"event": "damage_dealt", "actor": "foe", "target": "ally",
+             "amount": 16},
+        ]
+        led, _ = _ledger_for(events)
+        self.assertAlmostEqual(led["d_iff"], 36 / 80)         # 0.45
+        self.assertEqual(led["difficulty_band"], "Hard")      # 0.45 → Hard
+
+    def test_overkill_above_party_hp_is_tpk_band(self):
+        events = [
+            {"event": "turn_start", "actor": "foe", "round": 1},
+            {"event": "damage_dealt", "actor": "foe", "target": "pc",
+             "amount": 50},
+            {"event": "damage_dealt", "actor": "foe", "target": "ally",
+             "amount": 40},
+        ]
+        led, _ = _ledger_for(events)
+        self.assertGreaterEqual(led["d_iff"], 1.0)            # 90/80
+        self.assertEqual(led["difficulty_band"], "TPK")
+
+    def test_classify_diff_bands(self):
+        self.assertEqual(classify_diff(0.0), "Trivial")
+        self.assertEqual(classify_diff(0.14), "Trivial")
+        self.assertEqual(classify_diff(0.15), "Easy")
+        self.assertEqual(classify_diff(0.30), "Medium")
+        self.assertEqual(classify_diff(0.45), "Hard")
+        self.assertEqual(classify_diff(0.70), "Deadly")
+        self.assertEqual(classify_diff(1.0), "TPK")
+        self.assertEqual(classify_diff(2.5), "TPK")
 
 
 if __name__ == "__main__":
