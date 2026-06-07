@@ -158,5 +158,52 @@ class RunnerHookTest(unittest.TestCase):
         self.assertFalse(runner._maybe_reposition_for_aoe(dragon, st))
 
 
+class FlierReachTest(unittest.TestCase):
+    """A flier relocates its breath apex using FLY speed, not walk — so an
+    Adult Dragon (walk 40, fly 80) can flank a formation a ground-bound step
+    couldn't reach."""
+
+    def test_reachable_squares_uses_fly(self):
+        from engine.ai.positioning import reachable_squares
+        from engine.core.geometry import distance_ft
+        flier = _mk("flier", "enemy", (0, 0), actions=[_BITE], hp=200)
+        flier.speed = {"walk": 40, "fly": 80}
+        walker = _mk("walker", "enemy", (0, 0), actions=[_BITE], hp=200)
+        walker.speed = {"walk": 40}
+        st = _state([flier])
+        st2 = _state([walker])
+        fly_reach = max(distance_ft((0, 0), s)
+                        for s in reachable_squares(flier, st))
+        walk_reach = max(distance_ft((0, 0), s)
+                         for s in reachable_squares(walker, st2))
+        self.assertEqual(walk_reach, 40)
+        self.assertEqual(fly_reach, 80)
+
+    def test_fly_reaches_covering_apex_walk_cannot(self):
+        from engine.core.geometry import distance_ft
+        # Two PCs 120 ft east — beyond any 60-ft cone thrown from within walk
+        # range (40 ft), but a fly-80 move lets the dragon close to a covering
+        # apex.
+        flier = _mk("dragon", "enemy", (0, 0), actions=[_breath()], hp=256)
+        flier.speed = {"walk": 40, "fly": 80}
+        p1 = _mk("p1", "pc", (24, 0), actions=[_BOLT])
+        p2 = _mk("p2", "pc", (24, 2), actions=[_BOLT])
+        st = _state([flier, p1, p2])
+        dest = best_aoe_attack_position(flier, st)
+        self.assertIsNotNone(dest)
+        self.assertGreater(distance_ft((0, 0), dest), 40)   # only fly reaches it
+        cov = max_aoe_coverage(_breath(), flier, st, apex=dest)
+        self.assertIsNotNone(cov)
+        self.assertGreater(cov["ehp"], 0)
+
+        # A walk-only dragon in the same spot can't reach any covering apex.
+        walker = _mk("dragon", "enemy", (0, 0), actions=[_breath()], hp=256)
+        walker.speed = {"walk": 40}
+        st2 = _state([walker,
+                      _mk("p1", "pc", (24, 0), actions=[_BOLT]),
+                      _mk("p2", "pc", (24, 2), actions=[_BOLT])])
+        self.assertIsNone(best_aoe_attack_position(walker, st2))
+
+
 if __name__ == "__main__":
     unittest.main()
