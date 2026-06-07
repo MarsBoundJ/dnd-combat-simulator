@@ -1057,9 +1057,20 @@ def _resolve_modifier_owner(params: dict, state: CombatState) -> Actor:
     """
     target = params.get("target", "self")
     if target == "self":
+        # During a REACTION (Shield, etc.) the self-modifier owner is the
+        # REACTOR — state.current_attack["actor"], set by the reaction system —
+        # NOT whoever's turn it is. current_actor() would (a) attach a reactive
+        # self-buff to the turn-holder rather than the reactor, and (b) raise
+        # IndexError when the reaction fires during a legendary action (resolved
+        # between turns, current_turn_idx out of range — the brass-dragon
+        # crash). current_attack["actor"] is the actor performing the current
+        # action in both turn and reaction contexts, so prefer it for reactions.
+        ca = state.current_attack or {}
+        if ca.get("is_reaction") and ca.get("actor") is not None:
+            return ca["actor"]
         actor = state.current_actor()
-        if actor is None and state.current_attack:
-            actor = state.current_attack.get("actor")
+        if actor is None and ca:
+            actor = ca.get("actor")
         if actor is None:
             raise ValueError("No owner resolvable for modifier")
         return actor
