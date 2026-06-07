@@ -60,3 +60,6 @@ action_template:
         monster: m_bigbys_hand
         count: 1
         max_total: 1
+        # RAW: the hand's Clenched Fist uses the caster's spell attack modifier
+        # (resolved at cast time; the stat block's +9 is only a fallback).
+        attack_bonus_from: caster_spell_attack

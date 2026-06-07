@@ -24,6 +24,7 @@ from engine.ai.defensive_ehp import estimate_dpr
 from engine.ai.ehp_scoring import offensive_ehp_summon
 from engine.cli import _build_actor
 from engine.core import summoning
+from engine.core.summoning import caster_spell_attack_bonus
 from engine.core.concentration import apply_concentration, end_concentration
 from engine.core.events import EventBus
 from engine.core.state import Actor, CombatState, Encounter
@@ -123,6 +124,14 @@ class BigbysHandIntegrationTest(unittest.TestCase):
         self.assertEqual(hands[0].summon_concentration,
                          {"caster_id": "wiz", "action_id": "a_bigbys_hand"})
         self.assertIn(hands[0].id, st.turn_order)
+        # RAW: Clenched Fist uses the caster's spell attack modifier, not the
+        # static +9 stat-block fallback.
+        fist_bonus = None
+        for act in (hands[0].template.get("actions") or []):
+            for step in (act.get("pipeline") or []):
+                if step.get("primitive") == "attack_roll":
+                    fist_bonus = (step.get("params") or {}).get("bonus")
+        self.assertEqual(fist_bonus, caster_spell_attack_bonus(wiz))
 
         # Concentration ends → hand vanishes.
         end_concentration(wiz, st, reason="dropped")

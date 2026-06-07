@@ -29,7 +29,81 @@ v1 scope / deferrals:
 """
 from __future__ import annotations
 
+import copy
+
 from engine.core.state import Actor, CombatState
+
+
+# ============================================================================
+# Caster-aware summon parameters (Animate Objects / Bigby's Hand)
+# ============================================================================
+#
+# Some summon spells scale with the CASTER, not a fixed stat block:
+#   - Animate Objects: the number of objects = your spellcasting ability
+#     modifier; each object's Slam attack uses your SPELL ATTACK modifier.
+#   - Bigby's Hand: the hand's attacks use your spell attack modifier.
+# A static `count` / static stat-block attack bonus can't express that, so the
+# `_summon` primitive (and the AI summon scorer) resolve these from the
+# summoner at cast/score time via the helpers below.
+
+
+def caster_spellcasting_modifier(summoner: Actor) -> int:
+    """The summoner's spellcasting ability modifier (Animate Objects count
+    basis). Reads template.spellcasting_ability (CHA fallback), mirroring
+    primitives._caster_spell_save_dc."""
+    template = summoner.template or {}
+    ability = template.get("spellcasting_ability") or "charisma"
+    abbr = str(ability)[:3]
+    score = (summoner.abilities.get(abbr) or {}).get("score", 10)
+    return (score - 10) // 2
+
+
+def caster_spell_attack_bonus(summoner: Actor) -> int:
+    """The summoner's spell attack modifier = proficiency bonus +
+    spellcasting ability modifier (the Slam / Clenched Fist to-hit per RAW)."""
+    pb = int(((summoner.template or {}).get("cr") or {}).get(
+        "proficiency_bonus", 2))
+    return pb + caster_spellcasting_modifier(summoner)
+
+
+def resolve_summon_count(params: dict, summoner: Actor) -> int:
+    """Resolve a summon's creature count. `count_from: spellcasting_modifier`
+    → the caster's spellcasting ability modifier (min 1); otherwise the static
+    `count` (default 1)."""
+    if params.get("count_from") == "spellcasting_modifier":
+        return max(1, caster_spellcasting_modifier(summoner))
+    return int(params.get("count", 1))
+
+
+def resolve_summon_max_total(params: dict, summoner: Actor):
+    """Resolve a summon's max_total cap. `spellcasting_modifier` → the caster's
+    modifier (min 1); otherwise the literal value (int or None)."""
+    mt = params.get("max_total")
+    if mt == "spellcasting_modifier":
+        return max(1, caster_spellcasting_modifier(summoner))
+    return mt
+
+
+def apply_caster_attack_bonus(new_actors: list, summoner: Actor) -> None:
+    """Set each summoned creature's attack-roll bonus to the summoner's spell
+    attack modifier (Animate Objects / Bigby's Hand RAW). The registry stat
+    block carries only a static fallback bonus; this overrides it with the
+    actual caster value.
+
+    The summoned actors share ONE registry template reference (cli._build_actor
+    returns the shared dict), so we deep-copy it ONCE for this batch and point
+    every batch member at the copy — never mutating the registry template that
+    future summons / encounters reuse."""
+    if not new_actors:
+        return
+    bonus = caster_spell_attack_bonus(summoner)
+    tmpl = copy.deepcopy(new_actors[0].template)
+    for act in (tmpl.get("actions") or []):
+        for step in (act.get("pipeline") or []):
+            if step.get("primitive") == "attack_roll":
+                step.setdefault("params", {})["bonus"] = bonus
+    for a in new_actors:
+        a.template = tmpl
 
 
 def count_summons(summoner: Actor, state: CombatState) -> int:
