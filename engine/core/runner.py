@@ -526,10 +526,16 @@ class EncounterRunner:
         if target is None:
             return
 
-        speed_ft = int((actor.speed or {}).get("walk", 30))
-        # PR #74: Dash doubles walk speed for this turn's move (RAW:
-        # Dash grants extra movement equal to your Speed). Read off
-        # `actor.dashed_this_turn`, set by the dash primitive.
+        # Best open-field speed (max of walk/fly) so a flier CLOSES at its fly
+        # speed, not just repositions at it — an Adult Dragon engages at 80 ft,
+        # not 40. Shared with reachable_squares via best_move_speed_ft. Not
+        # dial-gated: closing distance is basic movement, available at every
+        # optimization level (only the AoE *chase* is dial-gated).
+        from engine.core.geometry import best_move_speed_ft
+        speed_ft = best_move_speed_ft(actor)
+        # PR #74: Dash doubles speed for this turn's move (RAW: Dash grants
+        # extra movement equal to your Speed). Read off `actor.dashed_this_turn`,
+        # set by the dash primitive.
         if getattr(actor, "dashed_this_turn", False):
             speed_ft *= 2
         if speed_ft <= 0:

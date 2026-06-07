@@ -12,9 +12,9 @@ import unittest
 from pathlib import Path
 
 from engine.cli import _build_actor
-from engine.core.geometry import distance_ft
+from engine.core.geometry import distance_ft, best_move_speed_ft
 from engine.core.runner import EncounterRunner
-from engine.core.state import Encounter, CombatState
+from engine.core.state import Actor, Encounter, CombatState
 from engine.loader import load_content
 from sims.run_boss_sim import _spread_specs, _dragon_spec
 
@@ -56,6 +56,51 @@ class MeleeEngageTest(unittest.TestCase):
         self.assertLess(distance_ft(fighter, dragon), before,
                         "melee Fighter froze on a Ready instead of closing")
         self.assertTrue(fighter.moved_this_turn)
+
+
+class FlyAwareEngageTest(unittest.TestCase):
+    """A flier CLOSES at its fly speed, not its (often token) walk speed."""
+
+    @staticmethod
+    def _ab():
+        return {k: {"score": 12, "save": 1}
+                for k in ("str", "dex", "con", "int", "wis", "cha")}
+
+    def _mk(self, actor_id, side, pos, speed, actions=None):
+        return Actor(id=actor_id, name=actor_id,
+                     template={"id": f"t_{actor_id}", "abilities": self._ab(),
+                               "actions": actions or [],
+                               "cr": {"proficiency_bonus": 3}},
+                     side=side, hp_current=60, hp_max=60, ac=14,
+                     speed=speed, position=pos, abilities=self._ab())
+
+    def test_best_move_speed_prefers_fly(self):
+        flier = self._mk("f", "enemy", (0, 0), {"walk": 5, "fly": 60})
+        walker = self._mk("w", "enemy", (0, 0), {"walk": 30})
+        self.assertEqual(best_move_speed_ft(flier), 60)   # fly beats walk
+        self.assertEqual(best_move_speed_ft(walker), 30)  # walk-only unchanged
+        # swim/climb don't count toward the open-field budget
+        swimmer = self._mk("s", "enemy", (0, 0), {"walk": 20, "swim": 80})
+        self.assertEqual(best_move_speed_ft(swimmer), 20)
+
+    def test_flier_closes_at_fly_speed(self):
+        # Hover-primary mover (walk 5, fly 60) 100 ft from a target should
+        # advance ~60 ft in one move — not the 5 ft its walk would allow.
+        mover = self._mk("wraith", "enemy", (0, 0), {"walk": 5, "fly": 60},
+                         actions=[{"id": "a_claw", "type": "weapon_attack",
+                                   "reach_ft": 5}])
+        target = self._mk("pc", "pc", (20, 0), {"walk": 30},
+                          actions=[{"id": "a_bolt", "type": "weapon_attack",
+                                    "range_ft": 120}])
+        enc = Encounter(id="t", actors=[mover, target])
+        runner = EncounterRunner.new(enc, seed=1, content_registry=_registry())
+        st = CombatState(encounter=enc)
+        st.turn_order = [a.id for a in (mover, target)]
+        st.content_registry = _registry()
+        before = mover.position
+        runner._move_to_engage(mover, st)
+        self.assertEqual(distance_ft(before, mover.position), 60)
+        self.assertTrue(mover.moved_this_turn)
 
 
 if __name__ == "__main__":

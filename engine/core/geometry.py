@@ -31,6 +31,18 @@ from engine.core.state import Actor
 SQUARE_SIZE_FT = 5
 
 
+def best_move_speed_ft(actor: Actor) -> int:
+    """The actor's best open-field movement speed (ft) for the turn: the max of
+    walk and fly. Swim/climb/burrow are terrain-gated and excluded — a standard
+    combat field assumes open ground/air. Defaults to walk 30 if no speeds are
+    set. This is the single source of truth for "how far can this creature
+    move", shared by `reachable_squares` (repositioning) and the runner's
+    `_move_to_engage` (closing distance) so a flier flies at its fly speed in
+    both."""
+    speeds = getattr(actor, "speed", None) or {}
+    return max(int(speeds.get("walk", 30)), int(speeds.get("fly", 0)))
+
+
 # ============================================================================
 # Distance
 # ============================================================================
