@@ -28,6 +28,14 @@ from engine.primitives import PrimitiveRegistry, remove_condition
 # Safety cap — don't loop forever if termination logic has a bug
 MAX_ROUNDS = 50
 
+# Minimum optimization dial at which an enemy will MOVE to improve its area
+# attack's coverage (the "breath chase", `_maybe_reposition_for_aoe`). Below
+# this, the monster still AIMS its cone optimally from where it stands (that's
+# coverage-aware candidate generation, always on) but won't relocate the apex —
+# modelling the WoTC-baseline design intent of deliberately under-optimized AoE
+# (~2 PCs per breath, anti-party-wipe). 3 = "above the dial-1/2 floor".
+AOE_CHASE_MIN_DIAL = 3
+
 
 # Built-in Dodge action used as the PC fallback when RP hard filters
 # empty the candidate set. Per pillars-reconciliation.md §6.4:
@@ -429,6 +437,50 @@ class EncounterRunner:
             "from": list(from_pos), "to": list(spread),
             "ft": distance_ft(from_pos, spread),
             "reason": "aoe_spacing",
+        })
+        from engine.core import reactions
+        reactions.resolve_opportunity_attacks(
+            actor, from_pos, state, self.event_bus, self.primitives, self.rng)
+        if actor.is_alive():
+            from engine.core import ready_action as _ra
+            _ra.on_movement_completed(
+                actor, from_pos, state, self.event_bus, self.primitives)
+        return True
+
+    def _maybe_reposition_for_aoe(self, actor: Actor,
+                                  state: CombatState) -> bool:
+        """Monster-side AoE chase — the offensive counterpart to the PC
+        de-cluster. An enemy with a breath/area attack available this turn
+        relocates its apex to a reachable square that catches more PCs (the PCs
+        having just spread out via `_maybe_aoe_decluster`). Returns True if it
+        moved.
+
+        Triple-gated: (1) PC-side-out (this is the monster mirror, so PCs are
+        excluded — they run `_maybe_aoe_decluster` instead); (2) by the
+        optimization dial — only an ABOVE-baseline enemy chases, so the dial-1
+        'WoTC floor' boss stays deliberately naive (under-optimized AoE is the
+        intended baseline behavior, and this keeps every enemy-dial-1 sim
+        unchanged); (3) by `best_aoe_attack_position`, which needs an AoE
+        available this turn, ≥2 living enemies, and a strictly-better square.
+        Mirrors `_maybe_aoe_decluster`'s move/OA/ready-action plumbing."""
+        if actor.moved_this_turn or actor.side == "pc":
+            return False
+        from engine.core.optimization_dial import dial_for
+        if dial_for(actor, state) < AOE_CHASE_MIN_DIAL:
+            return False
+        from engine.ai.positioning import best_aoe_attack_position
+        from engine.core.geometry import distance_ft
+        dest = best_aoe_attack_position(actor, state)
+        if dest is None:
+            return False
+        from_pos = actor.position
+        actor.position = dest
+        actor.moved_this_turn = True
+        state.event_log.append({
+            "event": "moved", "actor": actor.id,
+            "from": list(from_pos), "to": list(dest),
+            "ft": distance_ft(from_pos, dest),
+            "reason": "aoe_reposition",
         })
         from engine.core import reactions
         reactions.resolve_opportunity_attacks(
@@ -895,6 +947,15 @@ class EncounterRunner:
         # then suppresses any later move this turn.
         if actor.is_alive() and not state.terminated:
             self._maybe_aoe_decluster(actor, state)
+
+        # ---- Monster AoE chase (turn start) ----
+        # Offensive counterpart to the PC de-cluster: an above-baseline enemy
+        # relocates its breath apex to catch more PCs before breathing. Dial-
+        # gated (the WoTC-floor boss stays naive) and PC-side-out, so this and
+        # the de-cluster above are mutually exclusive per actor. moved_this_turn
+        # then suppresses any later move-to-engage this turn.
+        if actor.is_alive() and not state.terminated:
+            self._maybe_reposition_for_aoe(actor, state)
 
         # ---- Main slot ----
         self._run_slot(actor, state, slot="action")
