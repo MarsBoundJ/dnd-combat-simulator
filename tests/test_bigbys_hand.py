@@ -52,6 +52,14 @@ def _wizard_actions(level):
             .get("actions", [])}
 
 
+def _sorcerer_actions(level):
+    spec = {"class": "c_sorcerer", "level": level,
+            "ability_scores": {"str": 8, "dex": 12, "con": 14,
+                                "int": 10, "wis": 12, "cha": 18}}
+    return {a.get("id"): a for a in build_pc_template(spec, _registry())
+            .get("actions", [])}
+
+
 def _build_hand():
     return _build_actor(
         {"template_ref": {"entity_type": "monster", "id": "m_bigbys_hand"},
@@ -60,8 +68,10 @@ def _build_hand():
 
 class BigbysHandContentTest(unittest.TestCase):
 
-    def test_on_wizard_list_at_l13(self):
+    def test_on_sorcerer_and_wizard_at_l13(self):
+        # SRD Arcane Hand: Sorcerer + Wizard (NOT Bard).
         self.assertIn("a_bigbys_hand", _wizard_actions(13))
+        self.assertIn("a_bigbys_hand", _sorcerer_actions(13))
 
     def test_gated_to_char_level_9(self):
         self.assertNotIn("a_bigbys_hand", _wizard_actions(8))

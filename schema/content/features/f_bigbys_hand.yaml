@@ -1,10 +1,13 @@
-# f_bigbys_hand — Bigby's Hand (Level 5 Conjuration, SRD CC v5.2.1)
+# f_bigbys_hand — Bigby's Hand / Arcane Hand (Level 5 Evocation, SRD CC v5.2.1)
 #
-# RAW summary: you conjure a Large hand of shimmering force within 120 ft.
-# It lasts for the duration (Concentration, up to 1 minute) and has AC 20 +
-# HP equal to your hit point maximum. On the turn you cast it and as a Bonus
-# Action thereafter you direct it; the Clenched Fist form makes a melee spell
-# attack for 5d8 Force damage. (Wizard.)
+# Note: "Bigby's Hand" is the PHB-2024 name; "Arcane Hand" is the identical
+# SRD 5.2.1 spell. Same mechanics — we keep the PHB name on the surface.
+#
+# RAW summary: you create a Large hand of shimmering magical energy within
+# 120 ft. It lasts for the duration (Concentration, up to 1 minute) and has
+# AC 20 + HP equal to your hit point maximum. On the turn you cast it and as a
+# Bonus Action thereafter you move it up to 60 ft and direct it; the Clenched
+# Fist form makes a melee spell attack for 5d8 Force damage. (Sorcerer, Wizard.)
 #
 # Why it matters (Lever B Stage 2c): this is the first PC concentration SUMMON
 # — the canonical action-economy doubling. The hand deals recurring Force
@@ -15,13 +18,14 @@
 #
 # Engine modeling: a `summon` action_template (concentration) whose pipeline
 # summons one m_bigbys_hand (the Clenched-Fist creature, max_total 1). On the
-# Wizard 5th-level list (granted at character level 9, when 5th-level slots
-# arrive).
+# Sorcerer AND Wizard 5th-level lists (granted at character level 9, when
+# 5th-level slots arrive).
 #
 # Deferred RAW bits:
-#   - The control forms (Forceful Hand push, Grasping Hand grapple +4d6,
-#     Interposing Hand cover) — the Clenched Fist damage form is the
-#     load-bearing effect. Documented for a multi-form follow-up.
+#   - The control forms (Forceful Hand push; Grasping Hand grapple + crush for
+#     4d6 + your spellcasting modifier bludgeoning; Interposing Hand half cover
+#     + difficult terrain) — the Clenched Fist damage form is the load-bearing
+#     effect. Documented for a multi-form follow-up.
 #   - Bonus-Action-to-direct economy: the summon framework gives the hand its
 #     own turn rather than a caster bonus action; nets to the same recurring
 #     damage stream (see m_bigbys_hand header).
@@ -42,9 +46,9 @@ spell:
   level: 5
 
 description: |
-  Conjure a Large hand of force (AC 20) within 120 ft for the duration
-  (Concentration). Its Clenched Fist makes a melee spell attack for 5d8
-  force damage each round. (Control forms + upcast deferred.)
+  Create a Large hand of magical energy (AC 20) within 120 ft for the
+  duration (Concentration). Its Clenched Fist makes a melee spell attack for
+  5d8 force damage each round. (Control forms + upcast deferred.)
 
 action_template:
   id: a_bigbys_hand
