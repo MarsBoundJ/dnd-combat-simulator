@@ -44,6 +44,7 @@ action_template:
   type: aoe_attack
   spell_slot_level: 1
   named_effect: thunderwave
+  school: evocation
   range_ft: 5
   area:
     shape: sphere

@@ -38,6 +38,7 @@ action_template:
   type: aoe_attack
   spell_slot_level: 4
   named_effect: ice_storm
+  school: evocation
   range_ft: 300
   area:
     shape: sphere

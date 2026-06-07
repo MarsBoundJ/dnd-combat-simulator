@@ -1122,6 +1122,30 @@ def _build_modifier_entry(primitive_name: str, params: dict, owner: Actor,
 # IMPLEMENTED — Spell mechanics (forced_save, recurring_save)
 # ============================================================================
 
+def _sculpt_protected_count(state: CombatState) -> int:
+    """Sculpt Spells (Evoker, f_sculpt_spells): when the caster casts an
+    EVOCATION spell that affects multiple creatures, it auto-protects up to
+    (1 + spell level) chosen creatures — they auto-succeed AND take ZERO damage
+    (even on a half-damage save). Mechanically identical to Careful Spell, so
+    the save loop reuses the same auto-protect path.
+
+    Returns 0 when there's no caster, the action isn't tagged
+    `school: evocation`, or the caster lacks Sculpt Spells. The protected
+    count is spent on the caster's ALLIES in target order (the optimal use:
+    shield your own party from your fireball)."""
+    ca = state.current_attack or {}
+    caster = ca.get("actor")
+    action = ca.get("action") or {}
+    if caster is None or action.get("school") != "evocation":
+        return 0
+    features = (caster.template or {}).get("features_known") or []
+    if "f_sculpt_spells" not in features:
+        return 0
+    level = int(ca.get("chosen_slot_level")
+                or action.get("spell_slot_level", 0) or 0)
+    return 1 + level
+
+
 def _forced_save(params: dict, state: CombatState, bus: EventBus) -> dict:
     """Force the current target (or specified affected set) to make a save.
 
@@ -1154,6 +1178,10 @@ def _forced_save(params: dict, state: CombatState, bus: EventBus) -> dict:
     #     disadvantage (Heightened Spell — RAW "one target").
     careful_allies = int(params.get("careful_allies", 0) or 0)
     careful_used = 0
+    # Sculpt Spells (Evoker) — auto-protect (1 + spell level) caster-allies
+    # from this evocation AoE, identical effect to Careful Spell.
+    sculpt_protected = _sculpt_protected_count(state)
+    sculpt_used = 0
     heightened = bool(params.get("heightened"))
     heightened_applied = False
     mm_caster = (state.current_attack or {}).get("actor")
@@ -1176,6 +1204,24 @@ def _forced_save(params: dict, state: CombatState, bus: EventBus) -> dict:
                 "event": "forced_save", "target": target.id,
                 "ability": ability, "dc": dc, "d20": None, "total": None,
                 "outcome": "success", "metamagic_careful": True})
+            continue
+        # Sculpt Spells (Evoker): a chosen caster-ally auto-succeeds and takes
+        # NO damage from this evocation AoE (same shape as Careful Spell). This
+        # is what lets the evoker drop a fireball through its own swarmed
+        # martials to clear the enemies cleanly.
+        if (sculpt_protected and mm_caster is not None
+                and target.side == mm_caster.side
+                and sculpt_used < sculpt_protected):
+            sculpt_used += 1
+            rolls.append({"target_id": target.id, "outcome": "success",
+                           "d20": None, "total": None, "dc": dc,
+                           "ability": ability, "sculpt": True})
+            state.current_save = {"target": target, "outcome": "success",
+                                   "ability": ability, "dc": dc}
+            state.event_log.append({
+                "event": "forced_save", "target": target.id,
+                "ability": ability, "dc": dc, "d20": None, "total": None,
+                "outcome": "success", "sculpt_spells": True})
             continue
         # Query save modifiers
         save_mods = _modifiers.query_save_modifiers(target, ability, state)

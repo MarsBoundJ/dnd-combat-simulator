@@ -35,6 +35,7 @@ action_template:
   type: aoe_attack
   spell_slot_level: 1
   named_effect: burning_hands
+  school: evocation
   range_ft: 15
   area:
     shape: cone

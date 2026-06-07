@@ -1336,6 +1336,16 @@ def offensive_ehp_aoe(actor: Actor, origin: tuple[int, int], action: dict,
     fail_control_components = _aoe_control_components(action, on="fail")
     succ_control_components = _aoe_control_components(action, on="success")
 
+    # Sculpt Spells (Evoker): an evocation AoE auto-protects up to (1 + spell
+    # level) of the caster's allies in the blast — they take ZERO damage, so
+    # they cost NO friendly fire. This is what lets the AI value dropping a
+    # fireball through its own swarmed martials. Mirrors primitives.
+    # _sculpt_protected_count (execution side); scored at the base slot level.
+    sculpt_budget = 0
+    if action.get("school") == "evocation" and "f_sculpt_spells" in (
+            (actor.template or {}).get("features_known") or []):
+        sculpt_budget = 1 + int(action.get("spell_slot_level", 0) or 0)
+
     total = 0.0
     for target in affected:
         # Damage contribution
@@ -1372,11 +1382,14 @@ def offensive_ehp_aoe(actor: Actor, origin: tuple[int, int], action: dict,
                 kbonus = kill_value(target, p_kill)
 
         target_total = capped_dmg + expected_ctrl + kbonus
-        # Allies subtract (friendly fire applies to control + kill-value too —
-        # killing your own ally is catastrophic, which is exactly the cost an
-        # evoker's Sculpt Spells later removes).
+        # Allies subtract (friendly fire applies to control + kill-value too).
+        # Sculpt Spells: the first `sculpt_budget` allies in the blast are
+        # protected (0 damage) → no friendly-fire cost.
         if target.side == actor.side:
-            total -= target_total
+            if sculpt_budget > 0:
+                sculpt_budget -= 1   # sculpted ally: zero cost
+            else:
+                total -= target_total
         else:
             total += target_total
     return total
