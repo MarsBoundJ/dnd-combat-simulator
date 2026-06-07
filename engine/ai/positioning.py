@@ -447,3 +447,56 @@ def best_position(actor: Actor, state: CombatState) -> tuple[int, int] | None:
             best_util, best_sq = util, cand
     return best_sq if best_sq != cur else None
 
+
+def _available_aoe_actions(actor: Actor, state: CombatState) -> list[dict]:
+    """The actor's area actions usable THIS turn — i.e. an `area` block AND
+    recharge-available (a spent breath weapon is excluded). The recharge roll
+    happens at turn start before this runs, so availability is accurate."""
+    from engine.core import recharge
+    return [a for a in (actor.template.get("actions") or [])
+            if a.get("area") and recharge.is_available(actor, a)]
+
+
+def best_aoe_attack_position(actor: Actor,
+                              state: CombatState) -> tuple[int, int] | None:
+    """The reachable square that maximizes this actor's delivered OFFENSE by
+    relocating its area-attack apex to catch more enemies — the monster-side
+    counterpart to `best_position`'s PC de-cluster.
+
+    Gated to: the actor has an area action AVAILABLE this turn (recharge), and
+    there are ≥2 living enemies (an AoE on a lone enemy is just single-target
+    value — there's no apex worth optimizing, and single-target damage is
+    position-invariant). Scored by `position_utility` (offense − exposure −
+    conc-risk): since the single-target damage terms are position-invariant,
+    the ONLY thing that differentiates squares is the AoE coverage gained vs
+    the area-exposure taken — so this relocates to widen the cone WITHOUT
+    walking into the party's own AoE, and won't move when a square merely
+    trades coverage for exposure. Returns the chosen square, or None if staying
+    put is already best / the gate fails (caller keeps normal move logic).
+
+    v1 scope: candidate squares use WALK speed (a flier's larger reach is a
+    follow-up); OA cost of the move isn't netted into the utility (a tanky boss
+    eats OAs — also a follow-up); and `position_utility`'s offense term values
+    every area action regardless of recharge, so a monster with TWO area
+    actions (one spent) could still be valued on the spent one — fine for the
+    single-breath bosses this targets, noted for multi-AoE casters."""
+    if not _available_aoe_actions(actor, state):
+        return None
+    enemies = [a for a in state.encounter.actors
+               if a.is_alive() and a.side != actor.side]
+    if len(enemies) < 2:
+        return None
+    cur = tuple(actor.position)
+    best_sq = cur
+    best_util = position_utility(actor, cur, state)
+    from engine.core.geometry import distance_ft
+    for cand in reachable_squares(actor, state):
+        if cand == cur:
+            continue
+        util = position_utility(actor, cand, state)
+        if (util > best_util + 1e-9
+                or (abs(util - best_util) <= 1e-9
+                    and distance_ft(cand, cur) < distance_ft(best_sq, cur))):
+            best_util, best_sq = util, cand
+    return best_sq if best_sq != cur else None
+
