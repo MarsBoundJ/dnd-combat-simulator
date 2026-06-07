@@ -105,11 +105,19 @@ def _hi_slots(pc):
     return sum(int(v) for lvl, v in (pc.spell_slots or {}).items() if int(lvl) >= 4)
 
 
-def run_day(registry, seed, pc_dial=1, enemy_dial=1):
+def run_day(registry, seed, pc_dial=1, enemy_dial=1,
+            day=None, short_rest_after=None):
     """Run the full calibrated day once and return a summary dict:
       {rows, survived, cleared, reached_dragon, seed, pc_dial, enemy_dial}.
     `pc_dial` / `enemy_dial` (1-5) set each side's optimization dial
-    (engine.core.optimization_dial); default 1 = casual (no focus-fire)."""
+    (engine.core.optimization_dial); default 1 = casual (no focus-fire).
+
+    `day` / `short_rest_after` override the module-level DAY / SHORT_REST_AFTER
+    so alternate sequences (e.g. a slot-binding stress day) can reuse this
+    harness. `reached_dragon` = reached the FINAL encounter of `day`."""
+    day = DAY if day is None else day
+    short_rest_after = (SHORT_REST_AFTER if short_rest_after is None
+                        else short_rest_after)
     party = _build_party(registry)
     casters = [p for p in party if _slot_total(p) > 0 or p.spell_slots]
     primitives_module.set_rng(__import__("random").Random(seed))
@@ -119,10 +127,10 @@ def run_day(registry, seed, pc_dial=1, enemy_dial=1):
     party_alive = True
     cleared = 0
     reached_dragon = False
-    for i, (name, monster_counts) in enumerate(DAY):
-        if i == len(DAY) - 1:
+    for i, (name, monster_counts) in enumerate(day):
+        if i == len(day) - 1:
             reached_dragon = True   # got to the climax (win or lose)
-        remaining = len(DAY) - i - 1   # fights still to come AFTER this one
+        remaining = len(day) - i - 1   # fights still to come AFTER this one
         slots_before = {p.id: _slot_total(p) for p in party}
         monsters = _build_monsters(registry, monster_counts)
         budget = encounter_report(monsters, PARTY_LEVEL, PARTY_SIZE)
@@ -159,7 +167,7 @@ def run_day(registry, seed, pc_dial=1, enemy_dial=1):
         # takes a real short rest (resource recharge: Second Wind / Action
         # Surge / Arcane Recovery / Pact Magic) — apply_short_rest already
         # folds in the same downed-recovery + Hit-Dice heal.
-        if i in SHORT_REST_AFTER:
+        if i in short_rest_after:
             for p in party:
                 if not p.is_dead:
                     apply_short_rest(p, state)
