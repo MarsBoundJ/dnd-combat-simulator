@@ -1782,10 +1782,32 @@ def offensive_ehp_summon(actor: Actor, action: dict,
     if per_creature_dpr <= 0:
         return 0.0
 
-    raw = per_creature_dpr * count * EXPECTED_SUMMON_ROUNDS
+    living_enemies = [a for a in state.encounter.actors
+                      if a.side != actor.side and a.is_alive()]
+    if not living_enemies:
+        return 0.0   # nothing to summon against
+
+    # Reach-delay (the boss-fight fix): summons spawn at the CASTER and must
+    # CLOSE to an enemy before they contribute. A melee swarm far from a
+    # mobile/distant boss spends most or all of the spell's duration just
+    # traveling, so its realized output collapses — exactly why Animate
+    # Objects is a waste on a lone distant dragon but full value on an adjacent
+    # cluster. effective_rounds = duration - travel time to the nearest enemy;
+    # value scales with the rounds the summons can actually attack, not 2.5.
+    from engine.core.geometry import distance_ft
+    from engine.core.basic_actions import _max_attack_reach
+    nearest = min(distance_ft(actor, e) for e in living_enemies)
+    reach = _max_attack_reach(probe)
+    speeds = [int(v) for v in (probe.speed or {}).values()]
+    speed = max(speeds) if speeds else 30
+    travel_rounds = max(0.0, (nearest - reach) / max(speed, 1))
+    effective_rounds = max(0.0, EXPECTED_SUMMON_ROUNDS - travel_rounds)
+    if effective_rounds <= 0:
+        return 0.0   # can't reach an enemy within the spell's life → no value
+
+    raw = per_creature_dpr * count * effective_rounds
     # Overkill cap: can't deliver more eHP than the enemies have left.
-    enemy_hp = sum(max(0, a.hp_current) for a in state.encounter.actors
-                    if a.side != actor.side and a.is_alive())
+    enemy_hp = sum(max(0, e.hp_current) for e in living_enemies)
     if enemy_hp > 0:
         raw = min(raw, float(enemy_hp))
     return raw
