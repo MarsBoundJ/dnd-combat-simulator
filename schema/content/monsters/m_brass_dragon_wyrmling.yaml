@@ -14,7 +14,7 @@ alignment: chaotic_good
 combat:
   armor_class: 15
   hit_points: { average: 22, dice: "4d8", con_contribution: 4 }
-  speed: { walk: 30 }
+  speed: { walk: 30, burrow: 15, fly: 60 }
   initiative: { modifier: 2, score: 12 }
 abilities:
   str: { score: 15, save: 2 }

@@ -14,7 +14,7 @@ alignment: lawful_evil
 combat:
   armor_class: 14
   hit_points: { average: 68, dice: "8d10", con_contribution: 24 }
-  speed: { walk: 30 }
+  speed: { walk: 30, fly: 50 }
   initiative: { modifier: 3, score: 13 }
 
 abilities:

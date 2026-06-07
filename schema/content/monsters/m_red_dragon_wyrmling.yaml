@@ -12,7 +12,7 @@ alignment: chaotic_evil
 combat:
   armor_class: 17
   hit_points: { average: 75, dice: "10d8", con_contribution: 30 }
-  speed: { walk: 30 }
+  speed: { walk: 30, climb: 30, fly: 60 }
   initiative: { modifier: 2, score: 12 }
 abilities:
   str: { score: 19, save: 4 }
