@@ -54,6 +54,16 @@ EXPECTED_CONTROL_ROUNDS = 2.5
 DESPERATION_FULL_HP_VALUE = 1.0
 DESPERATION_CRITICAL_HP_VALUE = 1.5
 
+# Danger floor: healing eHP is scaled by how much DANGER the target is in this
+# round (see danger_factor). A target NO enemy can threaten this round still
+# retains this fraction of the nominal heal value — anticipatory topping-off is
+# worth something, but a heal on a safe ally should lose to real offense /
+# control. A target whose incoming damage could drop it this round scales to
+# full (1.0). This is the fix for the Cleric heal-spam on un-threatened allies
+# (the day-attrition drain): HP banked on someone who won't be hit isn't
+# realized eHP.
+HEAL_DANGER_FLOOR = 0.25
+
 
 # ============================================================================
 # Healing eHP
@@ -69,6 +79,56 @@ def desperation_multiplier(target_hp_fraction: float) -> float:
     Per ehp-action-framework.md §"Direct Healing".
     """
     return 1.0 + max(0.0, 0.5 - target_hp_fraction)
+
+
+def incoming_danger_to(target: Actor, state: CombatState) -> float:
+    """Sum of estimated DPR from enemies who can THREATEN `target` this round.
+
+    An enemy threatens the target if the target sits within the enemy's
+    threat radius (walk speed + longest attack reach/range — `_max_attack_reach`
+    already folds in ranged `range_ft`, so archers/casters threaten at distance).
+    Enemies that can't reach this round contribute 0 (they're 2+ rounds away).
+
+    Pure observable-proxy DPR (estimate_dpr), same discipline as the rest of the
+    module. Used by `danger_factor` to scale heal value by real threat."""
+    if state.encounter is None:
+        return 0.0
+    from engine.core.geometry import distance_ft
+    from engine.core.basic_actions import _max_attack_reach
+    total = 0.0
+    for enemy in state.encounter.actors:
+        if enemy.side == target.side or not enemy.is_alive():
+            continue
+        reach = _max_attack_reach(enemy)
+        if reach <= 0:
+            continue
+        speed = int((enemy.speed or {}).get("walk", 30) or 30)
+        if distance_ft(enemy, target) <= speed + reach:
+            total += estimate_dpr(enemy)
+    return total
+
+
+def danger_factor(target: Actor, state: CombatState) -> float:
+    """Scale healing value by how much DANGER `target` is in this round.
+
+    Returns a factor in [HEAL_DANGER_FLOOR, 1.0]:
+      - 1.0 when the incoming DPR this round is ≥ the target's current HP
+        (it could be dropped this round — heal is fully realized).
+      - HEAL_DANGER_FLOOR when no enemy can threaten the target this round
+        (heal is banked, not realized — anticipatory value only).
+      - Linear in the incoming-DPR / current-HP ratio between.
+
+    A DYING ally is always at maximum danger (1.0): it's on a 3-strike clock to
+    PERMANENT death regardless of enemy positions, so reviving is never
+    discounted by board state."""
+    if getattr(target, "is_dying", False) and not target.is_dead:
+        return 1.0
+    incoming = incoming_danger_to(target, state)
+    if incoming <= 0:
+        return HEAL_DANGER_FLOOR
+    current_hp = max(1.0, float(target.hp_current))
+    ratio = min(1.0, incoming / current_hp)
+    return HEAL_DANGER_FLOOR + (1.0 - HEAL_DANGER_FLOOR) * ratio
 
 
 def expected_healing(action: dict, caster: Actor) -> float:
@@ -136,6 +196,13 @@ def defensive_ehp_healing(actor: Actor, target_ally: Actor, action: dict,
     # off a healthy ally. Bounded (one round) so it can't dominate unboundedly.
     revival_bonus = estimate_dpr(target_ally) if _dying else 0.0
 
+    # Danger scaling: HP restored on an ally NO enemy can threaten this round
+    # isn't realized eHP (the Cleric heal-spam bug). Scale the healing
+    # component by how much danger the target is actually in. A dying ally is
+    # max danger (1.0) so revival is never discounted; the revival_bonus is
+    # added AFTER scaling for the same reason.
+    danger = danger_factor(target_ally, state)
+
     # PR #83: Lay on Hands special path. The heal amount isn't
     # baked into the action (it's `min(missing, pool)` at runtime),
     # so `expected_healing` returns 0. Compute the actual amount
@@ -148,10 +215,11 @@ def defensive_ehp_healing(actor: Actor, target_ally: Actor, action: dict,
             if pool <= 0:
                 return 0.0
             amount = min(missing, float(pool))
-            return amount * desperation_multiplier(hp_frac) + revival_bonus
+            return (amount * desperation_multiplier(hp_frac) * danger
+                    + revival_bonus)
 
     raw = expected_healing(action, actor) * desperation_multiplier(hp_frac)
-    return min(raw, missing) + revival_bonus
+    return min(raw, missing) * danger + revival_bonus
 
 
 # ============================================================================

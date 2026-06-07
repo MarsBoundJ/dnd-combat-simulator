@@ -556,7 +556,12 @@ class HealPriorityForcesHealTest(unittest.TestCase):
                                         rp_constraints=[{"id": "heal_priority",
                                                           "severity": 3.0}])
         ally = _make_actor("ally", side="pc", hp=30, hp_current=10)  # 33%
-        enemy = _make_actor("e", side="enemy", ac=15, hp=40)
+        # The enemy is a real threat in reach of the wounded ally (default
+        # positions coincide), so the heal isn't danger-discounted — this test
+        # isolates the heal_priority MECHANISM, not the danger scaling.
+        enemy = _make_actor("e", side="enemy", ac=15, hp=40,
+                              actions=[_weapon_attack("a_claw", bonus=8,
+                                                       dice="4d8", modifier=6)])
 
         # Baseline: which action would the cleric prefer without heal_priority?
         baseline_state = _state_with([cleric_no_rp, ally, enemy])

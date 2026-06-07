@@ -93,6 +93,36 @@ def _make_ally(actor_id="ally", *, position=(1, 0), hp=20, hp_max=40):
     )
 
 
+def _make_threat(actor_id="ogre", *, position=(2, 0)):
+    """A heavy-hitting melee enemy in reach of the ally at (1, 0), so heal
+    scoring sees enough incoming danger that danger_factor → 1.0 (the heal is
+    fully realized — these tests isolate the pool/cap/desperation math, not the
+    danger scaling). Its estimated DPR (~46) exceeds the allies' HP here.
+    Without a threat present, healing is discounted to the danger floor."""
+    abilities = {k: {"score": 18, "save": 4}
+                 for k in ("str", "dex", "con", "int", "wis", "cha")}
+    template = {
+        "id": f"tpl_{actor_id}", "name": actor_id,
+        "abilities": abilities,
+        "cr": {"value": 8, "xp": 3900, "proficiency_bonus": 3},
+        "actions": [
+            {"id": "a_club", "type": "weapon_attack",
+             "pipeline": [
+                 {"primitive": "attack_roll",
+                  "params": {"kind": "melee", "bonus": 12, "reach_ft": 5}},
+                 {"primitive": "damage",
+                  "params": {"dice": "6d12", "modifier": 12,
+                             "type": "bludgeoning"}},
+             ]},
+        ],
+    }
+    return Actor(
+        id=actor_id, name=actor_id, template=template, side="enemy",
+        hp_current=120, hp_max=120, ac=11,
+        speed={"walk": 30}, position=position, abilities=abilities,
+    )
+
+
 def _make_state(actors):
     enc = Encounter(id="t", actors=actors)
     state = CombatState(encounter=enc)
@@ -314,7 +344,8 @@ class ScoringTest(unittest.TestCase):
         # × desperation_multiplier(0.5) = 5 × 1.0 = 5
         paly = _make_paladin(level=1, pool_remaining=5)
         ally = _make_ally(hp=20, hp_max=40)
-        state = _make_state([paly, ally])
+        # Threat in reach of the ally → danger_factor 1.0 (heal is realized).
+        state = _make_state([paly, ally, _make_threat()])
         score = defensive_ehp_healing(paly, ally, _loh_action(), state)
         # Should be exactly 5 (pool-capped, desperation multiplier 1.0
         # at exactly 50% HP).
@@ -326,7 +357,7 @@ class ScoringTest(unittest.TestCase):
         # is 1.0 (above 0.5).
         paly = _make_paladin(level=5, pool_remaining=25)
         ally = _make_ally(hp=35, hp_max=40)
-        state = _make_state([paly, ally])
+        state = _make_state([paly, ally, _make_threat()])
         score = defensive_ehp_healing(paly, ally, _loh_action(), state)
         self.assertEqual(score, 5.0)
 
@@ -336,7 +367,7 @@ class ScoringTest(unittest.TestCase):
         # score = 5 × 1.4 = 7.0
         paly = _make_paladin(level=1, pool_remaining=5)
         ally = _make_ally(hp=4, hp_max=40)
-        state = _make_state([paly, ally])
+        state = _make_state([paly, ally, _make_threat()])
         score = defensive_ehp_healing(paly, ally, _loh_action(), state)
         # 1.0 + (0.5 - 0.1) = 1.4
         self.assertAlmostEqual(score, 7.0, places=2)

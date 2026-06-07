@@ -22,8 +22,9 @@ from engine.ai import (
 )
 from engine.ai.defensive_ehp import (
     EXPECTED_BUFF_ROUNDS, EXPECTED_CONTROL_ROUNDS,
-    HARD_CONTROL_CONDITIONS,
+    HARD_CONTROL_CONDITIONS, HEAL_DANGER_FLOOR,
     extract_buff_effect, extract_control_intent,
+    danger_factor, incoming_danger_to,
 )
 from engine.core.pipeline import generate_candidates
 from engine.core.state import Actor, Encounter, CombatState
@@ -216,6 +217,75 @@ class HealingEHPTest(unittest.TestCase):
         action = _heal_action("a", dice="1d8", modifier_source="actor.wis_mod")
         # 1d8 mean = 4.5, + wis_mod 3 = 7.5
         self.assertAlmostEqual(expected_healing(action, caster), 7.5)
+
+
+# ============================================================================
+# Heal danger-scaling (heal eHP scales with the target's incoming danger)
+# ============================================================================
+
+class HealDangerScalingTest(unittest.TestCase):
+    """Healing an ally NO enemy can threaten this round is discounted to the
+    danger floor; a threatened ally heals at full value (the Cleric heal-spam
+    fix). A dying ally is always max danger (revival never board-discounted)."""
+
+    def _ogre(self, pos):
+        e = _make_actor("ogre", side="enemy", hp=60,
+                        actions=[_weapon_attack("a_club", bonus=6, dice="2d8",
+                                                  modifier=4)])
+        e.position = pos
+        e.speed = {"walk": 30}
+        return e
+
+    def _wounded_ally(self, hp_current=25, hp_max=50, pos=(0, 0)):
+        a = _make_actor("ally", hp=hp_max)
+        a.hp_current = hp_current
+        a.position = pos
+        return a
+
+    def test_incoming_danger_counts_only_in_reach_enemies(self):
+        ally = self._wounded_ally(pos=(0, 0))
+        near = self._ogre(pos=(2, 0))     # 10 ft ≤ 30+5 → threatens
+        far = self._ogre(pos=(50, 50))    # 250 ft → no threat this round
+        st_near = _state_with([ally, near])
+        st_far = _state_with([ally, far])
+        self.assertGreater(incoming_danger_to(ally, st_near), 0.0)
+        self.assertEqual(incoming_danger_to(ally, st_far), 0.0)
+
+    def test_danger_factor_floor_when_unthreatened(self):
+        ally = self._wounded_ally(pos=(0, 0))
+        far = self._ogre(pos=(50, 50))
+        state = _state_with([ally, far])
+        self.assertAlmostEqual(danger_factor(ally, state), HEAL_DANGER_FLOOR)
+
+    def test_danger_factor_full_when_incoming_exceeds_hp(self):
+        # Low-HP ally + an adjacent ogre whose DPR (~7.8 after AC-15 hit prob)
+        # ≥ its current HP (5) → ratio clamps to 1.0.
+        ally = self._wounded_ally(hp_current=5, hp_max=50, pos=(0, 0))
+        near = self._ogre(pos=(1, 0))
+        state = _state_with([ally, near])
+        self.assertAlmostEqual(danger_factor(ally, state), 1.0)
+
+    def test_dying_ally_always_max_danger(self):
+        ally = self._wounded_ally(hp_current=0, pos=(0, 0))
+        ally.is_dying = True
+        ally.is_dead = False
+        far = self._ogre(pos=(50, 50))    # no board threat...
+        state = _state_with([ally, far])
+        self.assertAlmostEqual(danger_factor(ally, state), 1.0)  # ...still 1.0
+
+    def test_threatened_heal_scores_higher_than_unthreatened(self):
+        caster = _make_actor("c")
+        action = _heal_action("a", dice="2d8")
+        # Same wound, two boards: one with an adjacent threat, one without.
+        ally_t = self._wounded_ally(pos=(0, 0))
+        ally_u = self._wounded_ally(pos=(0, 0))
+        st_t = _state_with([caster, ally_t, self._ogre(pos=(2, 0))])
+        st_u = _state_with([caster, ally_u, self._ogre(pos=(50, 50))])
+        score_t = defensive_ehp_healing(caster, ally_t, action, st_t)
+        score_u = defensive_ehp_healing(caster, ally_u, action, st_u)
+        self.assertGreater(score_t, score_u)
+        # Unthreatened is exactly the floor fraction of the nominal heal.
+        self.assertAlmostEqual(score_u, 9.0 * HEAL_DANGER_FLOOR, places=2)
 
 
 # ============================================================================
