@@ -318,6 +318,14 @@ def candidate_slot_cost(actor: Actor, action: dict,
     override is a no-op there — it only bites on a deadly fight EARLIER in
     the day, which is exactly where conserving for "future fights" is a
     false economy.
+
+    Dial-gated (2026-06): the conserve-early penalty is scaled by the side's
+    `conservation_strength` (the three-styles spectrum). A dial-1 impact-
+    maximizer (strength 0) treats slots as free and novas early; a dial-5
+    perfect conserver (strength 1.0) applies the full NOVA-LATE penalty and
+    rations across the day. The deadly-fight override is dial-INDEPENDENT
+    (even an impact-maximizer should spend in a lethal fight, and a conserver
+    definitely does), so it multiplies on top.
     """
     level = required_slot_level(action)
     if level <= 0:
@@ -328,4 +336,6 @@ def candidate_slot_cost(actor: Actor, action: dict,
         encounters_remaining=state.encounters_remaining_today,
     )
     danger = encounter_danger(actor, state)
-    return base * (1.0 - danger)
+    from engine.core.optimization_dial import conservation_strength_for
+    strength = conservation_strength_for(actor, state)
+    return base * (1.0 - danger) * strength
