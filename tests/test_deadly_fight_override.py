@@ -52,6 +52,11 @@ def _state(actors: list[Actor], encounters_remaining: int = 3) -> CombatState:
                         encounters_remaining_today=encounters_remaining)
     state.turn_order = [a.id for a in actors]
     state.round = 1
+    # candidate_slot_cost is dial-gated: the conserve-early penalty scales with
+    # the side's conservation_strength. These tests verify the FULL-conservation
+    # model (the deadly-override math), so run the PC side at dial 5 (strength
+    # 1.0); at the default dial 1 the cost would collapse to 0 (impact-maximizer).
+    state.optimization_dials = {"pc": 5}
     return state
 
 

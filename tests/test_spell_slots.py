@@ -61,6 +61,11 @@ def _state_with(actors: list[Actor],
                           encounters_remaining_today=encounters_remaining)
     state.turn_order = [a.id for a in actors]
     state.round = 1
+    # candidate_slot_cost is dial-gated by conservation_strength; these tests
+    # assert the full NOVA-LATE conservation model, so run PCs at dial 5
+    # (strength 1.0). At the default dial 1 the cost collapses to 0
+    # (impact-maximizer) and the relative cost comparisons would be 0 == 0.
+    state.optimization_dials = {"pc": 5}
     return state
 
 
@@ -265,6 +270,29 @@ class CandidateSlotCostTest(unittest.TestCase):
 
         self.assertGreater(cost_1_slot, cost_3_slots,
                             "Last slot costs more than 1-of-3")
+
+    def test_dial_gates_conservation(self) -> None:
+        """The slot opportunity cost scales with the side's conservation_strength
+        (the dial). Dial 1 (impact-maximizer) → cost 0 (slots feel free);
+        dial 5 (perfect conserver) → full cost; dial 3 in between."""
+        from engine.core.optimization_dial import set_dial
+        actor = _make_actor("a", spell_slots={1: 1})
+        foe = _make_actor("foe", side="enemy")
+
+        st1 = _state_with([actor, foe], encounters_remaining=3)
+        set_dial(st1, "pc", 1)
+        st3 = _state_with([actor, foe], encounters_remaining=3)
+        set_dial(st3, "pc", 3)
+        st5 = _state_with([actor, foe], encounters_remaining=3)
+        set_dial(st5, "pc", 5)
+
+        c1 = candidate_slot_cost(actor, _bless_action(), st1)
+        c3 = candidate_slot_cost(actor, _bless_action(), st3)
+        c5 = candidate_slot_cost(actor, _bless_action(), st5)
+        self.assertEqual(c1, 0.0)               # impact-maximizer: free
+        self.assertGreater(c5, c3)              # perfect > baseline
+        self.assertGreater(c3, 0.0)             # baseline still conserves some
+        self.assertAlmostEqual(c3, c5 * (2.0 / 3.0), places=4)  # the dial curve
 
     def test_score_candidates_subtracts_cost(self) -> None:
         """A high-eHP candidate that burns the actor's last slot should

@@ -59,6 +59,32 @@ def focus_fire_chance(dial: int) -> float:
     return FOCUS_FIRE_CHANCE.get(max(MIN_DIAL, min(MAX_DIAL, int(dial))), 0.0)
 
 
+def conservation_strength(dial: int) -> float:
+    """How strongly this side RATIONS day-limited resources (spell slots) —
+    the three-styles spectrum (Tabletop Builds) operationalized on the SAME
+    1-5 curve as focus_fire_chance:
+
+      dial 1 → 0.0   impact-maximizer: slots feel "free" → nova early → run
+                     dry → wipe in later fights
+      dial 3 → ~0.67 partial conservation (WoTC baseline)
+      dial 5 → 1.0   perfect conserve + progression: full NOVA-LATE pacing,
+                     ends the day with slots to spare
+
+    Unlike focus_fire_chance (a per-decision PROBABILITY resolved by a roll),
+    this is a deterministic STRENGTH that scales the slot opportunity cost in
+    spell_slots.candidate_slot_cost. dial 1 collapses the conserve-early
+    penalty to 0 (cast as if slots were free); dial 5 applies it in full.
+
+    Default dial is 1, so an un-dialed (casual) party is an impact-maximizer —
+    matching focus_fire's default of no-focus-fire."""
+    return focus_fire_chance(dial)
+
+
+def conservation_strength_for(actor: Actor, state: CombatState) -> float:
+    """conservation_strength for `actor`'s side dial."""
+    return conservation_strength(dial_for(actor, state))
+
+
 def _living_enemies(actor: Actor, state: CombatState) -> list[Actor]:
     return [a for a in state.encounter.actors
             if a.is_alive() and getattr(a, "side", None) != actor.side]
