@@ -31,7 +31,8 @@ def main():
 
     print(f"=== ADVENTURING-DAY DIAL CURVE — {n_seeds} seeds/dial, "
           f"enemy dial held at {enemy_dial} ===")
-    print(f"(day = {n_enc} encounters: Low -> 4x Moderate -> High climax)\n")
+    day_names = " -> ".join(name for name, _ in DAY)
+    print(f"(day = {n_enc} encounters: {day_names})\n")
     print(f"{'PC dial':>7} {'avg cleared':>12} {'reach dragon':>13} "
           f"{'survive day':>12}")
     for pc_dial in (1, 2, 3, 4, 5):

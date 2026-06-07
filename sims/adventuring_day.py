@@ -43,17 +43,29 @@ PARTY_SIZE = 4
 # looked depleting because the fights ground on for 20+ rounds.) All fights
 # stay <= 2 monsters/character, so none trip the "Many Creatures" advisory.
 # (monster_id, count) per encounter; difficulty in the trailing comment.
+# Recalibrated to the 2024 adventuring-day model (Step 2). The 2024 DMG drops
+# the 6-8-encounter rule; the sweet spot is ~3-5 fights building to a climax.
+# Each fight is tuned by its MEASURED empirical d_iff (engine.core.
+# combat_metrics, Dunn's bands) rather than its XP-budget label — because our
+# 2024 SRD monsters run 1-2 bands hotter than the label (legendary CR10+
+# ~+40% DPR / CR13+ ~+15% HP). Per-fight d_iff / win% below are fresh-party,
+# 20-24 seeds, PC dial 3 (the WoTC-baseline play level).
+#
+# Climax note: NO lone adult dragon lands at a clean Deadly-0.70 for 4xL13 with
+# the current (naive) boss-vs-PC AI — they're all TPK by gross-damage-d_iff and
+# their win% jumps 46%->83% with nothing between (d_iff OVERSTATES single-burst-
+# boss difficulty; win-rate is the truer boss signal). The Adult Bronze Dragon
+# is the cleanest fair-Deadly pick (42% win, ~8.8 rounds); its win% will rise
+# toward the 50-69% Deadly target once the boss-vs-PC AI lever lands.
 DAY = [
-    ("Skirmish line",  [("m_wyvern", 3), ("m_manticore", 4)]),   # 9,700  low
-    ("Giant raiders",  [("m_fire_giant", 3)]),                   # 15,000 mod
+    ("Skirmish line",  [("m_wyvern", 2), ("m_manticore", 2)]),       # Easy   ~0.17 / 100%
+    ("Giant raiders",  [("m_fire_giant", 2)]),                       # Medium ~0.44 /  94%
     # --- short rest ---
-    ("Vampire ambush", [("m_vampire_spawn", 6), ("m_wyvern", 2)]),  # 15,400 mod
-    ("Wyvern stoop",   [("m_wyvern", 5), ("m_fire_giant", 1)]),  # 16,500 mod
+    ("Giant vanguard", [("m_fire_giant", 2), ("m_wyvern", 1)]),      # Hard   ~0.64 /  85%
     # --- short rest ---
-    ("Giant vanguard", [("m_fire_giant", 3)]),                   # 15,000 mod
-    ("CLIMAX: Adult Red Dragon", [("m_adult_red_dragon", 1)]),   # 18,000 high
+    ("CLIMAX: Adult Bronze Dragon", [("m_adult_bronze_dragon", 1)]),  # Deadly ~1.10 /  42%
 ]
-SHORT_REST_AFTER = {1, 3}   # indices after which the party short-rests
+SHORT_REST_AFTER = {1, 2}   # short-rest after the Moderate and the Hard fights
 
 # Monster placement: spread a few squares around the origin; the party
 # starts in the run-3 spread formation (around x=8-11). Enough distinct
