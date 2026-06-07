@@ -86,6 +86,102 @@ def dice_mean(expr: str | None) -> float:
 
 
 # ============================================================================
+# Damage distribution + kill probability (the "beat the math" layer)
+# ============================================================================
+#
+# Mean damage isn't enough to decide a kill: a Fireball averages 28 but only
+# clears a 27-HP gnoll ~62% of the time (mean barely exceeds the threshold).
+# Perfect-knowledge (dial-5) play upcasts to push P(kill) to ~90-95% (10d6 =
+# 94%) OR switches spells. So we need the full damage DISTRIBUTION to compute
+# P(damage >= target HP), and we VALUE a kill at the creature's removed future
+# DPR — a kill is permanent action-denial, worth more than the raw HP removed.
+
+from functools import lru_cache
+
+# A kill removes the creature's ENTIRE remaining DPR (it stops acting). Valued
+# like permanent hard control: removed_DPR x horizon. Matches the other 2.5-
+# round eHP horizons (aura / buff / control / summon) for consistency.
+KILL_VALUE_ROUNDS = 2.5
+
+
+@lru_cache(maxsize=512)
+def _ndm_distribution(n: int, faces: int) -> tuple:
+    """Probability distribution of NdFaces as a sorted ((total, prob), ...)
+    tuple. Cached — the convolution is built once per (n, faces)."""
+    dist: dict[int, float] = {0: 1.0}
+    for _ in range(n):
+        nd: dict[int, float] = {}
+        for t, p in dist.items():
+            for f in range(1, faces + 1):
+                nd[t + f] = nd.get(t + f, 0.0) + p / faces
+        dist = nd
+    return tuple(sorted(dist.items()))
+
+
+def dice_distribution(expr: str | None, modifier: int = 0) -> dict[int, float]:
+    """{total: probability} for an NdM dice expression plus a flat modifier.
+    Empty/None or malformed → point mass at `modifier`."""
+    if not expr:
+        return {int(modifier): 1.0}
+    m = _DICE_PATTERN.fullmatch(expr.strip())
+    if not m:
+        return {int(modifier): 1.0}
+    n, faces = int(m.group(1)), int(m.group(2))
+    return {t + int(modifier): p for t, p in _ndm_distribution(n, faces)}
+
+
+def _convolve(a: dict[int, float], b: dict[int, float]) -> dict[int, float]:
+    out: dict[int, float] = {}
+    for ta, pa in a.items():
+        for tb, pb in b.items():
+            out[ta + tb] = out.get(ta + tb, 0.0) + pa * pb
+    return out
+
+
+def components_damage_distribution(components: list[dict]) -> dict[int, float]:
+    """Combined damage distribution (convolution) of a list of damage
+    components [{dice, modifier, ...}]. Type-agnostic on the distribution
+    itself; resistance/vulnerability is applied to the KILL THRESHOLD by the
+    caller (effective HP), which is exact for the common single-type spell."""
+    dist: dict[int, float] = {0: 1.0}
+    for c in components:
+        dist = _convolve(dist, dice_distribution(c.get("dice"),
+                                                  int(c.get("modifier", 0))))
+    return dist
+
+
+def p_total_at_least(dist: dict[int, float], threshold: float) -> float:
+    """P(rolled total >= threshold)."""
+    return sum(p for t, p in dist.items() if t >= threshold)
+
+
+def _effective_kill_hp(target: Actor, dmg_type: str | None) -> float | None:
+    """The damage total needed to drop `target`, adjusted for resistance
+    (need 2x) / vulnerability (need 0.5x). None if the target is IMMUNE to the
+    type (can't be killed by it). dmg_type None → no adjustment."""
+    template = target.template or {}
+    hp = float(max(0, target.hp_current))
+    if dmg_type:
+        if dmg_type in set(template.get("damage_immunities") or []):
+            return None
+        if dmg_type in set(template.get("damage_resistances") or []):
+            return hp * 2.0
+        if dmg_type in set(template.get("damage_vulnerabilities") or []):
+            return hp / 2.0
+    return hp
+
+
+def kill_value(target: Actor, p_kill: float) -> float:
+    """eHP value of a P(kill) on `target`: the creature's removed future DPR
+    (it stops acting) over the kill horizon — permanent action-denial, ON TOP
+    of the raw HP-removed damage eHP. Mirrors control eHP (DPR x rounds)."""
+    if p_kill <= 0.0:
+        return 0.0
+    from engine.ai.defensive_ehp import estimate_dpr
+    return p_kill * estimate_dpr(target) * KILL_VALUE_ROUNDS
+
+
+# ============================================================================
 # Hit probability (d20 + bonus vs AC, with advantage / disadvantage)
 # ============================================================================
 
@@ -253,7 +349,18 @@ def offensive_ehp_single_attack(actor: Actor, target: Actor, action: dict,
                                               crit_prob=p_crit_given_hit)
     raw_ehp = p_hit * mean_dmg_on_hit
     # Overkill cap: can't deliver more eHP than target has left to lose.
-    return min(raw_ehp, float(max(0, target.hp_current)))
+    capped = min(raw_ehp, float(max(0, target.hp_current)))
+    # Kill-value: P(this attack drops the target) x removed future DPR, on top
+    # of the capped damage. Uses the on-hit damage distribution (non-crit; crit
+    # only raises P(kill), so this is a slight, safe under-count).
+    components = extract_damage_components(action)
+    kbonus = 0.0
+    if components:
+        eff_hp = _effective_kill_hp(target, components[0].get("type"))
+        if eff_hp is not None:
+            dist = components_damage_distribution(components)
+            kbonus = kill_value(target, p_hit * p_total_at_least(dist, eff_hp))
+    return capped + kbonus
 
 
 def offensive_ehp_save_attack(actor: Actor, target: Actor, action: dict,
@@ -287,6 +394,7 @@ def offensive_ehp_save_attack(actor: Actor, target: Actor, action: dict,
     # whose forced_save branch has a separate latent bug — see the
     # deferred note in the PR).
     mean_dmg = 0.0
+    components: list[dict] = []
     for step in (action.get("pipeline") or []):
         if step.get("primitive") != "forced_save":
             continue
@@ -294,9 +402,26 @@ def offensive_ehp_save_attack(actor: Actor, target: Actor, action: dict,
             if sub.get("primitive") == "damage":
                 p = sub.get("params") or {}
                 mean_dmg += dice_mean(p.get("dice")) + int(p.get("modifier", 0))
-    success_dmg = mean_dmg * 0.5 if action.get("half_on_success") else 0.0
+                components.append({"dice": p.get("dice"),
+                                   "modifier": int(p.get("modifier", 0)),
+                                   "type": p.get("type", "untyped")})
+    half = bool(action.get("half_on_success"))
+    success_dmg = mean_dmg * 0.5 if half else 0.0
     expected = p_fail * mean_dmg + (1.0 - p_fail) * success_dmg
-    return min(expected, float(max(0, target.hp_current)))
+    capped = min(expected, float(max(0, target.hp_current)))
+    # Kill-value: P(drop the target) x removed future DPR. On a save the target
+    # takes half (half cantrips) or nothing, so it dies on a save only if the
+    # full roll >= 2x its effective HP.
+    kbonus = 0.0
+    if components:
+        eff_hp = _effective_kill_hp(target, components[0].get("type"))
+        if eff_hp is not None:
+            dist = components_damage_distribution(components)
+            p_kill = p_fail * p_total_at_least(dist, eff_hp)
+            if half:
+                p_kill += (1.0 - p_fail) * p_total_at_least(dist, eff_hp * 2.0)
+            kbonus = kill_value(target, p_kill)
+    return capped + kbonus
 
 
 # ============================================================================
@@ -1229,8 +1354,27 @@ def offensive_ehp_aoe(actor: Actor, origin: tuple[int, int], action: dict,
             target, succ_control_components)
         expected_ctrl = (p_fail * full_ctrl) + (p_save * succ_ctrl)
 
-        target_total = capped_dmg + expected_ctrl
-        # Allies subtract (friendly fire applies to control too)
+        # Kill-value (the "beat the math" term): a kill removes the target's
+        # WHOLE remaining DPR, on top of the capped damage. Uses the full damage
+        # DISTRIBUTION so variance + upcast-to-threshold matter (Fireball 8d6
+        # clears a 27-HP gnoll only ~62%, 10d6 ~94%). On a failed save the
+        # target eats the full roll; on a save it eats half (so it dies only if
+        # the full roll >= 2x its effective HP).
+        kbonus = 0.0
+        if fail_damage_by_step:
+            dmg_type = fail_damage_by_step[0].get("type")
+            eff_hp = _effective_kill_hp(target, dmg_type)
+            if eff_hp is not None:
+                dist = components_damage_distribution(fail_damage_by_step)
+                p_kill = p_fail * p_total_at_least(dist, eff_hp)
+                if succ_damage_by_step:   # save-for-half: a save can still kill
+                    p_kill += p_save * p_total_at_least(dist, eff_hp * 2.0)
+                kbonus = kill_value(target, p_kill)
+
+        target_total = capped_dmg + expected_ctrl + kbonus
+        # Allies subtract (friendly fire applies to control + kill-value too —
+        # killing your own ally is catastrophic, which is exactly the cost an
+        # evoker's Sculpt Spells later removes).
         if target.side == actor.side:
             total -= target_total
         else:
