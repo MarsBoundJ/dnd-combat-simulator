@@ -317,10 +317,10 @@ class HoHHybridScoringTest(unittest.TestCase):
         action = _hoh_action()
         score = offensive_ehp_persistent_aura(
             caster, action, state, origin=(2, 0))
-        # Score should be POSITIVE — both damage component (in-enemy
-        # takes per-turn cold) AND zone component (in-allies hidden
-        # from out-enemies) contribute.
-        self.assertGreater(score, 0)
+        # The in-zone ally now (correctly) costs friendly fire from this
+        # all_creatures cloud, so the absolute score may net negative — the
+        # meaningful check is that the ZONE component still adds value on top
+        # of the damage component (both subtract the same ally friendly fire).
         # Compare: damage-only version (strip the zone) should be
         # LESS than the hybrid score.
         damage_only_action = _hoh_action()
@@ -346,8 +346,8 @@ class CloudkillHybridScoringTest(unittest.TestCase):
         action = _cloudkill_action()
         score = offensive_ehp_persistent_aura(
             caster, action, state, origin=(2, 0))
-        self.assertGreater(score, 0)
-
+        # In-zone ally costs friendly fire from this all_creatures cloud; the
+        # meaningful check is the zone component adding value (below).
         damage_only_action = _cloudkill_action()
         damage_only_action["pipeline"][0]["params"].pop("creates_zone")
         score_damage_only = offensive_ehp_persistent_aura(
