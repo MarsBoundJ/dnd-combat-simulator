@@ -17,7 +17,7 @@ alignment: unaligned
 combat:
   armor_class: 13
   hit_points: { average: 5, dice: "2d4", con_contribution: 0 }
-  speed: { walk: 10 }
+  speed: { walk: 10, fly: 40 }
   initiative: { modifier: 3, score: 13 }
 
 abilities:

@@ -10,7 +10,7 @@ alignment: unaligned
 combat:
   armor_class: 11
   hit_points: { average: 26, dice: "4d10", con_contribution: 4 }
-  speed: { walk: 40 }
+  speed: { walk: 40, fly: 60 }
   initiative: { modifier: 1, score: 11 }
 abilities:
   str: { score: 17, save: 3 }

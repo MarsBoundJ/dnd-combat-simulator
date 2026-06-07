@@ -13,7 +13,7 @@ alignment: lawful_evil
 combat:
   armor_class: 17
   hit_points: { average: 65, dice: "10d8", con_contribution: 20 }
-  speed: { walk: 30 }
+  speed: { walk: 30, burrow: 15, fly: 60 }
   initiative: { modifier: 2, score: 12 }
 abilities:
   str: { score: 17, save: 3 }

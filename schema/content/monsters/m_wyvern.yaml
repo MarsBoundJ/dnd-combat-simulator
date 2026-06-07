@@ -20,6 +20,7 @@ combat:
     con_contribution: 45
   speed:
     walk: 30
+    fly: 80
   initiative:
     modifier: 0
     score: 10
