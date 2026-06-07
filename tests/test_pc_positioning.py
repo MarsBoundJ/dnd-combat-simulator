@@ -118,5 +118,66 @@ class BestPositionTest(unittest.TestCase):
         self.assertIsNone(best_position(actor, st))
 
 
+class TurnStartDeclusterTest(unittest.TestCase):
+    """Regression for the turn-start hook (Phase 1c-ii). A RANGED PC that
+    already has an in-range target never enters `_move_to_engage` (that path
+    only fires when an actor has NO in-range enemy), so before this hook a
+    ranged caster sat in the dragon's breath cone every round. `_run_actor_turn`
+    now calls `_maybe_aoe_decluster` at turn start for every PC."""
+
+    def _runner_and_state(self, actors):
+        import random
+        from engine import primitives as pm
+        from engine.core.runner import EncounterRunner
+        enc = Encounter(id="t", actors=actors)
+        pm.set_rng(random.Random(1))
+        runner = EncounterRunner.new(enc, seed=1, content_registry=_registry())
+        pm.set_rng(runner.rng)
+        st = CombatState(encounter=enc)
+        st.turn_order = [a.id for a in actors]
+        st.content_registry = _registry()
+        return runner, st
+
+    def test_ranged_pc_in_cone_declusters_at_turn_start(self):
+        dragon = _mk("dragon", "enemy", (0, 0), actions=[_breath()], hp=256)
+        actor = _mk("pc", "pc", (5, 0), actions=[_BOLT])   # 120-ft: in range anywhere
+        ally = _mk("ally", "pc", (6, 0), actions=[_BOLT])
+        runner, st = self._runner_and_state([dragon, actor, ally])
+        before = aoe_exposure_ehp(actor, actor.position, st)
+        moved = runner._maybe_aoe_decluster(actor, st)
+        self.assertTrue(moved)
+        self.assertTrue(actor.moved_this_turn)
+        self.assertLess(aoe_exposure_ehp(actor, actor.position, st), before)
+        self.assertTrue(can_act_from(actor, actor.position, st))
+        self.assertTrue(any(e.get("event") == "moved"
+                            and e.get("reason") == "aoe_spacing"
+                            and e.get("actor") == "pc"
+                            for e in st.event_log))
+
+    def test_enemy_side_actor_does_not_decluster(self):
+        # The hook is PC-only (v1) — an enemy never repositions through it.
+        dragon = _mk("dragon", "enemy", (0, 0), actions=[_breath()], hp=256)
+        foe = _mk("foe", "enemy", (5, 0), actions=[_BOLT])
+        runner, st = self._runner_and_state([dragon, foe])
+        self.assertFalse(runner._maybe_aoe_decluster(foe, st))
+
+    def test_already_moved_actor_skips(self):
+        dragon = _mk("dragon", "enemy", (0, 0), actions=[_breath()], hp=256)
+        actor = _mk("pc", "pc", (5, 0), actions=[_BOLT])
+        ally = _mk("ally", "pc", (6, 0), actions=[_BOLT])
+        runner, st = self._runner_and_state([dragon, actor, ally])
+        actor.moved_this_turn = True
+        self.assertFalse(runner._maybe_aoe_decluster(actor, st))
+
+    def test_no_aoe_threat_no_move_at_turn_start(self):
+        # Melee-only enemy → no AoE threat → the hook is a no-op even for a PC.
+        melee = _mk("melee", "enemy", (0, 0), actions=[_BITE], hp=100)
+        actor = _mk("pc", "pc", (5, 0), actions=[_BOLT])
+        ally = _mk("ally", "pc", (6, 0), actions=[_BOLT])
+        runner, st = self._runner_and_state([melee, actor, ally])
+        self.assertFalse(runner._maybe_aoe_decluster(actor, st))
+        self.assertFalse(actor.moved_this_turn)
+
+
 if __name__ == "__main__":
     unittest.main()
