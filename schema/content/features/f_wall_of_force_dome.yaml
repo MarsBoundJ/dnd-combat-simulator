@@ -1,0 +1,46 @@
+# f_wall_of_force_dome — Wall of Force, SPHERE/floating-dome form (microwave
+# arc, Stage B). The same 5th-level spell as f_wall_of_force, cast in its
+# sphere form as a GAPPED floating dome: it traps a creature (movement blocked
+# both ways, effective speed 0 — the kiter can't flee or reposition) while
+# staying line-of-effect transparent through the floor gap, so a damaging zone
+# (Cloudkill / Sickening Radiance) can be dropped in AFTER and the trapped
+# creature can't escape it ("the microwave"). Modeled as a separate castable
+# action so the AI can choose the dome form when trapping is the play.
+#
+# RAW: Wall of Force can be shaped as a sphere up to 10-ft radius. Concentration
+# up to 10 minutes; immune to damage (Disintegrate destroys it — deferred).
+#
+# source: srd_5.2.1
+
+id: f_wall_of_force_dome
+name: Wall of Force (Dome)
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 9            # 5th-level slot -> full caster at character level 9
+type: active
+spell:
+  class: c_wizard
+  level: 5
+
+description: |
+  Conjure an invisible sphere of force (a floating dome) around a creature
+  within 120 ft, trapping it (it can't move out) while remaining transparent
+  to spells/attacks through the floor gap. Concentration, up to 10 minutes.
+
+action_template:
+  id: a_wall_of_force_dome
+  name: Wall of Force (Dome)
+  type: hard_control
+  spell_slot_level: 5
+  concentration: true
+  named_effect: wall_of_force
+  range_ft: 120
+  pipeline:
+    - primitive: place_barrier
+      params:
+        shape: sphere
+        radius_ft: 10
+        gap: true
+        move: true
+        sight: false
