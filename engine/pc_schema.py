@@ -630,6 +630,22 @@ def derive_pc_resources(pc_spec: dict, content_registry: Any) -> dict:
         resources["intimidating_presence_uses_remaining"] = 1
         resources["intimidating_presence_uses_max"] = 1
 
+    # ---- Warrior of the Gods (Path of the Zealot, Barbarian L3) ----
+    # A pool of d12s spent to self-heal (BA). RAW size: 4 dice at L3,
+    # 5 at L6, 6 at L12, 7 at L17. Refreshes on a Long Rest. Drained by
+    # the warrior_of_the_gods primitive; restored by apply_long_rest.
+    if "f_warrior_of_the_gods" in features_known:
+        if level >= 17:
+            wotg_dice = 7
+        elif level >= 12:
+            wotg_dice = 6
+        elif level >= 6:
+            wotg_dice = 5
+        else:
+            wotg_dice = 4
+        resources["warrior_of_the_gods_dice_remaining"] = wotg_dice
+        resources["warrior_of_the_gods_dice_max"] = wotg_dice
+
     return resources
 
 

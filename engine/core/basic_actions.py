@@ -372,7 +372,9 @@ def is_self_targeted_heal(action: dict) -> bool:
     if action.get("type") != "heal":
         return False
     for step in (action.get("pipeline") or []):
-        if step.get("primitive") != "heal":
+        # `heal` (Second Wind) and `warrior_of_the_gods` (Zealot
+        # dice-pool self-heal) both carry the self marker on their step.
+        if step.get("primitive") not in ("heal", "warrior_of_the_gods"):
             continue
         params = step.get("params") or {}
         if params.get("target") == "self":

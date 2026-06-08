@@ -217,6 +217,19 @@ def defensive_ehp_healing(actor: Actor, target_ally: Actor, action: dict,
             amount = min(missing, float(pool))
             return (amount * desperation_multiplier(hp_frac) * danger
                     + revival_bonus)
+        if step.get("primitive") == "warrior_of_the_gods":
+            # Zealot dice-pool self-heal — only valuable for the caster
+            # healing itself. Expected heal ≈ min(missing, dice × 6.5)
+            # (the d12 mean), matching the primitive's spend policy.
+            if target_ally.id != actor.id:
+                return 0.0
+            dice = int(actor.resources.get(
+                "warrior_of_the_gods_dice_remaining", 0))
+            if dice <= 0:
+                return 0.0
+            amount = min(missing, dice * 6.5)
+            return (amount * desperation_multiplier(hp_frac) * danger
+                    + revival_bonus)
 
     raw = expected_healing(action, actor) * desperation_multiplier(hp_frac)
     return min(raw, missing) * danger + revival_bonus

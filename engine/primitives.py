@@ -2199,6 +2199,47 @@ def _lay_on_hands(params: dict, state: CombatState, bus: EventBus) -> None:
     })
 
 
+def _warrior_of_the_gods(params: dict, state: CombatState,
+                            bus: EventBus) -> None:
+    """Warrior of the Gods (Path of the Zealot, Barbarian L3+).
+
+    RAW: a pool of d12s (4/5/6/7 at L3/6/12/17). As a Bonus Action,
+    expend dice from the pool, roll them, and regain HP equal to the
+    total. Self-only ("heal yourself"). Pool refreshes on a Long Rest.
+
+    v1 spend policy: heal the actor by spending the FEWEST dice that, at
+    the d12 average (6.5), cover the actor's missing HP — at least one
+    die, never more than the pool. Mirrors Lay on Hands' "never waste"
+    property while honoring the dice-roll variance.
+
+    No-op when the pool is empty or the actor is at full HP / dead.
+    """
+    import math
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None or not actor.is_alive():
+        return
+    dice = int(actor.resources.get("warrior_of_the_gods_dice_remaining", 0))
+    if dice <= 0:
+        return
+    missing = max(0, int(actor.hp_max) - int(actor.hp_current))
+    if missing <= 0:
+        return
+    need = max(1, math.ceil(missing / 6.5))
+    spend = min(dice, need)
+    rng = _get_rng(state, bus)
+    healed = sum(rng.randint(1, 12) for _ in range(spend))
+    actor.hp_current = min(int(actor.hp_max),
+                              int(actor.hp_current) + healed)
+    actor.resources["warrior_of_the_gods_dice_remaining"] = dice - spend
+    state.event_log.append({
+        "event": "warrior_of_the_gods",
+        "actor": actor.id,
+        "dice_spent": spend,
+        "amount": healed,
+        "dice_remaining": dice - spend,
+    })
+
+
 def _steady_aim(params: dict, state: CombatState, bus: EventBus) -> None:
     """Steady Aim primitive (PR #80, Rogue L3+).
 
@@ -3228,6 +3269,7 @@ def _populate_handler_table() -> None:
         "dash": _dash,
         "steady_aim": _steady_aim,
         "lay_on_hands": _lay_on_hands,
+        "warrior_of_the_gods": _warrior_of_the_gods,
         "ready_action": _ready_action,
         "melee_retaliation": _melee_retaliation,
         "recurring_damage": _recurring_damage,
@@ -3298,6 +3340,10 @@ def _all_primitives() -> list[Primitive]:
         Primitive("steady_aim", _steady_aim, implemented=True),
         # PR #83 — Paladin Lay on Hands (BA touch heal from pool)
         Primitive("lay_on_hands", _lay_on_hands, implemented=True),
+        # Warrior of the Gods (Zealot L3) — BA self-heal from a d12 dice
+        # pool. Must stay in sync with _populate_handler_table.
+        Primitive("warrior_of_the_gods", _warrior_of_the_gods,
+                    implemented=True),
         # PR #86 — Ready Action (records a readied sub-action + trigger
         # onto the actor; fires when the trigger matches before the
         # actor's next turn).
