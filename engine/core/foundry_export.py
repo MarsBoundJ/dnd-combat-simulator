@@ -100,10 +100,44 @@ def token_to_document(actor, grid_size: int = FOUNDRY_GRID_SIZE) -> dict:
     }
 
 
-def walls_to_documents(walls: list[Wall],
+def sphere_to_documents(sphere, grid_size: int = FOUNDRY_GRID_SIZE,
+                        segments: int = 16) -> list[dict]:
+    """Serialize a geometry.Sphere barrier to a ring of Foundry WallDocuments
+    approximating the circle (Foundry walls are line segments, so a closed
+    sphere renders as an N-gon). The sim's own segment-vs-circle math stays
+    authoritative for blocking; this ring is the render hint."""
+    cx, cy = sphere.center
+    r = sphere.radius
+    pts = [(cx + r * math.cos(2 * math.pi * i / segments),
+            cy + r * math.sin(2 * math.pi * i / segments))
+           for i in range(segments)]
+    docs = []
+    for i in range(segments):
+        x0, y0 = pts[i]
+        x1, y1 = pts[(i + 1) % segments]
+        docs.append({
+            "c": [x0 * grid_size, y0 * grid_size,
+                  x1 * grid_size, y1 * grid_size],
+            "move": int(sphere.move), "sight": int(sphere.sight),
+            "sound": int(sphere.sound), "light": int(sphere.light),
+            "dir": int(sphere.dir),
+            "flags": {FLAG_NAMESPACE: dict(sphere.flags)} if sphere.flags else {},
+        })
+    return docs
+
+
+def walls_to_documents(walls: list,
                         grid_size: int = FOUNDRY_GRID_SIZE) -> list[dict]:
-    """Serialize a list of walls (e.g. state.walls) to WallDocument dicts."""
-    return [wall_to_document(w, grid_size) for w in (walls or [])]
+    """Serialize a barrier list (e.g. state.walls — Walls AND Spheres) to
+    Foundry WallDocument dicts. A Sphere expands to a ring of segments."""
+    from engine.core.geometry import Sphere
+    out: list[dict] = []
+    for w in (walls or []):
+        if isinstance(w, Sphere):
+            out.extend(sphere_to_documents(w, grid_size))
+        else:
+            out.append(wall_to_document(w, grid_size))
+    return out
 
 
 def area_to_template(area: dict, origin: tuple[float, float],

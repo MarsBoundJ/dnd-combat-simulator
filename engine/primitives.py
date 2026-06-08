@@ -2755,9 +2755,38 @@ def _place_barrier(params: dict, state: CombatState, bus: EventBus) -> None:
         "id", "a_wall_of_force")
 
     from engine.core.geometry import (
-        Wall, unit_direction, SQUARE_SIZE_FT,
+        Wall, Sphere, unit_direction, SQUARE_SIZE_FT,
         WALL_BLOCK_NORMAL, WALL_BLOCK_NONE,
     )
+
+    # Sphere form (the trapping "microwave" cage): a closed circle centered ON
+    # the target. It can't move or attack across the surface (effective speed
+    # 0) and is under total cover both ways — but a damaging zone sharing the
+    # center is inside WITH it, so the trapped creature takes recurring damage
+    # it can't escape or answer. radius_ft default 10 (RAW max 10-ft radius).
+    if str(params.get("shape", "panel")).lower() == "sphere":
+        radius = int(params.get("radius_ft", 10)) / SQUARE_SIZE_FT
+        gap = bool(params.get("gap", False))
+        sphere = Sphere(
+            center=(float(target.position[0]), float(target.position[1])),
+            radius=radius,
+            move=(WALL_BLOCK_NORMAL if params.get("move", True)
+                  else WALL_BLOCK_NONE),
+            sight=(WALL_BLOCK_NORMAL if params.get("sight", False)
+                   else WALL_BLOCK_NONE),
+            gap=gap,
+            flags={"effect": params.get("effect", "wall_of_force"),
+                   "caster_id": caster.id, "action_id": action_id},
+        )
+        state.walls.append(sphere)
+        state.event_log.append({
+            "event": "barrier_placed", "actor": caster.id,
+            "effect": sphere.flags["effect"], "shape": "sphere",
+            "center": list(sphere.center), "radius": radius,
+            "action_id": action_id,
+        })
+        return
+
     cx, cy = caster.position
     tx, ty = target.position
     dx, dy = unit_direction((cx, cy), (tx, ty))

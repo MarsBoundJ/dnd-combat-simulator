@@ -23,6 +23,7 @@ Convention per D&D 5e 2024:
 """
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 
 from engine.core.state import Actor
@@ -520,6 +521,11 @@ class Wall:
         'light')."""
         return int(getattr(self, channel, 0)) > 0
 
+    def blocks_loe(self) -> bool:
+        """True if this wall breaks line of effect — it blocks physical passage
+        (move, e.g. solid Wall of Force) OR vision (sight)."""
+        return self.blocks("move") or self.blocks("sight")
+
     @property
     def p0(self) -> tuple[float, float]:
         return (self.c[0], self.c[1])
@@ -527,6 +533,88 @@ class Wall:
     @property
     def p1(self) -> tuple[float, float]:
         return (self.c[2], self.c[3])
+
+
+@dataclass
+class Sphere:
+    """A spherical Wall-of-Force barrier: a closed circle (on the grid plane)
+    of `radius` grid-units centered at `center`. Lives in the SAME barrier list
+    as Wall — `segment_blocked` dispatches on type — so it flows through every
+    existing movement / line-of-effect / AoE-occlusion / concentration-scrub /
+    Foundry-export path with no call-site churn.
+
+    Blocking semantics: a channel is blocked when a segment crosses the
+    boundary CIRCLE. So a creature INSIDE can't move or attack OUT and one
+    OUTSIDE can't reach IN (total cover across the surface), while a segment
+    that stays wholly inside — the trapped creature plus a damaging zone
+    sharing the center (the 'microwave') — is unobstructed. Leak-proof by
+    construction: containment is a point-in-circle transition, not a polygon of
+    segments, so there are no diagonal corner-cuts to slip through."""
+    center: tuple[float, float]
+    radius: float
+    move: int = WALL_BLOCK_NORMAL
+    sight: int = WALL_BLOCK_NONE
+    sound: int = WALL_BLOCK_NONE
+    light: int = WALL_BLOCK_NONE
+    dir: int = WALL_DIR_BOTH
+    # The "floating dome" gap: a sealed sphere (gap=False) is total cover both
+    # ways. A floating dome (gap=True) blocks MOVEMENT but is line-of-effect
+    # TRANSPARENT — the few-inch gap at the floor lets a gas/zone (Cloudkill,
+    # Sickening Radiance) or attacks pass, while a creature can't squeeze
+    # through. This is the version that lets the "microwave" be cast in EITHER
+    # order (trap first, drop the zone in after), so a greedy AI can build it
+    # without synchronized casting.
+    gap: bool = False
+    flags: dict = field(default_factory=dict)
+
+    def blocks(self, channel: str) -> bool:
+        return int(getattr(self, channel, 0)) > 0
+
+    def blocks_loe(self) -> bool:
+        """Line of effect: a sealed sphere breaks it (move/sight); a floating
+        dome (gap) does NOT — spells/attacks pass through the floor gap."""
+        if self.gap:
+            return False
+        return self.blocks("move") or self.blocks("sight")
+
+    def contains(self, p: tuple[float, float]) -> bool:
+        """True if point `p` (grid units) lies within the sphere boundary."""
+        return math.hypot(p[0] - self.center[0],
+                          p[1] - self.center[1]) <= self.radius + 1e-9
+
+
+def _point_segment_distance(p: tuple[float, float],
+                            a: tuple[float, float],
+                            b: tuple[float, float]) -> float:
+    """Shortest distance from point `p` to segment a-b (grid units)."""
+    ax, ay = a
+    bx, by = b
+    dx, dy = bx - ax, by - ay
+    seg_len_sq = dx * dx + dy * dy
+    if seg_len_sq <= 1e-12:
+        return math.hypot(p[0] - ax, p[1] - ay)
+    t = ((p[0] - ax) * dx + (p[1] - ay) * dy) / seg_len_sq
+    t = max(0.0, min(1.0, t))
+    cx, cy = ax + t * dx, ay + t * dy
+    return math.hypot(p[0] - cx, p[1] - cy)
+
+
+def segment_intersects_circle(a: tuple[float, float], b: tuple[float, float],
+                              center: tuple[float, float],
+                              radius: float) -> bool:
+    """True iff segment a-b touches/crosses the boundary circle (center,
+    radius). Cases: one endpoint inside + one outside → crosses once (block);
+    both outside but the segment passes through the disk → crosses twice
+    (block); both strictly inside → no boundary crossing (clear)."""
+    r = radius + 1e-9
+    da = math.hypot(a[0] - center[0], a[1] - center[1])
+    db = math.hypot(b[0] - center[0], b[1] - center[1])
+    inside_a, inside_b = da <= r, db <= r
+    if inside_a != inside_b:
+        return True                       # straddles the surface
+    if inside_a and inside_b:
+        return False                      # wholly inside — unobstructed
+    return _point_segment_distance(center, a, b) <= r   # external chord
 
 
 def _orient(a: tuple[float, float], b: tuple[float, float],
@@ -572,7 +660,10 @@ def segment_blocked(a: Actor | tuple[float, float],
     for w in walls:
         if not w.blocks(channel):
             continue
-        if segments_cross(fa, fb, w.p0, w.p1):
+        if isinstance(w, Sphere):
+            if segment_intersects_circle(fa, fb, w.center, w.radius):
+                return True
+        elif segments_cross(fa, fb, w.p0, w.p1):
             return True
     return False
 
@@ -580,14 +671,26 @@ def segment_blocked(a: Actor | tuple[float, float],
 def line_of_effect_blocked(a: Actor | tuple[float, float],
                             b: Actor | tuple[float, float],
                             walls: list[Wall] | None) -> bool:
-    """True if a wall breaks line of effect between `a` and `b` — used for
-    ranged/spell targeting and AoE spread. A wall blocks line of effect if it
-    blocks physical passage (`move`) OR vision (`sight`). Wall of Force
-    (move-blocking) qualifies even though it is sight-transparent."""
+    """True if a barrier breaks line of effect between `a` and `b` — used for
+    ranged/spell targeting and AoE spread. A barrier blocks line of effect when
+    its `blocks_loe()` is True: a solid Wall of Force (move) or any sight wall
+    qualifies, but a FLOATING DOME (gap=True) is transparent — spells/attacks
+    pass through its floor gap even though it blocks movement."""
     if not walls:
         return False
-    return (segment_blocked(a, b, walls, "move") or
-            segment_blocked(a, b, walls, "sight"))
+    pa = _as_position(a)
+    pb = _as_position(b)
+    fa = (float(pa[0]), float(pa[1]))
+    fb = (float(pb[0]), float(pb[1]))
+    for w in walls:
+        if not w.blocks_loe():
+            continue
+        if isinstance(w, Sphere):
+            if segment_intersects_circle(fa, fb, w.center, w.radius):
+                return True
+        elif segments_cross(fa, fb, w.p0, w.p1):
+            return True
+    return False
 
 
 def clear_line_of_effect(origin: tuple[float, float],
