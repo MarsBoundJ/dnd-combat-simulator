@@ -1235,6 +1235,45 @@ def lr_control_factor(target: Actor) -> float:
     return 1.0 / (lr + 1) if lr > 0 else 1.0
 
 
+def _action_traps_in_dome(action: dict) -> bool:
+    """True if the action places a closed Wall-of-Force sphere/dome (a
+    save-less positional trap), so it routes to containment scoring rather than
+    the save-or-lose path."""
+    for step in (action.get("pipeline") or []):
+        if step.get("primitive") == "place_barrier" and \
+                str((step.get("params") or {}).get("shape", "")).lower() == "sphere":
+            return True
+    return False
+
+
+def defensive_ehp_containment(actor: Actor, target_enemy: Actor,
+                              action: dict, state: CombatState) -> float:
+    """Defensive eHP from trapping `target_enemy` in a Wall-of-Force dome — a
+    SAVE-LESS positional lockdown (no fail_prob, no LR discount).
+
+    The dome doesn't deny the target's DAMAGE (a floating dome is line-of-
+    effect-transparent, so it can still attack out) — it denies MOBILITY: a
+    kiting flier can no longer flee, extend the fight, or reposition its breath,
+    and is pinned for the party's focus-fire. So the value is a fraction of its
+    threat, weighted by how much it RELIES on mobility (a flier gains the most
+    from being pinned; a grounded melee bruiser already in reach gains little).
+
+      eHP = enemy_DPR × EXPECTED_CONTROL_ROUNDS × mobility_reliance
+
+    v1 coefficients are first-cut and meant to be tuned against measured win
+    rates (the dome's real payoff is the 'microwave' — a damaging zone dropped
+    in after; that compounds via the zone scorer, not here)."""
+    if target_enemy is None or not target_enemy.is_alive() \
+            or target_enemy.side == actor.side:
+        return 0.0
+    dpr = estimate_dpr(target_enemy)
+    if dpr <= 0:
+        return 0.0
+    from engine.ai.altitude import has_fly
+    mobility_reliance = 0.5 if has_fly(target_enemy) else 0.15
+    return dpr * EXPECTED_CONTROL_ROUNDS * mobility_reliance
+
+
 def defensive_ehp_hard_control(actor: Actor, target_enemy: Actor,
                                  action: dict, state: CombatState) -> float:
     """Defensive eHP from a save-or-lose control action.
@@ -1247,6 +1286,10 @@ def defensive_ehp_hard_control(actor: Actor, target_enemy: Actor,
     """
     if target_enemy is None or not target_enemy.is_alive():
         return 0.0
+
+    # Wall-of-Force dome: a save-less positional trap, not a save-or-lose.
+    if _action_traps_in_dome(action):
+        return defensive_ehp_containment(actor, target_enemy, action, state)
 
     intent = extract_control_intent(action)
     if not intent:
