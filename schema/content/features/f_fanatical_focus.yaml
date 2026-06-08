@@ -1,0 +1,33 @@
+# f_fanatical_focus — Fanatical Focus (Path of the Zealot, Barbarian L6)
+# Source: SRD CC v5.2.1 / PHB 2024 p.53
+#
+# RAW: "Once per active Rage, if you fail a saving throw, you can reroll
+# it with a bonus equal to your Rage Damage bonus, and you must use the
+# new roll."
+#
+# Engine modeling: a save-reroll hook — when a raging Zealot fails a
+# save, re-roll once per Rage with +Rage Damage bonus.
+#
+# **Wiring status: marker (DEFERRED).** Needs a failed-save interception
+# point (the save resolver would, on a fail, re-roll with the bonus and
+# consume a once-per-Rage charge). No such hook exists yet; the forced_
+# save / save paths resolve a single roll. Shipped as a marker until a
+# save-reroll mechanism lands (it would also serve Indomitable-style
+# rerolls). Defensive value; low DPR impact.
+
+id: f_fanatical_focus
+name: Fanatical Focus
+source: srd_5.2.1
+granted_by:
+  subclass: sc_path_of_the_zealot
+  level: 6
+type: passive
+
+effect_primitives: []
+
+contract:
+  reads: [actor.template.features_known, actor.rage_active,
+           actor.rage_damage_bonus]
+  writes: [combat.save_result]
+  event: save_failed
+  scope: per_rage

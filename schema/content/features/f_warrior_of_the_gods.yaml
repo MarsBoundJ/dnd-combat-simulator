@@ -1,0 +1,42 @@
+# f_warrior_of_the_gods — Warrior of the Gods (Path of the Zealot,
+# Barbarian L3)
+# Source: SRD CC v5.2.1 / PHB 2024 p.53
+#
+# RAW: "You have a pool of four d12s that you can spend to heal yourself.
+# As a Bonus Action, you can expend dice from the pool, roll them, and
+# regain a number of Hit Points equal to the roll's total. Your pool
+# regains all expended dice when you finish a Long Rest. The pool's
+# maximum number of dice increases by one when you reach Barbarian
+# levels 6 (5 dice), 12 (6 dice), and 17 (7 dice)."
+#
+# Engine modeling: a Bonus-Action self-heal from a d12 dice pool — the
+# shape of Lay on Hands (a pool resource + a custom heal primitive), but
+# the heal is a dice roll rather than a flat draw, and it's self-only.
+#
+# **Wiring status: marker (DEFERRED).** Needs: (1) a warrior_of_the_gods
+# primitive that spends enough pool dice to cover missing HP, rolls
+# them, and heals the actor; (2) a dice-pool resource seeded in
+# derive_pc_resources (4/5/6/7 at L3/6/12/17); (3) a heal-scoring branch
+# in defensive_ehp_healing recognizing it (self-target only), parallel
+# to the Lay on Hands path. Shipped as a marker until that lands so the
+# AI doesn't surface a half-scored self-heal. Tracked as the Zealot
+# sustain follow-on.
+
+id: f_warrior_of_the_gods
+name: Warrior of the Gods
+source: srd_5.2.1
+granted_by:
+  subclass: sc_path_of_the_zealot
+  level: 3
+type: active
+
+resource_cost:
+  type: bonus_action
+
+effect_primitives: []
+
+contract:
+  reads: [actor.template.features_known, actor.resources, actor.hp_current]
+  writes: [actor.hp_current, actor.resources]
+  event: actor_turn_bonus_action
+  scope: per_use

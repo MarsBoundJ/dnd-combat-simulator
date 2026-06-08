@@ -1,0 +1,45 @@
+# f_rage_of_the_gods — Rage of the Gods (Path of the Zealot, Barbarian
+# L14)
+# Source: SRD CC v5.2.1 / PHB 2024 p.53
+#
+# RAW: "When you activate your Rage, you can assume the form of a divine
+# warrior. This form lasts for 1 minute or until you drop to 0 Hit
+# Points. Once you use this feature, you can't do so again until you
+# finish a Long Rest. While in this form, you gain:
+#   Flight. You have a Fly Speed equal to your Speed and can hover.
+#   Resistance. You have Resistance to Necrotic, Psychic, and Radiant.
+#   Revivification. When a creature within 30 feet of you would drop to
+#     0 Hit Points, you can take a Reaction to expend a use of your Rage
+#     to instead change the target's Hit Points to a number equal to
+#     your Barbarian level."
+#
+# Engine modeling: a multi-part Rage-activated form (1/Long Rest):
+#   - Fly Speed = Speed + hover (reuse the PC Fly speed/altitude layer).
+#   - Resistance to Necrotic/Psychic/Radiant (damage_resistance_grant).
+#   - Revivification: a "would drop to 0 HP" reaction that spends a Rage
+#     charge to set the target's HP to the Barbarian level.
+#
+# **Wiring status: marker (DEFERRED).** The form bundles three systems.
+# Flight + resistance reuse existing layers; the Revivification reaction
+# needs a NEW trigger ("creature would drop to 0 HP") distinct from the
+# damage_taken dispatcher just added — it intercepts BEFORE HP hits 0,
+# more like a death-prevention hook. Shipped as a marker; the highest-
+# value next step (revivification) is the follow-on. Rare in sims (L14,
+# 1/rest), so low calibration impact.
+
+id: f_rage_of_the_gods
+name: Rage of the Gods
+source: srd_5.2.1
+granted_by:
+  subclass: sc_path_of_the_zealot
+  level: 14
+type: active
+
+effect_primitives: []
+
+contract:
+  reads: [actor.template.features_known, actor.rage_active,
+           actor.template.levels.barbarian]
+  writes: [actor.fly_speed, actor.damage_resistances, ally.hp_current]
+  event: rage_activated
+  scope: per_long_rest

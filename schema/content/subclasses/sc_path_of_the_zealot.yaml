@@ -1,0 +1,41 @@
+# sc_path_of_the_zealot — Path of the Zealot (Barbarian subclass)
+# Source: SRD CC v5.2.1 / PHB 2024 p.53
+#
+# A god-touched, damage-forward Barbarian path. The marquee feature is
+# Divine Fury (L3) — an extra 1d6 + half level of Necrotic/Radiant on
+# the first hit each turn while raging — which (with Reckless + Rage)
+# puts Zealot builds high on Treantmonk's 2024 martial rankings.
+#
+# Note: Zealot is a PHB 2024 subclass (NOT in the SRD's subclass list —
+# the SRD ships only Path of the Berserker for Barbarian). Sourced from
+# the PHB; `source` is kept as the repo's single ruleset id.
+#
+# Feature wiring status:
+#   - f_divine_fury (L3)         → FULLY WIRED (engine/core/divine_fury.py
+#                                   damage rider; see f_divine_fury.yaml)
+#   - f_warrior_of_the_gods (L3) → marker; dice-pool self-heal + heal
+#                                   scoring deferred (see its yaml)
+#   - f_fanatical_focus (L6)     → marker; save-reroll hook deferred
+#   - f_zealous_presence (L10)   → marker; party advantage-buff deferred
+#   - f_rage_of_the_gods (L14)   → marker; fly + resistances +
+#                                   revivification reaction deferred
+
+id: sc_path_of_the_zealot
+name: Path of the Zealot
+source: srd_5.2.1
+parent_class: c_barbarian
+
+archetype_tags:
+  behavior_archetype: berserker_fanatic
+  role: striker                 # INTERNAL-EVAL-ONLY per vocabulary firewall
+  flavor_tags: [divine, fanatical, zealous, fearless]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_divine_fury, f_warrior_of_the_gods]
+  - level: 6
+    feature_ids: [f_fanatical_focus]
+  - level: 10
+    feature_ids: [f_zealous_presence]
+  - level: 14
+    feature_ids: [f_rage_of_the_gods]
