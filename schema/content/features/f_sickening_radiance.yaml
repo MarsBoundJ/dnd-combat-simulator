@@ -1,0 +1,78 @@
+# f_sickening_radiance — Sickening Radiance (4th-level Evocation, XGtE p164)
+#
+# Note: NOT in SRD 5.2.1 (XGtE sourcebook). Modeled from published rules.
+# Included because it is the primary "microwave" zone for the WoF combo arc:
+# radiant damage bypasses poison immunity (unlike Cloudkill), and exhaustion
+# stacking makes a trapped creature progressively less effective each round.
+#
+# RAW summary: 30-ft radius sphere centered on a point within 120 ft.
+# Concentration, up to 10 minutes. Each creature in the area at the start of
+# its turn makes a CON save (spell DC):
+#   - On failure: 4d10 Radiant damage + 1 level of Exhaustion
+#   - On success: no effect
+#
+# Why it matters: the "microwave" combination:
+#   1. Cast Wall of Force (floating dome) to trap the target.
+#   2. Cast Sickening Radiance inside the dome (LoE-transparent gap).
+#   Each round: CON save, 4d10 radiant + exhaustion stack.
+#   Exhaustion degrades d20 tests by 2/level and speed by 5/level — a
+#   large 6-round countdown to death independent of HP damage.
+#   Unlike Cloudkill: (a) radiant bypasses Undead/Poison immunity,
+#   (b) exhaustion is a stacking debuff vs single-resource damage.
+#
+# Engine modeling:
+#   - type: persistent_aura (same pattern as Cloudkill / Moonbeam)
+#   - CON save at turn_start_in_area
+#   - on_fail: 4d10 radiant damage + apply_condition co_exhaustion
+#   - on_success: no effect (RAW: explicit fail-only)
+#   - Wizard 4th-level spell (character level 7)
+#
+# Deferred RAW bits:
+#   - "Enters first time on a turn" trigger (v1: turn_start_in_area only)
+#   - Upcast scaling: RAW has none for SR; no upcast_scaling block needed
+
+id: f_sickening_radiance
+name: Sickening Radiance
+source: xgte_p164
+granted_by:
+  class: c_wizard
+  level: 7            # 4th-level slots at character level 7
+type: active
+spell:
+  class: c_wizard
+  level: 4
+
+description: |
+  30-ft radius sphere of blinding radiance within 120 ft. Each creature in the
+  area at turn start makes a CON save: 4d10 Radiant damage + 1 level of
+  Exhaustion on failure. Concentration, 10 minutes. The "microwave" zone.
+
+action_template:
+  id: a_sickening_radiance
+  name: Sickening Radiance
+  type: persistent_aura
+  spell_slot_level: 4
+  concentration: true
+  named_effect: sickening_radiance
+  area:
+    shape: sphere
+    radius_ft: 30
+    range_ft: 120
+  pipeline:
+    - primitive: persistent_aura
+      params:
+        shape: sphere
+        radius_ft: 30
+        anchor: point
+        trigger_event: target_turn_start_in_area
+        affected: all_creatures
+        ability: constitution
+        dc: 15
+        on_fail:
+          - primitive: damage
+            params: { dice: "4d10", type: radiant }
+          - primitive: apply_condition
+            params:
+              condition_id: co_exhaustion
+              source_type: spell
+        on_success: []
