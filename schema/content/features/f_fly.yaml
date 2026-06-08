@@ -1,0 +1,58 @@
+# f_fly — Fly (3rd-level Transmutation spell, SRD CC v5.2.1)
+#
+# RAW summary: Touch a willing creature; it gains a flying speed of 60 ft for
+# the duration. Concentration, up to 10 minutes. At Higher Levels: target one
+# additional creature per slot level above 3rd.
+#
+# Engine modeling (altitude Stage 3):
+#   - type: offensive_buff — rides the ally-targeting candidate generation +
+#     buff valuation (like Bless). Here the "offense" it buys is REACH: a
+#     grounded melee ally gains a fly speed and can ascend (3-D engage) to a
+#     hovering/airborne enemy it otherwise can't touch.
+#   - Concentration — competes with the caster's other concentration spells
+#     (control/summons), so the AI only casts it when the reach it unlocks
+#     beats the alternative.
+#   - named_effect: "fly" → per-target dedup + the cross-spell concentration
+#     cleanup key (grant_speed reverts the fly speed when concentration ends).
+#   - Pipeline: grant_speed fly 60 (ledgered on Actor.active_speed_grants).
+#
+# Class wiring: native on the Wizard list (and Sorcerer); Wizards gain 3rd-level
+# slots at L5. The Bard only gets Fly via a Magical Secrets pick (a deliberate
+# build choice), so it is NOT auto-added to the Bard.
+#
+# Deferred (v1 = single-target):
+#   - Upcast +1 target per slot above 3rd (max_targets stays 1; multi-lift via
+#     the multi-target grouping infra is a follow-up).
+#   - True 10-minute duration (treated as until concentration ends / long rest).
+
+id: f_fly
+name: Fly
+source: srd_5.2.1
+granted_by:
+  class: c_wizard
+  level: 5                   # Wizards gain 3rd-level slots at L5
+type: active
+spell:
+  class: c_wizard
+  level: 3
+
+description: |
+  Grant a willing ally a 60 ft flying speed for the duration so it can engage
+  airborne enemies. Concentration, up to 10 minutes. (v1: one target.)
+
+action_template:
+  id: a_fly
+  name: Fly
+  type: offensive_buff
+  spell_slot_level: 3
+  slot: action
+  concentration: true
+  named_effect: fly
+  range_ft: 30               # RAW Touch; v1 uses a short cast range
+  max_targets: 1
+  pipeline:
+    - primitive: grant_speed
+      params:
+        target: ally
+        speed_type: fly
+        amount: 60

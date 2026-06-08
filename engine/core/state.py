@@ -63,6 +63,12 @@ class Actor:
     # ledger for clean removal. Reusable for Heroes' Feast,
     # False Life's max-HP variants, etc.
     hp_max_bonuses: list = field(default_factory=list)
+    # Granted movement speeds (Fly's fly 60) — ledger for clean revert when the
+    # granting concentration ends. Each entry: {speed_type, amount, prior,
+    # source_caster_id, source_action_id, named_effect}. `prior` is the value
+    # the speed key held before the grant (None = key was absent → delete on
+    # revert). Scrubbed in concentration.end_concentration.
+    active_speed_grants: list = field(default_factory=list)
     # Hit Dice (PCs): RAW you have `level` Hit Dice of your class hit die,
     # spent on a SHORT rest to heal (each = avg(die) + CON mod); you regain
     # half your total (round down, min 1) on a LONG rest. 0 for monsters /
