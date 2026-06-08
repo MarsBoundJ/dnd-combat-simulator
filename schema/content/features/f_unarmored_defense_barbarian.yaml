@@ -1,0 +1,21 @@
+# f_unarmored_defense_barbarian — Unarmored Defense (Barbarian L1)
+#
+# RAW (SRD 5.2.1 / PHB 2024 p.50): While you aren't wearing any armor,
+# your base Armor Class equals 10 + your Dexterity modifier + your
+# Constitution modifier. You can use a Shield and still gain this
+# benefit.
+#
+# Engine modeling: build-time AC hook in pc_schema (when the PC has no
+# armor block, AC = 10 + DEX + CON). Named distinctly from the Monk
+# variant (which uses WIS). A Shield's +2 stacks on top via the
+# equipment AC path; this feature only sets the unarmored base.
+#
+# source: srd_5.2.1
+
+id: f_unarmored_defense_barbarian
+name: Unarmored Defense
+source: srd_5.2.1
+granted_by:
+  class: c_barbarian
+  level: 1
+type: passive
