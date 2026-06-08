@@ -13,8 +13,8 @@
 # Feature wiring status:
 #   - f_divine_fury (L3)         → FULLY WIRED (engine/core/divine_fury.py
 #                                   damage rider; see f_divine_fury.yaml)
-#   - f_warrior_of_the_gods (L3) → marker; dice-pool self-heal + heal
-#                                   scoring deferred (see its yaml)
+#   - f_warrior_of_the_gods (L3) → WIRED: BA d12 dice-pool self-heal
+#                                   (4/5/6/7 by level; see its yaml)
 #   - f_fanatical_focus (L6)     → marker; save-reroll hook deferred
 #   - f_zealous_presence (L10)   → marker; party advantage-buff deferred
 #   - f_rage_of_the_gods (L14)   → marker; fly + resistances +

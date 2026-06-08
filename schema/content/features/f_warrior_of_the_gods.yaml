@@ -9,18 +9,15 @@
 # maximum number of dice increases by one when you reach Barbarian
 # levels 6 (5 dice), 12 (6 dice), and 17 (7 dice)."
 #
-# Engine modeling: a Bonus-Action self-heal from a d12 dice pool — the
-# shape of Lay on Hands (a pool resource + a custom heal primitive), but
-# the heal is a dice roll rather than a flat draw, and it's self-only.
-#
-# **Wiring status: marker (DEFERRED).** Needs: (1) a warrior_of_the_gods
-# primitive that spends enough pool dice to cover missing HP, rolls
-# them, and heals the actor; (2) a dice-pool resource seeded in
-# derive_pc_resources (4/5/6/7 at L3/6/12/17); (3) a heal-scoring branch
-# in defensive_ehp_healing recognizing it (self-target only), parallel
-# to the Lay on Hands path. Shipped as a marker until that lands so the
-# AI doesn't surface a half-scored self-heal. Tracked as the Zealot
-# sustain follow-on.
+# Engine modeling: a Bonus-Action self-heal from a d12 dice pool. The
+# pool (warrior_of_the_gods_dice_remaining / _max) is seeded by
+# pc_schema.derive_pc_resources at 4/5/6/7 by level and restored on a
+# Long Rest by rest.apply_long_rest. The warrior_of_the_gods primitive
+# spends the fewest dice that cover the actor's missing HP (>=1), rolls
+# them, and heals the actor. Self-only ("heal yourself"), so the
+# candidate generator emits a single self-target (target: self →
+# is_self_targeted_heal) and defensive_ehp_healing scores it for the
+# caster only.
 
 id: f_warrior_of_the_gods
 name: Warrior of the Gods
@@ -33,10 +30,25 @@ type: active
 resource_cost:
   type: bonus_action
 
-effect_primitives: []
+action_template:
+  id: a_warrior_of_the_gods
+  name: Warrior of the Gods
+  type: heal
+  slot: bonus_action
+  pipeline:
+    - primitive: warrior_of_the_gods
+      params:
+        target: self
 
 contract:
-  reads: [actor.template.features_known, actor.resources, actor.hp_current]
-  writes: [actor.hp_current, actor.resources]
+  reads: [actor.resources.warrior_of_the_gods_dice_remaining,
+           actor.hp_current, actor.hp_max]
+  writes: [actor.hp_current, actor.resources.warrior_of_the_gods_dice_remaining]
   event: actor_turn_bonus_action
   scope: per_use
+
+# Deferred:
+#   - Player-chosen dice count: RAW lets you expend any number of dice.
+#     v1 spends the fewest dice that cover missing HP at the d12 average
+#     (never overheals the pool below need); a "burst all dice" mode for
+#     a desperate top-up is a thin follow-on.

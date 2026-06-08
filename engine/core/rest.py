@@ -340,6 +340,12 @@ def apply_long_rest(actor: Actor, state: CombatState) -> dict:
         rage_result = _refresh_rage_uses_to_max(actor)
         if rage_result is not None:
             summary["rage_uses_refresh"] = rage_result
+        # Warrior of the Gods (Zealot L3): the d12 self-heal pool fully
+        # refreshes on a Long Rest to the level-based max stamped by
+        # derive_pc_resources. No-op for non-Zealot Barbarians.
+        wotg_result = _refresh_warrior_of_the_gods_pool_to_max(actor)
+        if wotg_result is not None:
+            summary["warrior_of_the_gods_pool_refresh"] = wotg_result
     if cls == "c_paladin":
         # PR #83: Lay on Hands pool fully refreshes on long rest.
         # The max is stamped onto resources as
@@ -397,6 +403,22 @@ def _refresh_lay_on_hands_pool_to_max(actor: Actor) -> dict | None:
         return None
     actor.resources["lay_on_hands_pool_remaining"] = max_pool
     return {"new_total": max_pool}
+
+
+def _refresh_warrior_of_the_gods_pool_to_max(actor: Actor) -> dict | None:
+    """Long rest fully restores the Zealot's Warrior of the Gods d12
+    pool to the level-based max stamped on
+    `actor.resources["warrior_of_the_gods_dice_max"]` by
+    pc_schema.derive_pc_resources. Returns None when the actor has no
+    pool declared (non-Zealot Barbarian or fixture without the pair)."""
+    max_dice = int(actor.resources.get("warrior_of_the_gods_dice_max", 0))
+    if max_dice <= 0:
+        return None
+    cur = int(actor.resources.get("warrior_of_the_gods_dice_remaining", 0))
+    if cur >= max_dice:
+        return None
+    actor.resources["warrior_of_the_gods_dice_remaining"] = max_dice
+    return {"new_total": max_dice}
 
 
 def _refresh_rage_uses_to_max(actor: Actor) -> dict | None:
