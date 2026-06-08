@@ -14,9 +14,9 @@
 #                                   gate in primitives._apply_condition)
 #   - f_retaliation (L10)        → marker; reaction-attack execution
 #                                   deferred (see f_retaliation.yaml)
-#   - f_intimidating_presence    → marker; emanation fear save deferred
-#     (L14)                        on a martial save DC source
-#                                   (see f_intimidating_presence.yaml)
+#   - f_intimidating_presence    → WIRED: BA emanation WIS-frighten on a
+#     (L14)                        martial save DC (8+STR+PB), 1×/Long
+#                                   Rest (see f_intimidating_presence.yaml)
 
 id: sc_path_of_the_berserker
 name: Path of the Berserker

@@ -2958,6 +2958,25 @@ def _resolve_dc(params: dict, state: CombatState) -> int:
             pb = actor.template.get("cr", {}).get("proficiency_bonus", 2)
             return 8 + mod + pb
         return 13
+    if dc_source == "martial_save_dc":
+        # 8 + PB + a governing ability mod (default STR). For martial
+        # features whose save DC is "8 + ability + Proficiency Bonus"
+        # rather than a spell save DC — e.g. Barbarian Intimidating
+        # Presence (STR). The governing ability is read from the
+        # forced_save's `dc_ability` param so other martial features can
+        # key off CON/DEX/etc. without a new dc_source.
+        actor = state.current_attack.get("actor") or state.current_actor()
+        if actor:
+            ability = params.get("dc_ability", "strength")
+            short = {"strength": "str", "dexterity": "dex",
+                       "constitution": "con", "intelligence": "int",
+                       "wisdom": "wis", "charisma": "cha"}.get(
+                           str(ability), "str")
+            mod = ability_modifier(
+                actor.abilities.get(short, {}).get("score", 10))
+            pb = actor.template.get("cr", {}).get("proficiency_bonus", 2)
+            return 8 + mod + pb
+        return 13
     if dc_source.startswith("fixed:"):
         return int(dc_source[len("fixed:"):])
     return 13  # default
@@ -2991,6 +3010,15 @@ def _resolve_save_targets(params: dict, state: CombatState) -> list[Actor]:
                 if radius_ft is not None:
                     from engine.core.geometry import actors_in_radius
                     members = actors_in_radius(tuple(origin), int(radius_ft),
+                                                 living)
+            elif shape == "emanation":
+                # A self-centered Emanation is a sphere of `size_ft`
+                # radius originating from the actor (origin == caster's
+                # position). Used by Barbarian Intimidating Presence.
+                size_ft = area.get("size_ft")
+                if size_ft is not None:
+                    from engine.core.geometry import actors_in_radius
+                    members = actors_in_radius(tuple(origin), int(size_ft),
                                                  living)
             elif shape == "cone":
                 length_ft = area.get("length_ft")
