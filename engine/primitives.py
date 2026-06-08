@@ -461,6 +461,16 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
             is_crit=(sa_state == "crit"),
             base_attack_damage=total)
         total += ds_damage
+        # Frenzy rider (Path of the Berserker, Barbarian L3). Once-per-
+        # turn extra Nd6 (N = rage damage bonus) on the first STR-based
+        # hit when Reckless Attack is used while raging. Same fold-into-
+        # the-hit treatment as Sneak Attack — adds 0 when the actor
+        # doesn't qualify (non-Berserker, not raging, no Reckless this
+        # turn, already frenzied this turn, or a non-STR/ranged attack).
+        from engine.core import frenzy as _fr
+        total += _fr.try_apply_frenzy(
+            actor, target, state, attack_params, rng,
+            is_crit=(sa_state == "crit"))
         # PR #89: Searing Smite rider. Fires on the caster's next
         # melee weapon hit when armed. Adds 1d6 fire damage (+1d6
         # per upcast slot level above 1st, doubled on crit) AND
@@ -777,6 +787,22 @@ def _apply_condition(params: dict, state: CombatState, bus: EventBus) -> None:
     condition_id = params.get("condition_id") or params.get("condition")
     if not condition_id:
         raise ValueError("apply_condition requires condition_id or condition")
+
+    # Mindless Rage (Path of the Berserker, Barbarian L6): immunity to
+    # the Charmed and Frightened conditions while Rage is active. The
+    # condition simply doesn't land (RAW: "You have Immunity to the
+    # Charmed and Frightened conditions while your Rage is active").
+    if condition_id in ("co_charmed", "co_frightened") and target is not None:
+        from engine.core import rage as _rage
+        features = (target.template or {}).get("features_known") or []
+        if "f_mindless_rage" in features and _rage.is_raging(target):
+            state.event_log.append({
+                "event": "condition_immune",
+                "target": target.id,
+                "condition": condition_id,
+                "reason": "mindless_rage",
+            })
+            return
 
     application = {
         "condition_id": condition_id,

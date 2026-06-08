@@ -1,0 +1,66 @@
+# f_intimidating_presence — Intimidating Presence (Path of the
+# Berserker, Barbarian L14)
+# Source: SRD CC v5.2.1 / PHB 2024 p.51
+#
+# RAW: "As a Bonus Action, you can strike terror into others... each
+# creature of your choice in a 30-foot Emanation originating from you
+# must make a Wisdom saving throw (DC 8 plus your Strength modifier and
+# Proficiency Bonus). On a failed save, a creature has the Frightened
+# condition for 1 minute. At the end of each of the Frightened
+# creature's turns, the creature repeats the save, ending the effect on
+# itself on a success. Once you use this feature, you can't use it again
+# until you finish a Long Rest unless you expend a use of your Rage (no
+# action required) to restore your use of it."
+#
+# Engine modeling: a Bonus-Action emanation save-or-Frighten — the same
+# forced_save + recurring-save shape as f_fear, but (a) an emanation
+# (size 30, origin caster) rather than a cone and (b) a MARTIAL save DC
+# (8 + STR mod + PB), not a spell save DC.
+#
+# **Wiring status: marker (action execution DEFERRED).** Two engine
+# bits are missing before this can fire correctly:
+#   1. A martial feature save DC source. Every forced_save in the
+#      content set today resolves `dc_source: caster_spell_save_dc`;
+#      Barbarians have no spell DC. A `martial_save_dc` source (8 + the
+#      feature's governing ability mod + PB) is needed so the save isn't
+#      computed against a zero/garbage DC.
+#   2. The per-Long-Rest use with the "expend a Rage use to restore"
+#      refresh (feature_uses + a rage-restore hook).
+# Auto-attaching the action_template now would let the AI fire an
+# emanation Frighten on a broken DC, so the feature ships as a marker
+# until the martial-DC source lands. Tracked as the martial-save-DC
+# follow-on (shared with any future STR/CON-DC martial feature).
+
+id: f_intimidating_presence
+name: Intimidating Presence
+source: srd_5.2.1
+granted_by:
+  subclass: sc_path_of_the_berserker
+  level: 14
+type: active
+
+resource_cost:
+  type: bonus_action
+
+effect_primitives: []
+
+contract:
+  reads: [actor.template.features_known, actor.abilities.str,
+           actor.proficiency_bonus]
+  writes: [target.applied_conditions]
+  event: actor_turn_bonus_action
+  scope: per_use
+
+# Deferred (the engine work that turns the marker live):
+#   - martial_save_dc source: DC = 8 + STR mod + PB, resolved in
+#     primitives forced_save + the AI save-scoring resolvers
+#     (defensive_ehp / ehp_scoring) so the projected-Frighten value is
+#     scored correctly.
+#   - 30-ft emanation targeting ("each creature of your choice"): reuse
+#     the emanation area shape (sp_spirit_guardians) + all_creatures_in_
+#     area resolution.
+#   - Per-Long-Rest use restorable by expending a Rage charge
+#     (feature_uses key + rage-restore, mirroring the Zealot Zealous
+#     Presence refresh).
+#   - co_frightened on fail + turn-end WIS re-save (the f_fear pipeline
+#     shape, reused).

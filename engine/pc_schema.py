@@ -285,6 +285,24 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
     if "f_unarmored_defense_monk" in features_known and not armor_spec:
         ac = (10 + ability_modifier(ability_scores["dex"]["score"])
                + ability_modifier(ability_scores["wis"]["score"]))
+    # Barbarian Unarmored Defense: base AC = 10 + DEX + CON while wearing
+    # no armor (RAW PHB 2024 p.50). A Shield still stacks on top — but
+    # shield AC is applied elsewhere from the equipment, so this only
+    # sets the unarmored base. CON-based, mirroring the Monk's WIS path.
+    if "f_unarmored_defense_barbarian" in features_known and not armor_spec:
+        ac = (10 + ability_modifier(ability_scores["dex"]["score"])
+               + ability_modifier(ability_scores["con"]["score"]))
+
+    # Movement speed: explicit pc_spec speed > race speed > default 30.
+    speed = (pc_spec.get("speed")
+                 or (race_def.get("speed") if race_def else None)
+                 or {"walk": 30})
+    # Barbarian Fast Movement (L5): +10 ft to walking speed while not
+    # wearing Heavy armor (RAW PHB 2024 p.51). Copy before mutating so
+    # we never clobber a shared race/spec speed dict.
+    if "f_fast_movement" in features_known and not _is_heavy_armor(armor_spec):
+        speed = dict(speed)
+        speed["walk"] = int(speed.get("walk", 30)) + 10
 
     actions += _build_feature_actions(features_known, level, class_id,
                                          weapon_actions=weapon_actions,
@@ -339,9 +357,7 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
                 "dice": f"{level}{hit_die}",
                 "con_contribution": con_mod * level,
             },
-            "speed": (pc_spec.get("speed")
-                          or (race_def.get("speed") if race_def else None)
-                          or {"walk": 30}),
+            "speed": speed,
             "initiative": {
                 "modifier": ability_modifier(ability_scores["dex"]["score"]),
             },
@@ -1118,7 +1134,11 @@ def _build_feature_actions(features_known: set[str], level: int,
     # lower per the c_fighter level_table (the lower-level feature
     # remains in features_known by accumulation, but the higher-level
     # count wins).
-    if class_id == "c_fighter":
+    # Fighter (2/3/4 attacks at L5/L11/L20) and Barbarian (2 attacks at
+    # L5 — Extra Attack only once, so it caps at f_extra_attack → 2).
+    # Both consume the same f_extra_attack marker + multiattack builder;
+    # the Monk runs a separate f_martial_arts path above and is excluded.
+    if class_id in ("c_fighter", "c_barbarian"):
         count = _extra_attack_count(features_known)
         if count > 1 and weapon_actions:
             actions.append(_build_extra_attack_action(count, weapon_actions))
@@ -2034,6 +2054,22 @@ def _compute_hp(hit_die: str, level: int, con_mod: int) -> int:
     if level > 1:
         hp += (avg_per_level + con_mod) * (level - 1)
     return max(1, hp)
+
+
+def _is_heavy_armor(armor: dict) -> bool:
+    """True if the armor block represents Heavy armor.
+
+    PC armor specs carry only {base_ac, max_dex_bonus}. Heavy armor is
+    the one category that ignores DEX entirely (max_dex_bonus == 0),
+    while Medium caps DEX at +2 and Light is uncapped — so a 0 cap is a
+    clean RAW proxy. An explicit `category: heavy` / `heavy: true` flag
+    wins when present. Empty/no armor (unarmored) → not Heavy.
+    """
+    if not armor:
+        return False
+    if armor.get("category") == "heavy" or armor.get("heavy") is True:
+        return True
+    return armor.get("max_dex_bonus") == 0
 
 
 def _compute_ac(armor: dict, ability_scores: dict,

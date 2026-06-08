@@ -22,11 +22,31 @@
 #     via engine.core.reckless_attack.should_activate (archetype
 #     overrides + cost-benefit fallback).
 #
-# Still deferred (each becomes a follow-on PR):
-#   - Danger Sense (advantage on DEX saves vs visible effects)
-#   - Unarmored Defense (AC formula change)
-#   - Brutal Strike (2024 PHB; trade-off mechanic on attacks)
-#   - Subclass paths (Berserker / Wild Heart / World Tree / Zealot)
+# Level table now spans ALL 20 levels (was sparse — the gaps mis-stated
+# the Rages / Weapon Mastery counts at L11/L16/L17/L20). Every RAW class
+# feature is listed at its level; the load-bearing ones for eHP/DPR are
+# wired, the rest ship as documented markers (in features_known +
+# telemetry-visible) until their follow-on PR.
+#
+# Wired class features:
+#   - f_unarmored_defense_barbarian (L1) → build-time AC = 10+DEX+CON
+#     (pc_schema), Shield stacks on top.
+#   - f_extra_attack (L5) → 2-attack multiattack via the shared Fighter/
+#     Barbarian Extra Attack builder (pc_schema). Barbarian caps at 2.
+#   - f_fast_movement (L5) → +10 ft walk speed while not in Heavy armor
+#     (build-time speed bump in pc_schema).
+#
+# Marker class features (RAW listed; engine work deferred per a follow-on):
+#   - f_danger_sense (L2), f_primal_knowledge (L3),
+#     f_feral_instinct + f_instinctive_pounce (L7), f_brutal_strike (L9),
+#     f_relentless_rage (L11), f_improved_brutal_strike (L13/L17),
+#     f_persistent_rage (L15), f_indomitable_might (L18),
+#     f_primal_champion (L20).
+#   - grant_asi_or_feat (L4/8/12/16), grant_epic_boon (L19),
+#     grant_subclass (L3) — char-build grant markers, no content file.
+#
+# Subclass paths: Path of the Berserker is wired (sc_path_of_the_
+# berserker); Wild Heart / World Tree / Zealot are follow-ons.
 
 id: c_barbarian
 name: Barbarian
@@ -56,21 +76,21 @@ multiclass_entry:
 level_table:
   - level: 1
     proficiency_bonus: 2
-    features: [f_weapon_mastery, f_rage]
+    features: [f_rage, f_unarmored_defense_barbarian, f_weapon_mastery]
     class_resources:
       weapon_mastery_count: 2
       rage_uses: 2
       rage_damage_bonus: 2
   - level: 2
     proficiency_bonus: 2
-    features: [f_reckless_attack]
+    features: [f_danger_sense, f_reckless_attack]
     class_resources:
       weapon_mastery_count: 2
       rage_uses: 2
       rage_damage_bonus: 2
   - level: 3
     proficiency_bonus: 2
-    features: [grant_subclass]
+    features: [grant_subclass, f_primal_knowledge]
     class_resources:
       weapon_mastery_count: 2
       rage_uses: 3
@@ -84,51 +104,114 @@ level_table:
       rage_damage_bonus: 2
   - level: 5
     proficiency_bonus: 3
-    features: []
+    features: [f_extra_attack, f_fast_movement]
     class_resources:
       weapon_mastery_count: 3
       rage_uses: 3
       rage_damage_bonus: 2
   - level: 6
     proficiency_bonus: 3
-    features: []
+    features: []          # subclass feature (from the chosen subclass)
+    class_resources:
+      weapon_mastery_count: 3
+      rage_uses: 4
+      rage_damage_bonus: 2
+  - level: 7
+    proficiency_bonus: 3
+    features: [f_feral_instinct, f_instinctive_pounce]
+    class_resources:
+      weapon_mastery_count: 3
+      rage_uses: 4
+      rage_damage_bonus: 2
+  - level: 8
+    proficiency_bonus: 3
+    features: [grant_asi_or_feat]
     class_resources:
       weapon_mastery_count: 3
       rage_uses: 4
       rage_damage_bonus: 2
   - level: 9
     proficiency_bonus: 4
-    features: []
+    features: [f_brutal_strike]
     class_resources:
       weapon_mastery_count: 3
       rage_uses: 4
       rage_damage_bonus: 3
+  - level: 10
+    proficiency_bonus: 4
+    features: []          # subclass feature
+    class_resources:
+      weapon_mastery_count: 4
+      rage_uses: 4
+      rage_damage_bonus: 3
   - level: 11
     proficiency_bonus: 4
-    features: []
+    features: [f_relentless_rage]
     class_resources:
-      weapon_mastery_count: 3
+      weapon_mastery_count: 4
+      rage_uses: 4
+      rage_damage_bonus: 3
+  - level: 12
+    proficiency_bonus: 4
+    features: [grant_asi_or_feat]
+    class_resources:
+      weapon_mastery_count: 4
+      rage_uses: 5
+      rage_damage_bonus: 3
+  - level: 13
+    proficiency_bonus: 5
+    features: [f_improved_brutal_strike]
+    class_resources:
+      weapon_mastery_count: 4
+      rage_uses: 5
+      rage_damage_bonus: 3
+  - level: 14
+    proficiency_bonus: 5
+    features: []          # subclass feature
+    class_resources:
+      weapon_mastery_count: 4
+      rage_uses: 5
+      rage_damage_bonus: 3
+  - level: 15
+    proficiency_bonus: 5
+    features: [f_persistent_rage]
+    class_resources:
+      weapon_mastery_count: 4
       rage_uses: 5
       rage_damage_bonus: 3
   - level: 16
     proficiency_bonus: 5
-    features: []
+    features: [grant_asi_or_feat]
     class_resources:
-      weapon_mastery_count: 3
-      rage_uses: 6
+      weapon_mastery_count: 4
+      rage_uses: 5
       rage_damage_bonus: 4
   - level: 17
     proficiency_bonus: 6
-    features: []
+    features: [f_improved_brutal_strike_2]
     class_resources:
-      weapon_mastery_count: 3
+      weapon_mastery_count: 4
+      rage_uses: 6
+      rage_damage_bonus: 4
+  - level: 18
+    proficiency_bonus: 6
+    features: [f_indomitable_might]
+    class_resources:
+      weapon_mastery_count: 4
+      rage_uses: 6
+      rage_damage_bonus: 4
+  - level: 19
+    proficiency_bonus: 6
+    features: [grant_epic_boon]
+    class_resources:
+      weapon_mastery_count: 4
       rage_uses: 6
       rage_damage_bonus: 4
   - level: 20
     proficiency_bonus: 6
-    features: []
+    features: [f_primal_champion]
     class_resources:
-      weapon_mastery_count: 3
+      weapon_mastery_count: 4
       rage_uses: 6
       rage_damage_bonus: 4
 

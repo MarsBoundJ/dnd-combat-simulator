@@ -1,0 +1,60 @@
+# f_frenzy — Frenzy (Path of the Berserker, Barbarian L3)
+# Source: SRD CC v5.2.1 / PHB 2024 p.51
+# Pattern: passive damage rider, once-per-turn (mirrors Sneak Attack /
+# Divine Smite). The qualification + dice roll live in
+# engine/core/frenzy.py and are invoked from engine.primitives._damage
+# on a qualifying hit/crit.
+
+id: f_frenzy
+name: Frenzy
+source: srd_5.2.1
+granted_by:
+  subclass: sc_path_of_the_berserker
+  level: 3
+type: passive
+is_signature: true
+
+# No resource cost — Frenzy fires automatically on the first
+# qualifying hit when Reckless Attack is used while raging. Once-per-
+# turn dedup via the `_frenzy_used_this_turn` flag on Actor, cleared by
+# reset_turn (engine/core/state.py).
+resource_cost:
+  type: none
+
+usage:
+  uses_per: per_turn          # first qualifying hit of the turn
+  # Dice scale with the Rage Damage bonus (+2 / +3 / +4 by level), so
+  # the extra damage is rage_damage_bonus-many d6.
+  scaling_source: "c_barbarian.level_table.class_resources.rage_damage_bonus"
+
+# No explicit pipeline: the qualification + dice roll live in
+# engine/core/frenzy.py (try_apply_frenzy) and are invoked from _damage
+# when the attack hits/crits. The extra dice are the same type as the
+# weapon/Unarmed Strike, so — like Sneak Attack — they fold into the
+# same damage instance (returned as an int added to the running total).
+effect_primitives: []
+
+contract:
+  reads: [actor.template.features_known, actor.rage_active,
+           actor.rage_damage_bonus, actor.reckless_active,
+           actor._frenzy_used_this_turn, attack_params.kind,
+           attack_params.ability, combat.attack_state]
+  writes: [actor._frenzy_used_this_turn, combat.damage_total]
+  event: damage_roll
+  scope: per_qualifying_hit
+
+# RAW trigger conditions (engine/core/frenzy.py implements):
+#   1. Knows Frenzy (Berserker L3+).
+#   2. Rage is active.
+#   3. Reckless Attack was used this turn (actor.reckless_active).
+#   4. Strength-based attack — reuses rage.applies_rage_damage_bonus
+#      (melee + STR ability), which also admits STR Unarmed Strikes.
+#   5. First qualifying hit this turn (per-turn dedup).
+#
+# Damage: rage_damage_bonus d6, same type as the weapon. Crit doubles
+# the dice (RAW: extra dice from class features double on a crit, same
+# as the weapon's base dice + Sneak Attack + Divine Smite).
+#
+# Deferred:
+#   - A finesse weapon swung with DEX won't frenzy (RAW: "Strength-
+#     based attack"), matching Rage's own STR gate.
