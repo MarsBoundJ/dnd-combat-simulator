@@ -1,0 +1,42 @@
+# f_mindless_rage — Mindless Rage (Path of the Berserker, Barbarian L6)
+# Source: SRD CC v5.2.1 / PHB 2024 p.51
+# Pattern: marker feature (no pipeline / no action). The immunity is
+# enforced in engine.primitives._apply_condition: while Rage is active,
+# co_charmed / co_frightened simply don't land on a Berserker who knows
+# this feature.
+
+id: f_mindless_rage
+name: Mindless Rage
+source: srd_5.2.1
+granted_by:
+  subclass: sc_path_of_the_berserker
+  level: 6
+type: passive
+
+# No resource cost, no usage limit, no pipeline. The feature ships as a
+# marker so pc_schema's features_known set includes it; the immunity
+# gate reads `f_mindless_rage` + actor.rage_active at condition-
+# application time.
+resource_cost:
+  type: none
+
+effect_primitives: []
+
+contract:
+  reads: [target.template.features_known, target.rage_active,
+           apply_condition.condition_id]
+  writes: [combat.condition_blocked]
+  event: condition_applied
+  scope: passive
+
+# RAW: "You have Immunity to the Charmed and Frightened conditions
+# while your Rage is active. If you're Charmed or Frightened when you
+# enter your Rage, the condition ends on you."
+#
+# Deferred:
+#   - The "condition ends when you enter Rage" clause: v1 blocks NEW
+#     charm/fright applications while raging (the load-bearing case —
+#     a raging Berserker can't be Frightened off the front line). A
+#     Berserker who is already Frightened *before* raging keeps the
+#     condition until it would re-apply; an enter_rage cleanse hook is
+#     a small follow-on.

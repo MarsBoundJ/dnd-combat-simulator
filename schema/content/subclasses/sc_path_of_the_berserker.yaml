@@ -1,0 +1,39 @@
+# sc_path_of_the_berserker — Path of the Berserker (Barbarian subclass)
+# Source: SRD CC v5.2.1 / PHB 2024 p.51
+#
+# The damage-forward Barbarian path. Channels Rage into raw violence —
+# the marquee feature is Frenzy (L3), an extra Nd6 on the first
+# Reckless hit each turn, which is why Berserker sits at the top of
+# Treantmonk's 2024 martial damage rankings (Berserker Greatsword =
+# highest career score of all 39 builds).
+#
+# Feature wiring status:
+#   - f_frenzy (L3)              → FULLY WIRED (engine/core/frenzy.py
+#                                   damage rider; see f_frenzy.yaml)
+#   - f_mindless_rage (L6)       → FULLY WIRED (charm/fright immunity
+#                                   gate in primitives._apply_condition)
+#   - f_retaliation (L10)        → marker; reaction-attack execution
+#                                   deferred (see f_retaliation.yaml)
+#   - f_intimidating_presence    → marker; emanation fear save deferred
+#     (L14)                        on a martial save DC source
+#                                   (see f_intimidating_presence.yaml)
+
+id: sc_path_of_the_berserker
+name: Path of the Berserker
+source: srd_5.2.1
+parent_class: c_barbarian
+
+archetype_tags:
+  behavior_archetype: berserker_fanatic
+  role: striker                 # INTERNAL-EVAL-ONLY per vocabulary firewall
+  flavor_tags: [violent, frenzied, fearless, intimidating]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_frenzy]
+  - level: 6
+    feature_ids: [f_mindless_rage]
+  - level: 10
+    feature_ids: [f_retaliation]
+  - level: 14
+    feature_ids: [f_intimidating_presence]

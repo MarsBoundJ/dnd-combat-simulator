@@ -1,0 +1,51 @@
+# f_retaliation — Retaliation (Path of the Berserker, Barbarian L10)
+# Source: SRD CC v5.2.1 / PHB 2024 p.51
+#
+# RAW: "When you take damage from a creature that is within 5 feet of
+# you, you can take a Reaction to make one melee attack against that
+# creature, using a weapon or an Unarmed Strike."
+#
+# Engine modeling: a damage-triggered reaction whose effect is a single
+# melee weapon attack back at the attacker — the same trigger shape as
+# Hellish Rebuke (trigger: damage_taken; condition:
+# damage_taken_by_self_from_attacker), but the payload is an
+# `attack_roll` against the attacker rather than a forced_save.
+#
+# **Wiring status: marker (action execution DEFERRED).** The reaction
+# system (engine/core/reactions.py) today drives opportunity attacks
+# from movement; firing a melee `attack_roll` from a damage_taken
+# trigger needs the reaction dispatcher to (a) recognize the
+# damage_taken trigger for this feature and (b) resolve the attack with
+# the Berserker's own weapon profile + the 5-ft adjacency gate. Shipping
+# an auto-attached action_template now would let the candidate generator
+# fire it with an unresolved attack payload, so the feature ships as a
+# marker (in features_known, telemetry-visible) until the reaction
+# dispatcher is extended. Tracked as the Berserker reaction follow-on.
+
+id: f_retaliation
+name: Retaliation
+source: srd_5.2.1
+granted_by:
+  subclass: sc_path_of_the_berserker
+  level: 10
+type: passive
+
+resource_cost:
+  type: reaction
+
+effect_primitives: []
+
+contract:
+  reads: [actor.template.features_known, actor.template.actions,
+           event.attacker, event.distance_ft]
+  writes: [actor.actions_used_this_turn.reaction, combat.damage_total]
+  event: damage_taken
+  scope: per_reaction
+
+# Deferred (this is the engine work that turns the marker live):
+#   - Extend the reaction dispatcher to fire on `damage_taken` from a
+#     within-5-ft attacker and resolve one melee attack_roll using the
+#     actor's weapon profile (reuse the opportunity-attack resolution
+#     path in reactions.py).
+#   - Reaction-economy gate (one reaction/round) — already tracked via
+#     actions_used_this_turn['reaction'].

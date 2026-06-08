@@ -431,6 +431,11 @@ class Actor:
         # but defensive).
         if hasattr(self, "_divine_smite_used_this_turn"):
             self._divine_smite_used_this_turn = False
+        # Frenzy (Path of the Berserker) once-per-turn rider: the extra
+        # Nd6 fires on the FIRST qualifying hit of the turn, so the flag
+        # resets at the start of each of the Barbarian's own turns.
+        if hasattr(self, "_frenzy_used_this_turn"):
+            self._frenzy_used_this_turn = False
         # Monk once-per-turn on-hit riders: Stunning Strike (Focus Point,
         # CON save → Stunned) and Open Hand Technique (Flurry → Topple,
         # DEX save → Prone). Both reset at the start of the Monk's turn.
