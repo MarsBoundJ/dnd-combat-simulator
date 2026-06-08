@@ -1,0 +1,64 @@
+# f_summon_celestial — Summon Celestial (Level 5 Conjuration, SRD/PHB-2024)
+#
+# RAW summary: call a Celestial spirit (Avenger or Defender) within 90 ft for
+# the duration (Concentration, up to 1 hour). It acts on your initiative,
+# right after you. We model the AVENGER form — the flying, long-ranged shooter
+# (Multiattack of Radiant Bow, 600 ft, caster's spell attack modifier).
+# Classes: Cleric, Paladin. Clerics gain 5th-level slots at character level 9.
+#
+# Why it matters (altitude arc): the first FLYING, RANGED expendable summon.
+# Against a kiting dragon, the flying Fighter loses the melee trade — but a
+# summoned Avenger pelts the boss with a 600-ft bow from the ground (its fly 40
+# is almost moot), adds ~2 x (2d6+7) DPR at the caster's to-hit, and draws the
+# dragon's breath/maul off the party. It costs a slot + concentration, not a
+# PC's HP — so the losing-trade math that sank PC Fly doesn't apply. Whether it
+# nets a win is the empirical question this build exists to measure.
+#
+# Engine modeling: a `summon` action_template (concentration) summoning one
+# m_celestial_spirit_avenger, with the bow's to-hit resolved from the caster's
+# spell attack at summon time (attack_bonus_from). Rides the Stage 2a lifecycle
+# (dismissed on concentration end) + the Stage 2b summon scorer + the PR #216
+# reach-delay (the 600-ft bow means no travel penalty — full value vs anyone).
+#
+# Deferred RAW bits:
+#   - The Defender form (melee + temp-HP grant) — Avenger is the load-bearing
+#     anti-flyer form.
+#   - Upcast scaling (AC/HP/attacks/damage by slot level) — base 5th-level form
+#     only, mirroring Bigby's Hand / Animate Objects.
+#   - Healing Touch (1/Day) — deferred; the bow is the load-bearing action.
+#
+# source: srd_5.2.1
+
+id: f_summon_celestial
+name: Summon Celestial
+source: srd_5.2.1
+granted_by:
+  class: c_cleric
+  level: 9            # 5th-level slot -> full caster at character level 9
+type: active
+spell:
+  class: c_cleric
+  level: 5
+
+description: |
+  Summon a Celestial spirit (Avenger form) within 90 ft for the duration
+  (Concentration). It flies and makes a Multiattack of long-ranged Radiant Bow
+  attacks using your spell attack modifier. (Defender form + upcast deferred.)
+
+action_template:
+  id: a_summon_celestial
+  name: Summon Celestial
+  type: summon
+  spell_slot_level: 5
+  concentration: true
+  named_effect: summon_celestial
+  range_ft: 90
+  pipeline:
+    - primitive: summon
+      params:
+        monster: m_celestial_spirit_avenger
+        count: 1
+        max_total: 1
+        # RAW: the Radiant Bow uses the caster's spell attack modifier
+        # (resolved at cast time; the stat block's +9 is only a fallback).
+        attack_bonus_from: caster_spell_attack

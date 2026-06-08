@@ -112,7 +112,7 @@ level_table:
       spell_slots: { 1: 4, 2: 3, 3: 3, 4: 2 }
   - level: 9
     proficiency_bonus: 4
-    features: []
+    features: [f_summon_celestial]   # 5th-level slots arrive at L9
     class_resources:
       spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 1 }
   - level: 10

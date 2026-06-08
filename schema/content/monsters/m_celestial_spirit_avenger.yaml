@@ -1,0 +1,78 @@
+# m_celestial_spirit_avenger — the Celestial Spirit (Avenger form) summoned by
+# Summon Celestial (f_summon_celestial), SRD/PHB-2024.
+#
+# The Avenger is the flying RANGED form: Multiattack of Radiant Bow (a 600-ft
+# ranged spell attack using the caster's spell attack modifier). Summoned by
+# the spell's `summon` primitive; lives only while the caster concentrates
+# (Stage 2a lifecycle dismisses it on concentration end).
+#
+# Why it matters: a flying, expendable, LONG-RANGED body. Against a kiting
+# dragon its 600-ft bow reaches the boss from the ground (its fly 40 barely
+# matters), so it adds airborne-agnostic pressure + draws fire WITHOUT risking
+# a PC — the counterplay the flying Fighter couldn't be (no losing melee trade,
+# no PC HP at stake; only a slot + the caster's concentration).
+#
+# v1 modeled at the BASE 5th-level form (the load-bearing case):
+#   AC 11 + 5 = 16;  HP 40;  Multiattack = floor(5/2) = 2 Radiant Bows;
+#   Radiant Bow damage 2d6 + 2 + 5 = 2d6 + 7.
+# Upcast (RAW: AC/HP scale, +1 attack at 6th & 8th, +1 dmg/level) is deferred
+# with the static block, mirroring Bigby's Hand / Animate Objects. The bow's
+# to-hit is the caster's spell attack modifier (attack_bonus_from at summon
+# time); the +9 below is only a fallback.
+
+id: m_celestial_spirit_avenger
+name: Celestial Spirit (Avenger)
+source: srd_5.2.1
+
+size: large
+creature_type: celestial
+alignment: neutral
+
+combat:
+  armor_class: 16              # 11 + spell level (5)
+  hit_points: { average: 40, dice: "0d0", con_contribution: 0 }
+  speed: { walk: 30, fly: 40 }
+  initiative: { modifier: 2, score: 12 }
+
+abilities:
+  str: { score: 16, save: 3 }
+  dex: { score: 14, save: 2 }
+  con: { score: 16, save: 3 }
+  int: { score: 10, save: 0 }
+  wis: { score: 14, save: 2 }
+  cha: { score: 16, save: 3 }
+
+skills: {}
+damage_resistances: [radiant]
+damage_vulnerabilities: []
+damage_immunities: []
+condition_immunities: [co_charmed, co_frightened]
+
+senses: { passive_perception: 12, special: { darkvision: 60 } }
+languages: [celestial]
+
+cr: { value: 5, xp: 0, proficiency_bonus: 5 }
+
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 2                   # floor(spell level / 2) at 5th
+    sub_actions: [a_radiant_bow]
+
+  - id: a_radiant_bow
+    name: Radiant Bow
+    type: weapon_attack
+    # Ranged spell attack, range 600 ft. Bonus is a static proxy for the
+    # caster's spell attack modifier (overridden by attack_bonus_from at
+    # summon time). 2d6 + 2 + spell level (5) radiant.
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: ranged, bonus: 9, range_ft: 600 }
+      - primitive: damage
+        params: { dice: "2d6", modifier: 7, type: radiant, average: 14 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: apex_predator
+  presets: { retreat: never, ability_selection: default, targeting: highest_hp_target, action_economy: signature }
