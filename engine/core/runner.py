@@ -491,6 +491,31 @@ class EncounterRunner:
                 actor, from_pos, state, self.event_bus, self.primitives)
         return True
 
+    def _maybe_choose_elevation(self, actor: Actor,
+                                state: CombatState) -> bool:
+        """Set a flier's elevation for the turn (aerial kiting, Stage 2).
+        `choose_flier_elevation` decides a safe hover (out of grounded-melee
+        reach, when the flier has working airborne offense and the dial allows
+        it) vs grounded (0). Returns True if the elevation changed. Changing
+        elevation is vertical movement spent from the fly budget; v1 doesn't
+        debit the horizontal move (an 80-ft flier easily affords a ~10-ft
+        hover plus a reposition), so it does NOT set moved_this_turn — the
+        horizontal AoE-chase / engage still run."""
+        from engine.ai.altitude import choose_flier_elevation, has_fly
+        if not has_fly(actor):
+            return False
+        target = choose_flier_elevation(actor, state)
+        if target == actor.elevation:
+            return False
+        from_elev = actor.elevation
+        actor.elevation = target
+        state.event_log.append({
+            "event": "elevation_changed", "actor": actor.id,
+            "from": from_elev, "to": target,
+            "reason": "kite" if target > 0 else "descend",
+        })
+        return True
+
     def _move_to_engage(self, actor: Actor, state: CombatState) -> None:
         """Move actor toward the dial-preferred enemy up to walk speed.
 
@@ -943,6 +968,15 @@ class EncounterRunner:
         # attackers) opens immediately and lasts until reset_turn at
         # start of next own turn.
         self._maybe_activate_reckless_attack(actor, state)
+
+        # ---- Flier elevation choice (turn start) ----
+        # A flier picks its altitude BEFORE horizontal repositioning: an
+        # above-baseline flier hovers out of grounded-melee reach when it has
+        # working airborne offense (breath/ranged), else descends to melee (a
+        # swoop). Dial-gated; grounded creatures are untouched. Sets elevation
+        # only — horizontal AoE-chase / engage still run below.
+        if actor.is_alive() and not state.terminated:
+            self._maybe_choose_elevation(actor, state)
 
         # ---- AoE-aware safety reposition (turn start) ----
         # Step out of enemy area attacks (the dragon's breath cone) BEFORE
