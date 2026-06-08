@@ -91,7 +91,7 @@ level_table:
   - level: 5
     proficiency_bonus: 3
     features: [f_memorize_spell, f_fireball, f_counterspell, f_lightning_bolt,
-               f_hypnotic_pattern, f_slow, f_fear]
+               f_hypnotic_pattern, f_slow, f_fear, f_fly]
     spellcasting: { cantrips_known: 4, prepared_spells: 9 }
     class_resources:
       spell_slots: { 1: 4, 2: 3, 3: 2 }

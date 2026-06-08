@@ -1601,6 +1601,56 @@ def remove_hp_max_bonus(target: Actor, *, source_id: str | None = None,
     return removed_total
 
 
+def _grant_speed(params: dict, state: CombatState, bus: EventBus) -> None:
+    """Grant the current target a movement speed (Fly's fly 60) for the
+    duration. Records a `active_speed_grants` ledger entry so
+    concentration.end_concentration can cleanly revert it.
+
+    Params:
+      - target: 'self' | 'ally' | 'current_target' (default current target)
+      - speed_type (str): 'fly' (default), 'walk', 'swim', ...
+      - amount (int): the speed in ft (default 60)
+
+    Sets target.speed[speed_type] = max(amount, existing) so a creature with a
+    faster innate speed keeps it; stores the PRIOR value (None = key absent) for
+    revert. Dedup by the action's named_effect (re-casting Fly on the same ally
+    doesn't stack). Logs `speed_granted`."""
+    target = state.current_attack.get("target") or state.current_actor()
+    caster = (state.current_attack or {}).get("actor") or state.current_actor()
+    if target is None:
+        raise ValueError("grant_speed requires a current target")
+    speed_type = params.get("speed_type", "fly")
+    amount = int(params.get("amount", 60))
+    action = (state.current_attack or {}).get("action") or {}
+    named_effect = action.get("named_effect")
+    action_id = action.get("id")
+    if named_effect:
+        for g in target.active_speed_grants:
+            if g.get("named_effect") == named_effect:
+                return   # already has this effect; no stacking
+    if target.speed is None:
+        target.speed = {}
+    prior = target.speed.get(speed_type)
+    if amount <= int(prior or 0):
+        return   # innate speed already as fast or faster; nothing to grant
+    target.speed[speed_type] = amount
+    target.active_speed_grants.append({
+        "speed_type": speed_type,
+        "amount": amount,
+        "prior": prior,
+        "source_caster_id": caster.id if caster else None,
+        "source_action_id": action_id,
+        "named_effect": named_effect,
+    })
+    state.event_log.append({
+        "event": "speed_granted",
+        "target": target.id,
+        "speed_type": speed_type,
+        "amount": amount,
+        "source": caster.id if caster else None,
+    })
+
+
 def _recurring_temp_hp(params: dict, state: CombatState,
                           bus: EventBus) -> None:
     """Register a per-turn temp HP grant on the current target
@@ -2755,9 +2805,38 @@ def _place_barrier(params: dict, state: CombatState, bus: EventBus) -> None:
         "id", "a_wall_of_force")
 
     from engine.core.geometry import (
-        Wall, unit_direction, SQUARE_SIZE_FT,
+        Wall, Sphere, unit_direction, SQUARE_SIZE_FT,
         WALL_BLOCK_NORMAL, WALL_BLOCK_NONE,
     )
+
+    # Sphere form (the trapping "microwave" cage): a closed circle centered ON
+    # the target. It can't move or attack across the surface (effective speed
+    # 0) and is under total cover both ways — but a damaging zone sharing the
+    # center is inside WITH it, so the trapped creature takes recurring damage
+    # it can't escape or answer. radius_ft default 10 (RAW max 10-ft radius).
+    if str(params.get("shape", "panel")).lower() == "sphere":
+        radius = int(params.get("radius_ft", 10)) / SQUARE_SIZE_FT
+        gap = bool(params.get("gap", False))
+        sphere = Sphere(
+            center=(float(target.position[0]), float(target.position[1])),
+            radius=radius,
+            move=(WALL_BLOCK_NORMAL if params.get("move", True)
+                  else WALL_BLOCK_NONE),
+            sight=(WALL_BLOCK_NORMAL if params.get("sight", False)
+                   else WALL_BLOCK_NONE),
+            gap=gap,
+            flags={"effect": params.get("effect", "wall_of_force"),
+                   "caster_id": caster.id, "action_id": action_id},
+        )
+        state.walls.append(sphere)
+        state.event_log.append({
+            "event": "barrier_placed", "actor": caster.id,
+            "effect": sphere.flags["effect"], "shape": "sphere",
+            "center": list(sphere.center), "radius": radius,
+            "action_id": action_id,
+        })
+        return
+
     cx, cy = caster.position
     tx, ty = target.position
     dx, dy = unit_direction((cx, cy), (tx, ty))
@@ -3153,6 +3232,7 @@ def _populate_handler_table() -> None:
         "recurring_temp_hp": _recurring_temp_hp,
         "armor_of_agathys_arm": _armor_of_agathys_arm,
         "hp_max_grant": _hp_max_grant,
+        "grant_speed": _grant_speed,
         "grant_bardic_inspiration": _grant_bardic_inspiration,
         "cutting_words_resolve": _cutting_words_resolve,
         "wild_shape_transform": _wild_shape_transform,
@@ -3309,6 +3389,9 @@ def _all_primitives() -> list[Primitive]:
         # hp_current; ledgered on Actor.hp_max_bonuses for clean
         # removal at long rest. Distinct from temp HP.
         Primitive("hp_max_grant", _hp_max_grant, implemented=True),
+        # Stage 3 — grant a movement speed (Fly's fly 60). Ledgered on
+        # Actor.active_speed_grants; reverted when concentration ends.
+        Primitive("grant_speed", _grant_speed, implemented=True),
     ]
     # Populate handler lookup table for subprimitive invocations
     global _PRIMITIVE_HANDLERS

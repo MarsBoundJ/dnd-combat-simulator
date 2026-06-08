@@ -103,5 +103,52 @@ class FlyAwareEngageTest(unittest.TestCase):
         self.assertTrue(mover.moved_this_turn)
 
 
+class ThreeDEngageTest(unittest.TestCase):
+    """A flier closes the VERTICAL gap to engage an airborne target (the
+    Fly-buffed Fighter rising to a hovering dragon). Grounded movers can't."""
+
+    @staticmethod
+    def _ab():
+        return {k: {"score": 12, "save": 1}
+                for k in ("str", "dex", "con", "int", "wis", "cha")}
+
+    def _mk(self, actor_id, side, pos, speed, elev=0):
+        gs = {"id": "a_gs", "type": "weapon_attack",
+              "pipeline": [{"primitive": "attack_roll",
+                            "params": {"kind": "melee", "reach_ft": 5}}]}
+        a = Actor(id=actor_id, name=actor_id,
+                  template={"id": f"t_{actor_id}", "abilities": self._ab(),
+                            "actions": [gs], "cr": {"proficiency_bonus": 4}},
+                  side=side, hp_current=80, hp_max=80, ac=15,
+                  speed=speed, position=pos, abilities=self._ab())
+        a.elevation = elev
+        return a
+
+    def _runner(self, actors):
+        enc = Encounter(id="t", actors=actors)
+        runner = EncounterRunner.new(enc, seed=1, content_registry=_registry())
+        st = CombatState(encounter=enc)
+        st.turn_order = [a.id for a in actors]
+        st.content_registry = _registry()
+        return runner, st
+
+    def test_flier_ascends_to_reach_airborne_target(self):
+        fighter = self._mk("F", "pc", (0, 0), {"walk": 30, "fly": 60}, elev=0)
+        dragon = self._mk("D", "enemy", (2, 0), {"walk": 40, "fly": 80}, elev=10)
+        runner, st = self._runner([fighter, dragon])
+        self.assertGreater(distance_ft(fighter, dragon), 5)   # can't reach yet
+        runner._move_to_engage(fighter, st)
+        self.assertEqual(fighter.elevation, 10)               # matched altitude
+        self.assertLessEqual(distance_ft(fighter, dragon), 5)  # now in reach
+
+    def test_grounded_mover_cannot_reach_airborne(self):
+        fighter = self._mk("F", "pc", (0, 0), {"walk": 30}, elev=0)  # no fly
+        dragon = self._mk("D", "enemy", (1, 0), {"walk": 40, "fly": 80}, elev=10)
+        runner, st = self._runner([fighter, dragon])
+        runner._move_to_engage(fighter, st)
+        self.assertEqual(fighter.elevation, 0)                # stays grounded
+        self.assertGreater(distance_ft(fighter, dragon), 5)   # still can't reach
+
+
 if __name__ == "__main__":
     unittest.main()

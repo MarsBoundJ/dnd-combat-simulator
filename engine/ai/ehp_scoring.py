@@ -471,6 +471,58 @@ def extract_offensive_buff_effect(action: dict) -> dict:
     return out
 
 
+def _action_grants_speed(action: dict) -> bool:
+    """True if the action's pipeline contains a grant_speed step (Fly)."""
+    return any(s.get("primitive") == "grant_speed"
+               for s in (action.get("pipeline") or []))
+
+
+def offensive_ehp_fly_reach(actor: Actor, target_ally: Actor,
+                            state: CombatState) -> float:
+    """Value of granting FLY to an ally — the offense it UNLOCKS by letting an
+    otherwise-grounded, reach-limited ally engage an airborne enemy it can't
+    currently touch.
+
+      eHP = ally_DPR × EXPECTED_BUFF_ROUNDS   (full unlock)
+
+    Gated to: the ally doesn't already fly, and there's an airborne enemy whose
+    elevation exceeds the ally's best attack range (so its melee/short reach
+    can't connect even after moving — a ranged ally already hits airborne foes,
+    so this returns 0 for it). When no enemy is airborne, Fly unlocks nothing →
+    0, so the caster won't waste a concentration slot on it."""
+    from engine.ai.altitude import has_fly
+    from engine.ai.defensive_ehp import EXPECTED_BUFF_ROUNDS, estimate_dpr
+    from engine.ai.positioning import _action_range_ft
+    if target_ally is None or not target_ally.is_alive():
+        return 0.0
+    if has_fly(target_ally):
+        return 0.0
+    ranges = [_action_range_ft(a)
+              for a in (target_ally.template.get("actions") or [])
+              if a.get("type") in ("weapon_attack", "multiattack",
+                                    "save_attack", "aoe_attack")]
+    ally_range = max(ranges) if ranges else 5
+    airborne = [e for e in state.encounter.actors
+                if e.is_alive() and e.side != actor.side
+                and int(e.elevation) > ally_range]
+    if not airborne:
+        return 0.0
+    dpr = estimate_dpr(target_ally)
+    if dpr <= 0:
+        return 0.0
+    # Favorable-trade gate: flying a melee ally UP to an airborne enemy puts it
+    # in that enemy's melee too. It's only worth the ally's action + the
+    # caster's action/concentration if the ally at least trades evenly — don't
+    # feed a 30-DPR Fighter to a 50-DPR dragon (the sim shows that loses). Value
+    # the unlocked offense only when the ally out-DPRs the toughest airborne foe
+    # it would engage; otherwise 0 (the caster keeps nuking/controlling, which
+    # is the real counterplay to a superior-melee flyer).
+    toughest = max(estimate_dpr(e) for e in airborne)
+    if dpr < toughest:
+        return 0.0
+    return dpr * EXPECTED_BUFF_ROUNDS
+
+
 def offensive_ehp_buff_ally(actor: Actor, target_ally: Actor, action: dict,
                               state: CombatState) -> float:
     """Offensive eHP from buffing an ally's attacks (Bless-shape).
@@ -509,6 +561,11 @@ def offensive_ehp_buff_ally(actor: Actor, target_ally: Actor, action: dict,
     from engine.ai.named_effects import buff_already_active
     if buff_already_active(target_ally, action, actor):
         return 0.0
+
+    # Fly (and other speed-grants) buy REACH, not to-hit — value the offense
+    # they unlock against airborne enemies rather than the attack-bonus math.
+    if _action_grants_speed(action):
+        return offensive_ehp_fly_reach(actor, target_ally, state)
 
     buff = extract_offensive_buff_effect(action)
     if not buff:
