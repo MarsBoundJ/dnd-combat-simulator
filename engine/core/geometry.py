@@ -47,16 +47,34 @@ def best_move_speed_ft(actor: Actor) -> int:
 # Distance
 # ============================================================================
 
+def _as_elevation(x: Actor | tuple[int, int]) -> int:
+    """Elevation (ft) of an arg: an Actor's `.elevation`, else 0. A bare
+    (x, y) position tuple has no elevation → 0 (ground plane). So callers
+    that pass raw positions stay 2D; callers that pass Actors get 3D."""
+    return int(getattr(x, "elevation", 0) or 0)
+
+
 def distance_ft(a: Actor | tuple[int, int],
                  b: Actor | tuple[int, int]) -> int:
-    """Chebyshev distance × 5 ft. Accepts Actors or raw (x, y) tuples.
+    """Chebyshev-3D distance × 5 ft. Accepts Actors or raw (x, y) tuples.
 
-    Per 5e 2024: diagonals count as 5 ft, same as cardinal moves. The
-    distance between (0,0) and (3,4) is max(3, 4) = 4 squares = 20 ft.
+    Per 5e 2024 the grid uses the simplified diagonal rule — every step
+    (cardinal OR diagonal) is 5 ft — so distance is the Chebyshev (max-axis)
+    metric. We extend it to a THIRD axis, elevation, read off Actor args
+    (a (x, y) tuple contributes elevation 0). The vertical contributes
+    `|Δelevation| / 5` squares, so a target 30 ft straight up and one square
+    over reads as max(1, 0, 6) = 6 squares = 30 ft — out of a 5-ft melee
+    reach but inside a 120-ft Fire Bolt. When both args are grounded
+    (elevation 0, the default), this is identical to the old 2-D distance, so
+    existing positions/AoE are unchanged.
+
+    distance((0,0) elev 0, (3,4) elev 0) = max(3, 4, 0) = 4 squares = 20 ft.
     """
     p1 = _as_position(a)
     p2 = _as_position(b)
-    return max(abs(p1[0] - p2[0]), abs(p1[1] - p2[1])) * SQUARE_SIZE_FT
+    dz_squares = abs(_as_elevation(a) - _as_elevation(b)) // SQUARE_SIZE_FT
+    return max(abs(p1[0] - p2[0]), abs(p1[1] - p2[1]),
+               dz_squares) * SQUARE_SIZE_FT
 
 
 def is_within_ft(a: Actor | tuple[int, int],
