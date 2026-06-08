@@ -72,6 +72,9 @@ class Actor:
     ac: int = 10
     speed: dict = field(default_factory=lambda: {"walk": 30})
     position: tuple[int, int] = (0, 0)          # grid coords; (0,0) until movement matters
+    elevation: int = 0                          # height in FEET above the ground plane
+    #   (Foundry token.elevation). 0 = grounded; positive = airborne (flying).
+    #   Combat distance is Chebyshev-3D over (x, y, elevation/5) — see geometry.
 
     # Ability scores + modifiers
     abilities: dict = field(default_factory=dict)   # {"str": {"score": 16, "save": 5}, ...}

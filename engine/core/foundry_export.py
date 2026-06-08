@@ -80,6 +80,26 @@ def wall_to_document(wall: Wall, grid_size: int = FOUNDRY_GRID_SIZE) -> dict:
     }
 
 
+def token_to_document(actor, grid_size: int = FOUNDRY_GRID_SIZE) -> dict:
+    """Serialize an Actor's grid placement to a Foundry TokenDocument dict.
+
+    The sim's `position` (grid square) scales to the token's top-left pixel,
+    and the sim's `elevation` (FEET) maps straight onto Foundry's native
+    `token.elevation` field — Foundry stores token altitude in scene-distance
+    units (feet), so a flying creature at elevation 30 renders aloft and its
+    elevation badge reads 30. This is the visualization half of the altitude
+    model; the sim's own Chebyshev-3D `distance_ft` stays authoritative for
+    combat reach (Foundry doesn't auto-enforce 3-D melee reach)."""
+    x, y = actor.position
+    return {
+        "name": getattr(actor, "name", None) or getattr(actor, "id", ""),
+        "x": x * grid_size,
+        "y": y * grid_size,
+        "elevation": int(getattr(actor, "elevation", 0) or 0),
+        "flags": {FLAG_NAMESPACE: {"actor_id": getattr(actor, "id", "")}},
+    }
+
+
 def walls_to_documents(walls: list[Wall],
                         grid_size: int = FOUNDRY_GRID_SIZE) -> list[dict]:
     """Serialize a list of walls (e.g. state.walls) to WallDocument dicts."""
