@@ -2873,6 +2873,23 @@ def _caster_spell_save_dc(actor: Actor) -> int:
     return 8 + pb + mod
 
 
+def _melee_retaliation(params: dict, state: CombatState,
+                         bus: EventBus) -> None:
+    """Reaction primitive: make one melee weapon attack against the
+    creature that damaged the reactor (Barbarian Berserker Retaliation,
+    L10). try_use_reaction sets current_attack.actor = reactor and
+    current_attack.target = the attacker (via the
+    _reaction_target_is_attacker flag); the swing routes through the
+    reactor's real weapon so Rage damage / masteries apply."""
+    ctx = state.current_attack or {}
+    reactor = ctx.get("actor")
+    attacker = ctx.get("target")
+    if reactor is None or attacker is None:
+        return
+    from engine.core.reactions import execute_retaliation_strike
+    execute_retaliation_strike(reactor, attacker, state, bus)
+
+
 def _ready_action(params: dict, state: CombatState, bus: EventBus) -> None:
     """Primitive that records a readied action on the actor (PR #86).
 
@@ -3125,6 +3142,7 @@ def _populate_handler_table() -> None:
         "steady_aim": _steady_aim,
         "lay_on_hands": _lay_on_hands,
         "ready_action": _ready_action,
+        "melee_retaliation": _melee_retaliation,
         "recurring_damage": _recurring_damage,
         "searing_smite_arm": _searing_smite_arm,
         "ensnaring_strike_arm": _ensnaring_strike_arm,
@@ -3196,6 +3214,10 @@ def _all_primitives() -> list[Primitive]:
         # onto the actor; fires when the trigger matches before the
         # actor's next turn).
         Primitive("ready_action", _ready_action, implemented=True),
+        # Retaliation (Barbarian Berserker L10) — reaction primitive that
+        # makes one melee weapon swing at the creature that damaged the
+        # reactor. Must stay in sync with _populate_handler_table.
+        Primitive("melee_retaliation", _melee_retaliation, implemented=True),
         # PR #89 — Recurring per-turn damage tick (Searing Smite burn,
         # future Heat Metal). Registers an entry in state.recurring_
         # damage; runner._resolve_recurring_damage fires at each

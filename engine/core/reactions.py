@@ -241,6 +241,65 @@ def _execute_oa(reactor: Actor, mover: Actor, action: dict,
         state.current_attack = saved_attack
 
 
+def find_reactor_melee_attack(reactor: Actor) -> dict | None:
+    """The reactor's first single melee weapon attack action (NOT a
+    multiattack — a retaliation is exactly one swing). None if the
+    reactor has no melee weapon attack."""
+    for action in (reactor.template.get("actions") or []):
+        if action.get("type") != "weapon_attack":
+            continue
+        if _is_melee_attack(action):
+            return action
+    return None
+
+
+def execute_retaliation_strike(reactor: Actor, attacker: Actor,
+                                 state: CombatState, bus) -> bool:
+    """Make one melee weapon attack from `reactor` against `attacker`,
+    routed through the normal attack_roll + damage pipeline so Rage
+    damage, weapon masteries, etc. all apply (Retaliation, Berserker
+    L10). Returns True if a swing was made.
+
+    Marks the reactor's reaction slot up front: Retaliation costs no
+    spell slot / feature use, so two adjacent creatures that both have
+    it would otherwise recurse forever (each strike's damage re-triggers
+    the other's damage_taken). Spending the reaction before the nested
+    damage lands bounds it to one swing each — RAW-correct (you commit
+    your Reaction) and loop-safe.
+
+    No-op when the reactor has no melee weapon attack (Unarmed Strike
+    fallback deferred) or the attacker is already down.
+    """
+    if attacker is None or not attacker.is_alive():
+        return False
+    weapon = find_reactor_melee_attack(reactor)
+    if weapon is None:
+        return False
+    reactor.actions_used_this_turn["reaction"] = True
+
+    from engine.primitives import _invoke_subprimitive
+    saved_attack = state.current_attack
+    state.current_attack = {
+        "actor": reactor, "target": attacker, "action": weapon,
+        "state": None, "had_advantage": False, "had_disadvantage": False,
+        "is_reaction": True,
+    }
+    try:
+        for step in (weapon.get("pipeline") or []):
+            name = step.get("primitive")
+            if name not in ("attack_roll", "damage"):
+                continue
+            when = step.get("when")
+            if when:
+                c = when.get("condition", "")
+                if c and not _evaluate_simple_condition(c, state):
+                    continue
+            _invoke_subprimitive(step, state, bus)
+    finally:
+        state.current_attack = saved_attack
+    return True
+
+
 def _evaluate_simple_condition(cond: str, state: CombatState) -> bool:
     """Mirror of pipeline._evaluate_simple_condition for the on-hit
     damage gating. Duplicated to keep this module decoupled from pipeline
@@ -519,6 +578,22 @@ def _reaction_condition_satisfied(cond: str | None, reactor: Actor,
             return False
         # Mark for try_use_reaction: forced_save's affected='current_target'
         # should be the attacker for retaliation reactions.
+        event_data["_reaction_target_is_attacker"] = True
+        return True
+    if cond == "damaged_by_adjacent_creature":
+        # Retaliation (Barbarian Berserker L10): "When you take damage
+        # from a creature that is within 5 feet of you..." — the reactor
+        # is the damaged creature, the source is a living enemy within
+        # 5 ft. The reaction's melee swing targets that attacker.
+        if event_data.get("target_id") != reactor.id:
+            return False
+        attacker = event_data.get("attacker")
+        if attacker is None or not attacker.is_alive():
+            return False
+        if attacker.side == reactor.side:
+            return False
+        if distance_ft(reactor.position, attacker.position) > 5:
+            return False
         event_data["_reaction_target_is_attacker"] = True
         return True
     if cond == "cutting_words_would_help":
