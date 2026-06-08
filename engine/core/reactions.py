@@ -648,4 +648,14 @@ def _reaction_condition_satisfied(cond: str | None, reactor: Actor,
         if not can_actor_see(reactor, caster, state):
             return False
         return True
+    if cond == "revivification_would_save":
+        # Revivification (Zealot L14 Rage of the Gods): "When a creature
+        # within 30 feet of you would drop to 0 Hit Points, you can take a
+        # Reaction to expend a Rage use to set that creature's HP to your
+        # Barbarian level." The target is in event_data["target"].
+        target = event_data.get("target")
+        if target is None:
+            return False
+        from engine.core.rage_of_the_gods import revivification_eligible_reactor
+        return revivification_eligible_reactor(reactor, target, state)
     return False

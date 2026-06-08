@@ -346,6 +346,18 @@ def apply_long_rest(actor: Actor, state: CombatState) -> dict:
         wotg_result = _refresh_warrior_of_the_gods_pool_to_max(actor)
         if wotg_result is not None:
             summary["warrior_of_the_gods_pool_refresh"] = wotg_result
+        # Zealous Presence (Zealot L10): 1/long rest.
+        zp_result = _refresh_generic_uses_to_max(
+            actor, "zealous_presence_uses_remaining",
+            "zealous_presence_uses_max")
+        if zp_result is not None:
+            summary["zealous_presence_refresh"] = zp_result
+        # Rage of the Gods (Zealot L14): 1/long rest.
+        rotg_result = _refresh_generic_uses_to_max(
+            actor, "rage_of_the_gods_uses_remaining",
+            "rage_of_the_gods_uses_max")
+        if rotg_result is not None:
+            summary["rage_of_the_gods_refresh"] = rotg_result
     if cls == "c_paladin":
         # PR #83: Lay on Hands pool fully refreshes on long rest.
         # The max is stamped onto resources as
@@ -403,6 +415,21 @@ def _refresh_lay_on_hands_pool_to_max(actor: Actor) -> dict | None:
         return None
     actor.resources["lay_on_hands_pool_remaining"] = max_pool
     return {"new_total": max_pool}
+
+
+def _refresh_generic_uses_to_max(actor: Actor, remaining_key: str,
+                                    max_key: str) -> dict | None:
+    """Generic long-rest refresh for any feature whose uses are tracked as
+    `remaining_key` / `max_key` in `actor.resources`. Returns a result dict
+    on refresh (for the summary), or None when not applicable / already full."""
+    max_uses = int(actor.resources.get(max_key, 0))
+    if max_uses <= 0:
+        return None
+    cur = int(actor.resources.get(remaining_key, 0))
+    if cur >= max_uses:
+        return None
+    actor.resources[remaining_key] = max_uses
+    return {"new_total": max_uses}
 
 
 def _refresh_warrior_of_the_gods_pool_to_max(actor: Actor) -> dict | None:

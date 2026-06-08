@@ -129,6 +129,13 @@ def enter_rage(actor: Actor, state: CombatState) -> None:
             "rage_uses_remaining", 0)),
         "round": state.round,
     })
+    # Fanatical Focus (Zealot L6): clear once-per-Rage charge on each
+    # new Rage entry so the feature is available again.
+    from engine.core.fanatical_focus import reset_for_new_rage
+    reset_for_new_rage(actor)
+    # Rage of the Gods (Zealot L14): optionally activate divine form.
+    from engine.core.rage_of_the_gods import try_activate_rage_of_the_gods
+    try_activate_rage_of_the_gods(actor, state)
 
 
 def end_rage(actor: Actor, state: CombatState, reason: str) -> None:
@@ -139,6 +146,9 @@ def end_rage(actor: Actor, state: CombatState, reason: str) -> None:
         return
     actor.rage_active = False
     actor.rage_damage_bonus = 0
+    # Rage of the Gods (Zealot L14): divine form ends with Rage.
+    from engine.core.rage_of_the_gods import deactivate_rage_of_the_gods
+    deactivate_rage_of_the_gods(actor, state)
     state.event_log.append({
         "event": "rage_ended",
         "actor": actor.id,

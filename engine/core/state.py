@@ -330,6 +330,13 @@ class Actor:
     # See engine/core/rage.py for the level tables + transitions.
     rage_active: bool = False
     rage_damage_bonus: int = 0
+    # Rage of the Gods (Zealot L14): True while the divine form is active.
+    # Set by rage_of_the_gods.try_activate_rage_of_the_gods on rage entry;
+    # cleared by deactivate_rage_of_the_gods on rage end. While True:
+    #   - fly_speed granted (actor.speed["fly"] set to walk speed)
+    #   - Resistance to Necrotic, Psychic, Radiant (primitives._damage)
+    #   - Revivification reaction available (creature_would_drop_to_zero)
+    rage_of_the_gods_active: bool = False
 
     # Reckless Attack state (PR #85, Barbarian L2). Activated via the
     # runner's `_maybe_activate_reckless_attack` pre-action hook (RAW:

@@ -553,6 +553,16 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
         if not already_resisted:
             total = total // 2
 
+    # Rage of the Gods (Zealot L14): Necrotic, Psychic, Radiant resistance
+    # while the divine form is active. Checked after template-level
+    # resistances (same "don't double-halve" discipline as rage BPS).
+    from engine.core.rage_of_the_gods import applies_resistance as _rotg_resist
+    if _rotg_resist(target, dmg_type):
+        already_resisted = (dmg_type in (template.get("damage_resistances") or [])
+                             or _rage.applies_rage_bps_resistance(target, dmg_type))
+        if not already_resisted:
+            total = total // 2
+
     # Apply multiplier (after resistance per 5e ordering: resistance halves
     # the post-multiplier? Or multiplier-then-resistance? Per RAW saves halve
     # the rolled total before resistance. For v1 we apply resistance first
@@ -703,6 +713,17 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
     if total > 0 and target.concentration_on is not None:
         from engine.core.concentration import attempt_concentration_save
         attempt_concentration_save(target, total, state, rng)
+
+    if target.hp_current == 0:
+        # Revivification (Zealot L14 Rage of the Gods): a raging Zealot
+        # within 30 ft may use a reaction + Rage use to save the target
+        # before death processing. Fires BEFORE forms/death/dying so HP
+        # can be restored in time.
+        from engine.core.reactions import resolve_reaction_triggers as _rtrig
+        _rtrig("creature_would_drop_to_zero", {
+            "target": target,
+            "target_id": target.id,
+        }, state, bus)
 
     if target.hp_current == 0:
         # Form system: a transformed creature dropping to 0 in its form
@@ -1300,6 +1321,16 @@ def _forced_save(params: dict, state: CombatState, bus: EventBus) -> dict:
                       + save_mods.save_bonus_modifier
                       + cover_save_bonus)
             outcome = "success" if total >= dc else "fail"
+
+        # Fanatical Focus (Zealot L6): once per Rage, reroll a failed save
+        # with +rage_damage_bonus. Fires before Legendary Resistance so the
+        # Zealot gets their reroll first (then LR may still flip it back).
+        if outcome == "fail":
+            from engine.core.fanatical_focus import try_fanatical_focus_reroll
+            ff_d20, ff_total, ff_outcome = try_fanatical_focus_reroll(
+                target, ability, dc, rng, state)
+            if ff_d20 is not None:
+                d20, total, outcome = ff_d20, ff_total, ff_outcome
 
         # Legendary Resistance: a legendary creature that just failed a
         # save may spend a per-day charge to succeed instead. Applies to
@@ -2238,6 +2269,100 @@ def _warrior_of_the_gods(params: dict, state: CombatState,
         "amount": healed,
         "dice_remaining": dice - spend,
     })
+
+
+def _zealous_presence(params: dict, state: CombatState,
+                        bus: EventBus) -> None:
+    """Zealous Presence (Path of the Zealot, Barbarian L10+).
+
+    RAW: "As a Bonus Action, unleash a battle cry infused with divine
+    energy. Up to ten other creatures of your choice within 60 feet gain
+    Advantage on attack rolls and saving throws until the start of your
+    next turn. Once you use this feature, you can't use it again until you
+    finish a Long Rest unless you expend a use of your Rage (no action
+    required) to restore it."
+
+    v1: fans out advantage on attacks (attack_modifier, attacker_is_self)
+    and saves (save_modifier, advantage) to up to 10 allies within 60 ft.
+    Modifiers use `until_source_caster_next_turn` lifetime — scrubbed by
+    modifiers.scrub_source_caster_turn_start_modifiers at the Zealot's
+    next turn-start (already called by the runner at every turn-start).
+    Rage-use refund ("expend a Rage use to restore") is deferred; v1
+    ships the 1/long-rest model.
+    """
+    from engine.core.geometry import distance_ft
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        return
+    uses = int(actor.resources.get("zealous_presence_uses_remaining", 0))
+    if uses <= 0:
+        return
+    actor.resources["zealous_presence_uses_remaining"] = uses - 1
+
+    source = {
+        "type": "action_buff",
+        "action_id": "a_zealous_presence",
+        "caster_id": actor.id,
+    }
+    allies_buffed = []
+    count = 0
+    for candidate in state.encounter.actors:
+        if count >= 10:
+            break
+        if candidate.id == actor.id:
+            continue
+        if candidate.side != actor.side:
+            continue
+        if not candidate.is_alive():
+            continue
+        if distance_ft(actor.position, candidate.position) > 60:
+            continue
+        # Attack advantage: fires when THIS ally is the attacker
+        candidate.active_modifiers.append({
+            "primitive": "attack_modifier",
+            "params": {"when": "attacker_is_self", "modifier": "advantage_for_self"},
+            "lifetime": "until_source_caster_next_turn",
+            "source": source,
+            "applied_at_round": state.round,
+            "owner_id": candidate.id,
+        })
+        # Save advantage: fires when THIS ally makes any save
+        candidate.active_modifiers.append({
+            "primitive": "save_modifier",
+            "params": {"modifier": "advantage"},
+            "lifetime": "until_source_caster_next_turn",
+            "source": source,
+            "applied_at_round": state.round,
+            "owner_id": candidate.id,
+        })
+        allies_buffed.append(candidate.id)
+        count += 1
+
+    state.event_log.append({
+        "event": "zealous_presence",
+        "actor": actor.id,
+        "allies_buffed": allies_buffed,
+        "uses_remaining": uses - 1,
+    })
+
+
+def _revivification_save(params: dict, state: CombatState,
+                          bus: EventBus) -> None:
+    """Revivification (Rage of the Gods reaction, Zealot L14+).
+
+    Executes when the `creature_would_drop_to_zero` trigger fires and the
+    reactor passes the `revivification_would_save` condition. Spends one
+    Rage use and sets the target's HP to the Zealot's Barbarian level.
+
+    state.current_attack["actor"] = the Zealot (reactor)
+    state.current_attack["target"] = the creature about to drop to 0
+    """
+    reactor = (state.current_attack or {}).get("actor")
+    target = (state.current_attack or {}).get("target")
+    if reactor is None or target is None:
+        return
+    from engine.core.rage_of_the_gods import execute_revivification
+    execute_revivification(reactor, target, state)
 
 
 def _steady_aim(params: dict, state: CombatState, bus: EventBus) -> None:
@@ -3270,6 +3395,8 @@ def _populate_handler_table() -> None:
         "steady_aim": _steady_aim,
         "lay_on_hands": _lay_on_hands,
         "warrior_of_the_gods": _warrior_of_the_gods,
+        "zealous_presence": _zealous_presence,
+        "revivification_save": _revivification_save,
         "ready_action": _ready_action,
         "melee_retaliation": _melee_retaliation,
         "recurring_damage": _recurring_damage,
@@ -3343,6 +3470,14 @@ def _all_primitives() -> list[Primitive]:
         # Warrior of the Gods (Zealot L3) — BA self-heal from a d12 dice
         # pool. Must stay in sync with _populate_handler_table.
         Primitive("warrior_of_the_gods", _warrior_of_the_gods,
+                    implemented=True),
+        # Zealous Presence (Zealot L10) — BA that grants Advantage on
+        # attacks + saves to up to 10 allies within 60 ft until the
+        # Zealot's next turn. Must stay in sync with _populate_handler_table.
+        Primitive("zealous_presence", _zealous_presence, implemented=True),
+        # Revivification (Zealot L14, Rage of the Gods reaction) — spends a
+        # Rage use to restore a would-be-downed ally to Barbarian level HP.
+        Primitive("revivification_save", _revivification_save,
                     implemented=True),
         # PR #86 — Ready Action (records a readied sub-action + trigger
         # onto the actor; fires when the trigger matches before the

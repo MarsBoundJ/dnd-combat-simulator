@@ -1,23 +1,20 @@
-# f_zealous_presence — Zealous Presence (Path of the Zealot, Barbarian
-# L10)
+# f_zealous_presence — Zealous Presence (Path of the Zealot, Barbarian L10)
 # Source: SRD CC v5.2.1 / PHB 2024 p.53
 #
 # RAW: "As a Bonus Action, you unleash a battle cry infused with divine
 # energy. Up to ten other creatures of your choice within 60 feet of you
-# gain Advantage on attack rolls and saving throws until the start of
-# your next turn. Once you use this feature, you can't use it again until
-# you finish a Long Rest unless you expend a use of your Rage (no action
+# gain Advantage on attack rolls and saving throws until the start of your
+# next turn. Once you use this feature, you can't use it again until you
+# finish a Long Rest unless you expend a use of your Rage (no action
 # required) to restore your use of it."
 #
-# Engine modeling: a Bonus-Action party buff granting Advantage on
-# attacks + saves to up to ten allies within 60 ft for one round.
+# Engine modeling: the zealous_presence primitive fans out attack_modifier
+# (advantage_for_self, until_source_caster_next_turn) and save_modifier
+# (advantage, until_source_caster_next_turn) to up to 10 allies within
+# 60 ft. Resource: zealous_presence_uses_remaining / _max (1/long rest).
+# The Rage-use refund is deferred (v1 ships the 1/long-rest model).
 #
-# **Wiring status: marker (DEFERRED).** Needs an ally-targeted
-# advantage-granting buff that expires at the start of the caster's next
-# turn (the existing buff layer grants bonus dice like Bless, not blanket
-# Advantage), plus the 1/Long-Rest use with the Rage-restore refund
-# (shared with Intimidating Presence's deferred refund). Party-offense
-# value; shipped as a marker until the advantage-buff layer lands.
+# Feature wiring status: FULLY WIRED (zealous_presence primitive).
 
 id: f_zealous_presence
 name: Zealous Presence
@@ -30,10 +27,22 @@ type: active
 resource_cost:
   type: bonus_action
 
-effect_primitives: []
+action_template:
+  id: a_zealous_presence
+  name: Zealous Presence
+  type: offensive_buff
+  slot: bonus_action
+  max_targets: 10
+  pipeline:
+    - primitive: zealous_presence
+      params: {}
 
 contract:
-  reads: [actor.template.features_known, actor.position]
-  writes: [ally.advantage_state]
+  reads: [actor.resources.zealous_presence_uses_remaining, actor.position]
+  writes: [ally.active_modifiers, actor.resources.zealous_presence_uses_remaining]
   event: actor_turn_bonus_action
   scope: per_use
+
+# Deferred:
+#   - Rage-use refund: "unless you expend a Rage use to restore it." Needs
+#     a hook on Rage consumption to refund zealous_presence_uses_remaining.

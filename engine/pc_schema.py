@@ -630,6 +630,20 @@ def derive_pc_resources(pc_spec: dict, content_registry: Any) -> dict:
         resources["intimidating_presence_uses_remaining"] = 1
         resources["intimidating_presence_uses_max"] = 1
 
+    # ---- Zealous Presence (Path of the Zealot, Barbarian L10) ----
+    # BA that grants advantage on attacks + saves to up to 10 allies within
+    # 60 ft for one round. 1/long rest; restores via Rage use (deferred).
+    if "f_zealous_presence" in features_known:
+        resources["zealous_presence_uses_remaining"] = 1
+        resources["zealous_presence_uses_max"] = 1
+
+    # ---- Rage of the Gods (Path of the Zealot, Barbarian L14) ----
+    # Divine form activated on rage entry: fly speed, N/P/R resistance,
+    # Revivification reaction. 1/long rest.
+    if "f_rage_of_the_gods" in features_known:
+        resources["rage_of_the_gods_uses_remaining"] = 1
+        resources["rage_of_the_gods_uses_max"] = 1
+
     # ---- Warrior of the Gods (Path of the Zealot, Barbarian L3) ----
     # A pool of d12s spent to self-heal (BA). RAW size: 4 dice at L3,
     # 5 at L6, 6 at L12, 7 at L17. Refreshes on a Long Rest. Drained by
