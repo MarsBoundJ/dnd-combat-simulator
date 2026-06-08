@@ -83,6 +83,31 @@ def is_within_ft(a: Actor | tuple[int, int],
     return distance_ft(a, b) <= ft
 
 
+def attack_range_ft(params: dict) -> int:
+    """Effective range (ft) of an attack_roll step from its params — the single
+    source of truth for "how far can this attack reach".
+
+    Order: explicit `range_ft` / `reach_ft`, then the `range: [normal, long]`
+    list form (uses NORMAL range — the long-range-at-disadvantage band isn't
+    modelled, consistent with single-value range_ft weapons), then a scalar
+    `range`, else 5 ft (melee default).
+
+    Before this, the readers only knew `range_ft` / `reach_ft`, so a ranged
+    attack authored as `{kind: ranged, range: [100, 200]}` (the common monster
+    form — Manticore tail spike, most humanoid bows/crossbows) fell through to
+    5 ft and was silently treated as melee."""
+    if "range_ft" in params:
+        return int(params["range_ft"])
+    if "reach_ft" in params:
+        return int(params["reach_ft"])
+    rng = params.get("range")
+    if isinstance(rng, (list, tuple)) and rng:
+        return int(rng[0])              # normal range
+    if isinstance(rng, (int, float)):
+        return int(rng)
+    return 5
+
+
 # ============================================================================
 # Movement
 # ============================================================================
