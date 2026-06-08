@@ -1,0 +1,58 @@
+# f_divine_fury — Divine Fury (Path of the Zealot, Barbarian L3)
+# Source: SRD CC v5.2.1 / PHB 2024 p.53
+# Pattern: passive damage rider, once-per-turn (mirrors Frenzy / Sneak
+# Attack / Divine Smite). Qualification + roll live in
+# engine/core/divine_fury.py, invoked from engine.primitives._damage on
+# a qualifying hit/crit.
+
+id: f_divine_fury
+name: Divine Fury
+source: srd_5.2.1
+granted_by:
+  subclass: sc_path_of_the_zealot
+  level: 3
+type: passive
+is_signature: true
+
+# No resource cost — fires automatically on the first weapon/Unarmed
+# hit each turn while raging. Once-per-turn dedup via the
+# `_divine_fury_used_this_turn` flag on Actor, cleared by reset_turn.
+resource_cost:
+  type: none
+
+usage:
+  uses_per: per_turn          # first qualifying hit of the turn
+  scaling_source: "fixed:1d6 + floor(barbarian_level / 2)"
+
+# No explicit pipeline: the qualification + roll live in
+# engine/core/divine_fury.py (try_apply_divine_fury) and are invoked
+# from _damage on a hit/crit. The Necrotic/Radiant damage folds into the
+# weapon's damage instance (returned as an int) — see the type note
+# below.
+effect_primitives: []
+
+contract:
+  reads: [actor.template.features_known, actor.rage_active,
+           actor.template.levels.barbarian,
+           actor._divine_fury_used_this_turn, attack_params.kind,
+           combat.attack_state]
+  writes: [actor._divine_fury_used_this_turn, combat.damage_total]
+  event: damage_roll
+  scope: per_qualifying_hit
+
+# RAW trigger conditions (engine/core/divine_fury.py implements):
+#   1. Knows Divine Fury (Zealot L3+).
+#   2. Rage is active.
+#   3. The attack is a weapon or Unarmed Strike (kind melee or ranged) —
+#      no Reckless / Strength gate (broader than Frenzy).
+#   4. First qualifying hit this turn (per-turn dedup).
+#
+# Damage: 1d6 + floor(Barbarian level / 2). Crit doubles the die, not
+# the flat bonus. Type is Necrotic or Radiant (player's choice).
+#
+# Deferred:
+#   - Type-aware resistance: the Necrotic/Radiant extra currently folds
+#     into the weapon hit (same simplification as Divine Smite's
+#     Radiant), so it takes the weapon's resistance treatment rather
+#     than Necrotic/Radiant resistance. A shared follow-on would resolve
+#     folded riders against their own damage type.

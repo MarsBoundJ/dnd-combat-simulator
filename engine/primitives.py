@@ -471,6 +471,14 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
         total += _fr.try_apply_frenzy(
             actor, target, state, attack_params, rng,
             is_crit=(sa_state == "crit"))
+        # Divine Fury rider (Path of the Zealot, Barbarian L3). Once-per-
+        # turn extra 1d6 + half level on the first weapon/Unarmed hit
+        # while raging (no Reckless / STR gate). Folds into the hit like
+        # Frenzy; adds 0 when the actor doesn't qualify.
+        from engine.core import divine_fury as _df
+        total += _df.try_apply_divine_fury(
+            actor, target, state, attack_params, rng,
+            is_crit=(sa_state == "crit"))
         # PR #89: Searing Smite rider. Fires on the caster's next
         # melee weapon hit when armed. Adds 1d6 fire damage (+1d6
         # per upcast slot level above 1st, doubled on crit) AND

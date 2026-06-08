@@ -442,6 +442,10 @@ class Actor:
         # resets at the start of each of the Barbarian's own turns.
         if hasattr(self, "_frenzy_used_this_turn"):
             self._frenzy_used_this_turn = False
+        # Divine Fury (Path of the Zealot) once-per-turn rider: the extra
+        # 1d6 + half level fires on the FIRST qualifying hit of the turn.
+        if hasattr(self, "_divine_fury_used_this_turn"):
+            self._divine_fury_used_this_turn = False
         # Monk once-per-turn on-hit riders: Stunning Strike (Focus Point,
         # CON save → Stunned) and Open Hand Technique (Flurry → Topple,
         # DEX save → Prone). Both reset at the start of the Monk's turn.
