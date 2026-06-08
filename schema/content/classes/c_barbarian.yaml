@@ -33,9 +33,11 @@
 #     (pc_schema), Shield stacks on top.
 #   - f_extra_attack (L5) → 2-attack multiattack via the shared Fighter/
 #     Barbarian Extra Attack builder (pc_schema). Barbarian caps at 2.
+#   - f_fast_movement (L5) → +10 ft walk speed while not in Heavy armor
+#     (build-time speed bump in pc_schema).
 #
 # Marker class features (RAW listed; engine work deferred per a follow-on):
-#   - f_danger_sense (L2), f_primal_knowledge (L3), f_fast_movement (L5),
+#   - f_danger_sense (L2), f_primal_knowledge (L3),
 #     f_feral_instinct + f_instinctive_pounce (L7), f_brutal_strike (L9),
 #     f_relentless_rage (L11), f_improved_brutal_strike (L13/L17),
 #     f_persistent_rage (L15), f_indomitable_might (L18),

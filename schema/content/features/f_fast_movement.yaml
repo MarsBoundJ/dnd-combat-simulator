@@ -1,0 +1,20 @@
+# f_fast_movement — Fast Movement (Barbarian L5)
+#
+# RAW (SRD 5.2.1 / PHB 2024 p.51): Your speed increases by 10 feet while
+# you aren't wearing Heavy armor.
+#
+# Engine modeling: build-time speed bump in pc_schema (when the PC has
+# f_fast_movement and isn't in Heavy armor, walk speed += 10). Heavy
+# armor is detected via _is_heavy_armor (explicit category/heavy flag,
+# else the max_dex_bonus == 0 proxy). Barbarians are unarmored or in
+# Light/Medium armor in practice, so the bonus almost always applies.
+#
+# source: srd_5.2.1
+
+id: f_fast_movement
+name: Fast Movement
+source: srd_5.2.1
+granted_by:
+  class: c_barbarian
+  level: 5
+type: passive

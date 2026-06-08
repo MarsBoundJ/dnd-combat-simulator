@@ -293,6 +293,17 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
         ac = (10 + ability_modifier(ability_scores["dex"]["score"])
                + ability_modifier(ability_scores["con"]["score"]))
 
+    # Movement speed: explicit pc_spec speed > race speed > default 30.
+    speed = (pc_spec.get("speed")
+                 or (race_def.get("speed") if race_def else None)
+                 or {"walk": 30})
+    # Barbarian Fast Movement (L5): +10 ft to walking speed while not
+    # wearing Heavy armor (RAW PHB 2024 p.51). Copy before mutating so
+    # we never clobber a shared race/spec speed dict.
+    if "f_fast_movement" in features_known and not _is_heavy_armor(armor_spec):
+        speed = dict(speed)
+        speed["walk"] = int(speed.get("walk", 30)) + 10
+
     actions += _build_feature_actions(features_known, level, class_id,
                                          weapon_actions=weapon_actions,
                                          ability_scores=ability_scores,
@@ -346,9 +357,7 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
                 "dice": f"{level}{hit_die}",
                 "con_contribution": con_mod * level,
             },
-            "speed": (pc_spec.get("speed")
-                          or (race_def.get("speed") if race_def else None)
-                          or {"walk": 30}),
+            "speed": speed,
             "initiative": {
                 "modifier": ability_modifier(ability_scores["dex"]["score"]),
             },
@@ -2045,6 +2054,22 @@ def _compute_hp(hit_die: str, level: int, con_mod: int) -> int:
     if level > 1:
         hp += (avg_per_level + con_mod) * (level - 1)
     return max(1, hp)
+
+
+def _is_heavy_armor(armor: dict) -> bool:
+    """True if the armor block represents Heavy armor.
+
+    PC armor specs carry only {base_ac, max_dex_bonus}. Heavy armor is
+    the one category that ignores DEX entirely (max_dex_bonus == 0),
+    while Medium caps DEX at +2 and Light is uncapped — so a 0 cap is a
+    clean RAW proxy. An explicit `category: heavy` / `heavy: true` flag
+    wins when present. Empty/no armor (unarmored) → not Heavy.
+    """
+    if not armor:
+        return False
+    if armor.get("category") == "heavy" or armor.get("heavy") is True:
+        return True
+    return armor.get("max_dex_bonus") == 0
 
 
 def _compute_ac(armor: dict, ability_scores: dict,

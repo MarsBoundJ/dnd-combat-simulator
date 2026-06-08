@@ -93,6 +93,46 @@ class UnarmoredDefenseTest(unittest.TestCase):
         self.assertEqual(tpl["combat"]["armor_class"], 17)
 
 
+class FastMovementTest(unittest.TestCase):
+
+    def _speed(self, template):
+        return template["combat"]["speed"]["walk"]
+
+    def test_no_bonus_before_l5(self) -> None:
+        tpl = _build(4)
+        self.assertNotIn("f_fast_movement", tpl.get("features_known", []))
+        self.assertEqual(self._speed(tpl), 30)
+
+    def test_plus_ten_at_l5_unarmored(self) -> None:
+        tpl = _build(5)
+        self.assertIn("f_fast_movement", tpl.get("features_known", []))
+        self.assertEqual(self._speed(tpl), 40)
+
+    def test_suppressed_in_heavy_armor(self) -> None:
+        # base_ac 18 / max_dex_bonus 0 → Heavy armor proxy → no bonus.
+        spec = {
+            "id": "barbplate", "class": "c_barbarian", "level": 5,
+            "ability_scores": {"str": 18, "dex": 14, "con": 16,
+                                 "int": 8, "wis": 10, "cha": 8},
+            "weapons": [dict(_GREATAXE)],
+            "armor": {"base_ac": 18, "max_dex_bonus": 0},
+        }
+        tpl = build_pc_template(spec, _registry())
+        self.assertEqual(tpl["combat"]["speed"]["walk"], 30)
+
+    def test_applies_in_medium_armor(self) -> None:
+        # Medium armor caps DEX at +2 (not 0) → not Heavy → bonus applies.
+        spec = {
+            "id": "barbhide", "class": "c_barbarian", "level": 5,
+            "ability_scores": {"str": 18, "dex": 14, "con": 16,
+                                 "int": 8, "wis": 10, "cha": 8},
+            "weapons": [dict(_GREATAXE)],
+            "armor": {"base_ac": 14, "max_dex_bonus": 2},
+        }
+        tpl = build_pc_template(spec, _registry())
+        self.assertEqual(tpl["combat"]["speed"]["walk"], 40)
+
+
 class CorrectedResourceTableTest(unittest.TestCase):
     """The previously-sparse table mis-stated these. RAW (PHB 2024):
     Rages 1-2:2 / 3-5:3 / 6-11:4 / 12-16:5 / 17-20:6;
