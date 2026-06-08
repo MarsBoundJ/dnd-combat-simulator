@@ -102,15 +102,16 @@ _ACTING_TYPES = ("weapon_attack", "save_attack", "hard_control", "aoe_attack")
 
 def _action_range_ft(action: dict) -> int:
     """Best-effort range (ft): top-level range_ft/reach_ft, else the
-    attack_roll step's range, else 5 (melee)."""
+    attack_roll step's range (via attack_range_ft, which handles the
+    `range: [normal, long]` ranged form), else 5 (melee)."""
     if "range_ft" in action:
         return int(action["range_ft"])
     if "reach_ft" in action:
         return int(action["reach_ft"])
+    from engine.core.geometry import attack_range_ft
     for step in action.get("pipeline", []) or []:
         if step.get("primitive") == "attack_roll":
-            p = step.get("params", {}) or {}
-            return int(p.get("range_ft", p.get("reach_ft", 5)))
+            return attack_range_ft(step.get("params", {}) or {})
     return 5
 
 
