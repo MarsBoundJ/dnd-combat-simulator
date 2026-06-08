@@ -2740,6 +2740,7 @@ def _place_barrier(params: dict, state: CombatState, bus: EventBus) -> None:
     # it can't escape or answer. radius_ft default 10 (RAW max 10-ft radius).
     if str(params.get("shape", "panel")).lower() == "sphere":
         radius = int(params.get("radius_ft", 10)) / SQUARE_SIZE_FT
+        gap = bool(params.get("gap", False))
         sphere = Sphere(
             center=(float(target.position[0]), float(target.position[1])),
             radius=radius,
@@ -2747,6 +2748,7 @@ def _place_barrier(params: dict, state: CombatState, bus: EventBus) -> None:
                   else WALL_BLOCK_NONE),
             sight=(WALL_BLOCK_NORMAL if params.get("sight", False)
                    else WALL_BLOCK_NONE),
+            gap=gap,
             flags={"effect": params.get("effect", "wall_of_force"),
                    "caster_id": caster.id, "action_id": action_id},
         )

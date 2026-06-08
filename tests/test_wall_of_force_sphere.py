@@ -28,9 +28,9 @@ def _mk(pos, actor_id="x", side="pc"):
                  hp_current=10, hp_max=10, ac=10, position=pos)
 
 
-def _sphere(center=(10.0, 10.0), radius=2.0, **kw):
+def _sphere(center=(10.0, 10.0), radius=2.0, gap=False):
     return Sphere(center=center, radius=radius, move=WALL_BLOCK_NORMAL,
-                  flags={"caster_id": "w", "action_id": "a_wof", **kw})
+                  gap=gap, flags={"caster_id": "w", "action_id": "a_wof"})
 
 
 class ContainmentTest(unittest.TestCase):
@@ -103,6 +103,44 @@ class PlaceBarrierSphereTest(unittest.TestCase):
         st.walls[0].flags["action_id"] = "a_wall_of_force"
         end_concentration(caster, st, reason="test")
         self.assertEqual([w for w in st.walls if isinstance(w, Sphere)], [])
+
+
+class FloatingDomeTest(unittest.TestCase):
+    """gap=True: blocks MOVEMENT (trapped) but is line-of-effect TRANSPARENT —
+    the floor gap lets a zone seep in / attacks pass, so the microwave can be
+    cast in either order (trap first, drop the zone in after)."""
+
+    def setUp(self):
+        self.dome = [_sphere(gap=True)]
+        self.sealed = [_sphere(gap=False)]
+
+    def test_dome_blocks_movement_like_sealed(self):
+        # Movement is still trapped — gap is too small for a creature.
+        self.assertTrue(segment_blocked((10, 10), (14, 10), self.dome, "move"))
+
+    def test_dome_is_loe_transparent(self):
+        # Sealed sphere = total cover; floating dome = LoE passes (the gap).
+        self.assertTrue(line_of_effect_blocked((10, 10), (20, 10), self.sealed))
+        self.assertFalse(line_of_effect_blocked((10, 10), (20, 10), self.dome))
+
+    def test_trapped_can_be_targeted_and_zoned_from_outside(self):
+        # An outside caster's line to the trapped creature is clear → it can be
+        # shot, AND a damaging zone can be placed inside it afterward.
+        self.assertFalse(line_of_effect_blocked((20, 10), (10, 10), self.dome))
+
+    def test_place_barrier_gap_flag(self):
+        caster = _mk((0, 0), "wiz")
+        target = _mk((8, 3), "dragon", side="enemy")
+        st = CombatState(encounter=Encounter(id="t", actors=[caster, target]))
+        st.current_attack = {"actor": caster, "target": target,
+                             "action": {"id": "a_wall_of_force"}}
+        PrimitiveRegistry.with_defaults().invoke(
+            "place_barrier",
+            {"shape": "sphere", "radius_ft": 10, "gap": True}, st, None)
+        dome = next(w for w in st.walls if isinstance(w, Sphere))
+        self.assertTrue(dome.gap)
+        self.assertFalse(dome.blocks_loe())     # transparent
+        self.assertTrue(dome.blocks("move"))    # but traps movement
 
 
 class FoundryExportTest(unittest.TestCase):
