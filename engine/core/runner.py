@@ -575,13 +575,36 @@ class EncounterRunner:
         stop_at = max(reaches) if reaches else 5
 
         from_pos = actor.position
+        from_elev = actor.elevation
         from_dist = distance_ft(actor, target)
+
+        # 3-D engage: a FLIER first closes the VERTICAL gap to its target —
+        # ascending to an airborne enemy (a Fly-buffed Fighter rising to the
+        # hovering dragon) or descending to a grounded one — spending fly
+        # movement, so melee reach can connect in Chebyshev-3D. Grounded movers
+        # (no fly) and same-elevation targets skip this entirely. Vertical is
+        # closed first; the remaining budget feeds the horizontal move. Doesn't
+        # undo kiting: a kiter has its breath in range, so move-to-engage never
+        # fires for it.
+        from engine.core.geometry import SQUARE_SIZE_FT
+        from engine.ai.altitude import has_fly
+        elev_moved = 0
+        if (has_fly(actor) and actor.elevation != target.elevation
+                and speed_ft > 0):
+            gap = abs(target.elevation - actor.elevation)
+            climb = (min(gap, speed_ft) // SQUARE_SIZE_FT) * SQUARE_SIZE_FT
+            if climb > 0:
+                up = target.elevation > actor.elevation
+                actor.elevation += climb if up else -climb
+                elev_moved = climb
+                speed_ft -= climb
+
         # Barriers (Wall of Force) stop movement: the mover halts at the
         # wall rather than passing through it. Gated inside move_toward —
         # an empty wall list is the open-battlefield no-op.
         moved_ft = move_toward(actor, target, speed_ft, stop_at_ft=stop_at,
                                 blockers=getattr(state, "walls", None))
-        if moved_ft <= 0:
+        if moved_ft <= 0 and elev_moved <= 0:
             return
         actor.moved_this_turn = True
         state.event_log.append({
@@ -591,6 +614,9 @@ class EncounterRunner:
             "to": list(actor.position),
             "ft": moved_ft,
             "toward": target.id,
+            "from_elev": from_elev,
+            "to_elev": actor.elevation,
+            "elev_ft": elev_moved,
             "distance_before": from_dist,
             "distance_after": distance_ft(actor, target),
         })
