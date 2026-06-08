@@ -1101,6 +1101,10 @@ def extract_control_intent(action: dict) -> dict:
                 "save_ability": ability,
                 "save_dc_fixed": dc_fixed,
                 "save_dc_source": dc_source,
+                # Governing ability for a martial_save_dc (8 + ability +
+                # PB); None for spell/fixed DCs. Lets _resolve_dc_for_
+                # action compute the right martial DC at scoring time.
+                "save_dc_ability": params.get("dc_ability"),
                 "condition_id": condition_id,
                 "denial_fraction": denial_fraction,
             }
@@ -1181,6 +1185,12 @@ def _resolve_dc_for_action(action_intent: dict, caster: Actor) -> int:
     dc_source = action_intent.get("save_dc_source") or ""
     if dc_source == "caster_spell_save_dc":
         return _caster_spell_dc(caster)
+    if dc_source == "martial_save_dc":
+        # Scoring twin of primitives._resolve_dc's martial branch: the
+        # AI scores the Frighten/etc. against the same 8 + ability + PB
+        # the rider will roll, so control value isn't mis-estimated.
+        return _martial_save_dc(
+            caster, action_intent.get("save_dc_ability") or "strength")
     if dc_source.startswith("fixed:"):
         try:
             return int(dc_source[len("fixed:"):])
@@ -1281,6 +1291,17 @@ def _caster_spell_dc(actor: Actor) -> int:
     pb = int((actor.template.get("cr") or {}).get("proficiency_bonus", 2))
     ability = ((actor.template or {}).get("spellcasting_ability")
                  or "charisma")
+    short = _short_ability(ability)
+    score = (actor.abilities.get(short) or {}).get("score", 10)
+    return 8 + pb + ability_modifier(score)
+
+
+def _martial_save_dc(actor: Actor, ability: str = "strength") -> int:
+    """Scoring-time martial feature save DC: 8 + PB + governing-ability
+    mod (default STR). Mirrors the martial_save_dc branch in
+    primitives._resolve_dc so the AI scores against the DC the feature
+    will actually roll (e.g. Barbarian Intimidating Presence / STR)."""
+    pb = int((actor.template.get("cr") or {}).get("proficiency_bonus", 2))
     short = _short_ability(ability)
     score = (actor.abilities.get(short) or {}).get("score", 10)
     return 8 + pb + ability_modifier(score)

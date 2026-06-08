@@ -622,6 +622,14 @@ def derive_pc_resources(pc_spec: dict, content_registry: Any) -> dict:
         resources["lay_on_hands_pool_remaining"] = pool
         resources["lay_on_hands_pool_max"] = pool
 
+    # ---- Intimidating Presence (Path of the Berserker, Barbarian L14) ----
+    # 1 use / Long Rest, consumed via the a_intimidating_presence
+    # feature_use gate. RAW also allows restoring the use by expending a
+    # Rage charge (deferred — see f_intimidating_presence.yaml).
+    if "f_intimidating_presence" in features_known:
+        resources["intimidating_presence_uses_remaining"] = 1
+        resources["intimidating_presence_uses_max"] = 1
+
     return resources
 
 

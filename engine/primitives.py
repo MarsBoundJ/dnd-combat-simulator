@@ -2952,6 +2952,23 @@ def _caster_spell_save_dc(actor: Actor) -> int:
     return 8 + pb + mod
 
 
+def _melee_retaliation(params: dict, state: CombatState,
+                         bus: EventBus) -> None:
+    """Reaction primitive: make one melee weapon attack against the
+    creature that damaged the reactor (Barbarian Berserker Retaliation,
+    L10). try_use_reaction sets current_attack.actor = reactor and
+    current_attack.target = the attacker (via the
+    _reaction_target_is_attacker flag); the swing routes through the
+    reactor's real weapon so Rage damage / masteries apply."""
+    ctx = state.current_attack or {}
+    reactor = ctx.get("actor")
+    attacker = ctx.get("target")
+    if reactor is None or attacker is None:
+        return
+    from engine.core.reactions import execute_retaliation_strike
+    execute_retaliation_strike(reactor, attacker, state, bus)
+
+
 def _ready_action(params: dict, state: CombatState, bus: EventBus) -> None:
     """Primitive that records a readied action on the actor (PR #86).
 
@@ -3037,6 +3054,25 @@ def _resolve_dc(params: dict, state: CombatState) -> int:
             pb = actor.template.get("cr", {}).get("proficiency_bonus", 2)
             return 8 + mod + pb
         return 13
+    if dc_source == "martial_save_dc":
+        # 8 + PB + a governing ability mod (default STR). For martial
+        # features whose save DC is "8 + ability + Proficiency Bonus"
+        # rather than a spell save DC — e.g. Barbarian Intimidating
+        # Presence (STR). The governing ability is read from the
+        # forced_save's `dc_ability` param so other martial features can
+        # key off CON/DEX/etc. without a new dc_source.
+        actor = state.current_attack.get("actor") or state.current_actor()
+        if actor:
+            ability = params.get("dc_ability", "strength")
+            short = {"strength": "str", "dexterity": "dex",
+                       "constitution": "con", "intelligence": "int",
+                       "wisdom": "wis", "charisma": "cha"}.get(
+                           str(ability), "str")
+            mod = ability_modifier(
+                actor.abilities.get(short, {}).get("score", 10))
+            pb = actor.template.get("cr", {}).get("proficiency_bonus", 2)
+            return 8 + mod + pb
+        return 13
     if dc_source.startswith("fixed:"):
         return int(dc_source[len("fixed:"):])
     return 13  # default
@@ -3070,6 +3106,15 @@ def _resolve_save_targets(params: dict, state: CombatState) -> list[Actor]:
                 if radius_ft is not None:
                     from engine.core.geometry import actors_in_radius
                     members = actors_in_radius(tuple(origin), int(radius_ft),
+                                                 living)
+            elif shape == "emanation":
+                # A self-centered Emanation is a sphere of `size_ft`
+                # radius originating from the actor (origin == caster's
+                # position). Used by Barbarian Intimidating Presence.
+                size_ft = area.get("size_ft")
+                if size_ft is not None:
+                    from engine.core.geometry import actors_in_radius
+                    members = actors_in_radius(tuple(origin), int(size_ft),
                                                  living)
             elif shape == "cone":
                 length_ft = area.get("length_ft")
@@ -3176,6 +3221,7 @@ def _populate_handler_table() -> None:
         "steady_aim": _steady_aim,
         "lay_on_hands": _lay_on_hands,
         "ready_action": _ready_action,
+        "melee_retaliation": _melee_retaliation,
         "recurring_damage": _recurring_damage,
         "searing_smite_arm": _searing_smite_arm,
         "ensnaring_strike_arm": _ensnaring_strike_arm,
@@ -3248,6 +3294,10 @@ def _all_primitives() -> list[Primitive]:
         # onto the actor; fires when the trigger matches before the
         # actor's next turn).
         Primitive("ready_action", _ready_action, implemented=True),
+        # Retaliation (Barbarian Berserker L10) — reaction primitive that
+        # makes one melee weapon swing at the creature that damaged the
+        # reactor. Must stay in sync with _populate_handler_table.
+        Primitive("melee_retaliation", _melee_retaliation, implemented=True),
         # PR #89 — Recurring per-turn damage tick (Searing Smite burn,
         # future Heat Metal). Registers an entry in state.recurring_
         # damage; runner._resolve_recurring_damage fires at each

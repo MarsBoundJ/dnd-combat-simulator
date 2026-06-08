@@ -5,22 +5,16 @@
 # you, you can take a Reaction to make one melee attack against that
 # creature, using a weapon or an Unarmed Strike."
 #
-# Engine modeling: a damage-triggered reaction whose effect is a single
-# melee weapon attack back at the attacker — the same trigger shape as
-# Hellish Rebuke (trigger: damage_taken; condition:
-# damage_taken_by_self_from_attacker), but the payload is an
-# `attack_roll` against the attacker rather than a forced_save.
+# Engine modeling: a damage_taken reaction (same generic trigger system
+# as Hellish Rebuke), gated by the `damaged_by_adjacent_creature`
+# condition (reactor took the damage + a living enemy source within 5
+# ft). The payload is the `melee_retaliation` primitive, which makes one
+# melee weapon attack from the reactor against that attacker — routed
+# through the reactor's REAL weapon attack so Rage damage and weapon
+# masteries apply (engine/core/reactions.execute_retaliation_strike).
 #
-# **Wiring status: marker (action execution DEFERRED).** The reaction
-# system (engine/core/reactions.py) today drives opportunity attacks
-# from movement; firing a melee `attack_roll` from a damage_taken
-# trigger needs the reaction dispatcher to (a) recognize the
-# damage_taken trigger for this feature and (b) resolve the attack with
-# the Berserker's own weapon profile + the 5-ft adjacency gate. Shipping
-# an auto-attached action_template now would let the candidate generator
-# fire it with an unresolved attack payload, so the feature ships as a
-# marker (in features_known, telemetry-visible) until the reaction
-# dispatcher is extended. Tracked as the Berserker reaction follow-on.
+# The reaction slot is spent up front to bound mutual-Retaliation
+# recursion (no spell-slot cost to self-limit, unlike Hellish Rebuke).
 
 id: f_retaliation
 name: Retaliation
@@ -28,24 +22,25 @@ source: srd_5.2.1
 granted_by:
   subclass: sc_path_of_the_berserker
   level: 10
-type: passive
+type: active
 
 resource_cost:
   type: reaction
 
-effect_primitives: []
+action_template:
+  id: a_retaliation
+  name: Retaliation
+  type: weapon_attack
+  slot: reaction
+  trigger: damage_taken
+  condition: damaged_by_adjacent_creature
+  pipeline:
+    - primitive: melee_retaliation
 
-contract:
-  reads: [actor.template.features_known, actor.template.actions,
-           event.attacker, event.distance_ft]
-  writes: [actor.actions_used_this_turn.reaction, combat.damage_total]
-  event: damage_taken
-  scope: per_reaction
-
-# Deferred (this is the engine work that turns the marker live):
-#   - Extend the reaction dispatcher to fire on `damage_taken` from a
-#     within-5-ft attacker and resolve one melee attack_roll using the
-#     actor's weapon profile (reuse the opportunity-attack resolution
-#     path in reactions.py).
-#   - Reaction-economy gate (one reaction/round) — already tracked via
-#     actions_used_this_turn['reaction'].
+# Deferred:
+#   - Unarmed Strike fallback: a reactor with no melee weapon attack
+#     makes no swing (RAW allows an Unarmed Strike). Barbarians carry a
+#     weapon in practice, so this is a thin edge.
+#   - The swing uses the reactor's first melee weapon attack (matches
+#     the opportunity-attack v1 choice); a "best melee" pick is a shared
+#     follow-on with the OA path.
