@@ -243,6 +243,28 @@ def end_concentration(caster: Actor, state: CombatState,
                     "reason": "concentration_ended",
                 })
 
+    # Stage 3: revert granted movement speeds (Fly's fly 60) owned by this
+    # concentration. Restore each affected actor's prior value for the granted
+    # speed type — delete the key if it had none. Mirrors the modifier scrub.
+    for target in state.encounter.actors:
+        grants = getattr(target, "active_speed_grants", None)
+        if not grants:
+            continue
+        kept = []
+        for g in grants:
+            if (g.get("source_caster_id") == caster_id
+                    and g.get("source_action_id") == action_id):
+                stype = g.get("speed_type")
+                prior = g.get("prior")
+                if prior is None:
+                    (target.speed or {}).pop(stype, None)
+                else:
+                    target.speed[stype] = prior
+                removed += 1
+            else:
+                kept.append(g)
+        target.active_speed_grants = kept
+
     caster.concentration_on = None
     state.event_log.append({
         "event": "concentration_ended",
