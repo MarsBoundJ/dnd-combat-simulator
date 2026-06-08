@@ -900,18 +900,17 @@ def _persistent_aura_cast_range(action: dict) -> int:
 def _action_reach_ft(action: dict) -> int:
     """Resolve the reach/range for a weapon_attack action.
 
-    Inspects the action's pipeline for the attack_roll step. Uses
-    `range_ft` if present (ranged attacks), else `reach_ft` (melee,
-    default 5).
+    Inspects the action's pipeline for the attack_roll step and reads its
+    effective range via `attack_range_ft` (handles `range_ft` / `reach_ft` /
+    the `range: [normal, long]` ranged form). Default 5 ft (melee).
     """
+    from engine.core.geometry import attack_range_ft
     for step in (action.get("pipeline") or []):
         if step.get("primitive") != "attack_roll":
             continue
         params = step.get("params") or {}
-        if "range_ft" in params:
-            return int(params["range_ft"])
-        if "reach_ft" in params:
-            return int(params["reach_ft"])
+        if any(k in params for k in ("range_ft", "reach_ft", "range")):
+            return attack_range_ft(params)
     # Top-level shorthand (rare): action.range_ft / action.reach_ft
     if "range_ft" in action:
         return int(action["range_ft"])

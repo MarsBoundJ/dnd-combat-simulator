@@ -152,7 +152,7 @@ def _attack_roll(params: dict, state: CombatState, bus: EventBus) -> dict:
     """Roll d20 + bonus vs target AC. Now consults active_modifiers
     AND the action's reach / range — out-of-range attacks auto-miss.
     """
-    from engine.core.geometry import distance_ft
+    from engine.core.geometry import distance_ft, attack_range_ft
 
     actor: Actor = state.current_attack["actor"]
     target: Actor = state.current_attack["target"]
@@ -163,7 +163,7 @@ def _attack_roll(params: dict, state: CombatState, bus: EventBus) -> dict:
     # where a sub-attack might be invoked beyond its reach (e.g., a
     # Scimitar swing against a target 30 ft away when the multiattack
     # was gated on the Shortbow's range). Auto-miss with telemetry.
-    reach = int(params.get("range_ft", params.get("reach_ft", 5)))
+    reach = attack_range_ft(params)
     if distance_ft(actor, target) > reach:
         state.current_attack["state"] = "miss"
         state.event_log.append({
