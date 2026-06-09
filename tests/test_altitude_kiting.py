@@ -117,10 +117,11 @@ class ChooseElevationTest(unittest.TestCase):
         st, d = self._enc("m_adult_red_dragon")
         self.assertGreater(choose_flier_elevation(d, st), 0)
 
-    def test_dragon_swoops_when_breath_spent(self):
+    def test_dragon_kites_when_breath_spent_but_has_ranged_spells(self):
+        # 2024 stat block: at-will Scorching Ray keeps dragon airborne
         st, d = self._enc("m_adult_red_dragon")
         d.recharge_spent.add("a_fire_breath")
-        self.assertEqual(choose_flier_elevation(d, st), 0)
+        self.assertGreater(choose_flier_elevation(d, st), 0)
 
     def test_wyvern_grounds(self):
         st, w = self._enc("m_wyvern")

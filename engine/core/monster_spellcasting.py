@@ -149,7 +149,8 @@ def _expand_action(monster_action: dict, feature: dict,
                           or (template or {}).get("name"))
     # Carry the monster action's gate + option metadata (e.g. `cost` for a
     # legendary-action option, which legendary_actions.option_cost reads).
-    for gate in ("recharge", "feature_use", "slot", "cost"):
+    for gate in ("recharge", "feature_use", "slot", "cost",
+                  "once_per_round"):
         if gate in monster_action:
             expanded[gate] = monster_action[gate]
     # Record provenance so the action is traceable as a cast spell.

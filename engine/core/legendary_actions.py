@@ -54,6 +54,7 @@ from __future__ import annotations
 from engine.core.state import Actor, CombatState
 
 RESOURCE_KEY = "legendary_actions_remaining"
+_COOLDOWN_KEY = "la_used_this_round"
 
 
 def configured(template: dict) -> dict | None:
@@ -92,6 +93,7 @@ def reset_budget(actor: Actor, state: CombatState) -> None:
         return
     before = actor.resources.get(RESOURCE_KEY)
     actor.resources[RESOURCE_KEY] = full
+    actor.resources[_COOLDOWN_KEY] = set()
     if before != full:
         state.event_log.append({
             "event": "legendary_actions_reset",
@@ -117,22 +119,39 @@ def is_eligible(actor: Actor) -> bool:
 
 def affordable_options(actor: Actor) -> list[dict]:
     """The legendary options the actor can currently pay for, each tagged
-    `slot: 'action'` so generate_candidates will enumerate it."""
+    `slot: 'action'` so generate_candidates will enumerate it.
+
+    Options with `once_per_round: true` that were already used this
+    round (tracked in the actor's `la_used_this_round` set) are
+    excluded — RAW "can't take this action again until the start of
+    its next turn."
+    """
     block = configured(actor.template)
     if block is None:
         return []
     budget = remaining(actor)
+    cooldowns = actor.resources.get(_COOLDOWN_KEY) or set()
     out = []
     for opt in block.get("options") or []:
-        if option_cost(opt) <= budget:
-            out.append(dict(opt, slot="action"))
+        if option_cost(opt) > budget:
+            continue
+        if opt.get("once_per_round") and opt.get("id") in cooldowns:
+            continue
+        out.append(dict(opt, slot="action"))
     return out
 
 
 def consume(actor: Actor, option: dict, state: CombatState) -> None:
-    """Spend an option's cost from the actor's Legendary Action pool."""
+    """Spend an option's cost from the actor's Legendary Action pool.
+    If the option has `once_per_round`, mark it on cooldown."""
     cost = option_cost(option)
     actor.resources[RESOURCE_KEY] = max(0, remaining(actor) - cost)
+    if option.get("once_per_round"):
+        cooldowns = actor.resources.get(_COOLDOWN_KEY)
+        if cooldowns is None:
+            cooldowns = set()
+            actor.resources[_COOLDOWN_KEY] = cooldowns
+        cooldowns.add(option.get("id"))
     state.event_log.append({
         "event": "legendary_action_used",
         "actor": actor.id,
