@@ -103,7 +103,7 @@ level_table:
       spell_slots: { 1: 4, 2: 3, 3: 3 }
   - level: 7
     proficiency_bonus: 3
-    features: [f_polymorph, f_ice_storm, f_banishment, f_blight]
+    features: [f_polymorph, f_ice_storm, f_banishment, f_blight, f_sickening_radiance]
     spellcasting: { cantrips_known: 4, prepared_spells: 11 }
     class_resources:
       spell_slots: { 1: 4, 2: 3, 3: 3, 4: 1 }
