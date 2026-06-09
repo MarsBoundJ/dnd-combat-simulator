@@ -137,18 +137,13 @@ class PrimitiveTest(unittest.TestCase):
         _run_zealous_presence(z, [far_ally])
         self.assertEqual(far_ally.active_modifiers, [])
 
-    def test_decrements_use(self):
+    def test_primitive_does_not_decrement(self):
+        # Resource consumption is the feature_use gate's job now, not the
+        # primitive's — the primitive only applies the buff.
         z = _zealot()
         ally = _actor("a1", side="pc", pos=(2, 0))  # 10 ft
         _run_zealous_presence(z, [ally])
-        self.assertEqual(z.resources["zealous_presence_uses_remaining"], 0)
-
-    def test_noop_when_empty(self):
-        z = _zealot()
-        z.resources["zealous_presence_uses_remaining"] = 0
-        ally = _actor("a1", side="pc", pos=(2, 0))  # 10 ft
-        _run_zealous_presence(z, [ally])
-        self.assertEqual(ally.active_modifiers, [])
+        self.assertEqual(z.resources["zealous_presence_uses_remaining"], 1)
 
     def test_caps_at_ten_allies(self):
         z = _zealot()
@@ -200,6 +195,91 @@ class LongRestRefreshTest(unittest.TestCase):
         result = _refresh_generic_uses_to_max(
             p, "zealous_presence_uses_remaining", "zealous_presence_uses_max")
         self.assertIsNone(result)
+
+
+class RageRefundTest(unittest.TestCase):
+    """Generic Rage-use refund (shared with Intimidating Presence).
+
+    RAW: "...unless you expend a use of your Rage (no action required) to
+    restore your use of it." Modeled via `rage_refund: true` on the action;
+    the feature_use gate spends a Rage use to restore the pool when empty,
+    keeping one Rage in reserve.
+    """
+
+    def _action(self):
+        return {
+            "id": "a_zealous_presence",
+            "feature_use": "zealous_presence_uses_remaining",
+            "rage_refund": True,
+        }
+
+    def test_available_with_charge(self):
+        from engine.core.feature_uses import is_action_available
+        z = _zealot()
+        z.resources["zealous_presence_uses_remaining"] = 1
+        self.assertTrue(is_action_available(z, self._action()))
+
+    def test_available_when_empty_if_rage_refundable(self):
+        from engine.core.feature_uses import is_action_available
+        z = _zealot()
+        z.resources["zealous_presence_uses_remaining"] = 0
+        z.resources["rage_uses_remaining"] = 3
+        self.assertTrue(is_action_available(z, self._action()))
+
+    def test_unavailable_when_empty_and_low_rage(self):
+        # Only one Rage use left — kept in reserve, no refund offered.
+        from engine.core.feature_uses import is_action_available
+        z = _zealot()
+        z.resources["zealous_presence_uses_remaining"] = 0
+        z.resources["rage_uses_remaining"] = 1
+        self.assertFalse(is_action_available(z, self._action()))
+
+    def test_unavailable_when_empty_and_no_rage(self):
+        from engine.core.feature_uses import is_action_available
+        z = _zealot()
+        z.resources["zealous_presence_uses_remaining"] = 0
+        z.resources["rage_uses_remaining"] = 0
+        self.assertFalse(is_action_available(z, self._action()))
+
+    def test_non_refundable_action_not_available_when_empty(self):
+        from engine.core.feature_uses import is_action_available
+        z = _zealot()
+        z.resources["zealous_presence_uses_remaining"] = 0
+        z.resources["rage_uses_remaining"] = 3
+        action = {"id": "a_zealous_presence",
+                  "feature_use": "zealous_presence_uses_remaining"}
+        self.assertFalse(is_action_available(z, action))
+
+    def test_consume_normal_path_no_refund(self):
+        from engine.core.feature_uses import consume_use_or_rage_refund
+        z = _zealot()
+        z.resources["zealous_presence_uses_remaining"] = 1
+        z.resources["rage_uses_remaining"] = 3
+        st = _state([z], z)
+        consume_use_or_rage_refund(z, self._action(), st)
+        self.assertEqual(z.resources["zealous_presence_uses_remaining"], 0)
+        self.assertEqual(z.resources["rage_uses_remaining"], 3)  # untouched
+
+    def test_consume_refund_path_spends_rage(self):
+        from engine.core.feature_uses import consume_use_or_rage_refund
+        z = _zealot()
+        z.resources["zealous_presence_uses_remaining"] = 0
+        z.resources["rage_uses_remaining"] = 3
+        st = _state([z], z)
+        consume_use_or_rage_refund(z, self._action(), st)
+        # Restored to max (1) then consumed → 0; one Rage use spent.
+        self.assertEqual(z.resources["zealous_presence_uses_remaining"], 0)
+        self.assertEqual(z.resources["rage_uses_remaining"], 2)
+
+    def test_refund_logs_event(self):
+        from engine.core.feature_uses import consume_use_or_rage_refund
+        z = _zealot()
+        z.resources["zealous_presence_uses_remaining"] = 0
+        z.resources["rage_uses_remaining"] = 3
+        st = _state([z], z)
+        consume_use_or_rage_refund(z, self._action(), st)
+        events = [e.get("event") for e in st.event_log]
+        self.assertIn("rage_use_refund", events)
 
 
 if __name__ == "__main__":

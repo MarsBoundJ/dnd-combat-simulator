@@ -2287,17 +2287,18 @@ def _zealous_presence(params: dict, state: CombatState,
     Modifiers use `until_source_caster_next_turn` lifetime — scrubbed by
     modifiers.scrub_source_caster_turn_start_modifiers at the Zealot's
     next turn-start (already called by the runner at every turn-start).
-    Rage-use refund ("expend a Rage use to restore") is deferred; v1
-    ships the 1/long-rest model.
+
+    Resource consumption is handled by the `feature_use` gate at the
+    pipeline level (the action declares `feature_use:
+    zealous_presence_uses_remaining` + `rage_refund: true`), so this
+    primitive does NOT decrement the pool — it only applies the buff. The
+    candidate gate guarantees a charge (or an affordable Rage refund) is
+    available before this runs.
     """
     from engine.core.geometry import distance_ft
     actor = (state.current_attack or {}).get("actor") or state.current_actor()
     if actor is None:
         return
-    uses = int(actor.resources.get("zealous_presence_uses_remaining", 0))
-    if uses <= 0:
-        return
-    actor.resources["zealous_presence_uses_remaining"] = uses - 1
 
     source = {
         "type": "action_buff",
@@ -2342,7 +2343,6 @@ def _zealous_presence(params: dict, state: CombatState,
         "event": "zealous_presence",
         "actor": actor.id,
         "allies_buffed": allies_buffed,
-        "uses_remaining": uses - 1,
     })
 
 

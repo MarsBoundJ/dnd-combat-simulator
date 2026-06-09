@@ -570,10 +570,12 @@ def offensive_ehp_buff_ally(actor: Actor, target_ally: Actor, action: dict,
     # Zealous Presence: advantage on attacks + saves for each buffed ally.
     # Scored as attack advantage only (saves are harder to quantify and
     # attack advantage already captures most of the offensive value).
+    # Availability honors the Rage-refund path: a depleted-but-refundable
+    # use is still worth scoring (the candidate gate already surfaced it).
     for step in (action.get("pipeline") or []):
         if step.get("primitive") == "zealous_presence":
-            uses = int(actor.resources.get("zealous_presence_uses_remaining", 0))
-            if uses <= 0:
+            from engine.core.feature_uses import is_action_available
+            if not is_action_available(actor, action):
                 return 0.0
             ally_dpr = estimate_dpr(target_ally)
             if ally_dpr <= 0:

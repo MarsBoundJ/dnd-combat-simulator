@@ -106,12 +106,13 @@ def generate_candidates(actor: Actor, state: CombatState,
                 if has_slot_for_action(actor, a)]
     # Filter out feature-use-gated actions whose resource is depleted.
     # Actions without a `feature_use` field pass through (not gated).
-    from engine.core.feature_uses import (
-        required_feature_use as _req_feat,
-        has_use as _has_feat,
-    )
+    # `is_action_available` also surfaces the Rage-refund path: a depleted
+    # but `rage_refund`-tagged action stays available when the actor can
+    # spend a spare Rage use to restore it (Zealous Presence / Intimidating
+    # Presence).
+    from engine.core.feature_uses import is_action_available as _feat_available
     actions = [a for a in actions
-                if _has_feat(actor, _req_feat(a))]
+                if _feat_available(actor, a)]
     # Filter out recharge-gated abilities (monster Breath Weapon, Web,
     # Boulder Toss, …) that have been used and haven't recharged yet.
     # Actions without a `recharge` field pass through unchanged.
@@ -1157,13 +1158,12 @@ def execute(chosen: dict, state: CombatState, event_bus, primitives) -> None:
     # `feature_use` resource key (Second Wind, Lay on Hands, etc.).
     # Spell slots and feature uses are independent gates — an action
     # could in principle consume both, though no RAW spell does.
-    from engine.core.feature_uses import (
-        required_feature_use as _req_feat,
-        consume_use as _consume_feat,
-    )
-    feature_key = _req_feat(action)
-    if feature_key is not None:
-        _consume_feat(actor, feature_key, state, action_id=action.get("id"))
+    # `consume_use_or_rage_refund` handles the Rage-refund path: if the
+    # feature pool is empty but the action is `rage_refund`-tagged and
+    # affordable, it expends a Rage use to restore the pool before
+    # consuming. No-op for actions without a `feature_use` key.
+    from engine.core.feature_uses import consume_use_or_rage_refund
+    consume_use_or_rage_refund(actor, action, state)
 
     # Recharge consumption — a recharge-gated ability (Breath Weapon, Web,
     # …) becomes unavailable on use until it recharges on the owner's

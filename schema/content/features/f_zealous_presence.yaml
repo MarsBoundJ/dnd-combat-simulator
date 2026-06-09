@@ -11,10 +11,15 @@
 # Engine modeling: the zealous_presence primitive fans out attack_modifier
 # (advantage_for_self, until_source_caster_next_turn) and save_modifier
 # (advantage, until_source_caster_next_turn) to up to 10 allies within
-# 60 ft. Resource: zealous_presence_uses_remaining / _max (1/long rest).
-# The Rage-use refund is deferred (v1 ships the 1/long-rest model).
+# 60 ft. Resource: zealous_presence_uses_remaining / _max (1/long rest),
+# gated + consumed by the generic `feature_use` machinery. The Rage-use
+# refund ("expend a Rage use to restore it") is wired via `rage_refund:
+# true` — when the pool is empty, the feature_use gate spends one Rage
+# use (keeping one in reserve) to restore the pool. Shared with
+# Intimidating Presence (Berserker). See engine/core/feature_uses.py.
 #
-# Feature wiring status: FULLY WIRED (zealous_presence primitive).
+# Feature wiring status: FULLY WIRED (zealous_presence primitive +
+# feature_use gate + Rage refund).
 
 id: f_zealous_presence
 name: Zealous Presence
@@ -32,6 +37,8 @@ action_template:
   name: Zealous Presence
   type: offensive_buff
   slot: bonus_action
+  feature_use: zealous_presence_uses_remaining
+  rage_refund: true
   max_targets: 10
   pipeline:
     - primitive: zealous_presence
@@ -39,10 +46,7 @@ action_template:
 
 contract:
   reads: [actor.resources.zealous_presence_uses_remaining, actor.position]
-  writes: [ally.active_modifiers, actor.resources.zealous_presence_uses_remaining]
+  writes: [ally.active_modifiers, actor.resources.zealous_presence_uses_remaining,
+           actor.resources.rage_uses_remaining]
   event: actor_turn_bonus_action
   scope: per_use
-
-# Deferred:
-#   - Rage-use refund: "unless you expend a Rage use to restore it." Needs
-#     a hook on Rage consumption to refund zealous_presence_uses_remaining.
