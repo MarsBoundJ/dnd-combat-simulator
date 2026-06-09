@@ -1,0 +1,32 @@
+# f_words_of_creation — Words of Creation (Bard L20, capstone)
+# Source: SRD CC v5.2.1 / PHB 2024
+#
+# RAW: "You have mastered two of the Words of Creation... You therefore always
+# have the Power Word Heal and Power Word Kill spells prepared. When you cast
+# either spell, you can target a second creature with it if that creature is
+# within 10 feet of the first target."
+#
+# Wiring status: MARKER — DEFERRED. Needs the Power Word Heal / Power Word
+# Kill spells (not yet in the spell content) plus a "second target within 10
+# ft" splitter on those casts. L20 capstone, rare in sims (single-encounter
+# runs seldom reach L20), so low calibration impact. Shipped as a marker so
+# features_known is complete; wire when those spells land.
+
+id: f_words_of_creation
+name: Words of Creation
+source: srd_5.2.1
+granted_by:
+  class: c_bard
+  level: 20
+type: passive
+
+resource_cost:
+  type: none
+
+effect_primitives: []
+
+contract:
+  reads: [actor.template.features_known]
+  writes: []
+  event: passive
+  scope: passive

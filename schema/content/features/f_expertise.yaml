@@ -1,0 +1,37 @@
+# f_expertise — Expertise (Bard L2, again at L9)
+# Source: SRD CC v5.2.1 / PHB 2024
+#
+# RAW: "You gain Expertise in two of your skill proficiencies of your choice.
+# At Bard level 9, you gain Expertise in two more of your skill
+# proficiencies of your choice." (Expertise = double Proficiency Bonus on
+# checks with the chosen skills.)
+#
+# Engine modeling: BUILD-CONFIG / non-combat. The actual expertise skills are
+# declared on the PC spec (`skill_expertise:`) and consumed by
+# engine.core.skills at skill-check time — already supported. This feature
+# marker just records that the Bard HAS Expertise at this level (so
+# features_known is complete and a future build-validator can check the
+# expertise count against the level). No combat eHP signal (Expertise affects
+# ability checks, not attacks/saves/damage).
+#
+# Feature wiring status: MARKER (build-config; skill-check pillar already
+# consumes the PC-spec expertise list).
+
+id: f_expertise
+name: Expertise
+source: srd_5.2.1
+granted_by:
+  class: c_bard
+  level: 2
+type: passive
+
+resource_cost:
+  type: none
+
+effect_primitives: []
+
+contract:
+  reads: [actor.template.skill_expertise]
+  writes: []
+  event: passive
+  scope: passive

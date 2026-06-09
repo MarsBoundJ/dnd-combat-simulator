@@ -1,0 +1,31 @@
+# f_superior_inspiration — Superior Inspiration (Bard L18)
+# Source: SRD CC v5.2.1 / PHB 2024
+#
+# RAW: "When you roll Initiative, you regain expended uses of Bardic
+# Inspiration until you have two if you have fewer than that."
+#
+# Engine modeling: runner.roll_initiative tops a holder's
+# bardic_inspiration_uses_remaining up to 2 when it's below 2 — so a Bard
+# enters every fight with at least two Bardic Inspiration dice to spend.
+#
+# Feature wiring status: FULLY WIRED.
+
+id: f_superior_inspiration
+name: Superior Inspiration
+source: srd_5.2.1
+granted_by:
+  class: c_bard
+  level: 18
+type: passive
+
+resource_cost:
+  type: none
+
+effect_primitives: []
+
+contract:
+  reads: [actor.template.features_known,
+           actor.resources.bardic_inspiration_uses_remaining]
+  writes: [actor.resources.bardic_inspiration_uses_remaining]
+  event: initiative_roll
+  scope: passive

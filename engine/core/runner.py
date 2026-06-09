@@ -74,12 +74,31 @@ class EncounterRunner:
         rolls: list[tuple[int, int, str]] = []  # (init_roll, dex_mod_tiebreak, actor_id)
         for a in self.encounter.actors:
             init_mod = a.template.get("combat", {}).get("initiative", {}).get("modifier", 0)
+            # Jack of All Trades (Bard L2): add half Proficiency Bonus (round
+            # down) to initiative — a DEX ability check the Bard isn't
+            # proficient in. No-op for everyone else.
+            features = a.template.get("features_known") or []
+            if "f_jack_of_all_trades" in features:
+                pb = int((a.template.get("cr") or {}).get(
+                    "proficiency_bonus", 2))
+                init_mod += pb // 2
             dex_mod = a.abilities.get("dex", {}).get("save", 0)
             d20 = self.rng.randint(1, 20)
             d20, _rerolled = lucky_d20(self.rng, d20, a)
             roll = d20 + init_mod
             a.initiative = roll
             rolls.append((roll, dex_mod, a.id))
+            # Superior Inspiration (Bard L18): when you roll Initiative,
+            # regain expended Bardic Inspiration uses until you have two (if
+            # you have fewer).
+            if "f_superior_inspiration" in features:
+                cur = int(a.resources.get(
+                    "bardic_inspiration_uses_remaining", 0))
+                if cur < 2:
+                    a.resources["bardic_inspiration_uses_remaining"] = 2
+                    state.event_log.append({
+                        "event": "superior_inspiration",
+                        "actor": a.id, "restored_to": 2})
         rolls.sort(key=lambda x: (-x[0], -x[1]))
         state.turn_order = [r[2] for r in rolls]
         state.event_log.append({"event": "initiative_rolled",

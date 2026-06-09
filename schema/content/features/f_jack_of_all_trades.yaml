@@ -1,0 +1,34 @@
+# f_jack_of_all_trades — Jack of All Trades (Bard L2)
+# Source: SRD CC v5.2.1 / PHB 2024
+#
+# RAW: "You can add half your Proficiency Bonus (round down) to any ability
+# check you make that uses a skill proficiency you lack and that doesn't
+# otherwise use your Proficiency Bonus."
+#
+# Engine modeling: the combat-relevant slice is INITIATIVE (a DEX ability
+# check the Bard isn't proficient in) — runner.roll_initiative adds half PB
+# (round down) to a Jack of All Trades holder's initiative. The general
+# skill-check bonus is exercised outside combat (no eHP model); when the
+# skill-check pillar lands it reads the same feature flag.
+#
+# Feature wiring status: WIRED (initiative; general skill-check bonus is
+# non-combat, deferred to the skill-check pillar).
+
+id: f_jack_of_all_trades
+name: Jack of All Trades
+source: srd_5.2.1
+granted_by:
+  class: c_bard
+  level: 2
+type: passive
+
+resource_cost:
+  type: none
+
+effect_primitives: []
+
+contract:
+  reads: [actor.template.features_known, actor.template.cr.proficiency_bonus]
+  writes: [combat.initiative]
+  event: initiative_roll
+  scope: passive

@@ -99,6 +99,17 @@ def apply_short_rest(actor: Actor, state: CombatState) -> dict:
         pact = _apply_pact_magic_short_rest_refresh(actor, state)
         if pact is not None:
             summary["pact_magic_refresh"] = pact
+    # Font of Inspiration (Bard L5+): Bardic Inspiration uses also refresh on
+    # a SHORT rest (RAW: "regain all your expended uses... Short or Long
+    # Rest"). Gated on the feature so a level 1-4 Bard only refreshes BI on a
+    # Long Rest.
+    if cls == "c_bard" and "f_font_of_inspiration" in (
+            actor.template.get("features_known") or []):
+        bi_result = _refresh_generic_uses_to_max(
+            actor, "bardic_inspiration_uses_remaining",
+            "bardic_inspiration_uses_max")
+        if bi_result is not None:
+            summary["bardic_inspiration_refresh"] = bi_result
     # A short rest also recovers a downed (dying/stable) PC — stabilize + wake
     # so it doesn't carry the death-save clock into the next fight.
     if _recover_downed(actor, state):
@@ -365,6 +376,13 @@ def apply_long_rest(actor: Actor, state: CombatState) -> dict:
         loh_result = _refresh_lay_on_hands_pool_to_max(actor)
         if loh_result is not None:
             summary["lay_on_hands_pool_refresh"] = loh_result
+    if cls == "c_bard":
+        # Bardic Inspiration uses fully refresh on a Long Rest (RAW L1+).
+        bi_result = _refresh_generic_uses_to_max(
+            actor, "bardic_inspiration_uses_remaining",
+            "bardic_inspiration_uses_max")
+        if bi_result is not None:
+            summary["bardic_inspiration_refresh"] = bi_result
 
     state.event_log.append({
         "event": "long_rest_applied",

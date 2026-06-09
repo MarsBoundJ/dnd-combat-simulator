@@ -1351,6 +1351,15 @@ def _forced_save(params: dict, state: CombatState, bus: EventBus) -> dict:
                 target, ability, dc, rng, state)
             if ff_d20 is not None:
                 d20, total, outcome = ff_d20, ff_total, ff_outcome
+        # Countercharm (Bard L7): if the save would apply Charmed/Frightened
+        # and the creature (or an ally within 30 ft) is a Bard with a
+        # Reaction, reroll with Advantage. Also before Legendary Resistance.
+        if outcome == "fail":
+            from engine.core.countercharm import try_countercharm_reroll
+            cc_d20, cc_total, cc_outcome = try_countercharm_reroll(
+                target, ability, dc, params, rng, state)
+            if cc_d20 is not None:
+                d20, total, outcome = cc_d20, cc_total, cc_outcome
 
         # Legendary Resistance: a legendary creature that just failed a
         # save may spend a per-day charge to succeed instead. Applies to
