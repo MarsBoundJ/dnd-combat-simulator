@@ -337,6 +337,13 @@ class Actor:
     #   - Resistance to Necrotic, Psychic, Radiant (primitives._damage)
     #   - Revivification reaction available (creature_would_drop_to_zero)
     rage_of_the_gods_active: bool = False
+    # Rage of the Wilds (Wild Heart L3): the active animal aspect while
+    # raging — one of "bear" / "eagle" / "wolf", or None when not raging
+    # (or not a Wild Heart barbarian). Set by wild_heart.activate_rage_of_
+    # the_wilds on rage entry; cleared on rage end. Drives Bear broad
+    # resistance (primitives._damage) and the Wolf advantage aura
+    # (modifiers.query_attack_modifiers).
+    wild_heart_active_choice: str | None = None
 
     # Reckless Attack state (PR #85, Barbarian L2). Activated via the
     # runner's `_maybe_activate_reckless_attack` pre-action hook (RAW:

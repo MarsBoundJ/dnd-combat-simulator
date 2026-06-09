@@ -5,6 +5,41 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-06-09 — Zealot upper markers + Wild Heart (L3) + Rage-refund
+
+**Participants:** Phil, Claude (Opus 4.8) — engine lane.
+
+Finished **Path of the Zealot** (Fanatical Focus L6, Zealous Presence L10,
+Rage of the Gods L14), built a **generic Rage-use refund** mechanism shared
+by Zealous Presence + Intimidating Presence, and began **Path of the Wild
+Heart** (Rage of the Wilds L3 — Bear/Eagle/Wolf fully wired).
+
+### Headline decision (Phil): non-combat features → Stage 4 (AI DM)
+
+Policy: when wiring a subclass/class, **full-wire the combat-relevant
+choices** and **record every non-combat feature** (ritual utility,
+exploration movement/senses, social) as a **Stage-4 (AI DM) marker** — data-
+layer YAML present, no engine wiring — in
+**`docs/deferred-noncombat-features.md`** (the durable tracking doc; read it
+before deciding whether a feature is "done"). Combat sim only models what
+moves a sim signal (DPR/eHP/control/action-economy/positioning).
+
+Wild Heart Stage-4 markers recorded: Animal Speaker (L3), Aspect of the
+Wilds (L6), Nature Speaker (L10). **Power of the Wilds (L14) is pending RAW
+confirmation** before wiring (Falcon/Lion/Ram — verify options).
+
+### Rage choice pattern (reusable)
+
+Bear/Eagle/Wolf (and the future Falcon/Lion/Ram) are a **build-time pick**
+stamped on the template (`wild_heart_rage_choice`, default Bear), activated
+on the `enter_rage` hook (same as Rage of the Gods) and cleared on rage end.
+Active aspect lives on `actor.wild_heart_active_choice`. Bear = broad
+resistance (all except F/N/P/R, no double-halve with base Rage BPS); Wolf =
+ally-advantage aura via an identity-state read in `query_attack_modifiers`
+(mirrors Reckless Attack); Eagle = rage-entry Dash+Disengage grant.
+
+---
+
 ## Session: 2026-06-03 — positional-barrier substrate (Wall of Force) + Polymorph; Wizard spell list (BC)
 
 **Participants:** Phil, Claude (Opus 4.8, 1M ctx) — desktop/engine lane; "BC" (browser Claude) — content lane.

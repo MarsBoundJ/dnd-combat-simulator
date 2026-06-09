@@ -474,6 +474,15 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
     if "behavior_profile" in pc_spec:
         template["behavior_profile"] = pc_spec["behavior_profile"]
 
+    # Rage of the Wilds (Wild Heart L3): the build-time animal pick read by
+    # engine.core.wild_heart on rage entry. Defaults to Bear (strongest,
+    # most universal combat aspect) when the spec doesn't choose. Only
+    # meaningful for a Wild Heart barbarian; harmless otherwise.
+    if "f_rage_of_the_wilds" in features_known:
+        choice = pc_spec.get("wild_heart_rage_choice", "bear")
+        template["wild_heart_rage_choice"] = (
+            choice if choice in ("bear", "eagle", "wolf") else "bear")
+
     return template
 
 

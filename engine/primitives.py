@@ -563,6 +563,17 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
         if not already_resisted:
             total = total // 2
 
+    # Rage of the Wilds — Bear aspect (Wild Heart L3): Resistance to every
+    # damage type except Force / Necrotic / Psychic / Radiant. Broader than
+    # the base Rage B/P/S resistance, so skip if the type was already
+    # halved by the template OR base Rage BPS (RAW: resistances don't stack).
+    from engine.core.wild_heart import applies_bear_resistance as _bear_resist
+    if _bear_resist(target, dmg_type):
+        already_resisted = (dmg_type in (template.get("damage_resistances") or [])
+                             or _rage.applies_rage_bps_resistance(target, dmg_type))
+        if not already_resisted:
+            total = total // 2
+
     # Apply multiplier (after resistance per 5e ordering: resistance halves
     # the post-multiplier? Or multiplier-then-resistance? Per RAW saves halve
     # the rolled total before resistance. For v1 we apply resistance first

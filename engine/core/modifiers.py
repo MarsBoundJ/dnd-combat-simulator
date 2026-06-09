@@ -164,6 +164,17 @@ def query_attack_modifiers(
             "source_creature_id": target.id,
             "arm": "grants_advantage_to_attacker",
         })
+    # Rage of the Wilds — Wolf aspect (Wild Heart L3): an ally of a raging
+    # Wolf barbarian has Advantage attacking any enemy within 5 ft of that
+    # barbarian. Identity-state read off the encounter (same pattern as
+    # Reckless Attack above).
+    from engine.core import wild_heart as _wh
+    if _wh.wolf_advantage_applies(attacker, target, state):
+        result.has_advantage = True
+        result.sources.append({
+            "type": "rage_of_the_wilds_wolf",
+            "arm": "ally_advantage_near_wolf",
+        })
     return result
 
 

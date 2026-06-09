@@ -136,6 +136,9 @@ def enter_rage(actor: Actor, state: CombatState) -> None:
     # Rage of the Gods (Zealot L14): optionally activate divine form.
     from engine.core.rage_of_the_gods import try_activate_rage_of_the_gods
     try_activate_rage_of_the_gods(actor, state)
+    # Rage of the Wilds (Wild Heart L3): activate the chosen animal aspect.
+    from engine.core.wild_heart import activate_rage_of_the_wilds
+    activate_rage_of_the_wilds(actor, state)
 
 
 def end_rage(actor: Actor, state: CombatState, reason: str) -> None:
@@ -149,6 +152,9 @@ def end_rage(actor: Actor, state: CombatState, reason: str) -> None:
     # Rage of the Gods (Zealot L14): divine form ends with Rage.
     from engine.core.rage_of_the_gods import deactivate_rage_of_the_gods
     deactivate_rage_of_the_gods(actor, state)
+    # Rage of the Wilds (Wild Heart L3): animal aspect ends with Rage.
+    from engine.core.wild_heart import deactivate_rage_of_the_wilds
+    deactivate_rage_of_the_wilds(actor, state)
     state.event_log.append({
         "event": "rage_ended",
         "actor": actor.id,
