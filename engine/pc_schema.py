@@ -630,6 +630,12 @@ def derive_pc_resources(pc_spec: dict, content_registry: Any) -> dict:
         resources["beguiling_magic_uses_remaining"] = 1
         resources["beguiling_magic_uses_max"] = 1
 
+    # ---- Mantle of Majesty (College of Glamour, Bard L6) ----
+    # Free-Command activation is 1/Long Rest (L3+-slot refund deferred).
+    if "f_mantle_of_majesty" in features_known:
+        resources["mantle_of_majesty_uses_remaining"] = 1
+        resources["mantle_of_majesty_uses_max"] = 1
+
     # ---- Unbreakable Majesty (College of Glamour, Bard L14) ----
     # The majestic presence is 1/Short-or-Long Rest.
     if "f_unbreakable_majesty" in features_known:
@@ -1221,6 +1227,18 @@ def _build_feature_actions(features_known: set[str], level: int,
             and ability_scores is not None):
         actions.append(_build_dance_unarmed_action(
             level, ability_scores, proficiency_bonus))
+    # Mantle of Majesty (Glamour L6): the sustained free-Command BA, available
+    # each turn while the unearthly appearance is active (requires_mantle_
+    # active gate). The activation BA comes from the feature's action_template.
+    if "f_mantle_of_majesty" in features_known and class_id == "c_bard":
+        actions.append({
+            "id": "a_mantle_of_majesty_command",
+            "name": "Command (Mantle of Majesty)",
+            "type": "hard_control", "slot": "bonus_action",
+            "is_signature": False, "requires_mantle_active": True,
+            "pipeline": [{"primitive": "mantle_of_majesty_command",
+                          "params": {}}],
+        })
     # PR #74: Rogue Cunning Action — three bonus-action variants
     # (Dash / Disengage / Hide). Adds to the action list alongside
     # the standard main-action versions (those come from the

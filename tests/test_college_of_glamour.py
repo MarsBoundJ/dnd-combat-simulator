@@ -162,6 +162,71 @@ class BeguilingMagicTest(unittest.TestCase):
         self.assertEqual(res.get("beguiling_magic_uses_remaining"), 1)
 
 
+class MantleOfMajestyTest(unittest.TestCase):
+
+    def setUp(self):
+        primitives_module.set_rng(random.Random(1))
+
+    def _state(self, b, foes):
+        st = CombatState(encounter=Encounter(id="e", actors=[b] + foes))
+        st.turn_order = ["b"] + [f.id for f in foes]
+        st.round = 1
+        st.content_registry = _reg()
+        return st
+
+    def test_command_on_bard_list(self):
+        self.assertTrue(any(a.get("id") == "a_command"
+                            for a in _glamour(6).template["actions"]))
+
+    def test_actions_and_resource_present(self):
+        b = _glamour(6)
+        ids = [a.get("id") for a in b.template["actions"]]
+        self.assertIn("a_mantle_of_majesty", ids)
+        self.assertIn("a_mantle_of_majesty_command", ids)
+        self.assertEqual(b.resources["mantle_of_majesty_uses_remaining"], 1)
+
+    def test_activation_casts_command_and_sets_active(self):
+        b = _glamour(6)
+        foe = _enemy(wis_save=-10)
+        st = self._state(b, [foe])
+        st.current_attack = {"actor": b, "target": b}
+        primitives_module._mantle_of_majesty_activate({}, st, EventBus())
+        self.assertTrue(b.mantle_of_majesty_active)
+        self.assertTrue(any(c.get("condition_id") == "co_incapacitated"
+                            for c in foe.applied_conditions))
+
+    def test_sustained_command_gated_on_active(self):
+        from engine.core.pipeline import generate_candidates
+        b = _glamour(6)
+        foe = _enemy(wis_save=-10)
+        st = self._state(b, [foe])
+        before = [c for c in generate_candidates(b, st, "bonus_action")
+                  if c["action"].get("id") == "a_mantle_of_majesty_command"]
+        self.assertEqual(len(before), 0)
+        b.mantle_of_majesty_active = True
+        after = [c for c in generate_candidates(b, st, "bonus_action")
+                 if c["action"].get("id") == "a_mantle_of_majesty_command"]
+        self.assertEqual(len(after), 1)
+
+    def test_charmed_target_auto_fails(self):
+        b = _glamour(6)
+        # High-WIS foe that would normally save, but Charmed by the Bard.
+        foe = _enemy(wis_save=10)
+        foe.applied_conditions.append({"condition_id": "co_charmed",
+                                        "source_id": "b"})
+        st = self._state(b, [foe])
+        G.cast_mantle_command(b, st, EventBus())
+        self.assertTrue(any(c.get("condition_id") == "co_incapacitated"
+                            for c in foe.applied_conditions))
+
+    def test_long_rest_refreshes(self):
+        from engine.core.rest import apply_long_rest
+        b = _glamour(6)
+        b.resources["mantle_of_majesty_uses_remaining"] = 0
+        apply_long_rest(b, CombatState(encounter=Encounter(id="e", actors=[b])))
+        self.assertEqual(b.resources["mantle_of_majesty_uses_remaining"], 1)
+
+
 class UnbreakableMajestyTest(unittest.TestCase):
 
     def _bard_and_foe(self, cha_save=0):

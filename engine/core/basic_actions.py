@@ -414,6 +414,10 @@ def is_self_targeted_defensive_buff(action: dict) -> bool:
         # Glamour Unbreakable Majesty — self-targeted presence activation.
         if prim == "unbreakable_majesty_activate":
             return True
+        # Glamour Mantle of Majesty — self-initiated (picks its own Command
+        # target internally), so it emits ONE candidate.
+        if prim in ("mantle_of_majesty_activate", "mantle_of_majesty_command"):
+            return True
         # PR #80: Steady Aim — self-targeted advantage on next
         # attack + speed 0. Same self-targeted pattern.
         if prim == "steady_aim":

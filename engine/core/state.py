@@ -356,6 +356,10 @@ class Actor:
     # forces the attacker's CHA save or the attack misses (primitives._attack_
     # roll → college_of_glamour.majesty_negates_hit).
     unbreakable_majesty_active: bool = False
+    # Mantle of Majesty (College of Glamour, Bard L6): True while the unearthly
+    # appearance is active. Set by the activation BA; while True a free Command
+    # Bonus Action is available each turn (requires_mantle_active gate).
+    mantle_of_majesty_active: bool = False
 
     # Reckless Attack state (PR #85, Barbarian L2). Activated via the
     # runner's `_maybe_activate_reckless_attack` pre-action hook (RAW:

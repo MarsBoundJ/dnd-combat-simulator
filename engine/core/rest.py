@@ -397,6 +397,11 @@ def apply_long_rest(actor: Actor, state: CombatState) -> dict:
             "beguiling_magic_uses_max")
         if bm is not None:
             summary["beguiling_magic_refresh"] = bm
+        mm = _refresh_generic_uses_to_max(
+            actor, "mantle_of_majesty_uses_remaining",
+            "mantle_of_majesty_uses_max")
+        if mm is not None:
+            summary["mantle_of_majesty_refresh"] = mm
         um = _refresh_generic_uses_to_max(
             actor, "unbreakable_majesty_uses_remaining",
             "unbreakable_majesty_uses_max")

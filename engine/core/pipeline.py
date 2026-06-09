@@ -174,6 +174,11 @@ def generate_candidates(actor: Actor, state: CombatState,
     if not getattr(actor, "rage_active", False):
         actions = [a for a in actions
                     if not a.get("requires_rage_active")]
+    # Mantle of Majesty (Glamour L6): the sustained free-Command BA is only
+    # available while the unearthly appearance is active.
+    if not getattr(actor, "mantle_of_majesty_active", False):
+        actions = [a for a in actions
+                    if not a.get("requires_mantle_active")]
 
     enemies = [a for a in state.encounter.actors
                if a.side != actor.side and a.is_alive()]

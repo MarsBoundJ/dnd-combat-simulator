@@ -78,7 +78,7 @@ level_table:
   - level: 1
     proficiency_bonus: 2
     features: [f_bardic_inspiration, f_cure_wounds, f_healing_word,
-                f_heroism, f_vicious_mockery]
+                f_heroism, f_vicious_mockery, f_command]
     class_resources:
       bardic_die: d6
       spell_slots: { 1: 2 }

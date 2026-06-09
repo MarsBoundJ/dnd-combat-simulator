@@ -2422,6 +2422,29 @@ def _mantle_of_inspiration(params: dict, state: CombatState,
     resolve_mantle_of_inspiration(actor, state, _get_rng(state, bus))
 
 
+def _mantle_of_majesty_activate(params: dict, state: CombatState,
+                                  bus: EventBus) -> None:
+    """Mantle of Majesty (Glamour L6) activation BA: assume the unearthly
+    appearance + cast Command free. The use is consumed by the feature_use
+    gate."""
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        return
+    from engine.core.college_of_glamour import activate_mantle_of_majesty
+    activate_mantle_of_majesty(actor, state, bus)
+
+
+def _mantle_of_majesty_command(params: dict, state: CombatState,
+                                 bus: EventBus) -> None:
+    """Mantle of Majesty sustained BA: while the appearance is active, cast
+    Command free each turn."""
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        return
+    from engine.core.college_of_glamour import cast_mantle_command
+    cast_mantle_command(actor, state, bus)
+
+
 def _unbreakable_majesty_activate(params: dict, state: CombatState,
                                     bus: EventBus) -> None:
     """Assume the Unbreakable Majesty presence (Glamour L14 BA). The use is
@@ -3549,6 +3572,8 @@ def _populate_handler_table() -> None:
         "zealous_presence": _zealous_presence,
         "eagle_bound": _eagle_bound,
         "mantle_of_inspiration": _mantle_of_inspiration,
+        "mantle_of_majesty_activate": _mantle_of_majesty_activate,
+        "mantle_of_majesty_command": _mantle_of_majesty_command,
         "unbreakable_majesty_activate": _unbreakable_majesty_activate,
         "inspiring_movement": _inspiring_movement,
         "branches_pull": _branches_pull,
@@ -3638,6 +3663,12 @@ def _all_primitives() -> list[Primitive]:
         # Mantle of Inspiration (Glamour L3) — BA: expend BI, grant up to
         # CHA-mod allies within 60 ft Temp HP = 2× the Bardic die roll.
         Primitive("mantle_of_inspiration", _mantle_of_inspiration,
+                    implemented=True),
+        # Mantle of Majesty (Glamour L6) — BA: cast Command free (activate
+        # 1/long rest; sustained free Command each turn while active).
+        Primitive("mantle_of_majesty_activate", _mantle_of_majesty_activate,
+                    implemented=True),
+        Primitive("mantle_of_majesty_command", _mantle_of_majesty_command,
                     implemented=True),
         # Unbreakable Majesty (Glamour L14) — BA: assume the majestic
         # presence (first hit each turn forces a CHA save or misses).

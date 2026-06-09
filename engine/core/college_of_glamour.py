@@ -140,6 +140,88 @@ def try_beguiling_magic(actor: Actor, action: dict, state: CombatState,
 
 
 # ============================================================================
+# Mantle of Majesty (L6)
+# ============================================================================
+#
+# "As a Bonus Action, you cast Command without expending a spell slot, and you
+# take on an unearthly appearance for 1 minute or until your Concentration
+# ends. During this time, you can cast Command as a Bonus Action without
+# expending a spell slot. Any creature Charmed by you automatically fails its
+# saving throw against the Command you cast with this feature." 1/Long Rest;
+# restore by expending a level 3+ spell slot (deferred).
+#
+# Modeling: a BA that casts Command free (WIS save → the engine's Command
+# effect, co_incapacitated for one turn). The activation (1/long rest) sets
+# mantle_of_majesty_active; while active, a free Command BA is available each
+# turn (requires_mantle_active gate). A target Charmed BY THIS BARD auto-fails.
+
+
+def has_mantle_of_majesty(actor: Actor) -> bool:
+    features = (actor.template or {}).get("features_known") or []
+    return "f_mantle_of_majesty" in features
+
+
+def _charmed_by(target: Actor, bard_id: str) -> bool:
+    return any(c.get("condition_id") == "co_charmed"
+               and c.get("source_id") == bard_id
+               for c in target.applied_conditions)
+
+
+def cast_mantle_command(bard: Actor, state: CombatState, bus) -> None:
+    """Cast Command (free) at the best enemy within 60 ft: a target Charmed by
+    this Bard auto-fails; otherwise it makes a WIS save vs the Bard spell DC.
+    On a failure the engine's Command effect (co_incapacitated for one turn)
+    applies. No-op with no enemy in range."""
+    from engine.core.geometry import distance_ft
+    from engine.primitives import _forced_save, _apply_condition
+    enemies = [e for e in state.encounter.actors
+                if e.side != bard.side and e.is_alive()
+                and distance_ft(bard.position, e.position) <= 60]
+    if not enemies:
+        return
+    # Prefer a charmed-by-bard target (guaranteed) else lowest WIS save.
+    charmed = [e for e in enemies if _charmed_by(e, bard.id)]
+    target = (charmed or sorted(
+        enemies, key=lambda e: (e.abilities.get("wis") or {}).get("save", 0)))[0]
+    dc = _bard_spell_dc(bard)
+
+    saved = state.current_attack
+    state.current_attack = {"actor": bard, "target": target, "state": None,
+                             "had_advantage": False, "had_disadvantage": False}
+    try:
+        if _charmed_by(target, bard.id):
+            # Auto-fail (RAW): apply the Command effect directly, no roll.
+            state.event_log.append({
+                "event": "mantle_of_majesty_command", "actor": bard.id,
+                "target": target.id, "auto_fail": True})
+            _apply_condition({"condition_id": "co_incapacitated",
+                               "duration": "until_actor_next_turn_start"},
+                              state, bus)
+        else:
+            state.event_log.append({
+                "event": "mantle_of_majesty_command", "actor": bard.id,
+                "target": target.id, "dc": dc, "auto_fail": False})
+            _forced_save({
+                "ability": "wisdom", "dc": dc, "affected": "current_target",
+                "on_fail": [{"primitive": "apply_condition",
+                             "params": {"condition_id": "co_incapacitated",
+                                        "duration": "until_actor_next_turn_start"}}],
+                "on_success": []}, state, bus)
+    finally:
+        state.current_attack = saved
+
+
+def activate_mantle_of_majesty(actor: Actor, state: CombatState, bus) -> None:
+    """Assume the unearthly appearance (BA, 1/long rest) and cast Command. The
+    use is consumed by the action's feature_use gate; this sets the active
+    flag and casts the free Command."""
+    actor.mantle_of_majesty_active = True
+    state.event_log.append({
+        "event": "mantle_of_majesty_assumed", "actor": actor.id})
+    cast_mantle_command(actor, state, bus)
+
+
+# ============================================================================
 # Unbreakable Majesty (L14)
 # ============================================================================
 

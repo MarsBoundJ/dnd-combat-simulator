@@ -19,7 +19,11 @@
 #   - f_mantle_of_inspiration(L3)→ FULLY WIRED — BA: expend BI, grant up to
 #                                   CHA-mod allies within 60 ft Temp HP = 2×
 #                                   the Bardic die roll. See college_of_glamour.
-#   - f_mantle_of_majesty (L6)   → MARKER — needs the Command spell (not built).
+#   - f_mantle_of_majesty (L6)   → FULLY WIRED — BA casts Command free
+#                                   (activate 1/long rest; sustained free
+#                                   Command each turn while active); a target
+#                                   Charmed by the Bard auto-fails. Command is
+#                                   now on the Bard list (f_command, L1).
 #   - f_unbreakable_majesty (L14)→ FULLY WIRED — first hit each turn forces the
 #                                   attacker's CHA save vs spell DC or the
 #                                   attack misses.
