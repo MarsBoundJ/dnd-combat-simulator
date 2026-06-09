@@ -537,6 +537,10 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
             # (no save). Idempotent on already-prone targets.
             from engine.core import wild_heart as _wh
             _wh.try_apply_ram(actor, target, state, attack_params)
+            # Battering Roots (World Tree L10): on-turn hit with a Heavy/
+            # Versatile melee weapon applies Topple (CON save → Prone).
+            from engine.core import world_tree as _wt
+            _wt.try_apply_battering_roots(actor, target, state, attack_params)
 
     # Resistance / vulnerability / immunity (template-level)
     template = target.template or {}

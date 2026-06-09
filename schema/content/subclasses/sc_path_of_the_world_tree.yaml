@@ -19,7 +19,9 @@
 #                                     turn); both vanish on rage end. See
 #                                     engine/core/world_tree.py.
 #   - f_branches_of_the_tree (L6)  → marker (in progress)
-#   - f_battering_roots (L10)      → marker (in progress)
+#   - f_battering_roots (L10)      → FULLY WIRED — +10 ft reach with Heavy/
+#                                     Versatile melee + a Topple (CON save →
+#                                     Prone) on-turn rider. See world_tree.py.
 #   - f_travel_along_the_tree (L14)→ marker (in progress)
 
 id: sc_path_of_the_world_tree

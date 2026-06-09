@@ -7,11 +7,23 @@
 # activate the Push or Topple mastery property in addition to a different
 # mastery property you're using with that weapon."
 #
-# Wiring status: IN PROGRESS (engine wiring follows this scaffolding commit).
-# Note: NOT rage-gated (RAW: "During your turn", no Rage condition). The reach
-# extension (+10 ft with Heavy/Versatile melee weapons) and a Push/Topple
-# on-hit rider (usable even without the mastery, stacking with a different
-# mastery already in use).
+# Engine modeling (engine/core/world_tree.py):
+#   - Reach +10 ft: extend_battering_roots_reach bakes +10 into qualifying
+#     weapon actions at build time (Heavy/Versatile MELEE; flagged
+#     `battering_roots: True` in the attack_roll params). NOT rage-gated.
+#   - Topple rider: try_apply_battering_roots applies Topple (CON save →
+#     Prone) on a qualifying on-turn hit, even without the mastery. v1 picks
+#     Topple (best control for a melee build); Push is the documented
+#     alternative. Fires from primitives._damage's on-hit melee block.
+#
+# Feature wiring status: FULLY WIRED.
+#
+# v1 simplifications:
+#   - Reach is baked statically, so it also applies to off-turn Opportunity
+#     Attacks (RAW limits it to "during your turn"). The Topple rider IS
+#     correctly on-turn-gated; only the reach over-reaches off-turn. Minor.
+#   - Push vs Topple choice: v1 always uses Topple. A build-time / AI choice
+#     of Push (forced movement) is a follow-on.
 
 id: f_battering_roots
 name: Battering Roots

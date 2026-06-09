@@ -265,6 +265,13 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
         pc_spec.get("invocations"), features_known, class_id, level)
     features_known = set(features_known) | set(invocations)
 
+    # Battering Roots (World Tree L10): +10 ft reach with Heavy/Versatile
+    # melee weapons. Post-process the already-built weapon actions now that
+    # features_known is finalized — the action dicts are shared with `actions`
+    # and any Extra Attack built from them, so the reach extension propagates.
+    from engine.core.world_tree import extend_battering_roots_reach
+    extend_battering_roots_reach(weapon_actions, weapons_list, features_known)
+
     # Draconic Sorcery build-time effects (keyed on subclass features).
     #   - Draconic Resilience: HP max += sorcerer level (RAW: +3 at L3,
     #     +1 per level after = level); unarmored base AC = 10+DEX+CHA.
