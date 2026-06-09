@@ -982,6 +982,7 @@ def offensive_ehp_search(actor: Actor, action: dict,
 
 
 EXPECTED_AURA_ROUNDS = 2.5     # matches EXPECTED_BUFF_ROUNDS for consistency
+EXPECTED_AURA_ROUNDS_TRAPPED = 4.0  # dome-trapped target can't escape the zone
 
 
 # ============================================================================
@@ -1284,7 +1285,28 @@ def offensive_ehp_persistent_aura(actor: Actor, action: dict,
             return min(pt, float(max(0, creature.hp_current)))
 
         total_per_turn = sum(_per_turn(e) for e in enemies_in_aura)
-        damage_value = total_per_turn * EXPECTED_AURA_ROUNDS
+
+        # Microwave synergy: a dome-trapped target can't walk out of the
+        # zone, so the aura lasts its full duration instead of the usual
+        # "enemy repositions after ~2 rounds" discount.
+        from engine.ai.defensive_ehp import is_trapped_in_dome
+        trapped_count = sum(1 for e in enemies_in_aura
+                            if is_trapped_in_dome(e, state))
+        if trapped_count and len(enemies_in_aura) == trapped_count:
+            aura_rounds = EXPECTED_AURA_ROUNDS_TRAPPED
+        elif trapped_count:
+            free_pt = sum(_per_turn(e) for e in enemies_in_aura
+                          if not is_trapped_in_dome(e, state))
+            trapped_pt = total_per_turn - free_pt
+            aura_rounds = None  # mixed; compute per-bucket below
+        else:
+            aura_rounds = EXPECTED_AURA_ROUNDS
+
+        if aura_rounds is not None:
+            damage_value = total_per_turn * aura_rounds
+        else:
+            damage_value = (free_pt * EXPECTED_AURA_ROUNDS
+                            + trapped_pt * EXPECTED_AURA_ROUNDS_TRAPPED)
 
         # Friendly fire: an `affected: all_creatures` damage zone (Cloudkill,
         # Moonbeam) hits the caster's OWN allies standing in it every turn —
