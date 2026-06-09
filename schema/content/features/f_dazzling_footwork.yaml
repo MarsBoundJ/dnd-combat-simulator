@@ -1,0 +1,50 @@
+# f_dazzling_footwork — Dazzling Footwork (College of Dance, Bard L3)
+# Source: PHB 2024
+#
+# RAW: "While you aren't wearing armor or wielding a Shield, you gain the
+# following benefits.
+#   Dance Virtuoso. You have Advantage on any Charisma (Performance) check
+#     you make that involves you dancing.
+#   Unarmored Defense. Your base Armor Class equals 10 plus your Dexterity
+#     and Charisma modifiers.
+#   Agile Strikes. When you expend a use of your Bardic Inspiration as part
+#     of an action, a Bonus Action, or a Reaction, you can make one Unarmed
+#     Strike as part of that action, Bonus Action, or Reaction.
+#   Bardic Damage. You can use Dexterity instead of Strength for the attack
+#     rolls of your Unarmed Strikes. When you deal damage with an Unarmed
+#     Strike, you can deal Bludgeoning damage equal to a roll of your Bardic
+#     Inspiration die plus your Dexterity modifier, instead of the strike's
+#     normal damage. This roll doesn't expend the die."
+#
+# Engine modeling (engine/core/college_of_dance.py + pc_schema):
+#   - Unarmored Defense: pc_schema sets AC = 10 + DEX + CHA when the Bard has
+#     this feature, no armor, and no Shield.
+#   - Bardic Damage: pc_schema builds a_dance_unarmed_strike — a DEX Unarmed
+#     Strike dealing (Bardic die + DEX) Bludgeoning.
+#   - Agile Strikes: the Bardic Inspiration grant (grant_bardic_inspiration)
+#     fires one a_dance_unarmed_strike at the lowest-HP enemy within 5 ft, as
+#     part of that Bonus Action (try_agile_strike).
+#   - Dance Virtuoso: non-combat (CHA Performance) — marker within the
+#     feature; no engine effect.
+#
+# Feature wiring status: FULLY WIRED (combat parts).
+
+id: f_dazzling_footwork
+name: Dazzling Footwork
+source: srd_5.2.1
+granted_by:
+  subclass: sc_college_of_dance
+  level: 3
+type: passive
+
+resource_cost:
+  type: none
+
+effect_primitives: []
+
+contract:
+  reads: [actor.template.features_known, actor.template.bardic_die,
+           actor.abilities, actor.position]
+  writes: [combat.armor_class, combat.attack_roll, target.hp_current]
+  event: bardic_inspiration_expended
+  scope: passive

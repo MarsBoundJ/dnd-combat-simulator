@@ -3131,6 +3131,10 @@ def _grant_bardic_inspiration(params: dict, state: CombatState,
     die = str((actor.template or {}).get("bardic_die", "d6"))
     from engine.core.bardic_inspiration import register_inspiration_die
     register_inspiration_die(target, die, actor.id, state)
+    # Agile Strikes (College of Dance L3): expending a Bardic Inspiration use
+    # lets a Dance Bard make one Unarmed Strike as part of this Bonus Action.
+    from engine.core.college_of_dance import try_agile_strike
+    try_agile_strike(actor, state, bus)
 
 
 def _cutting_words_resolve(params: dict, state: CombatState,

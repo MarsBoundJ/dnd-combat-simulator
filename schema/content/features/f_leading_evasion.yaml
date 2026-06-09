@@ -1,0 +1,36 @@
+# f_leading_evasion — Leading Evasion (College of Dance, Bard L14)
+# Source: PHB 2024
+#
+# RAW: "When you are subjected to an effect that allows you to make a
+# Dexterity saving throw to take only half damage, you instead take no damage
+# if you succeed on the saving throw and only half damage if you fail. If any
+# creatures within 5 feet of you are making the same Dexterity saving throw,
+# you can share this benefit with them for that save. You can't use this
+# feature if you have the Incapacitated condition."
+#
+# Wiring status: DEFERRED — needs the Evasion damage-scaling substrate. Leading
+# Evasion is an improved Evasion (Rogue/Monk Evasion: success → 0, fail →
+# half). The engine has no Evasion hook yet: a DEX-save-for-half effect scales
+# its damage via the save outcome, and Evasion needs to intercept that
+# (success→0, fail→half), keyed on the target having Evasion / Leading
+# Evasion. Building it once gives base Evasion (Rogue L7, Monk L7) for free.
+# Marked so features_known is complete; wire alongside the Evasion substrate.
+
+id: f_leading_evasion
+name: Leading Evasion
+source: srd_5.2.1
+granted_by:
+  subclass: sc_college_of_dance
+  level: 14
+type: active
+
+resource_cost:
+  type: none
+
+effect_primitives: []
+
+contract:
+  reads: [actor.template.features_known]
+  writes: []
+  event: passive
+  scope: passive

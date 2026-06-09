@@ -99,6 +99,16 @@ class EncounterRunner:
                     state.event_log.append({
                         "event": "superior_inspiration",
                         "actor": a.id, "restored_to": 2})
+        # Tandem Footwork (College of Dance L6): a Dance Bard may expend a
+        # Bardic Inspiration use at initiative to roll its Bardic die and add
+        # the result to its own + nearby allies' initiative. Applied after the
+        # base rolls (it bumps a.initiative directly); the sort below reads
+        # the updated values.
+        from engine.core.college_of_dance import apply_tandem_footwork
+        apply_tandem_footwork(self.encounter.actors, self.rng, state)
+        rolls = [(a.initiative,
+                  a.abilities.get("dex", {}).get("save", 0), a.id)
+                 for a in self.encounter.actors]
         rolls.sort(key=lambda x: (-x[0], -x[1]))
         state.turn_order = [r[2] for r in rolls]
         state.event_log.append({"event": "initiative_rolled",

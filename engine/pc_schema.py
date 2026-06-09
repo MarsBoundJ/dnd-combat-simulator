@@ -299,6 +299,13 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
     if "f_unarmored_defense_barbarian" in features_known and not armor_spec:
         ac = (10 + ability_modifier(ability_scores["dex"]["score"])
                + ability_modifier(ability_scores["con"]["score"]))
+    # College of Dance Unarmored Defense (Dazzling Footwork, Bard L3): base
+    # AC = 10 + DEX + CHA while wearing no armor AND no Shield (RAW gates on
+    # both). CHA-based, mirroring the Draconic Sorcerer path.
+    if ("f_dazzling_footwork" in features_known and not armor_spec
+            and not pc_spec.get("shield")):
+        ac = (10 + ability_modifier(ability_scores["dex"]["score"])
+               + ability_modifier(ability_scores["cha"]["score"]))
 
     # Movement speed: explicit pc_spec speed > race speed > default 30.
     speed = (pc_spec.get("speed")
@@ -1186,6 +1193,12 @@ def _build_feature_actions(features_known: set[str], level: int,
     # to-engage. It's attached declaratively from the feature's YAML
     # action_template (auto-attach loop below), gated on rage via
     # `requires_rage_active` in the candidate generator — no builder here.
+    # College of Dance Bardic Damage (Dazzling Footwork, Bard L3): a DEX-based
+    # Unarmed Strike dealing (Bardic Inspiration die + DEX) Bludgeoning.
+    if ("f_dazzling_footwork" in features_known and class_id == "c_bard"
+            and ability_scores is not None):
+        actions.append(_build_dance_unarmed_action(
+            level, ability_scores, proficiency_bonus))
     # PR #74: Rogue Cunning Action — three bonus-action variants
     # (Dash / Disengage / Hide). Adds to the action list alongside
     # the standard main-action versions (those come from the
@@ -2044,6 +2057,32 @@ def _build_eagle_bound_action() -> dict:
             {"primitive": "eagle_bound", "params": {}},
         ],
     }
+
+
+def _bard_bardic_die(level: int) -> str:
+    """Bardic Inspiration / Bardic Damage die by Bard level (d6→d12)."""
+    if level >= 15:
+        return "d12"
+    if level >= 10:
+        return "d10"
+    if level >= 5:
+        return "d8"
+    return "d6"
+
+
+def _build_dance_unarmed_action(level: int, ability_scores: dict,
+                                  proficiency_bonus: int) -> dict:
+    """College of Dance Bardic Damage (L3): a DEX-based Unarmed Strike that
+    deals (Bardic Inspiration die + DEX) Bludgeoning. Reuses the synthetic-
+    weapon build so its pipeline matches every other weapon attack. The die
+    grows with the Bardic die (d6→d12); the roll does NOT expend a Bardic
+    Inspiration use (it's the strike's damage, not the die mechanic)."""
+    die = _bard_bardic_die(level)   # 'd6'..'d12'
+    spec = {"id": "a_dance_unarmed_strike",
+            "name": "Unarmed Strike (Bardic Damage)",
+            "attack_ability": "dex", "damage_dice": f"1{die}",
+            "damage_type": "bludgeoning", "reach_ft": 5, "light": True}
+    return _build_weapon_action(spec, ability_scores, proficiency_bonus)
 
 
 def _build_steady_aim_action() -> dict:
