@@ -668,4 +668,12 @@ def _reaction_condition_satisfied(cond: str | None, reactor: Actor,
             return False
         from engine.core.world_tree import branches_eligible_reactor
         return branches_eligible_reactor(reactor, mover, state)
+    if cond == "inspiring_movement_trigger":
+        # Inspiring Movement (College of Dance L6): an enemy the Dance Bard
+        # can see ends its turn within 5 ft. Mover is in event_data["mover"].
+        mover = event_data.get("mover") or event_data.get("target")
+        if mover is None:
+            return False
+        from engine.core.college_of_dance import inspiring_movement_eligible
+        return inspiring_movement_eligible(reactor, mover, state)
     return False

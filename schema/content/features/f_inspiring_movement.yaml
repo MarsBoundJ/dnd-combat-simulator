@@ -7,12 +7,25 @@
 # move up to half their Speed using their Reaction. None of this feature's
 # movement provokes Opportunity Attacks."
 #
-# Wiring status: DEFERRED — needs substrate. (1) A `creature_turn_end`
-# reaction trigger (the runner dispatches turn-START reactions today — for
-# World Tree Branches — but not turn-END). (2) Reaction-driven repositioning
-# of two creatures (self + chosen ally), which is positioning-AI work with a
-# bounded single-encounter signal (kiting out of melee). Marked so
-# features_known is complete; wire alongside a turn-end reaction dispatch.
+# Engine modeling: a reaction on the `creature_turn_end` trigger (dispatched
+# by the runner at each creature's turn end — the twin of the turn-start
+# trigger used by World Tree Branches). The `inspiring_movement_trigger`
+# condition gates it (Dance Bard, enemy it can see within 5 ft). The
+# `inspiring_movement` primitive (college_of_dance.execute_inspiring_movement)
+# repositions the Bard up to half its Speed away from the triggering enemy
+# (a clean reposition — no OAs), then moves one ally within 30 ft (with a
+# Reaction available, most threatened first) up to half its Speed away from
+# its nearest enemy, consuming that ally's Reaction. The Bardic Inspiration
+# use + the Bard's Reaction are consumed by the reaction's feature_use / slot
+# gates. Agile Strikes (if the Bard has Dazzling Footwork) fires one Unarmed
+# Strike at the adjacent triggering enemy as part of this Reaction.
+#
+# Feature wiring status: FULLY WIRED.
+#
+# v1: "an ally of your choice" → the most-threatened ally within 30 ft (one
+# with a Reaction available, closest to an enemy). Positioning-AI utilization
+# of the repositioning is bounded by the movement layer; the state changes
+# (BI spent, both creatures moved, reactions consumed) are correct + tested.
 
 id: f_inspiring_movement
 name: Inspiring Movement
@@ -23,12 +36,25 @@ granted_by:
 type: active
 
 resource_cost:
-  type: none
+  type: reaction
 
-effect_primitives: []
+action_template:
+  id: a_inspiring_movement
+  name: Inspiring Movement
+  type: defensive_buff
+  slot: reaction
+  trigger: creature_turn_end
+  condition: inspiring_movement_trigger
+  feature_use: bardic_inspiration_uses_remaining
+  signature_reaction: true
+  pipeline:
+    - primitive: inspiring_movement
+      params: {}
 
 contract:
-  reads: [actor.template.features_known]
-  writes: []
-  event: passive
-  scope: passive
+  reads: [actor.template.features_known, actor.position,
+           actor.resources.bardic_inspiration_uses_remaining]
+  writes: [actor.position, ally.position,
+           actor.resources.bardic_inspiration_uses_remaining]
+  event: creature_turn_end
+  scope: per_use

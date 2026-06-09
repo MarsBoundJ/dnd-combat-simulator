@@ -2419,6 +2419,20 @@ def _travel_teleport(params: dict, state: CombatState, bus: EventBus) -> None:
     execute_travel_teleport(actor, state)
 
 
+def _inspiring_movement(params: dict, state: CombatState,
+                          bus: EventBus) -> None:
+    """Inspiring Movement (College of Dance L6) reaction payload. The Dance
+    Bard (state.current_attack.actor) repositions away from the triggering
+    enemy (state.current_attack.target), and one nearby ally repositions too.
+    The BI use + reaction are consumed by the reaction gate."""
+    reactor = (state.current_attack or {}).get("actor")
+    mover = (state.current_attack or {}).get("target")
+    if reactor is None or mover is None:
+        return
+    from engine.core.college_of_dance import execute_inspiring_movement
+    execute_inspiring_movement(reactor, mover, state, bus)
+
+
 def _branches_pull(params: dict, state: CombatState, bus: EventBus) -> None:
     """Branches of the Tree (World Tree L6) reaction payload.
 
@@ -3489,6 +3503,7 @@ def _populate_handler_table() -> None:
         "warrior_of_the_gods": _warrior_of_the_gods,
         "zealous_presence": _zealous_presence,
         "eagle_bound": _eagle_bound,
+        "inspiring_movement": _inspiring_movement,
         "branches_pull": _branches_pull,
         "travel_teleport": _travel_teleport,
         "revivification_save": _revivification_save,
@@ -3573,6 +3588,9 @@ def _all_primitives() -> list[Primitive]:
         # Eagle Bound (Wild Heart L3, Eagle aspect) — per-later-turn Bonus
         # Action: Dash + Disengage together while raging with Eagle active.
         Primitive("eagle_bound", _eagle_bound, implemented=True),
+        # Inspiring Movement (College of Dance L6) — reaction at an enemy's
+        # turn end within 5 ft: reposition the Bard + an ally (no OAs).
+        Primitive("inspiring_movement", _inspiring_movement, implemented=True),
         # Branches of the Tree (World Tree L6) — reaction at a creature's
         # turn start: STR save or teleport-pull adjacent + Speed 0.
         Primitive("branches_pull", _branches_pull, implemented=True),

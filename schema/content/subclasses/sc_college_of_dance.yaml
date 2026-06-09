@@ -21,9 +21,11 @@
 #   - f_tandem_footwork (L6)      → FULLY WIRED — party initiative buff (spend
 #                                    BI at initiative, roll Bardic die, +roll
 #                                    to self + allies within 30 ft).
-#   - f_inspiring_movement (L6)   → DEFERRED — needs a creature_turn_end
-#                                    reaction trigger + 2-creature reposition
-#                                    (positioning-AI, bounded signal).
+#   - f_inspiring_movement (L6)   → FULLY WIRED — reaction at an enemy's turn
+#                                    end within 5 ft: spend BI, reposition the
+#                                    Bard + an ally away (no OAs) + Agile
+#                                    Strike on the adjacent enemy. See
+#                                    world_tree.py's twin turn-start trigger.
 #   - f_leading_evasion (L14)     → FULLY WIRED — rides the shared Evasion
 #                                    substrate (success→0, fail→half on DEX
 #                                    save-for-half) + 5-ft sharing.

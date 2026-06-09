@@ -318,6 +318,16 @@ class EncounterRunner:
         state.event_log.append({"event": "turn_end", "actor": actor.id,
                                 "hp_remaining": actor.hp_current})
 
+        # Inspiring Movement (College of Dance L6): a Dance Bard may react to
+        # an enemy ENDING its turn within 5 ft. Dispatched here at turn-end
+        # (the twin of the turn-start trigger used by World Tree Branches).
+        # The condition filters to enemies of each reactor, so allies'/own
+        # turn-ends are no-ops.
+        if actor.is_alive():
+            from engine.core.reactions import resolve_reaction_triggers as _rt
+            _rt("creature_turn_end", {"mover": actor, "target": actor},
+                state, self.event_bus)
+
         # Swallow regurgitate: if `actor` is swallowed and dealt enough
         # damage to its swallower this turn, the swallower saves or expels
         # it (freed + Prone). Checked at the victim's turn end.
