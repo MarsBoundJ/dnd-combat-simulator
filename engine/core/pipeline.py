@@ -1165,6 +1165,16 @@ def execute(chosen: dict, state: CombatState, event_bus, primitives) -> None:
         consume_slot(actor, chosen_slot_level, state,
                        action_id=action.get("id"))
 
+    # Beguiling Magic (College of Glamour L3): immediately after the Bard
+    # casts an Enchantment or Illusion spell with a slot, force a WIS save on
+    # an enemy within 60 ft → Charmed/Frightened. No-op unless the caster has
+    # the feature and the action is a qualifying ench/illusion slot-cast.
+    if chosen_slot_level > 0 and not cast_was_cancelled:
+        from engine.core.college_of_glamour import (
+            has_beguiling_magic, try_beguiling_magic)
+        if has_beguiling_magic(actor):
+            try_beguiling_magic(actor, action, state, event_bus)
+
     # Feature-use consumption — only fires for actions with a
     # `feature_use` resource key (Second Wind, Lay on Hands, etc.).
     # Spell slots and feature uses are independent gates — an action

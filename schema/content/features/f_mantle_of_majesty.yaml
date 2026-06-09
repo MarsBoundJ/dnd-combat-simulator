@@ -1,0 +1,34 @@
+# f_mantle_of_majesty — Mantle of Majesty (College of Glamour, Bard L6)
+# Source: PHB 2024
+#
+# RAW: "You always have the Command spell prepared. As a Bonus Action, you
+# cast Command without expending a spell slot, and you take on an unearthly
+# appearance for 1 minute or until your Concentration ends. During this time,
+# you can cast Command as a Bonus Action without expending a spell slot. Any
+# creature Charmed by you automatically fails its saving throw against the
+# Command you cast with this feature. Once per Long Rest; restore by expending
+# a level 3+ spell slot."
+#
+# Wiring status: MARKER — DEFERRED. Needs the Command spell (not yet in the
+# spell content) plus its bonus-action-recast loop and the Charmed-auto-fail
+# interaction. Shipped as a marker so features_known is complete; wire when
+# Command lands.
+
+id: f_mantle_of_majesty
+name: Mantle of Majesty
+source: srd_5.2.1
+granted_by:
+  subclass: sc_college_of_glamour
+  level: 6
+type: active
+
+resource_cost:
+  type: bonus_action
+
+effect_primitives: []
+
+contract:
+  reads: [actor.template.features_known]
+  writes: []
+  event: actor_turn_bonus_action
+  scope: per_use

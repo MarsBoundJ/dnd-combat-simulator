@@ -489,6 +489,18 @@ def defensive_ehp_defensive_buff(actor: Actor, target_ally: Actor,
     if _pipeline_has_primitive(action, "eagle_bound"):
         return _score_eagle_bound(actor, state)
 
+    # Mantle of Inspiration (Glamour L3): Temp HP = 2× avg Bardic die to up
+    # to CHA-mod allies within 60 ft. Value = total Temp HP granted (a direct
+    # eHP buffer for the party).
+    if _pipeline_has_primitive(action, "mantle_of_inspiration"):
+        return _score_mantle_of_inspiration(actor, state)
+
+    # Unbreakable Majesty (Glamour L14): negate the first hit each turn (CHA
+    # save or miss). Value ≈ damage prevented = worst enemy's per-attack
+    # damage × P(save fails) × buff rounds. A strong self-defense.
+    if _pipeline_has_primitive(action, "unbreakable_majesty_activate"):
+        return _score_unbreakable_majesty(actor, state)
+
     # World Tree Travel along the Tree (L14 BA): a 60-ft teleport-to-engage.
     # Value = closing distance to an out-of-reach enemy (an instant Dash with
     # a longer range that ignores terrain/OAs).
@@ -724,6 +736,52 @@ def _score_travel_teleport(actor: Actor, state: CombatState) -> float:
     if nearest_ft <= 60 + 5:
         return 5.0   # teleport reaches an otherwise-unreachable enemy
     return 1.5       # closes a big gap but still can't engage this turn
+
+
+def _score_unbreakable_majesty(actor: Actor, state: CombatState) -> float:
+    """eHP value of Unbreakable Majesty (Glamour L14): the first attack to hit
+    the Bard each turn forces the attacker's CHA save (vs the Bard spell DC)
+    or misses. Value ≈ the worst enemy's per-attack damage × P(its CHA save
+    fails) × EXPECTED_BUFF_ROUNDS — the recurring damage prevented."""
+    if getattr(actor, "unbreakable_majesty_active", False):
+        return 0.0   # already active — don't re-activate
+    enemies = [a for a in state.encounter.actors
+                if a.side != actor.side and a.is_alive()]
+    if not enemies:
+        return 0.0
+    from engine.core.state import ability_modifier
+    cha = (actor.abilities.get("cha") or {}).get("score", 10)
+    pb = int((actor.template.get("cr") or {}).get("proficiency_bonus", 2))
+    dc = 8 + ability_modifier(cha) + pb
+    best = 0.0
+    for e in enemies:
+        cha_save = int((e.abilities.get("cha") or {}).get("save", 0))
+        # P(save fails) = P(d20 + save < dc)
+        p_fail = max(0.05, min(0.95, (dc - 1 - cha_save) / 20.0))
+        dmg = estimate_per_attack_damage(e)
+        best = max(best, dmg * p_fail)
+    return best * EXPECTED_BUFF_ROUNDS
+
+
+def _score_mantle_of_inspiration(actor: Actor, state: CombatState) -> float:
+    """eHP value of Mantle of Inspiration (Glamour L3): Temp HP = 2× the
+    average Bardic die to up to CHA-mod allies within 60 ft. Value is the
+    total Temp HP granted, counting only living allies who don't already hold
+    at least that much Temp HP (Temp HP doesn't stack)."""
+    from engine.core.bardic_inspiration import die_max
+    from engine.core.geometry import distance_ft
+    from engine.core.state import ability_modifier
+    die = str((actor.template or {}).get("bardic_die", "d6"))
+    per_ally = 2.0 * (die_max(die) + 1) / 2.0   # 2× average die roll
+    cha_mod = ability_modifier((actor.abilities.get("cha") or {}).get("score", 10))
+    max_targets = max(1, cha_mod)
+    allies = [a for a in state.encounter.actors
+                if a.id != actor.id and a.side == actor.side and a.is_alive()
+                and distance_ft(actor.position, a.position) <= 60
+                and a.temp_hp < per_ally]
+    if not allies:
+        return 0.0
+    return per_ally * min(len(allies), max_targets)
 
 
 def _score_eagle_bound(actor: Actor, state: CombatState) -> float:

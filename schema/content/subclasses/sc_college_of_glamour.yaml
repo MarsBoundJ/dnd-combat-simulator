@@ -1,0 +1,43 @@
+# sc_college_of_glamour — College of Glamour (Bard subclass)
+# Source: PHB 2024.
+#
+# A Feywild-touched Bard that beguiles with charm/fear and bolsters allies
+# with fey vigor. Combat-relevant features: a Bonus-Action party Temp-HP buff
+# (Mantle of Inspiration L3), a control rider after Enchantment/Illusion casts
+# (Beguiling Magic L3), free Command + Charm auto-fail (Mantle of Majesty L6),
+# and a first-hit-negation defensive aura (Unbreakable Majesty L14).
+#
+# Note: College of Glamour is a PHB 2024 subclass, NOT in the SRD's Bard
+# subclass list (the SRD ships only College of Lore). `source` kept as the
+# repo's single ruleset id for loader consistency.
+#
+# Feature wiring status:
+#   - f_beguiling_magic (L3)     → PARTIAL — the post-Enchantment/Illusion
+#                                   WIS-save control rider is wired; the
+#                                   always-prepared Charm Person / Mirror
+#                                   Image grants are markers (spells not built).
+#   - f_mantle_of_inspiration(L3)→ FULLY WIRED — BA: expend BI, grant up to
+#                                   CHA-mod allies within 60 ft Temp HP = 2×
+#                                   the Bardic die roll. See college_of_glamour.
+#   - f_mantle_of_majesty (L6)   → MARKER — needs the Command spell (not built).
+#   - f_unbreakable_majesty (L14)→ FULLY WIRED — first hit each turn forces the
+#                                   attacker's CHA save vs spell DC or the
+#                                   attack misses.
+
+id: sc_college_of_glamour
+name: College of Glamour
+source: srd_5.2.1
+parent_class: c_bard
+
+archetype_tags:
+  behavior_archetype: beguiling_enchanter
+  role: controller                # INTERNAL-EVAL-ONLY per vocabulary firewall
+  flavor_tags: [fey, beguiling, majestic, charming, glamorous]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_beguiling_magic, f_mantle_of_inspiration]
+  - level: 6
+    feature_ids: [f_mantle_of_majesty]
+  - level: 14
+    feature_ids: [f_unbreakable_majesty]

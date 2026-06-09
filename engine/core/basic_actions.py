@@ -407,6 +407,13 @@ def is_self_targeted_defensive_buff(action: dict) -> bool:
         # World Tree Travel along the Tree — self-targeted teleport.
         if prim == "travel_teleport":
             return True
+        # Glamour Mantle of Inspiration — fans Temp HP out to chosen allies
+        # internally, so it emits ONE candidate (not one-per-ally).
+        if prim == "mantle_of_inspiration":
+            return True
+        # Glamour Unbreakable Majesty — self-targeted presence activation.
+        if prim == "unbreakable_majesty_activate":
+            return True
         # PR #80: Steady Aim — self-targeted advantage on next
         # attack + speed 0. Same self-targeted pattern.
         if prim == "steady_aim":

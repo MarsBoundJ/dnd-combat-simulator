@@ -296,6 +296,16 @@ def _attack_roll(params: dict, state: CombatState, bus: EventBus) -> dict:
         is_crit = True
     attack_state = "crit" if is_crit else ("hit" if is_hit else "miss")
 
+    # Unbreakable Majesty (Glamour L14): the first attack to hit the Bard
+    # each turn forces the attacker's CHA save vs the Bard's spell DC, or the
+    # attack misses instead. No-op unless the majestic presence is active.
+    if attack_state in ("hit", "crit"):
+        from engine.core.college_of_glamour import majesty_negates_hit
+        if majesty_negates_hit(target, actor, state, rng):
+            attack_state = "miss"
+            is_hit = False
+            is_crit = False
+
     state.current_attack["state"] = attack_state
     state.current_attack["d20"] = d20
     state.current_attack["total"] = total
@@ -2400,6 +2410,29 @@ def _zealous_presence(params: dict, state: CombatState,
     })
 
 
+def _mantle_of_inspiration(params: dict, state: CombatState,
+                             bus: EventBus) -> None:
+    """Mantle of Inspiration (College of Glamour L3). The Bardic Inspiration
+    use is consumed by the action's feature_use gate; this rolls the Bardic
+    die and grants up to CHA-mod allies within 60 ft Temp HP = 2× the roll."""
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        return
+    from engine.core.college_of_glamour import resolve_mantle_of_inspiration
+    resolve_mantle_of_inspiration(actor, state, _get_rng(state, bus))
+
+
+def _unbreakable_majesty_activate(params: dict, state: CombatState,
+                                    bus: EventBus) -> None:
+    """Assume the Unbreakable Majesty presence (Glamour L14 BA). The use is
+    consumed by the action's feature_use gate; this sets the active flag."""
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        return
+    from engine.core.college_of_glamour import activate_unbreakable_majesty
+    activate_unbreakable_majesty(actor, state)
+
+
 def _eagle_bound(params: dict, state: CombatState, bus: EventBus) -> None:
     """Eagle Bound (Wild Heart L3, Rage of the Wilds — Eagle aspect).
 
@@ -3515,6 +3548,8 @@ def _populate_handler_table() -> None:
         "warrior_of_the_gods": _warrior_of_the_gods,
         "zealous_presence": _zealous_presence,
         "eagle_bound": _eagle_bound,
+        "mantle_of_inspiration": _mantle_of_inspiration,
+        "unbreakable_majesty_activate": _unbreakable_majesty_activate,
         "inspiring_movement": _inspiring_movement,
         "branches_pull": _branches_pull,
         "travel_teleport": _travel_teleport,
@@ -3600,6 +3635,14 @@ def _all_primitives() -> list[Primitive]:
         # Eagle Bound (Wild Heart L3, Eagle aspect) — per-later-turn Bonus
         # Action: Dash + Disengage together while raging with Eagle active.
         Primitive("eagle_bound", _eagle_bound, implemented=True),
+        # Mantle of Inspiration (Glamour L3) — BA: expend BI, grant up to
+        # CHA-mod allies within 60 ft Temp HP = 2× the Bardic die roll.
+        Primitive("mantle_of_inspiration", _mantle_of_inspiration,
+                    implemented=True),
+        # Unbreakable Majesty (Glamour L14) — BA: assume the majestic
+        # presence (first hit each turn forces a CHA save or misses).
+        Primitive("unbreakable_majesty_activate",
+                    _unbreakable_majesty_activate, implemented=True),
         # Inspiring Movement (College of Dance L6) — reaction at an enemy's
         # turn end within 5 ft: reposition the Bard + an ally (no OAs).
         Primitive("inspiring_movement", _inspiring_movement, implemented=True),

@@ -228,6 +228,14 @@ class EncounterRunner:
         self.event_bus.emit("turn_start", {"actor": actor, "round": state.round})
         state.event_log.append({"event": "turn_start", "actor": actor.id, "round": state.round})
 
+        # Unbreakable Majesty (Glamour L14): the hit-negation is "first hit on
+        # a turn", so its per-turn dedup resets at the start of EVERY turn (not
+        # just the Bard's own) — once per attacker's turn the presence can
+        # negate a hit. Cleared here for all Bards holding the presence.
+        for _a in state.encounter.actors:
+            if getattr(_a, "unbreakable_majesty_active", False):
+                _a._majesty_negated_this_turn = False
+
         # Recharge abilities (monster Breath Weapon / Web / Boulder Toss).
         # At the start of the creature's turn, roll a d6 for each spent
         # die-based recharge ability; one whose roll lands in range becomes
