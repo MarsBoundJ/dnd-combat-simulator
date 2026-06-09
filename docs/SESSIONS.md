@@ -5,7 +5,7 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
-## Session: 2026-06-09 — Zealot upper markers + Wild Heart (L3) + Rage-refund
+## Session: 2026-06-09 — Zealot upper markers, Wild Heart, World Tree, Rage-refund
 
 **Participants:** Phil, Claude (Opus 4.8) — engine lane.
 
@@ -15,6 +15,27 @@ by Zealous Presence + Intimidating Presence, and wired the **combat** half
 of **Path of the Wild Heart**: Rage of the Wilds L3 (Bear/Eagle/Wolf) and
 Power of the Wilds L14 (Falcon/Lion/Ram). The non-combat Wild Heart features
 (Animal Speaker, Aspect of the Wilds, Nature Speaker) are Stage-4 markers.
+Then built **Path of the World Tree** end to end (all four features —
+combat-relevant throughout): Vitality of the Tree L3 (rage-scoped Temp HP for
+self + party), Branches of the Tree L6 (reaction teleport-pull + Speed 0),
+Battering Roots L10 (+10 reach with Heavy/Versatile + Topple rider, NOT
+rage-gated), Travel along the Tree L14 (BA 60-ft teleport-to-engage). With
+this, **all four 2024 Barbarian subclasses are wired** (Berserker, Zealot,
+Wild Heart, World Tree).
+
+### World Tree patterns worth remembering
+- Rage-scoped Temp HP (Vitality of the Tree): granted via the enter_rage hook
+  + a runner turn-start hook (Life-Giving Force), marked `_world_tree_temp_hp`
+  on recipients and cleared on end_rage ("vanish when Rage ends").
+- New `creature_turn_start` reaction trigger (dispatched by the runner at
+  every creature's turn start) powers Branches of the Tree — the first
+  reaction keyed on turn-start rather than an attack/damage event. Speed-0 is
+  modeled as walk→0 for the turn, restored at the mover's next turn start.
+- `requires_rage_active` candidate gate (mirrors Wild Heart's
+  `requires_eagle_active`) gates the Travel-along-the-Tree BA teleport.
+- Battering Roots reach: baked statically into qualifying weapon actions in
+  pc_schema once features_known is final (shared dicts → Extra Attack
+  inherits it); minor off-turn OA over-reach documented.
 
 ### Headline decision (Phil): non-combat features → Stage 4 (AI DM)
 

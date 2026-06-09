@@ -169,6 +169,11 @@ def generate_candidates(actor: Actor, state: CombatState,
     if getattr(actor, "wild_heart_active_choice", None) != "eagle":
         actions = [a for a in actions
                     if not a.get("requires_eagle_active")]
+    # Actions tagged `requires_rage_active` (World Tree Travel along the Tree)
+    # are only available while the actor is raging.
+    if not getattr(actor, "rage_active", False):
+        actions = [a for a in actions
+                    if not a.get("requires_rage_active")]
 
     enemies = [a for a in state.encounter.actors
                if a.side != actor.side and a.is_alive()]

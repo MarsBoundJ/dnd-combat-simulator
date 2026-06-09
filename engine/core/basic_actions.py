@@ -404,6 +404,9 @@ def is_self_targeted_defensive_buff(action: dict) -> bool:
         # Wild Heart Eagle Bound — self-targeted Dash + Disengage grant.
         if prim == "eagle_bound":
             return True
+        # World Tree Travel along the Tree — self-targeted teleport.
+        if prim == "travel_teleport":
+            return True
         # PR #80: Steady Aim — self-targeted advantage on next
         # attack + speed 0. Same self-targeted pattern.
         if prim == "steady_aim":

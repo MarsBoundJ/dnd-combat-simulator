@@ -346,3 +346,59 @@ def restore_branches_speed(actor: Actor, state: CombatState) -> None:
         "actor": actor.id,
         "walk": actor.speed["walk"],
     })
+
+
+# ============================================================================
+# Travel along the Tree (L14)
+# ============================================================================
+#
+# "When you activate your Rage and as a Bonus Action while your Rage is
+# active, you can teleport up to 60 feet to an unoccupied space you can see.
+# In addition, once per Rage, you can increase the range of that teleport to
+# 150 feet. When you do so, you can also bring up to six willing creatures
+# who are within 10 feet of you..."
+#
+# v1 wires the combat-relevant core: a Bonus-Action 60-ft teleport-to-engage
+# while raging (the `a_travel_along_the_tree` BA → travel_teleport primitive).
+# It closes on the nearest out-of-reach enemy — an instant Dash that ignores
+# terrain and Opportunity Attacks. The 150-ft / once-per-Rage / bring-six-
+# allies variant is a documented follow-on (pure regroup mobility, minimal
+# single-encounter DPR/eHP signal).
+
+TRAVEL_TELEPORT_FT = 60
+
+
+def has_travel_along_the_tree(actor: Actor) -> bool:
+    """True if the actor has Travel along the Tree (World Tree L14+)."""
+    features = (actor.template or {}).get("features_known") or []
+    return "f_travel_along_the_tree" in features
+
+
+def execute_travel_teleport(actor: Actor, state: CombatState,
+                              max_ft: int = TRAVEL_TELEPORT_FT) -> bool:
+    """Teleport the barbarian up to `max_ft` toward the nearest living enemy,
+    landing adjacent (within melee reach). Returns True if it moved. No-op
+    when there are no enemies or the actor is already adjacent to one."""
+    from engine.core.geometry import distance_ft, move_toward
+    enemies = [e for e in state.encounter.actors
+                if e.side != actor.side and e.is_alive()]
+    if not enemies:
+        return False
+    target = min(enemies, key=lambda e: distance_ft(actor.position, e.position))
+    if distance_ft(actor.position, target.position) <= 5:
+        return False   # already in melee — teleport buys nothing
+    before = actor.position
+    # Teleport = instant reposition toward the target, stopping adjacent.
+    # No blockers passed (teleport ignores terrain) and no OAs (it's not
+    # step-wise movement through threatened squares).
+    move_toward(actor, target, max_ft=max_ft, stop_at_ft=5)
+    if actor.position == before:
+        return False
+    state.event_log.append({
+        "event": "travel_along_the_tree",
+        "actor": actor.id,
+        "from": before,
+        "to": actor.position,
+        "toward": target.id,
+    })
+    return True

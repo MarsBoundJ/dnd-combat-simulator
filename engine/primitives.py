@@ -2386,6 +2386,17 @@ def _eagle_bound(params: dict, state: CombatState, bus: EventBus) -> None:
     })
 
 
+def _travel_teleport(params: dict, state: CombatState, bus: EventBus) -> None:
+    """Travel along the Tree (World Tree L14) Bonus-Action teleport: reposition
+    the barbarian up to 60 ft toward the nearest enemy, landing adjacent.
+    Self-targeted (no params)."""
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        raise ValueError("travel_teleport requires a current actor")
+    from engine.core.world_tree import execute_travel_teleport
+    execute_travel_teleport(actor, state)
+
+
 def _branches_pull(params: dict, state: CombatState, bus: EventBus) -> None:
     """Branches of the Tree (World Tree L6) reaction payload.
 
@@ -3453,6 +3464,7 @@ def _populate_handler_table() -> None:
         "zealous_presence": _zealous_presence,
         "eagle_bound": _eagle_bound,
         "branches_pull": _branches_pull,
+        "travel_teleport": _travel_teleport,
         "revivification_save": _revivification_save,
         "ready_action": _ready_action,
         "melee_retaliation": _melee_retaliation,
@@ -3538,6 +3550,9 @@ def _all_primitives() -> list[Primitive]:
         # Branches of the Tree (World Tree L6) — reaction at a creature's
         # turn start: STR save or teleport-pull adjacent + Speed 0.
         Primitive("branches_pull", _branches_pull, implemented=True),
+        # Travel along the Tree (World Tree L14) — BA 60-ft teleport-to-engage
+        # while raging.
+        Primitive("travel_teleport", _travel_teleport, implemented=True),
         # Revivification (Zealot L14, Rage of the Gods reaction) — spends a
         # Rage use to restore a would-be-downed ally to Barbarian level HP.
         Primitive("revivification_save", _revivification_save,

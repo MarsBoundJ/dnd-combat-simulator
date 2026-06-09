@@ -1182,6 +1182,10 @@ def _build_feature_actions(features_known: set[str], level: int,
     if ("f_rage_of_the_wilds" in features_known
             and class_id == "c_barbarian"):
         actions.append(_build_eagle_bound_action())
+    # Travel along the Tree (World Tree L14) is a Bonus-Action 60-ft teleport-
+    # to-engage. It's attached declaratively from the feature's YAML
+    # action_template (auto-attach loop below), gated on rage via
+    # `requires_rage_active` in the candidate generator — no builder here.
     # PR #74: Rogue Cunning Action — three bonus-action variants
     # (Dash / Disengage / Hide). Adds to the action list alongside
     # the standard main-action versions (those come from the
