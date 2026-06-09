@@ -208,3 +208,141 @@ def extend_battering_roots_reach(weapon_actions: list, weapons_list: list,
                 params = step.setdefault("params", {})
                 params["reach_ft"] = int(params.get("reach_ft", 5)) + 10
                 params["battering_roots"] = True
+
+
+# ============================================================================
+# Branches of the Tree (L6)
+# ============================================================================
+#
+# "Whenever a creature you can see starts its turn within 30 feet of you
+# while your Rage is active, you can take a Reaction to summon spectral
+# branches of the World Tree around it. The target must succeed on a Strength
+# saving throw (DC 8 + STR + PB) or be teleported to an unoccupied space you
+# can see within 5 feet of yourself or in the nearest unoccupied space you
+# can see. After the target teleports, you can reduce its Speed to 0 until
+# the end of the current turn."
+#
+# Wired via the generic reaction system: a `creature_turn_start` trigger
+# (dispatched by the runner at each creature's turn start), the
+# `branches_of_the_tree_would_pull` condition, and the `branches_pull`
+# primitive (this module's execute_branches_pull). On a failed STR save the
+# mover is teleported adjacent to the barbarian and its Speed drops to 0 for
+# the turn — yanking an enemy into the barbarian's reach and pinning it.
+
+
+def has_branches_of_the_tree(actor: Actor) -> bool:
+    """True if the actor has Branches of the Tree (World Tree L6+)."""
+    features = (actor.template or {}).get("features_known") or []
+    return "f_branches_of_the_tree" in features
+
+
+def _branches_save_dc(actor: Actor) -> int:
+    """STR save DC = 8 + STR modifier + Proficiency Bonus (martial DC)."""
+    str_score = (actor.abilities.get("str") or {}).get("score", 10)
+    pb = int((actor.template.get("cr") or {}).get("proficiency_bonus", 2))
+    return 8 + (str_score - 10) // 2 + pb
+
+
+def branches_eligible_reactor(reactor: Actor, mover: Actor,
+                                state: CombatState) -> bool:
+    """True if `reactor` can use Branches of the Tree on `mover`: the reactor
+    has the feature + is raging, the mover is a living enemy it can see
+    within 30 ft, and the mover isn't the reactor itself."""
+    if not has_branches_of_the_tree(reactor):
+        return False
+    if not getattr(reactor, "rage_active", False):
+        return False
+    if mover is None or not mover.is_alive():
+        return False
+    if mover.id == reactor.id:
+        return False
+    if mover.side == reactor.side:
+        return False
+    from engine.core.geometry import distance_ft
+    if distance_ft(reactor.position, mover.position) > 30:
+        return False
+    from engine.core.vision import can_actor_see
+    if not can_actor_see(reactor, mover, state):
+        return False
+    return True
+
+
+def _occupied_positions(state: CombatState) -> set:
+    return {a.position for a in state.encounter.actors if a.is_alive()}
+
+
+def _unoccupied_square_near(center: tuple, occupied: set,
+                              max_ring: int = 3) -> tuple | None:
+    """First unoccupied square within `max_ring` squares of `center`
+    (excluding center), scanning outward ring by ring (nearest first)."""
+    cx, cy = center
+    for ring in range(1, max_ring + 1):
+        for dx in range(-ring, ring + 1):
+            for dy in range(-ring, ring + 1):
+                if max(abs(dx), abs(dy)) != ring:
+                    continue
+                sq = (cx + dx, cy + dy)
+                if sq not in occupied:
+                    return sq
+    return None
+
+
+def execute_branches_pull(reactor: Actor, mover: Actor,
+                            state: CombatState) -> None:
+    """Resolve Branches of the Tree: the mover makes a STR save vs the
+    reactor's martial DC; on a failure it is teleported to an unoccupied
+    square adjacent to the reactor and its walk Speed drops to 0 for the
+    turn (restored at the mover's next turn start)."""
+    import engine.primitives as primitives_module
+    rng = primitives_module._rng
+    dc = _branches_save_dc(reactor)
+    save_mod = int((mover.abilities.get("str") or {}).get("save", 0))
+    d20 = rng.randint(1, 20)
+    total = d20 + save_mod
+    saved = total >= dc
+    state.event_log.append({
+        "event": "branches_of_the_tree_save",
+        "reactor": reactor.id,
+        "target": mover.id,
+        "d20": d20, "save_mod": save_mod, "total": total, "dc": dc,
+        "outcome": "saved" if saved else "failed",
+    })
+    if saved:
+        return
+
+    # Teleport: unoccupied square adjacent to (nearest free space near) reactor.
+    occupied = _occupied_positions(state)
+    occupied.discard(mover.position)   # the mover's current square frees up
+    dest = _unoccupied_square_near(reactor.position, occupied)
+    if dest is not None:
+        mover.position = dest
+
+    # Speed 0 until end of the current turn (restored at the mover's next
+    # turn start by restore_branches_speed).
+    mover._branches_speed_data = {"original_walk": mover.speed.get("walk", 30)}
+    mover.speed = dict(mover.speed)
+    mover.speed["walk"] = 0
+
+    state.event_log.append({
+        "event": "branches_of_the_tree_pull",
+        "reactor": reactor.id,
+        "target": mover.id,
+        "teleported_to": dest,
+        "speed_set_to": 0,
+    })
+
+
+def restore_branches_speed(actor: Actor, state: CombatState) -> None:
+    """Restore an actor's walk Speed that Branches reduced to 0 last turn.
+    Called at the actor's turn start, before Branches may re-fire."""
+    data = getattr(actor, "_branches_speed_data", None)
+    if not data:
+        return
+    actor.speed = dict(actor.speed)
+    actor.speed["walk"] = int(data.get("original_walk", 30))
+    actor._branches_speed_data = None
+    state.event_log.append({
+        "event": "branches_of_the_tree_speed_restored",
+        "actor": actor.id,
+        "walk": actor.speed["walk"],
+    })

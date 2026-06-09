@@ -10,11 +10,17 @@
 # in the nearest unoccupied space you can see. After the target teleports,
 # you can reduce its Speed to 0 until the end of the current turn."
 #
-# Wiring status: IN PROGRESS (engine wiring follows this scaffolding commit).
-# A reaction on a "creature starts its turn within 30 ft" trigger: STR save
-# (martial DC) → on fail, teleport-pull the target adjacent + reduce Speed to
-# 0 for the turn. Combat-relevant control (denies enemy repositioning, pulls
-# a target into the barbarian's reach).
+# Engine modeling: a reaction on the `creature_turn_start` trigger
+# (dispatched by the runner at each creature's turn start). The
+# `branches_of_the_tree_would_pull` condition gates it (reactor has the
+# feature + is raging, mover is a living enemy it can see within 30 ft). The
+# `branches_pull` primitive (world_tree.execute_branches_pull) rolls the STR
+# save (DC 8 + STR + PB) and, on a failure, teleports the mover to an
+# unoccupied square adjacent to the barbarian and reduces its walk Speed to 0
+# for the turn (restored at the mover's next turn start). Combat-relevant
+# control: yanks an enemy into the barbarian's reach and pins it.
+#
+# Feature wiring status: FULLY WIRED.
 
 id: f_branches_of_the_tree
 name: Branches of the Tree
@@ -27,10 +33,26 @@ type: active
 resource_cost:
   type: reaction
 
-effect_primitives: []
+action_template:
+  id: a_branches_of_the_tree
+  name: Branches of the Tree
+  type: hard_control
+  slot: reaction
+  trigger: creature_turn_start
+  condition: branches_of_the_tree_would_pull
+  pipeline:
+    - primitive: branches_pull
+      params: {}
 
 contract:
   reads: [actor.template.features_known, actor.rage_active, actor.position]
   writes: [target.position, target.speed]
   event: creature_turn_start
   scope: per_use
+
+# v1 simplifications:
+#   - STR save is rolled inline (consistent with the weapon-mastery saves),
+#     so Legendary Resistance / racial save advantages don't apply to it yet.
+#   - "reduce its Speed to 0" is modeled as walk Speed → 0 for the turn
+#     (restored at the mover's next turn start), which denies its movement —
+#     the load-bearing combat effect.

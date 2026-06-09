@@ -18,7 +18,10 @@
 #                                     temp HP to an ally within 10 ft each
 #                                     turn); both vanish on rage end. See
 #                                     engine/core/world_tree.py.
-#   - f_branches_of_the_tree (L6)  → marker (in progress)
+#   - f_branches_of_the_tree (L6)  → FULLY WIRED — reaction on a creature's
+#                                     turn start within 30 ft: STR save or
+#                                     teleport-pull adjacent + Speed 0. See
+#                                     world_tree.py.
 #   - f_battering_roots (L10)      → FULLY WIRED — +10 ft reach with Heavy/
 #                                     Versatile melee + a Topple (CON save →
 #                                     Prone) on-turn rider. See world_tree.py.

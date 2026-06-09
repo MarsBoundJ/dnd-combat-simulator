@@ -214,6 +214,17 @@ class EncounterRunner:
         from engine.core import world_tree as _world_tree
         _world_tree.resolve_life_giving_force(actor, state, self.rng)
 
+        # Branches of the Tree (World Tree L6): first restore any walk Speed
+        # that Branches reduced to 0 on this actor last turn, then let raging
+        # World Tree barbarians react to this creature starting its turn
+        # within 30 ft (STR save or teleport-pull adjacent + Speed 0). The
+        # condition filters to enemies of each reactor, so allies'/own turn-
+        # starts are no-ops.
+        _world_tree.restore_branches_speed(actor, state)
+        from engine.core.reactions import resolve_reaction_triggers as _rtrig
+        _rtrig("creature_turn_start", {"mover": actor, "target": actor},
+                state, self.event_bus)
+
         # Legendary Actions: a legendary creature regains all its uses at
         # the start of its turn. (Spent between other creatures' turns via
         # _resolve_legendary_actions.) See engine/core/legendary_actions.py.

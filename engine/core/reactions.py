@@ -658,4 +658,14 @@ def _reaction_condition_satisfied(cond: str | None, reactor: Actor,
             return False
         from engine.core.rage_of_the_gods import revivification_eligible_reactor
         return revivification_eligible_reactor(reactor, target, state)
+    if cond == "branches_of_the_tree_would_pull":
+        # Branches of the Tree (World Tree L6): a creature the raging
+        # barbarian can see starts its turn within 30 ft. The mover is in
+        # event_data["mover"] (also mirrored to ["target"] so the reaction
+        # pipeline operates on it).
+        mover = event_data.get("mover") or event_data.get("target")
+        if mover is None:
+            return False
+        from engine.core.world_tree import branches_eligible_reactor
+        return branches_eligible_reactor(reactor, mover, state)
     return False

@@ -2386,6 +2386,21 @@ def _eagle_bound(params: dict, state: CombatState, bus: EventBus) -> None:
     })
 
 
+def _branches_pull(params: dict, state: CombatState, bus: EventBus) -> None:
+    """Branches of the Tree (World Tree L6) reaction payload.
+
+    Resolves the STR save and, on a failure, teleports the mover adjacent to
+    the barbarian and reduces its Speed to 0 for the turn. The reactor (the
+    barbarian) is state.current_attack.actor; the mover is
+    state.current_attack.target (set by the reaction dispatch)."""
+    reactor = (state.current_attack or {}).get("actor")
+    mover = (state.current_attack or {}).get("target")
+    if reactor is None or mover is None:
+        return
+    from engine.core.world_tree import execute_branches_pull
+    execute_branches_pull(reactor, mover, state)
+
+
 def _revivification_save(params: dict, state: CombatState,
                           bus: EventBus) -> None:
     """Revivification (Rage of the Gods reaction, Zealot L14+).
@@ -3437,6 +3452,7 @@ def _populate_handler_table() -> None:
         "warrior_of_the_gods": _warrior_of_the_gods,
         "zealous_presence": _zealous_presence,
         "eagle_bound": _eagle_bound,
+        "branches_pull": _branches_pull,
         "revivification_save": _revivification_save,
         "ready_action": _ready_action,
         "melee_retaliation": _melee_retaliation,
@@ -3519,6 +3535,9 @@ def _all_primitives() -> list[Primitive]:
         # Eagle Bound (Wild Heart L3, Eagle aspect) — per-later-turn Bonus
         # Action: Dash + Disengage together while raging with Eagle active.
         Primitive("eagle_bound", _eagle_bound, implemented=True),
+        # Branches of the Tree (World Tree L6) — reaction at a creature's
+        # turn start: STR save or teleport-pull adjacent + Speed 0.
+        Primitive("branches_pull", _branches_pull, implemented=True),
         # Revivification (Zealot L14, Rage of the Gods reaction) — spends a
         # Rage use to restore a would-be-downed ally to Barbarian level HP.
         Primitive("revivification_save", _revivification_save,
