@@ -326,6 +326,24 @@ class EncounterRunner:
         state.event_log.append({"event": "turn_end", "actor": actor.id,
                                 "hp_remaining": actor.hp_current})
 
+        # Expire "lose one turn" conditions at the END of the turn they were
+        # meant to deny. A condition applied with `duration:
+        # until_actor_next_turn_start` (Command/Halt, ghoul & ghast paralysis,
+        # several dragon abilities) lasts THROUGH the affected creature's next
+        # turn — which the incapacitation gate above just skipped — and then
+        # ends here. This is the condition-system twin of the modifier lifetime
+        # of the same name; without it, with turn-denial now enforced, those
+        # one-turn effects would never expire (permanent removal).
+        from engine.primitives import remove_condition as _remove_cond
+        _expiring = [c for c in actor.applied_conditions
+                     if c.get("duration") == "until_actor_next_turn_start"]
+        for _c in _expiring:
+            _remove_cond(actor, _c.get("condition_id"),
+                          _c.get("source_id"))
+            state.event_log.append({
+                "event": "condition_expired_end_of_turn",
+                "actor": actor.id, "condition": _c.get("condition_id")})
+
         # Inspiring Movement (College of Dance L6): a Dance Bard may react to
         # an enemy ENDING its turn within 5 ft. Dispatched here at turn-end
         # (the twin of the turn-start trigger used by World Tree Branches).
@@ -1029,7 +1047,23 @@ class EncounterRunner:
         action — the runner suppresses double-moves via
         `actor.moved_this_turn` and only re-runs the main slot.
         """
-        # Step 0: resolve effective profile
+        # Step 0: incapacitation gate. A creature with an incapacitating
+        # condition (Incapacitated / Stunned / Paralyzed / Unconscious /
+        # Petrified, incl. Hold Person's paralysis and Command's Halt) takes
+        # NO action, Bonus Action, or movement on its turn — the turn is
+        # skipped here. Turn-start effects (regeneration, recurring damage,
+        # death saves) and turn-end effects (the recurring save that breaks
+        # Hold Person, rage end-check) still run in `tick()`, which brackets
+        # this call. The eHP scoring already values these conditions as
+        # turn-denial; this makes the mechanic match.
+        from engine.core.concentration import has_incapacitating_condition
+        if has_incapacitating_condition(actor):
+            state.event_log.append({
+                "event": "turn_skipped_incapacitated",
+                "actor": actor.id, "round": state.round})
+            return
+
+        # Step 0b: resolve effective profile
         profile = pipeline.resolve_effective_profile(actor, state)
         # Step 1: retreat trigger — DMG p48 algorithm; if triggered, the
         # actor flees this turn and the rest of the pipeline is skipped.
