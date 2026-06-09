@@ -159,3 +159,93 @@ Run specialty builds through the obstacle course and report, per build:
 - Your recommended attribution rule (task 1) stated precisely enough to
   implement, with its known failure modes.
 - The validation protocol (task 5) as a concrete experiment we can run.
+
+---
+
+## Addendum C: Party-Level Power and Synergy
+
+### The problem
+
+Individual eHP ratings (Addendum B) cannot capture that **the party is
+superadditive** — worth more than the sum of its members. Three motivating
+examples:
+
+1. **Enablement requires executors.** The Web caster's advantage-uplift credit
+   (Addendum B) only exists because martials are present to capitalize. In an
+   all-caster party the same Web cast creates far less uplift. So a build's
+   eHP is a function of its party context, not a property of the build alone.
+2. **Protection is invisible to the ledger.** The Fighter's frontline presence
+   causes enemies to attack the Fighter instead of the Wizard — so the Wizard
+   makes fewer concentration saves and holds control spells longer. The value
+   created is events that DIDN'T happen (saves never rolled, concentration
+   never broken). The current contribution ledger records only what happened.
+3. **Healing sustains contribution, not just HP.** A heal that returns a
+   downed ally to consciousness buys that ally's entire future contribution
+   stream, not just the HP restored. (The simulator currently credits revival
+   with one round of the revived ally's DPR — likely an undercount.)
+
+### The proposed three-level measurement hierarchy
+
+- **Level 1 — Feature power**: paired-seed feature swap on a fixed chassis;
+  endpoint = eHP delta (the main brief + Addendum B).
+- **Level 2 — Build power**: the build measured across a PANEL of k party
+  compositions; mean = context-averaged power, variance = context-dependence
+  (a number for "this build needs the right party").
+- **Level 3 — Party power**: the 4-tuple measured directly (win rate, total
+  eHP, rounds, deaths). **Synergy residual** = party performance − prediction
+  from context-averaged individual powers. Negative residuals (anti-synergy:
+  competing concentration niches, crowded melee lanes) are as important as
+  positive ones.
+
+Proposed individual-in-party metric: **leave-one-out replacement** — replace
+each member with a "replacement-level" character (baseball WAR's concept),
+measure the party's performance drop. The sum of the four marginals will NOT
+equal the party total; that gap is the measured synergy, reported as such.
+
+One asset to note: because the simulator's AI scores every targeting decision,
+the counterfactual second-choice target is KNOWN at decision time. Protection
+value (example 2) can therefore be instrumented exactly — credit the absorber
+with the redirected expected damage + concentration disruption — something
+theorycraft cannot do.
+
+### Your tasks
+
+1. **Validate or attack the three-level hierarchy.** Is there a cleaner
+   decomposition? Does the synergy residual at Level 3 actually isolate
+   synergy, or does it conflate synergy with encounter-fit (a party that
+   happens to match the course's encounter mix)?
+2. **Replacement level.** What is the right replacement character: a commoner,
+   a featless same-class default build, or the same chassis with subclass
+   removed? Argue from what question each baseline answers, and pick one for
+   the headline metric.
+3. **The party panel (Level 2).** How many compositions k, and how should
+   they be chosen — random sampling, archetypal role coverage (tank/healer/
+   blaster/support grid), or community-representative parties? What k gives
+   stable context-averaged means at our seed budgets (connect to the sample-
+   size math from the main brief)?
+4. **Instrumenting invisible enablement.** Critique the proposed
+   protection-credit design (log each enemy's second-choice target; credit
+   the absorber with the redirected expected damage and avoided concentration
+   checks). Where does it break — e.g., does crediting the Fighter for "being
+   targeted" reward poor positioning that ATTRACTS avoidable attacks?
+5. **Sustain's downstream credit.** Healing that keeps an ally conscious buys
+   their future contribution. How far downstream should credit extend (rest
+   of encounter, exponentially discounted, capped at expected remaining
+   rounds)? Keep it consistent with the denial-credit lifetime cap from
+   Addendum B task 2.
+6. **Pairwise synergy map.** Is a 2-character interaction matrix (measured
+   value of each pair vs the sum of solo values, in standardized contexts) a
+   useful intermediate between Levels 2 and 3 — or does 5e synergy live
+   mostly in 3+-character combinations where a pair matrix misleads?
+7. **Report design.** Sketch the community-facing output: what does a
+   defensible "party power report" contain (party score, synergy residual,
+   per-member marginals, context-variance per build), and what claims should
+   we explicitly NOT make from it?
+
+### Deliverable for this addendum
+
+- Severity-ranked findings, as in the main brief.
+- Your recommended replacement-level definition and panel design (tasks 2-3),
+  stated precisely enough to implement.
+- A verdict on the protection-credit instrumentation (task 4): sound,
+  fixable, or wrong-headed — with the fix if fixable.
