@@ -1,0 +1,37 @@
+# f_evasion — Evasion (Rogue L7, Monk L7)
+# Source: SRD CC v5.2.1 / PHB 2024
+#
+# RAW: "When you're subjected to an effect that allows you to make a Dexterity
+# saving throw to take only half damage, you instead take no damage if you
+# succeed on the saving throw and only half damage if you fail. You don't
+# benefit from this feature if you have the Incapacitated condition."
+#
+# Engine modeling: a passive hook in primitives._forced_save
+# (engine.core.evasion). On a DEX save-for-half effect (on_fail full + on_
+# success half), a creature with Evasion takes 0 on success and half on fail
+# — implemented by scaling the relevant damage sub-primitives (success → ×0,
+# fail → ×0.5) while preserving any non-damage effects. No benefit while
+# Incapacitated.
+#
+# Feature wiring status: FULLY WIRED (shared substrate; also serves College
+# of Dance Leading Evasion).
+
+id: f_evasion
+name: Evasion
+source: srd_5.2.1
+granted_by:
+  class: c_rogue
+  level: 7
+type: passive
+
+resource_cost:
+  type: none
+
+effect_primitives: []
+
+contract:
+  reads: [actor.template.features_known, actor.applied_conditions,
+           combat.save_ability, combat.save_outcome]
+  writes: [combat.damage_taken]
+  event: dexterity_save_for_half
+  scope: passive

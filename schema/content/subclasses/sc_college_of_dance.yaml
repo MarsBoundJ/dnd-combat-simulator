@@ -24,8 +24,9 @@
 #   - f_inspiring_movement (L6)   → DEFERRED — needs a creature_turn_end
 #                                    reaction trigger + 2-creature reposition
 #                                    (positioning-AI, bounded signal).
-#   - f_leading_evasion (L14)     → DEFERRED — needs the Evasion damage-scaling
-#                                    substrate (shared with Rogue/Monk Evasion).
+#   - f_leading_evasion (L14)     → FULLY WIRED — rides the shared Evasion
+#                                    substrate (success→0, fail→half on DEX
+#                                    save-for-half) + 5-ft sharing.
 
 id: sc_college_of_dance
 name: College of Dance

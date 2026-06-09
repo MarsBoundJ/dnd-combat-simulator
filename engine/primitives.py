@@ -1387,7 +1387,20 @@ def _forced_save(params: dict, state: CombatState, bus: EventBus) -> dict:
         state.current_attack["target"] = target
         try:
             # Invoke on_fail or on_success sub-primitives (if specified inline)
-            if outcome == "fail":
+            # Evasion (Rogue/Monk L7, Dance Leading Evasion L14): on a DEX
+            # save-for-half effect, a creature with Evasion takes 0 on success
+            # and half on fail. select_evasion_subs returns the damage-scaled
+            # sub list when it applies; otherwise we use the normal branch.
+            from engine.core.evasion import select_evasion_subs
+            ev_subs = select_evasion_subs(target, ability, outcome, params,
+                                            state)
+            if ev_subs is not None:
+                state.event_log.append({
+                    "event": "evasion", "target": target.id,
+                    "outcome": outcome})
+                for sub in ev_subs:
+                    _invoke_subprimitive(sub, state, bus)
+            elif outcome == "fail":
                 for sub in params.get("on_fail") or []:
                     _invoke_subprimitive(sub, state, bus)
             else:

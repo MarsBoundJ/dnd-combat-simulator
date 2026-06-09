@@ -8,13 +8,15 @@
 # you can share this benefit with them for that save. You can't use this
 # feature if you have the Incapacitated condition."
 #
-# Wiring status: DEFERRED — needs the Evasion damage-scaling substrate. Leading
-# Evasion is an improved Evasion (Rogue/Monk Evasion: success → 0, fail →
-# half). The engine has no Evasion hook yet: a DEX-save-for-half effect scales
-# its damage via the save outcome, and Evasion needs to intercept that
-# (success→0, fail→half), keyed on the target having Evasion / Leading
-# Evasion. Building it once gives base Evasion (Rogue L7, Monk L7) for free.
-# Marked so features_known is complete; wire alongside the Evasion substrate.
+# Engine modeling: rides the shared Evasion substrate (engine.core.evasion,
+# hooked in primitives._forced_save). On a DEX save-for-half effect, the
+# holder takes 0 on success and half on fail (success → damage ×0, fail →
+# damage ×0.5). The sharing clause is wired too: a creature making the same
+# DEX save within 5 ft of a Leading Evasion holder gets the same benefit
+# (has_evasion checks for a Leading Evasion ally within 5 ft). No benefit
+# while Incapacitated.
+#
+# Feature wiring status: FULLY WIRED (core Evasion + 5-ft sharing).
 
 id: f_leading_evasion
 name: Leading Evasion
