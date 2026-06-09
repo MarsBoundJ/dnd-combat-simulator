@@ -142,6 +142,9 @@ def enter_rage(actor: Actor, state: CombatState) -> None:
     # Power of the Wilds (Wild Heart L14): activate the chosen option.
     from engine.core.wild_heart import activate_power_of_the_wilds
     activate_power_of_the_wilds(actor, state)
+    # Vitality of the Tree (World Tree L3): Vitality Surge temp HP on entry.
+    from engine.core.world_tree import apply_vitality_surge
+    apply_vitality_surge(actor, state)
 
 
 def end_rage(actor: Actor, state: CombatState, reason: str) -> None:
@@ -161,6 +164,9 @@ def end_rage(actor: Actor, state: CombatState, reason: str) -> None:
     # Power of the Wilds (Wild Heart L14): option ends with Rage.
     from engine.core.wild_heart import deactivate_power_of_the_wilds
     deactivate_power_of_the_wilds(actor, state)
+    # Vitality of the Tree (World Tree L3): rage-scoped temp HP vanishes.
+    from engine.core.world_tree import clear_world_tree_temp_hp
+    clear_world_tree_temp_hp(actor, state)
     state.event_log.append({
         "event": "rage_ended",
         "actor": actor.id,

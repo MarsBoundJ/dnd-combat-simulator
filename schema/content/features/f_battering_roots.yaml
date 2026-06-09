@@ -1,0 +1,33 @@
+# f_battering_roots — Battering Roots (Path of the World Tree, Barbarian L10)
+# Source: PHB 2024 p.53
+#
+# RAW: "During your turn, your reach is 10 feet greater with any Melee weapon
+# that has the Heavy or Versatile property, as tendrils of the World Tree
+# extend from you. When you hit with such a weapon on your turn, you can
+# activate the Push or Topple mastery property in addition to a different
+# mastery property you're using with that weapon."
+#
+# Wiring status: IN PROGRESS (engine wiring follows this scaffolding commit).
+# Note: NOT rage-gated (RAW: "During your turn", no Rage condition). The reach
+# extension (+10 ft with Heavy/Versatile melee weapons) and a Push/Topple
+# on-hit rider (usable even without the mastery, stacking with a different
+# mastery already in use).
+
+id: f_battering_roots
+name: Battering Roots
+source: srd_5.2.1
+granted_by:
+  subclass: sc_path_of_the_world_tree
+  level: 10
+type: passive
+
+resource_cost:
+  type: none
+
+effect_primitives: []
+
+contract:
+  reads: [actor.template.features_known]
+  writes: [combat.attack_reach, combat.condition_applied, target.position]
+  event: weapon_hit
+  scope: passive

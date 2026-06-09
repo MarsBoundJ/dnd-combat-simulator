@@ -1,0 +1,43 @@
+# sc_path_of_the_world_tree — Path of the World Tree (Barbarian subclass)
+# Source: PHB 2024 p.52-53.
+#
+# A support / control / reach Barbarian path themed on Yggdrasil, the cosmic
+# World Tree. Unlike Wild Heart, World Tree is almost entirely combat-
+# relevant: rage-scoped Temporary HP for self + party (Vitality of the Tree),
+# a reaction control pull (Branches of the Tree), extended reach + a
+# Push/Topple rider (Battering Roots), and teleport mobility (Travel along
+# the Tree).
+#
+# Note: World Tree is a PHB 2024 subclass, NOT in the SRD's Barbarian
+# subclass list (the SRD ships only Path of the Berserker). `source` is kept
+# as the repo's single ruleset id for loader consistency.
+#
+# Feature wiring status:
+#   - f_vitality_of_the_tree (L3)  → FULLY WIRED — Vitality Surge (temp HP =
+#                                     level on rage) + Life-Giving Force (Nd6
+#                                     temp HP to an ally within 10 ft each
+#                                     turn); both vanish on rage end. See
+#                                     engine/core/world_tree.py.
+#   - f_branches_of_the_tree (L6)  → marker (in progress)
+#   - f_battering_roots (L10)      → marker (in progress)
+#   - f_travel_along_the_tree (L14)→ marker (in progress)
+
+id: sc_path_of_the_world_tree
+name: Path of the World Tree
+source: srd_5.2.1
+parent_class: c_barbarian
+
+archetype_tags:
+  behavior_archetype: cosmic_guardian
+  role: defender                # INTERNAL-EVAL-ONLY per vocabulary firewall
+  flavor_tags: [cosmic, vitality, planar, protective, dimensional]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_vitality_of_the_tree]
+  - level: 6
+    feature_ids: [f_branches_of_the_tree]
+  - level: 10
+    feature_ids: [f_battering_roots]
+  - level: 14
+    feature_ids: [f_travel_along_the_tree]

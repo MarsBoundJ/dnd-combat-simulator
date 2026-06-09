@@ -208,6 +208,12 @@ class EncounterRunner:
         from engine.core import recharge as _recharge
         _recharge.roll_recharges_at_turn_start(actor, state, self.rng)
 
+        # Vitality of the Tree — Life-Giving Force (World Tree L3): at the
+        # start of a raging World Tree barbarian's turn, grant an ally within
+        # 10 ft Temp HP (Nd6, N = Rage Damage bonus). No-op for everyone else.
+        from engine.core import world_tree as _world_tree
+        _world_tree.resolve_life_giving_force(actor, state, self.rng)
+
         # Legendary Actions: a legendary creature regains all its uses at
         # the start of its turn. (Spent between other creatures' turns via
         # _resolve_legendary_actions.) See engine/core/legendary_actions.py.

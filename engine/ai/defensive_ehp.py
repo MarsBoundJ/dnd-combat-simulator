@@ -670,7 +670,25 @@ def _score_rage_entry(actor: Actor, state: CombatState) -> float:
     worst_dpr = max((estimate_dpr(e) for e in enemies), default=0.0)
     defensive_value = 0.5 * worst_dpr * EXPECTED_BUFF_ROUNDS
 
-    return offensive_value + defensive_value
+    # World Tree — Vitality of the Tree: Vitality Surge grants Temp HP =
+    # Barbarian level (a flat eHP buffer applied the moment you Rage), and
+    # Life-Giving Force adds ~3.5 × bonus Temp HP/round to a nearby ally.
+    # Both make a World Tree barbarian's Rage worth more than a vanilla one.
+    vitality_value = 0.0
+    from engine.core.world_tree import has_vitality_of_the_tree
+    if has_vitality_of_the_tree(actor):
+        levels = (actor.template or {}).get("levels") or {}
+        barb_level = int(levels.get("barbarian", 1))
+        vitality_value += float(barb_level)
+        from engine.core.geometry import distance_ft
+        ally_near = any(
+            a.id != actor.id and a.side == actor.side and a.is_alive()
+            and distance_ft(actor.position, a.position) <= 10
+            for a in state.encounter.actors)
+        if ally_near:
+            vitality_value += 3.5 * float(bonus) * EXPECTED_BUFF_ROUNDS
+
+    return offensive_value + defensive_value + vitality_value
 
 
 def _score_eagle_bound(actor: Actor, state: CombatState) -> float:

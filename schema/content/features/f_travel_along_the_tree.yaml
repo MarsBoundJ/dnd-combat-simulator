@@ -1,0 +1,35 @@
+# f_travel_along_the_tree — Travel along the Tree (Path of the World Tree,
+# Barbarian L14)
+# Source: PHB 2024 p.53
+#
+# RAW: "When you activate your Rage and as a Bonus Action while your Rage is
+# active, you can teleport up to 60 feet to an unoccupied space you can see.
+# In addition, once per Rage, you can increase the range of that teleport to
+# 150 feet. When you do so, you can also bring up to six willing creatures
+# who are within 10 feet of you. Each creature teleports to an unoccupied
+# space of your choice within 10 feet of your destination space."
+#
+# Wiring status: IN PROGRESS (engine wiring follows this scaffolding commit).
+# Teleport mobility: a 60-ft teleport on rage entry + a BA while raging; once
+# per Rage a 150-ft version that also brings up to six allies within 10 ft.
+# Lowest combat-sim signal of the World Tree features (positioning/mobility);
+# wired faithfully, AI utilization bounded by the positioning layer.
+
+id: f_travel_along_the_tree
+name: Travel along the Tree
+source: srd_5.2.1
+granted_by:
+  subclass: sc_path_of_the_world_tree
+  level: 14
+type: active
+
+resource_cost:
+  type: bonus_action
+
+effect_primitives: []
+
+contract:
+  reads: [actor.template.features_known, actor.rage_active, actor.position]
+  writes: [actor.position, ally.position]
+  event: actor_turn_bonus_action
+  scope: per_use

@@ -1,0 +1,36 @@
+# f_branches_of_the_tree — Branches of the Tree (Path of the World Tree,
+# Barbarian L6)
+# Source: PHB 2024 p.52
+#
+# RAW: "Whenever a creature you can see starts its turn within 30 feet of you
+# while your Rage is active, you can take a Reaction to summon spectral
+# branches of the World Tree around it. The target must succeed on a Strength
+# saving throw (DC 8 plus your Strength modifier and Proficiency Bonus) or be
+# teleported to an unoccupied space you can see within 5 feet of yourself or
+# in the nearest unoccupied space you can see. After the target teleports,
+# you can reduce its Speed to 0 until the end of the current turn."
+#
+# Wiring status: IN PROGRESS (engine wiring follows this scaffolding commit).
+# A reaction on a "creature starts its turn within 30 ft" trigger: STR save
+# (martial DC) → on fail, teleport-pull the target adjacent + reduce Speed to
+# 0 for the turn. Combat-relevant control (denies enemy repositioning, pulls
+# a target into the barbarian's reach).
+
+id: f_branches_of_the_tree
+name: Branches of the Tree
+source: srd_5.2.1
+granted_by:
+  subclass: sc_path_of_the_world_tree
+  level: 6
+type: active
+
+resource_cost:
+  type: reaction
+
+effect_primitives: []
+
+contract:
+  reads: [actor.template.features_known, actor.rage_active, actor.position]
+  writes: [target.position, target.speed]
+  event: creature_turn_start
+  scope: per_use
