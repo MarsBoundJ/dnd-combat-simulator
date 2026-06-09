@@ -41,8 +41,8 @@ the PR / session reference.
 - **f_rage_of_the_wilds (L3)** — Bear / Eagle / Wolf rage choices. WIRED
   (combat-relevant: resistance / mobility / team-advantage aura).
 - **f_power_of_the_wilds (L14)** — Falcon / Lion / Ram rage choices. WIRED
-  (combat-relevant: fly / protective aura / crit-knockdown). *(pending RAW
-  confirmation — see session notes.)*
+  (combat-relevant: fly-while-unarmored / enemy-disadvantage aura / on-hit
+  Prone on Large-or-smaller). RAW confirmed by Phil 2026-06-09.
 
 ---
 

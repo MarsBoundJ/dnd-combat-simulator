@@ -11,8 +11,10 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 Finished **Path of the Zealot** (Fanatical Focus L6, Zealous Presence L10,
 Rage of the Gods L14), built a **generic Rage-use refund** mechanism shared
-by Zealous Presence + Intimidating Presence, and began **Path of the Wild
-Heart** (Rage of the Wilds L3 — Bear/Eagle/Wolf fully wired).
+by Zealous Presence + Intimidating Presence, and wired the **combat** half
+of **Path of the Wild Heart**: Rage of the Wilds L3 (Bear/Eagle/Wolf) and
+Power of the Wilds L14 (Falcon/Lion/Ram). The non-combat Wild Heart features
+(Animal Speaker, Aspect of the Wilds, Nature Speaker) are Stage-4 markers.
 
 ### Headline decision (Phil): non-combat features → Stage 4 (AI DM)
 
@@ -30,13 +32,23 @@ confirmation** before wiring (Falcon/Lion/Ram — verify options).
 
 ### Rage choice pattern (reusable)
 
-Bear/Eagle/Wolf (and the future Falcon/Lion/Ram) are a **build-time pick**
-stamped on the template (`wild_heart_rage_choice`, default Bear), activated
-on the `enter_rage` hook (same as Rage of the Gods) and cleared on rage end.
-Active aspect lives on `actor.wild_heart_active_choice`. Bear = broad
-resistance (all except F/N/P/R, no double-halve with base Rage BPS); Wolf =
-ally-advantage aura via an identity-state read in `query_attack_modifiers`
-(mirrors Reckless Attack); Eagle = rage-entry Dash+Disengage grant.
+Both Wild Heart rage features are **build-time picks** stamped on the
+template (`wild_heart_rage_choice` default Bear, `wild_heart_power_choice`
+default Ram), activated on the `enter_rage` hook (same as Rage of the Gods)
+and cleared on rage end. The two are independent (a L14 barbarian holds one
+of each: `actor.wild_heart_active_choice` + `actor.wild_heart_power_active`).
+
+L3 Rage of the Wilds: Bear = broad resistance (all except F/N/P/R, no
+double-halve with base Rage BPS); Wolf = ally-advantage aura via an
+identity-state read in `query_attack_modifiers` (mirrors Reckless Attack);
+Eagle = rage-entry Dash+Disengage grant (per-later-turn BA deferred).
+
+L14 Power of the Wilds: Falcon = fly-while-unarmored (new
+`template.wears_armor` flag, stamped for all PCs); Lion = the disadvantage
+twin of the Wolf aura (enemies within 5 ft have Disadvantage vs non-Lion
+targets); Ram = on-hit Prone on Large-or-smaller (no save), an on-hit rider
+in `_damage` next to the monk strikes. Reusable rage-choice pattern now
+proven across Rage of the Gods + both Wild Heart features.
 
 ---
 

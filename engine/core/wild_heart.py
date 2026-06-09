@@ -36,6 +36,8 @@ RAGE_CHOICES = ("bear", "eagle", "wolf")
 # Bear resists every type EXCEPT these four (RAW PHB 2024).
 _BEAR_NON_RESISTED = frozenset({"force", "necrotic", "psychic", "radiant"})
 
+POWER_CHOICES = ("falcon", "lion", "ram")
+
 
 def has_rage_of_the_wilds(actor: Actor) -> bool:
     """True if the actor has Rage of the Wilds (Wild Heart L3+)."""
@@ -122,3 +124,143 @@ def wolf_advantage_applies(attacker: Actor, target: Actor,
         if distance_ft(wolf.position, target.position) <= 5:
             return True
     return False
+
+
+# ============================================================================
+# Power of the Wilds (Wild Heart L14) — Falcon / Lion / Ram
+# ============================================================================
+#
+# A SECOND, independent rage choice gained at L14 (alongside the L3 Rage of
+# the Wilds aspect — a L14 Wild Heart barbarian picks one from each). The
+# build-time pick is `template.wild_heart_power_choice` (default 'ram'),
+# activated on rage entry and cleared on rage end, tracked on
+# `actor.wild_heart_power_active`.
+#
+#   - Falcon: Fly Speed = walk speed WHILE WEARING NO ARMOR (RAW: "any
+#             armor", stricter than Heavy-only). Reverted on rage end.
+#   - Lion:   enemies within 5 ft of you have Disadvantage on attacks
+#             against targets OTHER than you (or another active-Lion
+#             barbarian) — the disadvantage twin of the Wolf aura.
+#   - Ram:    on a melee hit, knock a Large-or-smaller target Prone (no
+#             save). An on-hit control rider in primitives._damage.
+
+
+def has_power_of_the_wilds(actor: Actor) -> bool:
+    """True if the actor has Power of the Wilds (Wild Heart L14+)."""
+    features = (actor.template or {}).get("features_known") or []
+    return "f_power_of_the_wilds" in features
+
+
+def power_choice(actor: Actor) -> str:
+    """The actor's configured Power of the Wilds option (default 'ram').
+
+    Build-time pick stamped on the template as `wild_heart_power_choice`."""
+    choice = (actor.template or {}).get("wild_heart_power_choice", "ram")
+    return choice if choice in POWER_CHOICES else "ram"
+
+
+def _wears_armor(actor: Actor) -> bool:
+    """True if the actor is wearing any armor (stamped by pc_schema as
+    template.wears_armor). Falcon requires NO armor."""
+    return bool((actor.template or {}).get("wears_armor", False))
+
+
+def activate_power_of_the_wilds(actor: Actor, state: CombatState) -> None:
+    """Activate the chosen Power of the Wilds option on rage entry. No-op
+    without the feature."""
+    if not has_power_of_the_wilds(actor):
+        return
+    choice = power_choice(actor)
+    actor.wild_heart_power_active = choice
+
+    # Falcon: Fly Speed = walk speed, but only while wearing no armor.
+    if choice == "falcon" and not _wears_armor(actor):
+        walk = actor.speed.get("walk", 30)
+        actor._wild_heart_falcon_prior_fly = actor.speed.get("fly")
+        actor.speed["fly"] = walk
+
+    state.event_log.append({
+        "event": "power_of_the_wilds_activated",
+        "actor": actor.id,
+        "choice": choice,
+    })
+
+
+def deactivate_power_of_the_wilds(actor: Actor, state: CombatState) -> None:
+    """Clear the active Power of the Wilds option when Rage ends. Idempotent;
+    reverts Falcon's fly grant."""
+    prior = getattr(actor, "wild_heart_power_active", None)
+    if prior is None:
+        return
+    actor.wild_heart_power_active = None
+
+    if prior == "falcon":
+        prior_fly = getattr(actor, "_wild_heart_falcon_prior_fly", None)
+        if prior_fly is None:
+            actor.speed.pop("fly", None)
+        else:
+            actor.speed["fly"] = prior_fly
+
+    state.event_log.append({
+        "event": "power_of_the_wilds_deactivated",
+        "actor": actor.id,
+        "choice": prior,
+    })
+
+
+def lion_disadvantage_applies(attacker: Actor, target: Actor,
+                                state: CombatState) -> bool:
+    """True if the Lion aura imposes Disadvantage on `attacker`'s roll
+    against `target`: the attacker is an enemy within 5 ft of a raging Lion
+    barbarian, and `target` is NOT that Lion (nor another active-Lion
+    barbarian on the Lion's side).
+
+    RAW: "any of your enemies within 5 feet of you have Disadvantage on
+    attack rolls against targets other than you or another Barbarian who
+    has this option active." Identity-state read (the disadvantage twin of
+    the Wolf advantage aura)."""
+    from engine.core.geometry import distance_ft
+    for lion in state.encounter.actors:
+        if getattr(lion, "wild_heart_power_active", None) != "lion":
+            continue
+        if not lion.is_alive():
+            continue
+        if lion.side == attacker.side:
+            continue   # attacker must be an ENEMY of the Lion
+        if distance_ft(lion.position, attacker.position) > 5:
+            continue
+        # Exempt targets: the Lion itself, or another active-Lion barbarian
+        # on the Lion's side ("you or another Barbarian who has this active").
+        if target.id == lion.id:
+            continue
+        if (getattr(target, "wild_heart_power_active", None) == "lion"
+                and target.side == lion.side):
+            continue
+        return True
+    return False
+
+
+def try_apply_ram(attacker: Actor, target: Actor, state: CombatState,
+                    attack_params: dict | None) -> None:
+    """Ram (Power of the Wilds): on a melee hit while raging with Ram active,
+    knock a Large-or-smaller target Prone (no save). Idempotent — skips a
+    target that's already Prone. Called from primitives._damage on hit/crit."""
+    if getattr(attacker, "wild_heart_power_active", None) != "ram":
+        return
+    if (attack_params or {}).get("kind", "melee") != "melee":
+        return
+    from engine.core.sizes import size_at_or_below
+    if not size_at_or_below(getattr(target, "size", "medium"), "large"):
+        return
+    if any(c.get("condition_id") == "co_prone"
+            for c in target.applied_conditions):
+        return   # already prone — nothing to do
+    from engine.primitives import _apply_condition
+    from engine.core.smite_rider import _NoOpBus
+    _apply_condition({"condition_id": "co_prone"}, state, _NoOpBus())
+    state.event_log.append({
+        "event": "power_of_the_wilds_ram",
+        "attacker": attacker.id,
+        "target": target.id,
+        "effect": "prone",
+    })

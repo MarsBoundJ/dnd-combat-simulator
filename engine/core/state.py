@@ -344,6 +344,12 @@ class Actor:
     # resistance (primitives._damage) and the Wolf advantage aura
     # (modifiers.query_attack_modifiers).
     wild_heart_active_choice: str | None = None
+    # Power of the Wilds (Wild Heart L14): the active option while raging —
+    # "falcon" / "lion" / "ram", or None. Independent of the L3 aspect (a
+    # L14 barbarian picks one of each). Drives the Falcon fly grant, the
+    # Lion disadvantage aura (modifiers.query_attack_modifiers), and the
+    # Ram on-hit prone rider (primitives._damage).
+    wild_heart_power_active: str | None = None
 
     # Reckless Attack state (PR #85, Barbarian L2). Activated via the
     # runner's `_maybe_activate_reckless_attack` pre-action hook (RAW:

@@ -532,6 +532,11 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
                 actor, target, state, attack_params, rng)
             _monk.try_apply_open_hand(
                 actor, target, state, attack_params, rng)
+            # Ram (Wild Heart L14, Power of the Wilds): melee hit while
+            # raging with Ram active knocks a Large-or-smaller target Prone
+            # (no save). Idempotent on already-prone targets.
+            from engine.core import wild_heart as _wh
+            _wh.try_apply_ram(actor, target, state, attack_params)
 
     # Resistance / vulnerability / immunity (template-level)
     template = target.template or {}

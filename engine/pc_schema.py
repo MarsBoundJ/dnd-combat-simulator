@@ -474,6 +474,11 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
     if "behavior_profile" in pc_spec:
         template["behavior_profile"] = pc_spec["behavior_profile"]
 
+    # Whether this PC wears any armor — read by Wild Heart's Falcon option
+    # (Fly Speed only while unarmored) and available to any future "no
+    # armor" gate. Stamped unconditionally; harmless for non-Wild-Heart PCs.
+    template["wears_armor"] = bool(armor_spec)
+
     # Rage of the Wilds (Wild Heart L3): the build-time animal pick read by
     # engine.core.wild_heart on rage entry. Defaults to Bear (strongest,
     # most universal combat aspect) when the spec doesn't choose. Only
@@ -482,6 +487,13 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
         choice = pc_spec.get("wild_heart_rage_choice", "bear")
         template["wild_heart_rage_choice"] = (
             choice if choice in ("bear", "eagle", "wolf") else "bear")
+
+    # Power of the Wilds (Wild Heart L14): the build-time option pick.
+    # Defaults to Ram (a consistent on-hit control rider) when unset.
+    if "f_power_of_the_wilds" in features_known:
+        pchoice = pc_spec.get("wild_heart_power_choice", "ram")
+        template["wild_heart_power_choice"] = (
+            pchoice if pchoice in ("falcon", "lion", "ram") else "ram")
 
     return template
 

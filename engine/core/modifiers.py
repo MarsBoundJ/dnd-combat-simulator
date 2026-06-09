@@ -175,6 +175,15 @@ def query_attack_modifiers(
             "type": "rage_of_the_wilds_wolf",
             "arm": "ally_advantage_near_wolf",
         })
+    # Power of the Wilds — Lion aspect (Wild Heart L14): an enemy within 5 ft
+    # of a raging Lion has Disadvantage attacking anyone but the Lion (or
+    # another active-Lion barbarian). The disadvantage twin of the Wolf aura.
+    if _wh.lion_disadvantage_applies(attacker, target, state):
+        result.has_disadvantage = True
+        result.sources.append({
+            "type": "power_of_the_wilds_lion",
+            "arm": "enemy_disadvantage_near_lion",
+        })
     return result
 
 

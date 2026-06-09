@@ -22,8 +22,10 @@
 #                                    climb/swim movement
 #   - f_nature_speaker (L10)      → MARKER (Stage 4) — Commune with Nature
 #                                    ritual
-#   - f_power_of_the_wilds (L14)  → MARKER (pending RAW confirmation, then
-#                                    full wire) — Falcon/Lion/Ram rage choices
+#   - f_power_of_the_wilds (L14)  → FULLY WIRED — Falcon (fly while
+#                                    unarmored) / Lion (enemy-disadvantage
+#                                    aura) / Ram (on-hit prone). See
+#                                    engine/core/wild_heart.py.
 
 id: sc_path_of_the_wild_heart
 name: Path of the Wild Heart

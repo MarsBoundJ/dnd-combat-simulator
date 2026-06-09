@@ -139,6 +139,9 @@ def enter_rage(actor: Actor, state: CombatState) -> None:
     # Rage of the Wilds (Wild Heart L3): activate the chosen animal aspect.
     from engine.core.wild_heart import activate_rage_of_the_wilds
     activate_rage_of_the_wilds(actor, state)
+    # Power of the Wilds (Wild Heart L14): activate the chosen option.
+    from engine.core.wild_heart import activate_power_of_the_wilds
+    activate_power_of_the_wilds(actor, state)
 
 
 def end_rage(actor: Actor, state: CombatState, reason: str) -> None:
@@ -155,6 +158,9 @@ def end_rage(actor: Actor, state: CombatState, reason: str) -> None:
     # Rage of the Wilds (Wild Heart L3): animal aspect ends with Rage.
     from engine.core.wild_heart import deactivate_rage_of_the_wilds
     deactivate_rage_of_the_wilds(actor, state)
+    # Power of the Wilds (Wild Heart L14): option ends with Rage.
+    from engine.core.wild_heart import deactivate_power_of_the_wilds
+    deactivate_power_of_the_wilds(actor, state)
     state.event_log.append({
         "event": "rage_ended",
         "actor": actor.id,
