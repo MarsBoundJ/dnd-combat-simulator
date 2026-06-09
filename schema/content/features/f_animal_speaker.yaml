@@ -1,0 +1,33 @@
+# f_animal_speaker — Animal Speaker (Path of the Wild Heart, Barbarian L3)
+# Source: PHB 2024 p.52
+#
+# RAW: "You always have the Beast Sense and Speak with Animals spells
+# prepared. You can cast each of them without expending a spell slot, but
+# only as a Ritual."
+#
+# Wiring status: MARKER — DEFERRED TO STAGE 4 (AI DM). Both granted spells
+# are pure utility/exploration (sense through a beast's eyes; converse with
+# animals) with NO combat signal (no DPR / eHP / control / action-economy
+# effect). Needs the ritual-casting + non-combat-spell system, which the
+# AI-DM stage will build. Shipped as a marker so features_known carries it
+# and the AI-DM lane can wire it without re-research.
+# See docs/deferred-noncombat-features.md.
+
+id: f_animal_speaker
+name: Animal Speaker
+source: srd_5.2.1
+granted_by:
+  subclass: sc_path_of_the_wild_heart
+  level: 3
+type: passive
+
+resource_cost:
+  type: none
+
+effect_primitives: []
+
+contract:
+  reads: [actor.template.features_known]
+  writes: []
+  event: ritual_cast
+  scope: passive

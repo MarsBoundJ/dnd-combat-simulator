@@ -21,11 +21,13 @@
 #     .maybe_add_to_attack, hooked into _attack_roll: on a would-be miss
 #     the holder may spend the die to try to turn it into a hit.
 #
-# v1 scope: the holder's add is modeled on ATTACK ROLLS (the most common
-# combat d20 Test). RAW also covers saving throws + ability checks —
-# documented follow-ons. AI proactive-granting (when the Bard chooses to
-# inspire, and which ally) is an AI-lane follow-on; the mechanic is
-# correct + tested via direct invocation.
+# Scope: the holder's add is modeled on both combat d20 Tests — ATTACK
+# ROLLS (maybe_add_to_attack, hooked in _attack_roll) and SAVING THROWS
+# (maybe_add_to_save, hooked in _forced_save: a held die can turn a failed
+# save into a success). Ability checks (the third d20-Test kind, exercised
+# outside combat) are a follow-on. AI proactive-granting (when the Bard
+# chooses to inspire, and which ally) is an AI-lane follow-on; the mechanic
+# is correct + tested.
 #
 # source: srd_5.2.1
 

@@ -24,15 +24,23 @@
 # Coverage expands as the spell lane lands more Bard-list spells
 # (Vicious Mockery, Dissonant Whispers, Faerie Fire, etc.).
 #
-# Deferred class features (each a follow-on):
-#   - Expertise (L2/L9), Jack of All Trades (L2) — skill-check only,
-#     no combat eHP model.
-#   - Font of Inspiration (L5: short-rest recharge + slot→use conversion)
-#   - Countercharm (L7: reaction reroll vs Charmed/Frightened) —
-#     rides the reaction system; follow-on.
-#   - Magical Secrets (L10), Superior Inspiration (L18),
-#     Words of Creation (L20) — spell-list / economy features.
-#   - Subclasses beyond College of Lore (Dance / Glamour / etc.)
+# Class-feature wiring status:
+#   - Bardic Inspiration (L1) — WIRED (die grant + holder add + CHA-mod
+#     uses); rest refresh now wired in rest.py (long rest L1+, short rest
+#     L5+ via Font of Inspiration).
+#   - Expertise (L2/L9) — MARKER (build-config; skill-check pillar consumes
+#     the PC-spec expertise list). No combat eHP model.
+#   - Jack of All Trades (L2) — WIRED (half PB to initiative; general
+#     skill-check bonus deferred to the skill-check pillar).
+#   - Font of Inspiration (L5) — WIRED (Short + Long rest BI refresh;
+#     slot→use conversion deferred, low single-encounter signal).
+#   - Countercharm (L7) — WIRED (reaction reroll vs Charmed/Frightened with
+#     Advantage; inline _forced_save hook, engine.core.countercharm).
+#   - Magical Secrets (L10) — MARKER (build-config; widens legal spell picks
+#     to Bard/Cleric/Druid/Wizard).
+#   - Superior Inspiration (L18) — WIRED (top BI up to 2 on initiative).
+#   - Words of Creation (L20) — MARKER (needs Power Word Heal/Kill spells).
+#   - Subclasses: College of Lore wired; others as the lane lands.
 
 id: c_bard
 name: Bard
@@ -76,7 +84,7 @@ level_table:
       spell_slots: { 1: 2 }
   - level: 2
     proficiency_bonus: 2
-    features: []
+    features: [f_expertise, f_jack_of_all_trades]
     class_resources:
       bardic_die: d6
       spell_slots: { 1: 3 }
@@ -94,7 +102,7 @@ level_table:
       spell_slots: { 1: 4, 2: 3 }
   - level: 5
     proficiency_bonus: 3
-    features: [f_hypnotic_pattern]
+    features: [f_font_of_inspiration, f_hypnotic_pattern]
     class_resources:
       bardic_die: d8
       spell_slots: { 1: 4, 2: 3, 3: 2 }
@@ -106,7 +114,7 @@ level_table:
       spell_slots: { 1: 4, 2: 3, 3: 3 }
   - level: 7
     proficiency_bonus: 3
-    features: []
+    features: [f_countercharm]
     class_resources:
       bardic_die: d8
       spell_slots: { 1: 4, 2: 3, 3: 3, 4: 1 }
@@ -124,7 +132,7 @@ level_table:
       spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 1 }
   - level: 10
     proficiency_bonus: 4
-    features: []
+    features: [f_magical_secrets]
     class_resources:
       bardic_die: d10
       spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2 }
@@ -172,7 +180,7 @@ level_table:
       spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1, 7: 1, 8: 1, 9: 1 }
   - level: 18
     proficiency_bonus: 6
-    features: []
+    features: [f_superior_inspiration]
     class_resources:
       bardic_die: d12
       spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 3, 6: 1, 7: 1, 8: 1, 9: 1 }
@@ -184,7 +192,7 @@ level_table:
       spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 3, 6: 2, 7: 1, 8: 1, 9: 1 }
   - level: 20
     proficiency_bonus: 6
-    features: []
+    features: [f_words_of_creation]
     class_resources:
       bardic_die: d12
       spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 3, 6: 2, 7: 2, 8: 1, 9: 1 }

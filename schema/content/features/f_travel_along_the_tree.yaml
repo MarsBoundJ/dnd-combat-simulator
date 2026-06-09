@@ -1,0 +1,55 @@
+# f_travel_along_the_tree — Travel along the Tree (Path of the World Tree,
+# Barbarian L14)
+# Source: PHB 2024 p.53
+#
+# RAW: "When you activate your Rage and as a Bonus Action while your Rage is
+# active, you can teleport up to 60 feet to an unoccupied space you can see.
+# In addition, once per Rage, you can increase the range of that teleport to
+# 150 feet. When you do so, you can also bring up to six willing creatures
+# who are within 10 feet of you. Each creature teleports to an unoccupied
+# space of your choice within 10 feet of your destination space."
+#
+# Engine modeling: a Bonus-Action 60-ft teleport-to-engage while raging (the
+# a_travel_along_the_tree BA → travel_teleport primitive,
+# world_tree.execute_travel_teleport). It closes on the nearest out-of-reach
+# enemy — an instant Dash that ignores terrain and Opportunity Attacks. Gated
+# on rage via `requires_rage_active`; scored by the travel_teleport branch in
+# defensive_ehp (Dash-like closing-distance value over a 60-ft range).
+#
+# Feature wiring status: WIRED (60-ft BA teleport-to-engage).
+#
+# Deferred (documented):
+#   - The teleport on rage activation (in addition to the BA): the BA covers
+#     the repeatable combat use; the entry teleport is situational.
+#   - The once-per-Rage 150-ft variant that brings up to six willing allies
+#     within 10 ft: pure regroup mobility with minimal single-encounter
+#     DPR/eHP signal, and the multi-ally destination placement is positioning-
+#     AI work. Lowest-priority follow-on.
+
+id: f_travel_along_the_tree
+name: Travel along the Tree
+source: srd_5.2.1
+granted_by:
+  subclass: sc_path_of_the_world_tree
+  level: 14
+type: active
+
+resource_cost:
+  type: bonus_action
+
+action_template:
+  id: a_travel_along_the_tree
+  name: Travel along the Tree (Teleport)
+  type: defensive_buff
+  slot: bonus_action
+  is_signature: false
+  requires_rage_active: true
+  pipeline:
+    - primitive: travel_teleport
+      params: {}
+
+contract:
+  reads: [actor.template.features_known, actor.rage_active, actor.position]
+  writes: [actor.position]
+  event: actor_turn_bonus_action
+  scope: per_use

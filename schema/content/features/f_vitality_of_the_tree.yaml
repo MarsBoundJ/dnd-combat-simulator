@@ -1,0 +1,56 @@
+# f_vitality_of_the_tree — Vitality of the Tree (Path of the World Tree,
+# Barbarian L3)
+# Source: PHB 2024 p.52
+#
+# RAW: "Your Rage taps into the life force of the World Tree. You gain the
+# following benefits.
+#   Vitality Surge. When you activate your Rage, you gain a number of
+#     Temporary Hit Points equal to your Barbarian level.
+#   Life-Giving Force. At the start of each of your turns while your Rage is
+#     active, you can choose another creature within 10 feet of yourself to
+#     gain Temporary Hit Points. To determine the number of Temporary Hit
+#     Points, roll a number of d6s equal to your Rage Damage bonus, and add
+#     them together. If any of these Temporary Hit Points remain when your
+#     Rage ends, they vanish."
+#
+# Engine modeling (engine/core/world_tree.py):
+#   - Vitality Surge: apply_vitality_surge on the enter_rage hook grants the
+#     barbarian Temp HP = Barbarian level (RAW max-semantics).
+#   - Life-Giving Force: resolve_life_giving_force fires from the runner's
+#     turn-start for a raging World Tree barbarian — grants the most-wounded
+#     ally within 10 ft Temp HP = sum of Nd6 (N = Rage Damage bonus).
+#   - clear_world_tree_temp_hp on the end_rage hook removes all World-Tree
+#     Temp HP (marked via actor._world_tree_temp_hp) — it "vanishes" when the
+#     Rage ends.
+#
+# Feature wiring status: FULLY WIRED.
+
+id: f_vitality_of_the_tree
+name: Vitality of the Tree
+source: srd_5.2.1
+granted_by:
+  subclass: sc_path_of_the_world_tree
+  level: 3
+type: passive
+
+resource_cost:
+  type: none
+
+effect_primitives: []
+
+contract:
+  reads: [actor.template.features_known, actor.rage_active,
+           actor.rage_damage_bonus, actor.template.levels.barbarian,
+           actor.position]
+  writes: [actor.temp_hp, ally.temp_hp]
+  event: rage_activated
+  scope: passive
+
+# v1 policy:
+#   - Life-Giving Force beneficiary: the most-wounded living ally (lowest HP
+#     fraction) within 10 ft. RAW lets you choose any creature; most-wounded
+#     is the eHP-optimal proxy (Temp HP is most valuable on whoever takes the
+#     next hit). An AI beneficiary selector is a follow-on.
+#   - Multi-barbarian edge: the rage-scoped "vanish on rage end" marker isn't
+#     per-source, so with two World Tree barbarians raging at once, one
+#     ending its Rage clears all World-Tree Temp HP. Rare; documented.

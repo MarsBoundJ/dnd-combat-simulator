@@ -5,15 +5,14 @@
 # it with a bonus equal to your Rage Damage bonus, and you must use the
 # new roll."
 #
-# Engine modeling: a save-reroll hook — when a raging Zealot fails a
-# save, re-roll once per Rage with +Rage Damage bonus.
+# Engine modeling: a passive save-reroll hook in primitives._forced_save.
+# After the initial roll yields "fail," `try_fanatical_focus_reroll`
+# intercepts if the actor is raging, has f_fanatical_focus, and the
+# once-per-Rage charge is available. The reroll adds the Rage Damage bonus
+# (same as the melee damage bonus — 2 at L1, rising by level). The charge
+# flag is reset at each new Rage entry via enter_rage → reset_for_new_rage.
 #
-# **Wiring status: marker (DEFERRED).** Needs a failed-save interception
-# point (the save resolver would, on a fail, re-roll with the bonus and
-# consume a once-per-Rage charge). No such hook exists yet; the forced_
-# save / save paths resolve a single roll. Shipped as a marker until a
-# save-reroll mechanism lands (it would also serve Indomitable-style
-# rerolls). Defensive value; low DPR impact.
+# Feature wiring status: FULLY WIRED (fanatical_focus.py hook in _forced_save).
 
 id: f_fanatical_focus
 name: Fanatical Focus

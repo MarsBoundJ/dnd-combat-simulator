@@ -37,6 +37,7 @@ action_template:
   type: hard_control
   slot: bonus_action
   feature_use: intimidating_presence_uses_remaining
+  rage_refund: true
   named_effect: intimidating_presence
   range_ft: 30
   area:
@@ -64,10 +65,6 @@ action_template:
         on_success: []
 
 # Deferred RAW bits:
-#   - Rage-restore: "expend a use of your Rage to restore your use of
-#     it." v1 caps at 1×/Long Rest (the use-economy floor); the rage-
-#     refund hook is a small follow-on (mirrors the Zealot Zealous
-#     Presence refresh).
 #   - "each creature of your CHOICE": v1 affects all enemies in the
 #     emanation (the AI would choose enemies anyway); allies are spared
 #     via the enemies-only target resolution. When no area_origin is

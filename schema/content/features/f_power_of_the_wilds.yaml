@@ -1,0 +1,59 @@
+# f_power_of_the_wilds — Power of the Wilds (Path of the Wild Heart,
+# Barbarian L14)
+# Source: PHB 2024 p.52
+#
+# RAW: "Whenever you activate your Rage, you gain one of the following
+# options of your choice.
+#   Falcon. While your Rage is active, you have a Fly Speed equal to your
+#           Speed if you aren't wearing any armor.
+#   Lion.   While your Rage is active, any of your enemies within 5 feet of
+#           you have Disadvantage on attack rolls against targets other than
+#           you or another Barbarian who has this option active.
+#   Ram.    While your Rage is active, you can cause a Large or smaller
+#           creature to have the Prone condition when you hit it with a
+#           melee attack."
+#
+# Engine modeling: a SECOND, independent build-time rage pick (alongside the
+# L3 Rage of the Wilds aspect — a L14 barbarian picks one of each). Stamped
+# on the template as `wild_heart_power_choice` (default 'ram'), activated on
+# rage entry via engine.core.wild_heart.activate_power_of_the_wilds (the
+# enter_rage hook) and cleared on rage end. Active option lives on
+# actor.wild_heart_power_active.
+#   - Falcon: Fly Speed = walk speed while wearing NO armor (template.
+#             wears_armor == False). Reverted on rage end.
+#   - Lion:   lion_disadvantage_applies() imposes Disadvantage on enemies
+#             within 5 ft attacking anyone but the Lion / another active-Lion
+#             barbarian (modifiers.query_attack_modifiers; the disadvantage
+#             twin of the Wolf aura).
+#   - Ram:    try_apply_ram() knocks a Large-or-smaller target Prone (no
+#             save) on a melee hit (primitives._damage on-hit rider).
+#
+# Feature wiring status: FULLY WIRED (all three options).
+
+id: f_power_of_the_wilds
+name: Power of the Wilds
+source: srd_5.2.1
+granted_by:
+  subclass: sc_path_of_the_wild_heart
+  level: 14
+type: passive
+
+resource_cost:
+  type: none
+
+effect_primitives: []
+
+contract:
+  reads: [actor.template.features_known, actor.template.wild_heart_power_choice,
+           actor.template.wears_armor, actor.rage_active,
+           actor.wild_heart_power_active]
+  writes: [actor.wild_heart_power_active, actor.speed,
+           combat.attack_disadvantage, combat.condition_applied]
+  event: rage_activated
+  scope: passive
+
+# Deferred:
+#   - Mid-combat option re-selection: RAW chooses each time you Rage; v1
+#     uses a fixed build-time pick (wild_heart_power_choice, default Ram).
+#     An AI-lane "pick the best option for this fight" selector is a
+#     follow-on (shared with the L3 Rage of the Wilds aspect selector).

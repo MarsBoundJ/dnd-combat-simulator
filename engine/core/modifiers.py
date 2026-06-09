@@ -164,6 +164,26 @@ def query_attack_modifiers(
             "source_creature_id": target.id,
             "arm": "grants_advantage_to_attacker",
         })
+    # Rage of the Wilds — Wolf aspect (Wild Heart L3): an ally of a raging
+    # Wolf barbarian has Advantage attacking any enemy within 5 ft of that
+    # barbarian. Identity-state read off the encounter (same pattern as
+    # Reckless Attack above).
+    from engine.core import wild_heart as _wh
+    if _wh.wolf_advantage_applies(attacker, target, state):
+        result.has_advantage = True
+        result.sources.append({
+            "type": "rage_of_the_wilds_wolf",
+            "arm": "ally_advantage_near_wolf",
+        })
+    # Power of the Wilds — Lion aspect (Wild Heart L14): an enemy within 5 ft
+    # of a raging Lion has Disadvantage attacking anyone but the Lion (or
+    # another active-Lion barbarian). The disadvantage twin of the Wolf aura.
+    if _wh.lion_disadvantage_applies(attacker, target, state):
+        result.has_disadvantage = True
+        result.sources.append({
+            "type": "power_of_the_wilds_lion",
+            "arm": "enemy_disadvantage_near_lion",
+        })
     return result
 
 

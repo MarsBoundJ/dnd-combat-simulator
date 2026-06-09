@@ -1,0 +1,40 @@
+# f_font_of_inspiration — Font of Inspiration (Bard L5)
+# Source: SRD CC v5.2.1 / PHB 2024
+#
+# RAW: "You now regain all your expended uses of Bardic Inspiration when you
+# finish a Short or Long Rest. In addition, you can expend a spell slot (no
+# action required) to regain one expended use of Bardic Inspiration."
+#
+# Engine modeling:
+#   - Short-rest refresh: rest.apply_short_rest restores
+#     bardic_inspiration_uses_remaining to max for a Bard with this feature
+#     (the base L1 Bardic Inspiration already restores on a Long Rest via
+#     apply_long_rest). This is the load-bearing multi-encounter economy.
+#   - The "expend a spell slot to regain one use" conversion is a documented
+#     follow-on: in a single encounter a Bard rarely exhausts its CHA-mod
+#     worth of uses, so the conversion has minimal combat signal. When the
+#     multi-encounter day sim needs it, it mirrors the rage-refund mechanism
+#     (a feature_use refundable from a different resource).
+#
+# Feature wiring status: WIRED (Short + Long rest refresh; slot→use
+# conversion deferred).
+
+id: f_font_of_inspiration
+name: Font of Inspiration
+source: srd_5.2.1
+granted_by:
+  class: c_bard
+  level: 5
+type: passive
+
+resource_cost:
+  type: none
+
+effect_primitives: []
+
+contract:
+  reads: [actor.template.features_known,
+           actor.resources.bardic_inspiration_uses_max]
+  writes: [actor.resources.bardic_inspiration_uses_remaining]
+  event: rest
+  scope: passive

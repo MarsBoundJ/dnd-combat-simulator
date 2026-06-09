@@ -330,6 +330,26 @@ class Actor:
     # See engine/core/rage.py for the level tables + transitions.
     rage_active: bool = False
     rage_damage_bonus: int = 0
+    # Rage of the Gods (Zealot L14): True while the divine form is active.
+    # Set by rage_of_the_gods.try_activate_rage_of_the_gods on rage entry;
+    # cleared by deactivate_rage_of_the_gods on rage end. While True:
+    #   - fly_speed granted (actor.speed["fly"] set to walk speed)
+    #   - Resistance to Necrotic, Psychic, Radiant (primitives._damage)
+    #   - Revivification reaction available (creature_would_drop_to_zero)
+    rage_of_the_gods_active: bool = False
+    # Rage of the Wilds (Wild Heart L3): the active animal aspect while
+    # raging — one of "bear" / "eagle" / "wolf", or None when not raging
+    # (or not a Wild Heart barbarian). Set by wild_heart.activate_rage_of_
+    # the_wilds on rage entry; cleared on rage end. Drives Bear broad
+    # resistance (primitives._damage) and the Wolf advantage aura
+    # (modifiers.query_attack_modifiers).
+    wild_heart_active_choice: str | None = None
+    # Power of the Wilds (Wild Heart L14): the active option while raging —
+    # "falcon" / "lion" / "ram", or None. Independent of the L3 aspect (a
+    # L14 barbarian picks one of each). Drives the Falcon fly grant, the
+    # Lion disadvantage aura (modifiers.query_attack_modifiers), and the
+    # Ram on-hit prone rider (primitives._damage).
+    wild_heart_power_active: str | None = None
 
     # Reckless Attack state (PR #85, Barbarian L2). Activated via the
     # runner's `_maybe_activate_reckless_attack` pre-action hook (RAW:

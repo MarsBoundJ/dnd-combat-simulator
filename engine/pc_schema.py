@@ -265,6 +265,13 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
         pc_spec.get("invocations"), features_known, class_id, level)
     features_known = set(features_known) | set(invocations)
 
+    # Battering Roots (World Tree L10): +10 ft reach with Heavy/Versatile
+    # melee weapons. Post-process the already-built weapon actions now that
+    # features_known is finalized — the action dicts are shared with `actions`
+    # and any Extra Attack built from them, so the reach extension propagates.
+    from engine.core.world_tree import extend_battering_roots_reach
+    extend_battering_roots_reach(weapon_actions, weapons_list, features_known)
+
     # Draconic Sorcery build-time effects (keyed on subclass features).
     #   - Draconic Resilience: HP max += sorcerer level (RAW: +3 at L3,
     #     +1 per level after = level); unarmored base AC = 10+DEX+CHA.
@@ -292,6 +299,13 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
     if "f_unarmored_defense_barbarian" in features_known and not armor_spec:
         ac = (10 + ability_modifier(ability_scores["dex"]["score"])
                + ability_modifier(ability_scores["con"]["score"]))
+    # College of Dance Unarmored Defense (Dazzling Footwork, Bard L3): base
+    # AC = 10 + DEX + CHA while wearing no armor AND no Shield (RAW gates on
+    # both). CHA-based, mirroring the Draconic Sorcerer path.
+    if ("f_dazzling_footwork" in features_known and not armor_spec
+            and not pc_spec.get("shield")):
+        ac = (10 + ability_modifier(ability_scores["dex"]["score"])
+               + ability_modifier(ability_scores["cha"]["score"]))
 
     # Movement speed: explicit pc_spec speed > race speed > default 30.
     speed = (pc_spec.get("speed")
@@ -474,6 +488,27 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
     if "behavior_profile" in pc_spec:
         template["behavior_profile"] = pc_spec["behavior_profile"]
 
+    # Whether this PC wears any armor — read by Wild Heart's Falcon option
+    # (Fly Speed only while unarmored) and available to any future "no
+    # armor" gate. Stamped unconditionally; harmless for non-Wild-Heart PCs.
+    template["wears_armor"] = bool(armor_spec)
+
+    # Rage of the Wilds (Wild Heart L3): the build-time animal pick read by
+    # engine.core.wild_heart on rage entry. Defaults to Bear (strongest,
+    # most universal combat aspect) when the spec doesn't choose. Only
+    # meaningful for a Wild Heart barbarian; harmless otherwise.
+    if "f_rage_of_the_wilds" in features_known:
+        choice = pc_spec.get("wild_heart_rage_choice", "bear")
+        template["wild_heart_rage_choice"] = (
+            choice if choice in ("bear", "eagle", "wolf") else "bear")
+
+    # Power of the Wilds (Wild Heart L14): the build-time option pick.
+    # Defaults to Ram (a consistent on-hit control rider) when unset.
+    if "f_power_of_the_wilds" in features_known:
+        pchoice = pc_spec.get("wild_heart_power_choice", "ram")
+        template["wild_heart_power_choice"] = (
+            pchoice if pchoice in ("falcon", "lion", "ram") else "ram")
+
     return template
 
 
@@ -629,6 +664,20 @@ def derive_pc_resources(pc_spec: dict, content_registry: Any) -> dict:
     if "f_intimidating_presence" in features_known:
         resources["intimidating_presence_uses_remaining"] = 1
         resources["intimidating_presence_uses_max"] = 1
+
+    # ---- Zealous Presence (Path of the Zealot, Barbarian L10) ----
+    # BA that grants advantage on attacks + saves to up to 10 allies within
+    # 60 ft for one round. 1/long rest; restores via Rage use (deferred).
+    if "f_zealous_presence" in features_known:
+        resources["zealous_presence_uses_remaining"] = 1
+        resources["zealous_presence_uses_max"] = 1
+
+    # ---- Rage of the Gods (Path of the Zealot, Barbarian L14) ----
+    # Divine form activated on rage entry: fly speed, N/P/R resistance,
+    # Revivification reaction. 1/long rest.
+    if "f_rage_of_the_gods" in features_known:
+        resources["rage_of_the_gods_uses_remaining"] = 1
+        resources["rage_of_the_gods_uses_max"] = 1
 
     # ---- Warrior of the Gods (Path of the Zealot, Barbarian L3) ----
     # A pool of d12s spent to self-heal (BA). RAW size: 4 dice at L3,
@@ -1132,6 +1181,24 @@ def _build_feature_actions(features_known: set[str], level: int,
     # consumes `rage_uses_remaining` and flips Actor.rage_active.
     if "f_rage" in features_known and class_id == "c_barbarian":
         actions.append(_build_rage_action())
+    # Wild Heart Eagle aspect (L3): the per-later-turn Bonus Action to take
+    # Dash + Disengage together. Added for any Wild Heart barbarian; emission
+    # is gated on the Eagle aspect being ACTIVE (raging with the Eagle pick)
+    # via `requires_eagle_active` in the candidate generator, so a Bear/Wolf
+    # build carries the action harmlessly — its active choice is never Eagle.
+    if ("f_rage_of_the_wilds" in features_known
+            and class_id == "c_barbarian"):
+        actions.append(_build_eagle_bound_action())
+    # Travel along the Tree (World Tree L14) is a Bonus-Action 60-ft teleport-
+    # to-engage. It's attached declaratively from the feature's YAML
+    # action_template (auto-attach loop below), gated on rage via
+    # `requires_rage_active` in the candidate generator — no builder here.
+    # College of Dance Bardic Damage (Dazzling Footwork, Bard L3): a DEX-based
+    # Unarmed Strike dealing (Bardic Inspiration die + DEX) Bludgeoning.
+    if ("f_dazzling_footwork" in features_known and class_id == "c_bard"
+            and ability_scores is not None):
+        actions.append(_build_dance_unarmed_action(
+            level, ability_scores, proficiency_bonus))
     # PR #74: Rogue Cunning Action — three bonus-action variants
     # (Dash / Disengage / Hide). Adds to the action list alongside
     # the standard main-action versions (those come from the
@@ -1965,6 +2032,57 @@ def _build_cunning_action_actions() -> list[dict]:
             "pipeline": [],
         },
     ]
+
+
+def _build_eagle_bound_action() -> dict:
+    """Wild Heart Eagle aspect (L3) per-later-turn Bonus Action: Dash +
+    Disengage together (RAW: "you can take a Bonus Action on each of your
+    turns to take both of those actions").
+
+    type=defensive_buff (self-targeted utility, like Cunning Action Dash) so
+    it rides the is_self_targeted_defensive_buff dedup (one candidate, not
+    one-per-ally). `requires_eagle_active: true` gates emission to turns when
+    the actor is raging with the Eagle aspect active. `is_signature: false`
+    — situational mobility, scored by the eagle_bound branch in
+    defensive_ehp.
+    """
+    return {
+        "id": "a_eagle_bound",
+        "name": "Eagle Bound (Dash + Disengage)",
+        "type": "defensive_buff",
+        "slot": "bonus_action",
+        "is_signature": False,
+        "requires_eagle_active": True,
+        "pipeline": [
+            {"primitive": "eagle_bound", "params": {}},
+        ],
+    }
+
+
+def _bard_bardic_die(level: int) -> str:
+    """Bardic Inspiration / Bardic Damage die by Bard level (d6→d12)."""
+    if level >= 15:
+        return "d12"
+    if level >= 10:
+        return "d10"
+    if level >= 5:
+        return "d8"
+    return "d6"
+
+
+def _build_dance_unarmed_action(level: int, ability_scores: dict,
+                                  proficiency_bonus: int) -> dict:
+    """College of Dance Bardic Damage (L3): a DEX-based Unarmed Strike that
+    deals (Bardic Inspiration die + DEX) Bludgeoning. Reuses the synthetic-
+    weapon build so its pipeline matches every other weapon attack. The die
+    grows with the Bardic die (d6→d12); the roll does NOT expend a Bardic
+    Inspiration use (it's the strike's damage, not the die mechanic)."""
+    die = _bard_bardic_die(level)   # 'd6'..'d12'
+    spec = {"id": "a_dance_unarmed_strike",
+            "name": "Unarmed Strike (Bardic Damage)",
+            "attack_ability": "dex", "damage_dice": f"1{die}",
+            "damage_type": "bludgeoning", "reach_ft": 5, "light": True}
+    return _build_weapon_action(spec, ability_scores, proficiency_bonus)
 
 
 def _build_steady_aim_action() -> dict:

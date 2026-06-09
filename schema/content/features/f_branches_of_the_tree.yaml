@@ -1,0 +1,58 @@
+# f_branches_of_the_tree — Branches of the Tree (Path of the World Tree,
+# Barbarian L6)
+# Source: PHB 2024 p.52
+#
+# RAW: "Whenever a creature you can see starts its turn within 30 feet of you
+# while your Rage is active, you can take a Reaction to summon spectral
+# branches of the World Tree around it. The target must succeed on a Strength
+# saving throw (DC 8 plus your Strength modifier and Proficiency Bonus) or be
+# teleported to an unoccupied space you can see within 5 feet of yourself or
+# in the nearest unoccupied space you can see. After the target teleports,
+# you can reduce its Speed to 0 until the end of the current turn."
+#
+# Engine modeling: a reaction on the `creature_turn_start` trigger
+# (dispatched by the runner at each creature's turn start). The
+# `branches_of_the_tree_would_pull` condition gates it (reactor has the
+# feature + is raging, mover is a living enemy it can see within 30 ft). The
+# `branches_pull` primitive (world_tree.execute_branches_pull) rolls the STR
+# save (DC 8 + STR + PB) and, on a failure, teleports the mover to an
+# unoccupied square adjacent to the barbarian and reduces its walk Speed to 0
+# for the turn (restored at the mover's next turn start). Combat-relevant
+# control: yanks an enemy into the barbarian's reach and pins it.
+#
+# Feature wiring status: FULLY WIRED.
+
+id: f_branches_of_the_tree
+name: Branches of the Tree
+source: srd_5.2.1
+granted_by:
+  subclass: sc_path_of_the_world_tree
+  level: 6
+type: active
+
+resource_cost:
+  type: reaction
+
+action_template:
+  id: a_branches_of_the_tree
+  name: Branches of the Tree
+  type: hard_control
+  slot: reaction
+  trigger: creature_turn_start
+  condition: branches_of_the_tree_would_pull
+  pipeline:
+    - primitive: branches_pull
+      params: {}
+
+contract:
+  reads: [actor.template.features_known, actor.rage_active, actor.position]
+  writes: [target.position, target.speed]
+  event: creature_turn_start
+  scope: per_use
+
+# v1 simplifications:
+#   - STR save is rolled inline (consistent with the weapon-mastery saves),
+#     so Legendary Resistance / racial save advantages don't apply to it yet.
+#   - "reduce its Speed to 0" is modeled as walk Speed → 0 for the turn
+#     (restored at the mover's next turn start), which denies its movement —
+#     the load-bearing combat effect.

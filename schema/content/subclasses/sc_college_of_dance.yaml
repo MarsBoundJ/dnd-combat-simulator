@@ -1,0 +1,49 @@
+# sc_college_of_dance — College of Dance (Bard subclass)
+# Source: PHB 2024.
+#
+# A nimble, melee-capable Bard that fights unarmored and weaves Unarmed
+# Strikes into its support. Heavily combat-relevant: Unarmored Defense + a
+# DEX Unarmed Strike that scales with the Bardic die + free strikes when
+# inspiring (L3), party initiative + reaction repositioning (L6), and an
+# improved Evasion (L14).
+#
+# Note: College of Dance is a PHB 2024 subclass, NOT in the SRD's Bard
+# subclass list (the SRD ships only College of Lore). `source` kept as the
+# repo's single ruleset id for loader consistency.
+#
+# Feature wiring status:
+#   - f_dazzling_footwork (L3)    → FULLY WIRED — Unarmored Defense
+#                                    (10+DEX+CHA) + Bardic Damage (DEX Unarmed
+#                                    Strike, BI-die+DEX) + Agile Strikes (free
+#                                    strike on BI grant). Dance Virtuoso is a
+#                                    non-combat marker within the feature.
+#                                    See engine/core/college_of_dance.py.
+#   - f_tandem_footwork (L6)      → FULLY WIRED — party initiative buff (spend
+#                                    BI at initiative, roll Bardic die, +roll
+#                                    to self + allies within 30 ft).
+#   - f_inspiring_movement (L6)   → FULLY WIRED — reaction at an enemy's turn
+#                                    end within 5 ft: spend BI, reposition the
+#                                    Bard + an ally away (no OAs) + Agile
+#                                    Strike on the adjacent enemy. See
+#                                    world_tree.py's twin turn-start trigger.
+#   - f_leading_evasion (L14)     → FULLY WIRED — rides the shared Evasion
+#                                    substrate (success→0, fail→half on DEX
+#                                    save-for-half) + 5-ft sharing.
+
+id: sc_college_of_dance
+name: College of Dance
+source: srd_5.2.1
+parent_class: c_bard
+
+archetype_tags:
+  behavior_archetype: nimble_skirmisher
+  role: skirmisher                # INTERNAL-EVAL-ONLY per vocabulary firewall
+  flavor_tags: [graceful, agile, cosmic, dancing]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_dazzling_footwork]
+  - level: 6
+    feature_ids: [f_inspiring_movement, f_tandem_footwork]
+  - level: 14
+    feature_ids: [f_leading_evasion]

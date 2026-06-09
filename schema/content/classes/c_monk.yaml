@@ -79,7 +79,7 @@ level_table:
       focus_points: 6
   - level: 7
     proficiency_bonus: 3
-    features: []
+    features: [f_evasion]
     class_resources:
       martial_arts: "1d8"
       focus_points: 7
