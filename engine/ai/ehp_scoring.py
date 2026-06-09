@@ -927,10 +927,25 @@ def offensive_ehp_ready(actor: Actor, action: dict,
             base = 0.0
         return base * READY_TRIGGER_FIRES_PROBABILITY
 
-    # Attack-shape triggers (existing PR #86 path). Pick the
-    # median-HP enemy as the proxy target.
+    # Spell-ready scoring: zone spells (persistent_aura sub-actions).
+    sub_type = sub_action.get("type")
     enemies_sorted = sorted(enemies, key=lambda e: e.hp_current)
     proxy_target = enemies_sorted[len(enemies_sorted) // 2]
+
+    if sub_type == "persistent_aura":
+        base = offensive_ehp_persistent_aura(
+            actor, sub_action, state,
+            origin=tuple(proxy_target.position))
+        return base * READY_TRIGGER_FIRES_PROBABILITY
+
+    # Spell-ready scoring: dome / hard_control sub-actions.
+    if sub_type == "hard_control":
+        from engine.ai import defensive_ehp as _def
+        base = _def.defensive_ehp_hard_control(
+            actor, proxy_target, sub_action, state)
+        return base * READY_TRIGGER_FIRES_PROBABILITY
+
+    # Attack-shape triggers (existing PR #86 path).
     base_score = offensive_ehp_single_attack(
         actor, proxy_target, sub_action, state)
     return base_score * READY_TRIGGER_FIRES_PROBABILITY

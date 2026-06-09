@@ -74,6 +74,11 @@ KNOWN_TRIGGERS: frozenset[str] = frozenset({
     # "Ready Cure Wounds on ally damage" + Wizard "Ready Shield on
     # ally damage" + Bard "Ready Healing Word on ally drop" patterns.
     "ally_takes_damage",
+    # Ready-a-Spell triggers (dial >= 4). Ranged approach trigger
+    # (zone spells on approaching enemy) and coordination trigger
+    # (dome follows ally's zone — the microwave combo).
+    "enemy_enters_range",
+    "ally_casts_spell_at_target",
 })
 
 
@@ -83,7 +88,10 @@ KNOWN_TRIGGERS: frozenset[str] = frozenset({
 
 def register(actor: Actor, sub_action_id: str, trigger: str,
               state: CombatState,
-              trigger_params: dict | None = None) -> None:
+              trigger_params: dict | None = None, *,
+              spell_ready: bool = False,
+              sub_action: dict | None = None,
+              chosen_slot_level: int = 0) -> None:
     """Set `actor.readied_action` to the given (sub_action, trigger)
     pair. Overwrites any prior readied action (RAW: Ready is one
     action per turn; readying again replaces).
@@ -101,6 +109,12 @@ def register(actor: Actor, sub_action_id: str, trigger: str,
         min_damage lets a Cleric Ready Healing Word "if my ally
         takes at least 10 damage" without burning the reaction on
         chip damage.
+      - `enemy_enters_range`: {"range_ft": int} — spell-range gate.
+      - `ally_casts_spell_at_target`: {"range_ft": int} — range gate.
+
+    When `spell_ready=True` (Ready-a-Spell, dial >= 4): consumes the
+    spell slot immediately and applies concentration if the held spell
+    requires it (RAW: "you cast it as normal but hold its energy").
 
     Logs `ready_action_taken` with actor / sub_action / trigger /
     round so the AI's choice is visible in the event log.
@@ -110,17 +124,30 @@ def register(actor: Actor, sub_action_id: str, trigger: str,
             f"Unknown ready trigger: {trigger!r}; "
             f"valid: {sorted(KNOWN_TRIGGERS)}"
         )
+
+    is_concentration = False
+    if spell_ready and chosen_slot_level > 0:
+        _consume_spell_slot(actor, chosen_slot_level)
+        if sub_action and sub_action.get("concentration"):
+            from engine.core.concentration import apply_concentration
+            apply_concentration(actor, sub_action, state)
+            is_concentration = True
+
     actor.readied_action = {
         "action_id": sub_action_id,
         "trigger": trigger,
         "trigger_params": dict(trigger_params or {}),
         "round_readied": state.round,
+        "spell_ready": spell_ready,
+        "concentration": is_concentration,
+        "chosen_slot_level": chosen_slot_level,
     }
     state.event_log.append({
         "event": "ready_action_taken",
         "actor": actor.id,
         "sub_action": sub_action_id,
         "trigger": trigger,
+        "spell_ready": spell_ready,
         "round": state.round,
     })
 
@@ -133,11 +160,18 @@ def discard(actor: Actor, state: CombatState, reason: str) -> None:
       - 'reaction_unavailable' — fired but reaction slot already used
       - 'fired' — readied action executed successfully (logged for
         symmetry; the actual firing also emits `ready_action_fired`)
+      - 'concentration_lost' — held spell's concentration broken by
+        damage; spell dissipates without effect (RAW)
       - 'caster_incapacitated' — deferred; future
     """
     if actor.readied_action is None:
         return
     snapshot = dict(actor.readied_action)
+    if snapshot.get("spell_ready") and snapshot.get("concentration"):
+        if reason != "fired":
+            from engine.core.concentration import end_concentration
+            end_concentration(actor, state,
+                              reason="ready_spell_discarded")
     actor.readied_action = None
     state.event_log.append({
         "event": "ready_action_discarded",
@@ -229,6 +263,12 @@ def try_fire(actor: Actor, target: Actor, state: CombatState,
     if not allow_dead_target and not target.is_alive():
         return False
 
+    if (actor.readied_action.get("spell_ready")
+            and actor.readied_action.get("concentration")
+            and actor.concentration_on is None):
+        discard(actor, state, reason="concentration_lost")
+        return False
+
     action_id = actor.readied_action["action_id"]
     sub_action = _find_action(actor, action_id)
     if sub_action is None:
@@ -269,6 +309,7 @@ def try_fire(actor: Actor, target: Actor, state: CombatState,
         state.current_attack = saved_attack
 
     actor.actions_used_this_turn["reaction"] = True
+    is_spell_ready = actor.readied_action.get("spell_ready", False)
     state.event_log.append({
         "event": "ready_action_fired",
         "actor": actor.id,
@@ -278,6 +319,14 @@ def try_fire(actor: Actor, target: Actor, state: CombatState,
         "reason": reason,
     })
     discard(actor, state, reason="fired")
+
+    # Chain: a fired spell-ready can trigger ally_casts_spell_at_target
+    # on same-side actors (the microwave coordination path). Fires
+    # AFTER the pipeline ran (zone is placed before dome fires).
+    if is_spell_ready and target is not None:
+        on_ally_casts_spell_at_target(
+            actor, target, state, event_bus, primitives)
+
     return True
 
 
@@ -402,9 +451,75 @@ def on_spell_cast_initiated(caster: Actor, state: CombatState,
     return fired
 
 
+def on_enemy_enters_range(mover: Actor, pre_position: tuple[int, int],
+                          state: CombatState, event_bus,
+                          primitives=None) -> int:
+    """Hook for `enemy_enters_range` triggers (spell-ready, dial >= 4).
+    Called from the runner's move-to-engage path after
+    `on_movement_completed`. Ranged analog: checks range_ft instead
+    of reach_ft."""
+    from engine.core.geometry import distance_ft
+    fired = 0
+    actors_with_trigger = find_actors_with_trigger(state,
+                                                   "enemy_enters_range")
+    for actor in actors_with_trigger:
+        if actor.side == mover.side:
+            continue
+        params = actor.readied_action.get("trigger_params") or {}
+        range_ft = int(params.get("range_ft", 120))
+        was_in_range = distance_ft(actor.position, pre_position) <= range_ft
+        is_in_range = distance_ft(actor.position, mover.position) <= range_ft
+        if not was_in_range and is_in_range:
+            if try_fire(actor, mover, state, event_bus, primitives,
+                        reason="enemy_entered_range"):
+                fired += 1
+                if not mover.is_alive():
+                    break
+    return fired
+
+
+def on_ally_casts_spell_at_target(caster: Actor, target: Actor,
+                                  state: CombatState, event_bus,
+                                  primitives=None) -> int:
+    """Hook for `ally_casts_spell_at_target` triggers (spell-ready,
+    dial >= 4). Fires when a same-side ally resolves a spell on a
+    target — the readied actor casts at the SAME target (the
+    microwave coordination: dome follows zone)."""
+    from engine.core.geometry import distance_ft
+    if target is None or not target.is_alive():
+        return 0
+    fired = 0
+    actors_with_trigger = find_actors_with_trigger(
+        state, "ally_casts_spell_at_target")
+    for actor in actors_with_trigger:
+        if actor.side != caster.side:
+            continue
+        if actor.id == caster.id:
+            continue
+        params = actor.readied_action.get("trigger_params") or {}
+        range_ft = int(params.get("range_ft", 120))
+        if distance_ft(actor.position, target.position) > range_ft:
+            continue
+        if try_fire(actor, target, state, event_bus, primitives,
+                    reason="ally_cast_spell_at_target"):
+            fired += 1
+    return fired
+
+
 # ============================================================================
 # Helpers
 # ============================================================================
+
+def _consume_spell_slot(actor: Actor, slot_level: int) -> None:
+    """Consume a spell slot at register time (Ready-a-Spell). RAW:
+    'you cast it as normal but hold its energy.'"""
+    slots = actor.spell_slots or {}
+    key = str(slot_level)
+    current = int(slots.get(key, 0))
+    if current > 0:
+        slots[key] = current - 1
+        actor.spell_slots = slots
+
 
 def _find_action(actor: Actor, action_id: str) -> dict | None:
     """Return the actor's action dict by id, or None if not found."""

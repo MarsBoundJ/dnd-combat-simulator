@@ -445,6 +445,8 @@ class EncounterRunner:
             from engine.core import ready_action as _ra
             _ra.on_movement_completed(
                 actor, from_pos, state, self.event_bus, self.primitives)
+            _ra.on_enemy_enters_range(
+                actor, from_pos, state, self.event_bus, self.primitives)
         return True
 
     def _maybe_reposition_for_aoe(self, actor: Actor,
@@ -488,6 +490,8 @@ class EncounterRunner:
         if actor.is_alive():
             from engine.core import ready_action as _ra
             _ra.on_movement_completed(
+                actor, from_pos, state, self.event_bus, self.primitives)
+            _ra.on_enemy_enters_range(
                 actor, from_pos, state, self.event_bus, self.primitives)
         return True
 
@@ -639,6 +643,10 @@ class EncounterRunner:
         if actor.is_alive():
             from engine.core import ready_action as _ra
             _ra.on_movement_completed(
+                actor, from_pos, state,
+                self.event_bus, self.primitives,
+            )
+            _ra.on_enemy_enters_range(
                 actor, from_pos, state,
                 self.event_bus, self.primitives,
             )
