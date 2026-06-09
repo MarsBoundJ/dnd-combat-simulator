@@ -65,18 +65,28 @@ def activate_rage_of_the_wilds(actor: Actor, state: CombatState) -> None:
     actor.wild_heart_active_choice = choice
 
     # Eagle's rage-entry grant: Dash + Disengage fold into the Rage Bonus
-    # Action. Mark the actor disengaging (no OAs provoked this turn) and
-    # dashed (doubled movement this turn). The per-later-turn Bonus Action
-    # to repeat this is a documented follow-on.
+    # Action. On each LATER turn of the Rage the barbarian can spend a Bonus
+    # Action to repeat this (the a_eagle_bound BA, gated on eagle-active).
     if choice == "eagle":
-        actor.disengaging = True
-        actor.dashed_this_turn = True
+        apply_eagle_bound(actor)
 
     state.event_log.append({
         "event": "rage_of_the_wilds_activated",
         "actor": actor.id,
         "choice": choice,
     })
+
+
+def apply_eagle_bound(actor: Actor) -> None:
+    """Apply the Eagle aspect's Dash + Disengage movement grant: doubled
+    movement (dashed_this_turn, with moved_this_turn cleared so a fresh
+    move pass can fire) and OA-immunity for the turn (disengaging).
+
+    Shared by the rage-entry grant (activate_rage_of_the_wilds) and the
+    per-later-turn Bonus Action (the eagle_bound primitive)."""
+    actor.dashed_this_turn = True
+    actor.moved_this_turn = False
+    actor.disengaging = True
 
 
 def deactivate_rage_of_the_wilds(actor: Actor, state: CombatState) -> None:

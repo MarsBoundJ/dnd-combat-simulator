@@ -223,6 +223,105 @@ class EagleTest(unittest.TestCase):
         self.assertFalse(a.dashed_this_turn)
 
 
+class EagleBoundBonusActionTest(unittest.TestCase):
+    """The per-later-turn Eagle Bound BA (Dash + Disengage together)."""
+
+    def _eagle_pc(self, choice="eagle", level=5):
+        spec = {"id": "z", "class": "c_barbarian", "level": level,
+                "subclass": "sc_path_of_the_wild_heart",
+                "wild_heart_rage_choice": choice,
+                "ability_scores": {"str": 18, "dex": 14, "con": 16,
+                                   "int": 8, "wis": 10, "cha": 8},
+                "weapons": [{"id": "ga", "name": "GA", "damage_dice": "1d12",
+                             "damage_type": "slashing",
+                             "attack_ability": "str", "reach_ft": 5}]}
+        tmpl = build_pc_template(spec, _registry())
+        ab = _ab()
+        return Actor(id="z", name="z", template=tmpl, side="pc",
+                     hp_current=60, hp_max=60, ac=15, position=(0, 0),
+                     speed={"walk": 40}, abilities=ab)
+
+    def _foe(self, pos=(15, 0)):
+        ab = _ab()
+        return Actor(id="foe", name="foe",
+                     template={"id": "tf", "name": "foe", "abilities": ab,
+                               "cr": {"proficiency_bonus": 2},
+                               "actions": [{"type": "weapon_attack",
+                                            "pipeline": [{"primitive": "attack_roll",
+                                                          "params": {"reach_ft": 5}}]}]},
+                     side="enemy", hp_current=40, hp_max=40, ac=14,
+                     position=pos, speed={"walk": 30}, abilities=ab)
+
+    def _candidates(self, actor, state):
+        from engine.core.pipeline import generate_candidates
+        return [c for c in generate_candidates(actor, state, "bonus_action")
+                if c["action"].get("id") == "a_eagle_bound"]
+
+    def test_action_on_template_for_eagle_build(self):
+        z = self._eagle_pc("eagle")
+        ids = [a.get("id") for a in z.template["actions"]]
+        self.assertIn("a_eagle_bound", ids)
+
+    def test_action_on_template_even_for_bear_build(self):
+        # Added unconditionally; emission is gated on the active choice.
+        z = self._eagle_pc("bear")
+        ids = [a.get("id") for a in z.template["actions"]]
+        self.assertIn("a_eagle_bound", ids)
+
+    def test_not_a_candidate_before_raging(self):
+        z = self._eagle_pc("eagle")
+        st = _state([z, self._foe()])
+        st.content_registry = _registry()
+        self.assertEqual(len(self._candidates(z, st)), 0)
+
+    def test_candidate_while_raging_eagle(self):
+        z = self._eagle_pc("eagle")
+        st = _state([z, self._foe()])
+        st.content_registry = _registry()
+        R.enter_rage(z, st)
+        z.reset_turn()   # next turn: entry-grant flags cleared
+        self.assertEqual(len(self._candidates(z, st)), 1)
+
+    def test_not_a_candidate_for_bear_build_while_raging(self):
+        z = self._eagle_pc("bear")
+        st = _state([z, self._foe()])
+        st.content_registry = _registry()
+        R.enter_rage(z, st)
+        z.reset_turn()
+        self.assertEqual(len(self._candidates(z, st)), 0)
+
+    def test_primitive_sets_dash_and_disengage(self):
+        z = self._eagle_pc("eagle")
+        st = _state([z])
+        R.enter_rage(z, st)
+        z.reset_turn()
+        self.assertFalse(z.dashed_this_turn)
+        st.current_attack = {"actor": z, "target": z}
+        primitives_module._eagle_bound({}, st, EventBus())
+        self.assertTrue(z.dashed_this_turn)
+        self.assertTrue(z.disengaging)
+        self.assertFalse(z.moved_this_turn)
+
+    def test_primitive_logs_event(self):
+        z = self._eagle_pc("eagle")
+        st = _state([z])
+        st.current_attack = {"actor": z, "target": z}
+        primitives_module._eagle_bound({}, st, EventBus())
+        self.assertIn("eagle_bound", [e.get("event") for e in st.event_log])
+
+    def test_score_positive_with_distant_enemy(self):
+        from engine.ai.defensive_ehp import _score_eagle_bound
+        z = self._eagle_pc("eagle")
+        st = _state([z, self._foe(pos=(15, 0))])
+        self.assertGreater(_score_eagle_bound(z, st), 0.0)
+
+    def test_score_includes_disengage_bump_when_adjacent(self):
+        from engine.ai.defensive_ehp import _score_eagle_bound
+        z = self._eagle_pc("eagle")
+        st = _state([z, self._foe(pos=(1, 0))])  # adjacent
+        self.assertGreaterEqual(_score_eagle_bound(z, st), 0.5)
+
+
 class WolfAuraTest(unittest.TestCase):
 
     def _setup(self, foe_pos=(1, 0)):

@@ -41,7 +41,11 @@ of each: `actor.wild_heart_active_choice` + `actor.wild_heart_power_active`).
 L3 Rage of the Wilds: Bear = broad resistance (all except F/N/P/R, no
 double-halve with base Rage BPS); Wolf = ally-advantage aura via an
 identity-state read in `query_attack_modifiers` (mirrors Reckless Attack);
-Eagle = rage-entry Dash+Disengage grant (per-later-turn BA deferred).
+Eagle = rage-entry Dash+Disengage grant PLUS a per-later-turn `a_eagle_bound`
+BA (the `eagle_bound` primitive, gated on `requires_eagle_active` — modeled
+on Cunning Action). Mid-combat aspect re-selection is a deliberate non-goal:
+the sim uses a fixed build-time pick (correct for build-analysis scoring),
+documented as a design note, not a gap.
 
 L14 Power of the Wilds: Falcon = fly-while-unarmored (new
 `template.wears_armor` flag, stamped for all PCs); Lion = the disadvantage

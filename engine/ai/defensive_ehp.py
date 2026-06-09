@@ -483,6 +483,12 @@ def defensive_ehp_defensive_buff(actor: Actor, target_ally: Actor,
     if _pipeline_has_primitive(action, "dash"):
         return _score_dash(actor, state)
 
+    # Wild Heart Eagle Bound (L3 BA): Dash + Disengage together. Value =
+    # the Dash closing-distance value plus a small Disengage bump when an
+    # enemy is adjacent (escaping an out-of-position swarm without an OA).
+    if _pipeline_has_primitive(action, "eagle_bound"):
+        return _score_eagle_bound(actor, state)
+
     # PR #80: Steady Aim (Rogue L3 BA) — advantage on next attack.
     # Standard buff scorer wouldn't pick it up (no
     # attack/save_modifier in the pipeline; uses a custom primitive).
@@ -665,6 +671,30 @@ def _score_rage_entry(actor: Actor, state: CombatState) -> float:
     defensive_value = 0.5 * worst_dpr * EXPECTED_BUFF_ROUNDS
 
     return offensive_value + defensive_value
+
+
+def _score_eagle_bound(actor: Actor, state: CombatState) -> float:
+    """Estimate eHP value of the Wild Heart Eagle Bound BA (Dash +
+    Disengage together, L3).
+
+    Combines the two effects:
+      - Dash value (closing distance to an out-of-reach enemy) via the
+        shared `_score_dash`.
+      - A small Disengage bump (~0.5 eHP) when an enemy is adjacent — the
+        raging barbarian can reposition out of a swarm without provoking
+        an Opportunity Attack.
+
+    The bonus-action `tactical_bonus` gate still rolls for whether to fire;
+    at low score it usually won't (a raging barbarian normally prefers to
+    stand and swing), which is the right default for a melee striker."""
+    from engine.core.geometry import distance_ft
+    dash_value = _score_dash(actor, state)
+    adjacent_enemy = any(
+        e.side != actor.side and e.is_alive()
+        and distance_ft(actor.position, e.position) <= 5
+        for e in state.encounter.actors)
+    disengage_value = 0.5 if adjacent_enemy else 0.0
+    return dash_value + disengage_value
 
 
 def _score_dash(actor: Actor, state: CombatState) -> float:

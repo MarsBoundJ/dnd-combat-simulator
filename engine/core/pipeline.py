@@ -163,6 +163,12 @@ def generate_candidates(actor: Actor, state: CombatState,
     if actor.moved_this_turn:
         actions = [a for a in actions
                     if not a.get("requires_no_movement")]
+    # Wild Heart Eagle aspect: the a_eagle_bound BA (Dash + Disengage) is
+    # only available while the actor is raging with the Eagle aspect active.
+    # Actions tagged `requires_eagle_active` are filtered out otherwise.
+    if getattr(actor, "wild_heart_active_choice", None) != "eagle":
+        actions = [a for a in actions
+                    if not a.get("requires_eagle_active")]
 
     enemies = [a for a in state.encounter.actors
                if a.side != actor.side and a.is_alive()]

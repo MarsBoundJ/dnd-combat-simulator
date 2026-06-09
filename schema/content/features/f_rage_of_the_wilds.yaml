@@ -25,8 +25,9 @@
 #            primitives._damage (broader than base Rage B/P/S; no double-
 #            halve).
 #   - Eagle: rage-entry grant sets disengaging + dashed_this_turn (Dash +
-#            Disengage fold into the Rage Bonus Action). The per-later-turn
-#            Bonus Action is a documented follow-on.
+#            Disengage fold into the Rage Bonus Action); the per-later-turn
+#            Bonus Action (a_eagle_bound, the eagle_bound primitive) repeats
+#            it each turn of the Rage, gated on `requires_eagle_active`.
 #   - Wolf:  wolf_advantage_applies() grants the Wolf's allies Advantage on
 #            attacks against any enemy within 5 ft of the Wolf
 #            (modifiers.query_attack_modifiers identity-state read).
@@ -54,10 +55,12 @@ contract:
   event: rage_activated
   scope: passive
 
-# Deferred:
-#   - Eagle's per-later-turn Bonus Action (Dash + Disengage on each turn of
-#     the Rage, not just the entry turn): v1 ships the rage-entry grant; the
-#     per-turn BA candidate is a thin follow-on (mobility, low DPR/eHP signal).
-#   - Mid-combat aspect re-selection: RAW chooses each time you Rage; v1 uses
-#     a fixed build-time pick (wild_heart_rage_choice, default Bear). An
-#     AI-lane "pick the best aspect for this fight" selector is a follow-on.
+# Design note (NOT a gap):
+#   - Mid-combat aspect re-selection: RAW chooses the aspect each time you
+#     Rage. The sim uses a FIXED build-time pick (wild_heart_rage_choice,
+#     default Bear) — the correct model for build-analysis / Treantmonk-style
+#     DPR-eHP scoring, where you evaluate one optimized build per run (and can
+#     re-run with a different pick). A mid-combat AI aspect-selector that
+#     re-chooses per Rage based on the battlefield is an AI-lane feature
+#     shared with Rage of the Gods; deliberately out of scope for the combat
+#     sim, not a missing piece of this feature.

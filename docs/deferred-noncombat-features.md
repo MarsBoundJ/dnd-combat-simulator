@@ -39,7 +39,8 @@ the PR / session reference.
 
 ### Barbarian — Path of the Wild Heart
 - **f_rage_of_the_wilds (L3)** — Bear / Eagle / Wolf rage choices. WIRED
-  (combat-relevant: resistance / mobility / team-advantage aura).
+  (combat-relevant: resistance / mobility / team-advantage aura). Eagle's
+  per-turn Dash+Disengage BA (a_eagle_bound) is fully wired.
 - **f_power_of_the_wilds (L14)** — Falcon / Lion / Ram rage choices. WIRED
   (combat-relevant: fly-while-unarmored / enemy-disadvantage aura / on-hit
   Prone on Large-or-smaller). RAW confirmed by Phil 2026-06-09.

@@ -1167,6 +1167,14 @@ def _build_feature_actions(features_known: set[str], level: int,
     # consumes `rage_uses_remaining` and flips Actor.rage_active.
     if "f_rage" in features_known and class_id == "c_barbarian":
         actions.append(_build_rage_action())
+    # Wild Heart Eagle aspect (L3): the per-later-turn Bonus Action to take
+    # Dash + Disengage together. Added for any Wild Heart barbarian; emission
+    # is gated on the Eagle aspect being ACTIVE (raging with the Eagle pick)
+    # via `requires_eagle_active` in the candidate generator, so a Bear/Wolf
+    # build carries the action harmlessly — its active choice is never Eagle.
+    if ("f_rage_of_the_wilds" in features_known
+            and class_id == "c_barbarian"):
+        actions.append(_build_eagle_bound_action())
     # PR #74: Rogue Cunning Action — three bonus-action variants
     # (Dash / Disengage / Hide). Adds to the action list alongside
     # the standard main-action versions (those come from the
@@ -2000,6 +2008,31 @@ def _build_cunning_action_actions() -> list[dict]:
             "pipeline": [],
         },
     ]
+
+
+def _build_eagle_bound_action() -> dict:
+    """Wild Heart Eagle aspect (L3) per-later-turn Bonus Action: Dash +
+    Disengage together (RAW: "you can take a Bonus Action on each of your
+    turns to take both of those actions").
+
+    type=defensive_buff (self-targeted utility, like Cunning Action Dash) so
+    it rides the is_self_targeted_defensive_buff dedup (one candidate, not
+    one-per-ally). `requires_eagle_active: true` gates emission to turns when
+    the actor is raging with the Eagle aspect active. `is_signature: false`
+    — situational mobility, scored by the eagle_bound branch in
+    defensive_ehp.
+    """
+    return {
+        "id": "a_eagle_bound",
+        "name": "Eagle Bound (Dash + Disengage)",
+        "type": "defensive_buff",
+        "slot": "bonus_action",
+        "is_signature": False,
+        "requires_eagle_active": True,
+        "pipeline": [
+            {"primitive": "eagle_bound", "params": {}},
+        ],
+    }
 
 
 def _build_steady_aim_action() -> dict:

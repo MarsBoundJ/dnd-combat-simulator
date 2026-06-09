@@ -15,7 +15,8 @@
 # Feature wiring status:
 #   - f_animal_speaker (L3)       → MARKER (Stage 4) — ritual utility spells
 #   - f_rage_of_the_wilds (L3)    → FULLY WIRED — Bear (broad resistance) /
-#                                    Eagle (Dash+Disengage mobility) / Wolf
+#                                    Eagle (Dash+Disengage on rage entry AND
+#                                    a per-turn a_eagle_bound BA) / Wolf
 #                                    (ally-advantage aura). See
 #                                    engine/core/wild_heart.py.
 #   - f_aspect_of_the_wilds (L6)  → MARKER (Stage 4) — exploration senses +

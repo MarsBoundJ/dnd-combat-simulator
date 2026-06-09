@@ -401,6 +401,9 @@ def is_self_targeted_defensive_buff(action: dict) -> bool:
         # targeted — affects only the actor's own movement budget.
         if prim == "dash":
             return True
+        # Wild Heart Eagle Bound — self-targeted Dash + Disengage grant.
+        if prim == "eagle_bound":
+            return True
         # PR #80: Steady Aim — self-targeted advantage on next
         # attack + speed 0. Same self-targeted pattern.
         if prim == "steady_aim":

@@ -2362,6 +2362,26 @@ def _zealous_presence(params: dict, state: CombatState,
     })
 
 
+def _eagle_bound(params: dict, state: CombatState, bus: EventBus) -> None:
+    """Eagle Bound (Wild Heart L3, Rage of the Wilds — Eagle aspect).
+
+    The per-later-turn Bonus Action: while raging with Eagle active, take
+    the Dash AND Disengage actions together (RAW: "you can take a Bonus
+    Action on each of your turns to take both of those actions"). Sets the
+    same Dash + Disengage flags as the rage-entry grant via
+    wild_heart.apply_eagle_bound. Self-targeted (no params)."""
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        raise ValueError("eagle_bound requires a current actor")
+    from engine.core.wild_heart import apply_eagle_bound
+    apply_eagle_bound(actor)
+    state.event_log.append({
+        "event": "eagle_bound",
+        "actor": actor.id,
+        "doubled_speed_ft": int((actor.speed or {}).get("walk", 30)) * 2,
+    })
+
+
 def _revivification_save(params: dict, state: CombatState,
                           bus: EventBus) -> None:
     """Revivification (Rage of the Gods reaction, Zealot L14+).
@@ -3412,6 +3432,7 @@ def _populate_handler_table() -> None:
         "lay_on_hands": _lay_on_hands,
         "warrior_of_the_gods": _warrior_of_the_gods,
         "zealous_presence": _zealous_presence,
+        "eagle_bound": _eagle_bound,
         "revivification_save": _revivification_save,
         "ready_action": _ready_action,
         "melee_retaliation": _melee_retaliation,
@@ -3491,6 +3512,9 @@ def _all_primitives() -> list[Primitive]:
         # attacks + saves to up to 10 allies within 60 ft until the
         # Zealot's next turn. Must stay in sync with _populate_handler_table.
         Primitive("zealous_presence", _zealous_presence, implemented=True),
+        # Eagle Bound (Wild Heart L3, Eagle aspect) — per-later-turn Bonus
+        # Action: Dash + Disengage together while raging with Eagle active.
+        Primitive("eagle_bound", _eagle_bound, implemented=True),
         # Revivification (Zealot L14, Rage of the Gods reaction) — spends a
         # Rage use to restore a would-be-downed ally to Barbarian level HP.
         Primitive("revivification_save", _revivification_save,
