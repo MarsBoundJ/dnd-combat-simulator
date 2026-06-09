@@ -1342,6 +1342,18 @@ def _forced_save(params: dict, state: CombatState, bus: EventBus) -> dict:
                       + cover_save_bonus)
             outcome = "success" if total >= dc else "fail"
 
+        # Bardic Inspiration: a creature holding a BI die may add it to a
+        # failed save to turn it into a success — the same held-resource
+        # self-add modeled on attack rolls. Only on a real roll (auto_fail
+        # overrides have total None). Fires before the reroll features +
+        # Legendary Resistance (cheapest self-resource first).
+        if outcome == "fail" and total is not None:
+            from engine.core.bardic_inspiration import maybe_add_to_save
+            bi_total = maybe_add_to_save(target, total, dc, state, rng)
+            if bi_total != total:
+                total = bi_total
+                outcome = "success" if total >= dc else "fail"
+
         # Fanatical Focus (Zealot L6): once per Rage, reroll a failed save
         # with +rage_damage_bonus. Fires before Legendary Resistance so the
         # Zealot gets their reroll first (then LR may still flip it back).
