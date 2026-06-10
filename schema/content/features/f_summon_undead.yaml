@@ -1,0 +1,56 @@
+# f_summon_undead — Summon Undead (3rd-level Necromancy, PHB 2024 —
+# NOT in SRD 5.2.1)
+#
+# RAW summary (own words, from owned PHB 2024): Action, V/S/M (gilded
+# skull 300+ GP), 90 ft, Concentration up to 1 hour. Call an Undead
+# spirit (Undead Spirit stat block; choose a form — Ghostly, Putrid,
+# or Skeletal — which sets HP, movement, traits and attack). Ally;
+# shares your initiative, acts after you, obeys verbal commands;
+# vanishes at 0 HP or spell end. Upcast: the stat block uses the
+# slot's level. Classes: Warlock, Wizard.
+#
+# Engine modeling: `summon` action_template riding the Stage 2a/2b
+# lifecycle + scorer. v1 summons m_undead_spirit_skeletal — the
+# 150-ft Grave Bolt sniper, the form a backline caster actually
+# wants — firing at the caster's spell attack modifier.
+#
+# Deferred RAW bits:
+#   - Ghostly (Deathly Touch + frighten, incorporeal movement, fly)
+#     and Putrid (Rotting Claw + Festering Aura poison/paralysis
+#     combo) forms.
+#   - Stat-block upcast scaling.
+
+id: f_summon_undead
+name: Summon Undead
+source: user_authored
+granted_by:
+  class: c_wizard
+  level: 5                 # Wizards gain 3rd-level slots at L5
+type: active
+spell:
+  class: c_wizard
+  level: 3
+
+description: |
+  Summon an Undead Spirit (Skeletal form) within 90 ft for the
+  duration (Concentration, 1 hour). 150-ft Grave Bolt sniper
+  attacking with your spell attack modifier. (Ghostly/Putrid forms +
+  upcast deferred.)
+
+action_template:
+  id: a_summon_undead
+  name: Summon Undead
+  type: summon
+  spell_slot_level: 3
+  concentration: true
+  named_effect: summon_undead
+  range_ft: 90
+  pipeline:
+    - primitive: summon
+      params:
+        monster: m_undead_spirit_skeletal
+        count: 1
+        max_total: 1
+        # RAW: Grave Bolt uses the caster's spell attack modifier
+        # (resolved at cast time; the stat block's +6 is a fallback).
+        attack_bonus_from: caster_spell_attack

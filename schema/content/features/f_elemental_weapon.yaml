@@ -1,0 +1,68 @@
+# f_elemental_weapon — Elemental Weapon (3rd-level Transmutation,
+# PHB 2024 — NOT in SRD 5.2.1)
+#
+# RAW summary (own words, from owned PHB 2024): Action, V/S, Touch,
+# Concentration up to 1 hour. A nonmagical weapon you touch becomes
+# magical: +1 to attack rolls and +1d4 of a chosen element (acid /
+# cold / fire / lightning / thunder) on hits. Upcast tiers: slots
+# 5-6 → +2 and 2d4; slots 7+ → +3 and 3d4. Classes: Druid, Paladin,
+# Ranger.
+#
+# Engine modeling: a self-cast weapon buff (the Paladin enchants
+# their own weapon — the dominant table use). Divine Favor shape
+# plus an attack-roll bonus:
+#   - attack_modifier +1 on the caster's own attacks (Bless's
+#     attack_bonus modifier, attacker_is_self gate).
+#   - weapon_damage_bonus +2 flat (the 1d4 convention), fire typing
+#     left to the damage roll's weapon type (typed-element resistance
+#     interaction deferred with the flat-bonus model).
+#
+# Deferred RAW bits:
+#   - Buffing an ALLY's weapon (range Touch) — self-cast only, like
+#     Divine Favor.
+#   - The 5-6 / 7+ upcast tiers (stepped non-linear scaling has no
+#     upcast_scaling support; base tier only).
+#   - Element choice / typed damage (flat untyped +2 rider; matters
+#     only vs elemental resistances).
+#   - "Becomes a magic weapon" (nonmagical-resistance bypass not
+#     modeled at PC weapon level yet).
+
+id: f_elemental_weapon
+name: Elemental Weapon
+source: user_authored
+granted_by:
+  class: c_paladin
+  level: 9                 # Paladins gain 3rd-level slots at L9
+type: active
+spell:
+  class: c_paladin
+  level: 3
+
+description: |
+  Touch weapon buff, concentration 1 hour: +1 to attack rolls and
+  +1d4 elemental damage (flat +2) on hits. Self-cast v1; ally
+  weapons + stepped upcast tiers deferred.
+
+action_template:
+  id: a_elemental_weapon
+  name: Elemental Weapon
+  type: defensive_buff
+  spell_slot_level: 3
+  slot: action
+  concentration: true
+  named_effect: elemental_weapon
+  range_ft: 0              # self-cast (own weapon) v1
+  pipeline:
+    - primitive: attack_modifier
+      params:
+        target: self
+        when: attacker_is_self
+        modifier: attack_bonus
+        value: 1
+        lifetime: until_short_rest
+    - primitive: weapon_damage_bonus
+      params:
+        target: self
+        value: 2
+        when: weapon_attack
+        lifetime: until_short_rest

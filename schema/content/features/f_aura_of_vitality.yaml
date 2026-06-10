@@ -1,0 +1,59 @@
+# f_aura_of_vitality — Aura of Vitality (3rd-level Abjuration,
+# PHB 2024 — NOT in SRD 5.2.1)
+#
+# RAW summary (own words, from owned PHB 2024): Action, V, Self
+# (30-ft Emanation), Concentration up to 1 minute. When you create
+# the aura AND at the start of each of your turns while it lasts,
+# restore 2d6 HP to one creature in the aura. Classes: Cleric,
+# Druid, Paladin.
+#
+# Engine modeling: the ally-aura HEAL-OVER-TIME sub-shape (roadmap
+# §E), shipped with the `recurring_heal` primitive + runner tick:
+#   - type: heal — the cast itself heals 2d6 to the chosen target
+#     (candidate generator picks the most wounded ally; the heal
+#     scorer values it normally).
+#   - The pipeline also registers a SOURCE-keyed recurring_heal: at
+#     the start of each of the CASTER's turns, the most wounded
+#     living ally (caster included) within 30 ft is healed 2d6.
+#     Skipped when nobody in range is hurt (no wasted ticks — the
+#     choice is the caster's). Scrubbed on concentration end.
+#
+# Deferred RAW bits:
+#   - None mechanical of note — out-of-combat use (wand-of-AoV-style
+#     between-fight topping up) is a sim-mode question, not a spell
+#     fidelity one.
+
+id: f_aura_of_vitality
+name: Aura of Vitality
+source: user_authored
+granted_by:
+  class: c_paladin
+  level: 9                 # Paladins gain 3rd-level slots at L9
+type: active
+spell:
+  class: c_paladin
+  level: 3
+
+description: |
+  30-ft emanation, concentration 1 minute: heal 2d6 to one creature
+  in it at cast and at the start of each of the caster's turns
+  (v1 auto-picks the most wounded ally in range).
+
+action_template:
+  id: a_aura_of_vitality
+  name: Aura of Vitality
+  type: heal
+  spell_slot_level: 3
+  concentration: true
+  named_effect: aura_of_vitality
+  range_ft: 30
+  pipeline:
+    - primitive: heal
+      params:
+        target: current_target
+        dice: "2d6"
+        modifier: 0
+    - primitive: recurring_heal
+      params:
+        dice: "2d6"
+        radius_ft: 30

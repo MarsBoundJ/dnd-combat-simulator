@@ -1,7 +1,8 @@
 """Blinding Smite tests.
 
 RAW (PHB 2024, 3rd-level Paladin spell):
-  BA cast, concentration up to 1 minute. Next melee weapon hit deals
+  BA cast (after a melee hit), 1 minute, NOT concentration (2024).
+  The next melee weapon hit deals
   +3d8 radiant (+1d8 per slot above 3rd, doubled on crit) and target
   is Blinded automatically (no initial save). End-of-turn CON save to
   end the spell (deferred).
@@ -112,7 +113,8 @@ class ContentTest(unittest.TestCase):
         tmpl = feature["action_template"]
         self.assertEqual(tmpl["spell_slot_level"], 3)
         self.assertEqual(tmpl["slot"], "bonus_action")
-        self.assertTrue(tmpl["concentration"])
+        # 2024: NOT concentration (end-of-turn CON re-save instead)
+        self.assertNotIn("concentration", tmpl)
         self.assertEqual(tmpl["named_effect"], "blinding_smite")
         self.assertEqual(tmpl["pipeline"][0]["primitive"],
                             "blinding_smite_arm")

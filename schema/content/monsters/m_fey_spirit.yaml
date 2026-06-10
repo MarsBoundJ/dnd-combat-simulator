@@ -1,0 +1,70 @@
+# m_fey_spirit — the Fey Spirit summoned by Summon Fey (f_summon_fey),
+# PHB 2024 — NOT in SRD 5.2.1.
+#
+# v1 models the FUMING mood as the load-bearing pick: a flying melee
+# striker whose Fey Blade hits at the caster's spell attack modifier.
+# (Mirthful's 10-ft charm save and Tricksy's darkness cube are control
+# riders on the Fey Step bonus action — deferred with it.)
+#
+# v1 modeled at the BASE 3rd-level form:
+#   AC 12 + 3 = 15;  HP 30;  Multiattack = floor(3/2) = 1 Fey Blade;
+#   Fey Blade 2d6 + 3 + 3 = 2d6 + 6 force.
+# Upcast (AC/HP/attack count/damage by slot level) is deferred with
+# the static block, mirroring m_celestial_spirit_avenger / the
+# Bestial Spirit. The blade's to-hit is the caster's spell attack
+# modifier (attack_bonus_from at summon time); the +6 below is only a
+# fallback.
+#
+# Deferred: Fey Step (BA 30-ft teleport + per-mood rider — Fuming's
+# advantage-next-attack, Mirthful's charm, Tricksy's darkness).
+
+id: m_fey_spirit
+name: Fey Spirit
+source: user_authored
+
+size: small
+creature_type: fey
+alignment: neutral
+
+combat:
+  armor_class: 15              # 12 + spell level (3)
+  hit_points: { average: 30, dice: "0d0", con_contribution: 0 }
+  speed: { walk: 30, fly: 30 }
+  initiative: { modifier: 3, score: 13 }
+
+abilities:
+  str: { score: 13, save: 1 }
+  dex: { score: 16, save: 3 }
+  con: { score: 14, save: 2 }
+  int: { score: 14, save: 2 }
+  wis: { score: 11, save: 0 }
+  cha: { score: 16, save: 3 }
+
+skills: {}
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: []
+condition_immunities: [co_charmed]
+
+senses: { passive_perception: 10, special: { darkvision: 60 } }
+languages: [sylvan]
+
+cr: { value: 2, xp: 0, proficiency_bonus: 2 }
+
+actions:
+  - id: a_fey_blade
+    name: Fey Blade
+    type: weapon_attack
+    # Melee, reach 5 ft. Bonus is a static proxy for the caster's
+    # spell attack modifier (overridden by attack_bonus_from at
+    # summon time). 2d6 + 3 + spell level (3) force.
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 6, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "2d6", modifier: 6, type: force, average: 13 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: apex_predator
+  presets: { retreat: never, ability_selection: default, targeting: nearest_enemy, action_economy: signature }

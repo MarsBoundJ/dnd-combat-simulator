@@ -1,0 +1,53 @@
+# f_crusaders_mantle — Crusader's Mantle (3rd-level Evocation,
+# PHB 2024 — NOT in SRD 5.2.1)
+#
+# RAW summary (own words, from owned PHB 2024): Action, V, Self
+# (30-ft Emanation), Concentration up to 1 minute. While in the
+# aura, you and your allies each deal an extra 1d4 radiant damage on
+# weapon and Unarmed Strike hits. Classes: Paladin (War Domain
+# granted).
+#
+# Engine modeling: the OFFENSIVE ally aura sub-shape (roadmap §E),
+# shipped with the `crusaders_mantle_aura` primitive — a cast-time
+# fan-out of weapon_damage_bonus (+2 flat, the Bless/Divine Favor
+# 1d4 convention) to the caster and every living ally within 30 ft,
+# source-tagged so end_concentration scrubs every copy at once.
+#
+# Deferred RAW bits:
+#   - Dynamic membership (allies entering/leaving the emanation
+#     mid-fight) — cast-time snapshot, same approximation as Zealous
+#     Presence. Parties that fight together stay in 30 ft in
+#     practice.
+#   - Per-roll 1d4 (flat +2; tracked with Bless's identical
+#     deferral).
+
+id: f_crusaders_mantle
+name: Crusader's Mantle
+source: user_authored
+granted_by:
+  class: c_paladin
+  level: 9                 # Paladins gain 3rd-level slots at L9
+type: active
+spell:
+  class: c_paladin
+  level: 3
+
+description: |
+  30-ft emanation, concentration 1 minute: the caster and allies in
+  it deal +1d4 radiant (flat +2) on weapon hits. Cast-time snapshot;
+  dynamic membership deferred.
+
+action_template:
+  id: a_crusaders_mantle
+  name: Crusader's Mantle
+  type: defensive_buff
+  spell_slot_level: 3
+  slot: action
+  concentration: true
+  named_effect: crusaders_mantle
+  range_ft: 0              # self-centered emanation
+  pipeline:
+    - primitive: crusaders_mantle_aura
+      params:
+        value: 2
+        radius_ft: 30

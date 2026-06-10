@@ -1,0 +1,68 @@
+# m_undead_spirit_skeletal — the Undead Spirit (Skeletal form)
+# summoned by Summon Undead (f_summon_undead), PHB 2024 — NOT in
+# SRD 5.2.1.
+#
+# v1 models the SKELETAL form as the load-bearing pick: a 150-ft
+# ranged attacker firing Grave Bolts at the caster's spell attack
+# modifier — the backline-friendly form a Wizard/Warlock actually
+# summons (Ghostly = melee + frighten + incorporeal movement;
+# Putrid = melee + poison aura + paralysis combo — both deferred,
+# mirroring the one-form precedent).
+#
+# v1 modeled at the BASE 3rd-level form:
+#   AC 11 + 3 = 14;  HP 20 (Skeletal);  Multiattack = floor(3/2) = 1;
+#   Grave Bolt 2d4 + 3 + 3 = 2d4 + 6 necrotic, range 150 ft.
+# Upcast (AC/HP/attack count/damage by slot level) deferred with the
+# static block. The bolt's to-hit is the caster's spell attack
+# modifier (attack_bonus_from at summon time); +6 is only a fallback.
+
+id: m_undead_spirit_skeletal
+name: Undead Spirit (Skeletal)
+source: user_authored
+
+size: medium
+creature_type: undead
+alignment: neutral
+
+combat:
+  armor_class: 14              # 11 + spell level (3)
+  hit_points: { average: 20, dice: "0d0", con_contribution: 0 }
+  speed: { walk: 30 }
+  initiative: { modifier: 3, score: 13 }
+
+abilities:
+  str: { score: 12, save: 1 }
+  dex: { score: 16, save: 3 }
+  con: { score: 15, save: 2 }
+  int: { score: 4, save: -3 }
+  wis: { score: 10, save: 0 }
+  cha: { score: 9, save: -1 }
+
+skills: {}
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: [necrotic, poison]
+condition_immunities: [co_exhaustion, co_frightened, co_paralyzed, co_poisoned]
+
+senses: { passive_perception: 10, special: { darkvision: 60 } }
+languages: []
+
+cr: { value: 2, xp: 0, proficiency_bonus: 2 }
+
+actions:
+  - id: a_grave_bolt
+    name: Grave Bolt
+    type: weapon_attack
+    # Ranged, 150 ft. Bonus is a static proxy for the caster's spell
+    # attack modifier (overridden by attack_bonus_from at summon
+    # time). 2d4 + 3 + spell level (3) necrotic.
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: ranged, bonus: 6, range_ft: 150 }
+      - primitive: damage
+        params: { dice: "2d4", modifier: 6, type: necrotic, average: 11 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: apex_predator
+  presets: { retreat: never, ability_selection: default, targeting: nearest_enemy, action_economy: signature }

@@ -559,6 +559,17 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
             _ht.try_apply_hail_of_thorns_followup(
                 actor, target, state, attack_params, rng,
                 is_crit=(sa_state == "crit"))
+        # Lightning Arrow rider (Ranger, 3rd-level). RANGED-only;
+        # Nd8 lightning folded into the hit (v1: on top of the weapon
+        # damage RAW replaces — documented overvalue) + 10-ft DEX-save
+        # burst around the target.
+        if is_weapon_attack and (attack_params or {}).get(
+                "kind", "melee") == "ranged":
+            from engine.core import lightning_arrow as _la
+            la_damage = _la.try_apply_lightning_arrow_followup(
+                actor, target, state, attack_params, rng,
+                is_crit=(sa_state == "crit"))
+            total += la_damage
         # Monk on-hit strike riders (Stunning Strike + Open Hand Topple).
         # Melee-only, once per turn each; no bonus damage (control only).
         if is_weapon_attack and (attack_params or {}).get(
@@ -1826,6 +1837,37 @@ def _recurring_temp_hp(params: dict, state: CombatState,
     state.recurring_temp_hp.append(entry)
 
 
+def _recurring_heal(params: dict, state: CombatState,
+                       bus: EventBus) -> None:
+    """Register a SOURCE-keyed per-turn heal (Aura of Vitality).
+
+    Unlike recurring_temp_hp (target-keyed, fires at the target's
+    turn), the entry fires at the CASTER's turn-start and heals one
+    ally — the most wounded living same-side creature (caster
+    included) within `radius_ft` of the caster — for `dice` HP
+    (resolved by runner._resolve_recurring_heals). The "choose one
+    creature in the aura" decision is thus the obvious greedy pick.
+
+    Params:
+      - dice (str, default '2d6'): heal dice per tick
+      - radius_ft (int, default 30): emanation radius around the caster
+
+    Source ids stamped from state.current_attack so end_concentration
+    can match-and-scrub when the spell drops.
+    """
+    actor = state.current_attack.get("actor") or state.current_actor()
+    action = state.current_attack.get("action") or {}
+    entry = {
+        "source_id": actor.id if actor else None,
+        "source_action_id": action.get("id"),
+        "dice": params.get("dice", "2d6"),
+        "radius_ft": int(params.get("radius_ft", 30)),
+        "trigger_event": "source_turn_start",
+        "applied_at_round": state.round,
+    }
+    state.recurring_heals.append(entry)
+
+
 def _recurring_damage(params: dict, state: CombatState,
                          bus: EventBus) -> None:
     """Register a per-turn damage tick on the current target (PR #89).
@@ -2376,6 +2418,62 @@ def _warrior_of_the_gods(params: dict, state: CombatState,
         "dice_spent": spend,
         "amount": healed,
         "dice_remaining": dice - spend,
+    })
+
+
+def _crusaders_mantle_aura(params: dict, state: CombatState,
+                              bus: EventBus) -> None:
+    """Crusader's Mantle — offensive ally aura (the roadmap's
+    "offensive ally aura" sub-shape, v1).
+
+    RAW (PHB 2024): a 30-ft Emanation for the concentration duration;
+    the caster and allies in it deal an extra 1d4 radiant damage on
+    weapon/Unarmed hits.
+
+    v1: cast-time snapshot — apply a weapon_damage_bonus modifier
+    (+2 flat, the Bless/Divine Favor 1d4 convention) to the caster
+    and every living ally within `radius_ft`. Source-tagged with the
+    action + caster so end_concentration scrubs all copies. Dynamic
+    membership (allies entering/leaving the emanation mid-fight) is
+    deferred — same snapshot approximation as Zealous Presence.
+
+    Params:
+      - value (int, default 2): flat damage bonus per weapon hit
+      - radius_ft (int, default 30)
+    """
+    from engine.core.geometry import distance_ft
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        return
+    action = (state.current_attack or {}).get("action") or {}
+    radius = int(params.get("radius_ft", 30))
+    value = int(params.get("value", 2))
+    source = {
+        "type": "action_buff",
+        "action_id": action.get("id", "a_crusaders_mantle"),
+        "caster_id": actor.id,
+        "named_effect": action.get("named_effect"),
+    }
+    buffed = []
+    for candidate in state.encounter.actors:
+        if candidate.side != actor.side or not candidate.is_alive():
+            continue
+        if distance_ft(actor.position, candidate.position) > radius:
+            continue
+        candidate.active_modifiers.append({
+            "primitive": "weapon_damage_bonus",
+            "params": {"value": value, "when": "weapon_attack"},
+            "lifetime": "until_short_rest",
+            "source": source,
+            "applied_at_round": state.round,
+            "owner_id": candidate.id,
+        })
+        buffed.append(candidate.id)
+    state.event_log.append({
+        "event": "crusaders_mantle_applied",
+        "caster": actor.id,
+        "allies": buffed,
+        "value": value,
     })
 
 
@@ -3056,6 +3154,32 @@ def _hail_of_thorns_arm(params: dict, state: CombatState,
                      action_id=action_id, state=state)
 
 
+def _lightning_arrow_arm(params: dict, state: CombatState,
+                            bus: EventBus) -> None:
+    """Arm the caster with Lightning Arrow's one-shot ranged rider.
+
+    Called from f_lightning_arrow's cast pipeline. 3rd-level Ranger
+    spell; reads cast slot level from chosen_slot_level and the
+    caster's WIS-based spell save DC. The trigger (direct Nd8
+    lightning + 10-ft DEX-save burst) lives in
+    engine.core.lightning_arrow.
+    """
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        raise ValueError("lightning_arrow_arm requires a current actor")
+    slot_level = int((state.current_attack or {}).get(
+        "chosen_slot_level") or 3)
+    if "dc" in params:
+        dc = int(params["dc"])
+    else:
+        dc = _caster_spell_save_dc(actor)
+    action = (state.current_attack or {}).get("action") or {}
+    action_id = action.get("id", "a_lightning_arrow")
+    from engine.core.lightning_arrow import register_armed
+    register_armed(actor, slot_level=slot_level, spell_save_dc=dc,
+                     action_id=action_id, state=state)
+
+
 def _wild_shape_transform(params: dict, state: CombatState,
                             bus: EventBus) -> None:
     """Druid Wild Shape — transform into a Beast form (form system).
@@ -3694,6 +3818,9 @@ def _populate_handler_table() -> None:
         "ensnaring_strike_arm": _ensnaring_strike_arm,
         "thunderous_smite_arm": _thunderous_smite_arm,
         "hail_of_thorns_arm": _hail_of_thorns_arm,
+        "lightning_arrow_arm": _lightning_arrow_arm,
+        "recurring_heal": _recurring_heal,
+        "crusaders_mantle_aura": _crusaders_mantle_aura,
         "hex_curse": _hex_curse,
         "hunters_mark_mark": _hunters_mark_mark,
         "forced_movement": _forced_movement,
@@ -3840,6 +3967,18 @@ def _all_primitives() -> list[Primitive]:
         # rider: DEX-save thorn burst (Nd10 / half) around the struck
         # target — trigger lives in engine.core.hail_of_thorns.
         Primitive("hail_of_thorns_arm", _hail_of_thorns_arm,
+                    implemented=True),
+        # Lightning Arrow arming primitive (Ranger, 3rd-level). RANGED
+        # rider: direct Nd8 lightning + 10-ft DEX-save burst — trigger
+        # lives in engine.core.lightning_arrow.
+        Primitive("lightning_arrow_arm", _lightning_arrow_arm,
+                    implemented=True),
+        # Aura of Vitality — source-keyed per-turn heal tick (the
+        # ally-aura heal-over-time sub-shape).
+        Primitive("recurring_heal", _recurring_heal, implemented=True),
+        # Crusader's Mantle — offensive ally aura: weapon_damage_bonus
+        # fan-out to caster + allies in radius at cast time.
+        Primitive("crusaders_mantle_aura", _crusaders_mantle_aura,
                     implemented=True),
         # Bardic Inspiration — grant a held die to an ally. The holder's
         # post-roll self-add lives in engine.core.bardic_inspiration

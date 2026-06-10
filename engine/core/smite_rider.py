@@ -210,6 +210,16 @@ def try_apply_followup(attacker: Actor, target: Actor, state: CombatState,
                 "condition_id": spec.on_fail_condition,
                 "duration": "until_spell_ends",
             }, state, _NoOpBus())
+            if spec.repeat_save_to_end:
+                # Auto-applied conditions (Blinding Smite 2024) still
+                # get the end-of-turn escape save.
+                from engine.primitives import _recurring_save
+                _recurring_save({
+                    "ability": spec.save_ability, "dc": dc,
+                    "trigger_event": "target_turn_end",
+                    "on_success": "end_spell_on_target",
+                    "condition_id": spec.on_fail_condition,
+                }, state, _NoOpBus())
     finally:
         state.current_attack["action"] = saved_action
 

@@ -5,23 +5,26 @@ Owns the SmiteRiderSpec and re-exports public functions with
 per-spell signatures so callers (arm primitive, _damage hook,
 tests) resolve here.
 
-RAW (PHB 2024):
-  Bonus Action, V, Self, Concentration up to 1 minute. The next
-  time you hit a creature with a melee weapon attack, the attack
-  deals an extra 3d8 radiant damage, and the target has the Blinded
-  condition until the spell ends. At the end of each of its turns,
-  the Blinded target makes a CON save, ending the spell on a success.
+RAW (PHB 2024, verified against the owned book 2026-06-10):
+  Bonus Action cast immediately after hitting with a melee weapon
+  or Unarmed Strike; V, Self, 1 minute — NOT concentration (the
+  2024 redesign dropped it). The hit deals an extra 3d8 radiant
+  damage, and the target has the Blinded condition until the spell
+  ends; at the end of each of its turns it makes a CON save, ending
+  the effect on a success.
   At Higher Levels: +1d8 per slot above 3rd.
 
 Spec specifics: melee-only; 3d8 radiant bonus damage at base slot 3
 (SmiteRiderSpec formula: dice_count = 1 + (slot_level - 1) = 3 at
 slot 3, scaling +1 per upcast); NO initial save — Blinded applies
-automatically on hit; CON save is end-of-turn only (deferred).
+automatically on hit; repeat_save_to_end (end-of-turn CON re-save,
+the 2024 escape valve that replaced concentration).
 
 source: user_authored
 
-Deferred: end-of-turn CON save to end the spell (target repeats
-the save at end of each of its turns).
+Approximation note: arm-before-hit vs RAW cast-after-hit (shared
+smite_rider model); 1-minute cap modeled as "until the target
+saves out".
 """
 from __future__ import annotations
 
@@ -44,6 +47,7 @@ BLINDING_SMITE_SPEC = SmiteRiderSpec(
     bonus_damage_die=8,               # d8 radiant per die
     bonus_scales_with_upcast=True,    # +1d8 per slot above 1st
     has_initial_save=False,           # Blinded applies automatically on hit
+    repeat_save_to_end=True,          # 2024: end-of-turn CON re-save
 )
 
 

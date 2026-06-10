@@ -165,6 +165,16 @@ def end_concentration(caster: Actor, state: CombatState,
     ]
     removed += before_grants - len(state.recurring_temp_hp)
 
+    # Aura of Vitality-shape source-keyed heal ticks end with the
+    # concentration that powers them.
+    before_heals = len(state.recurring_heals)
+    state.recurring_heals = [
+        t for t in state.recurring_heals
+        if not (t.get("source_id") == caster_id
+                and t.get("source_action_id") == action_id)
+    ]
+    removed += before_heals - len(state.recurring_heals)
+
     # PR #60 + PR #68: scrub spell-created environment zones whose
     # caster_id + action_id match the dropped aura. Iterates all
     # zone-type lists (magical_dark_zones, heavily_obscured_zones,
