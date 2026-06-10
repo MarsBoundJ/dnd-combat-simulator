@@ -1,0 +1,67 @@
+# f_forcecage_cage — Forcecage, CAGE form (7th-level Evocation, 2024 PHB)
+#
+# RAW summary: an immobile, invisible, cube-shaped prison of bars springs
+# into existence. The CAGE form is up to 20 ft on a side with 1/2-inch bars
+# spaced 1/2 inch apart. Movement is blocked (creatures can't leave by
+# nonmagical means), but spells and attacks CAN pass through the bars — the
+# cage is not a solid barrier. Concentration, 1 hour.
+#
+# Engine modeling: rides the positional-barrier system via `place_barrier`
+# (sphere shape, gapped — gap: true). The cage blocks movement but is
+# line-of-effect transparent (sight: false), so spells/attacks pass through.
+# This is the MICROWAVE container: trap a creature, then drop a damaging
+# zone (Sickening Radiance, Cloudkill) inside — the creature can't escape
+# the zone because the cage blocks movement, and the zone damage passes
+# through the bars.
+#
+# Key difference from Wall of Force dome:
+#   - NO save to avoid (Wall of Force also has no save, but Forcecage is
+#     a higher-level spell slot commitment)
+#   - Can't be dispelled (Wall of Force CAN be Disintegrated; Forcecage
+#     can't even be Dispel-Magic'd)
+#   - 7th-level slot + 1,500 GP material cost
+#   - Concentration (competes with other conc. effects)
+#
+# Deferred:
+#   - CHA save teleportation escape
+#   - Material component cost tracking
+#   - Push-out of partially-enclosed creatures
+#   - 20-ft vs 10-ft size distinction (v1 uses radius_ft: 10 for both)
+#
+# source: phb_2024
+
+id: f_forcecage_cage
+name: Forcecage (Cage)
+source: phb_2024
+granted_by:
+  class: c_wizard
+  level: 13               # Wizards gain 7th-level slots at L13
+type: active
+spell:
+  class: c_wizard
+  level: 7
+
+description: |
+  Conjure an invisible, immovable cage of force bars (20 ft on a side)
+  around a creature within 100 ft. The bars block movement but allow
+  spells and attacks to pass through. Concentration, up to 1 hour.
+  Can't be dispelled by Dispel Magic. The microwave container: drop a
+  damaging zone inside and the creature can't escape.
+
+action_template:
+  id: a_forcecage_cage
+  name: Forcecage (Cage)
+  type: hard_control
+  spell_slot_level: 7
+  concentration: true
+  named_effect: forcecage
+  range_ft: 100
+  pipeline:
+    - primitive: place_barrier
+      params:
+        shape: sphere
+        radius_ft: 10          # 20-ft cage ≈ 10-ft radius sphere
+        gap: true               # bars — line-of-effect transparent
+        move: true              # blocks movement
+        sight: false            # does NOT block vision/LoE (bars, not solid)
+        effect: forcecage_cage

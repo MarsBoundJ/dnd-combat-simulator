@@ -1,0 +1,67 @@
+# f_forcecage_box — Forcecage, BOX form (7th-level Evocation, 2024 PHB)
+#
+# RAW summary: an immobile, invisible, cube-shaped prison of magical force
+# springs into existence. The BOX form is a solid barrier up to 10 ft on a
+# side — nothing can pass through it, and spells can't be cast into or out
+# of the area. A creature inside can attempt to escape via teleportation
+# (CHA save vs caster spell DC). Can't be dispelled by Dispel Magic.
+# Concentration, 1 hour. Consumes 1,500 GP ruby dust.
+#
+# Engine modeling: rides the positional-barrier system via `place_barrier`
+# (sphere shape, sealed — gap: false). The box blocks movement AND line of
+# effect (sight: true), so nothing crosses in either direction. Unlike Wall
+# of Force's floating dome (gap: true), spells/attacks can't pass through
+# the floor — true total isolation.
+#
+# Concentration: YES (2024 rules). Dropping concentration ends the cage,
+# and it competes with the caster's other concentration effects. This means
+# a single caster can't run Forcecage + a zone spell simultaneously — the
+# microwave combo requires two concentration slots (Simulacrum).
+#
+# Tactical note: Forcecage is strictly better than Wall of Force as a trap
+# container (no save to avoid, can't be Dispelled) but costs a 7th-level
+# slot + 1,500 GP material. The box form seals line-of-effect (total cover
+# both ways), so no damage can get in — it's pure denial, not a microwave
+# container. Use the cage form for the microwave.
+#
+# Deferred:
+#   - CHA save teleportation escape (needs teleport action + save gating)
+#   - Material component cost tracking (1,500 GP ruby dust consumed)
+#   - Push-out of partially-enclosed creatures
+#
+# source: phb_2024
+
+id: f_forcecage_box
+name: Forcecage (Box)
+source: phb_2024
+granted_by:
+  class: c_wizard
+  level: 13               # Wizards gain 7th-level slots at L13
+type: active
+spell:
+  class: c_wizard
+  level: 7
+
+description: |
+  Conjure an invisible, immovable cube of magical force (10 ft on a side)
+  around a creature within 100 ft. The solid barrier prevents any matter
+  from passing through and blocks spells cast into or out of the area.
+  Concentration, up to 1 hour. Can't be dispelled by Dispel Magic.
+
+action_template:
+  id: a_forcecage_box
+  name: Forcecage (Box)
+  type: hard_control
+  spell_slot_level: 7
+  concentration: true
+  named_effect: forcecage
+  range_ft: 100
+  pipeline:
+    - primitive: place_barrier
+      params:
+        shape: sphere
+        radius_ft: 5           # 10-ft cube ≈ 5-ft radius sphere (tight box)
+        gap: false              # sealed — no floor gap
+        move: true              # blocks movement
+        sight: true             # blocks line-of-effect AND vision (solid box)
+        effect: forcecage_box
