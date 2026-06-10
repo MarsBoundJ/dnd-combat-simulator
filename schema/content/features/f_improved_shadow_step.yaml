@@ -1,0 +1,25 @@
+# f_improved_shadow_step — Improved Shadow Step (Warrior of Shadow L11)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: When you use Shadow Step, you can expend 1 Focus Point to
+# drop the Dim-Light/Darkness requirement for that use. As part of the
+# Bonus Action, you can also make an Unarmed Strike immediately after
+# teleporting.
+#
+# Engine modeling (deferred — rides f_shadow_step): removes the light
+# gate (anywhere teleport) + adds a free Unarmed Strike on arrival —
+# turning Shadow Step into a bonus-action gap-close-and-hit. The free
+# strike is the combat upgrade.
+
+id: f_improved_shadow_step
+name: Improved Shadow Step
+source: phb_2024
+granted_by:
+  subclass: sc_warrior_of_shadow
+  level: 11
+type: passive
+
+resource_cost:
+  type: feature_use   # 1 focus_point (optional, to drop light gate)
+
+effect_primitives: []

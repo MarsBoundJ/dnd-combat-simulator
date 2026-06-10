@@ -1,0 +1,28 @@
+# f_shadow_arts — Shadow Arts (Warrior of Shadow L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Three benefits:
+#   - Darkness: expend 1 Focus Point to cast Darkness without components;
+#     you can see within its area, and can move the area up to 60 ft at
+#     the start of each turn.
+#   - Darkvision: 60 ft (or +60 ft if you already have it).
+#   - Shadowy Figments: you know Minor Illusion (WIS casting).
+#
+# Engine modeling (deferred — needs light/vision model + Darkness):
+# the movable see-through Darkness is a battlefield-control zone (blocks
+# enemy sight while you see freely) — strong but needs vision modeling
+# the engine lacks. Darkvision/Minor Illusion are utility.
+
+id: f_shadow_arts
+name: Shadow Arts
+source: phb_2024
+granted_by:
+  subclass: sc_warrior_of_shadow
+  level: 3
+type: active
+is_signature: true
+
+resource_cost:
+  type: feature_use   # 1 focus_point (Darkness option)
+
+effect_primitives: []

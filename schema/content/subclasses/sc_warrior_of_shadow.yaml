@@ -1,0 +1,33 @@
+# sc_warrior_of_shadow — Warrior of Shadow (Monk subclass)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# The stealth-skirmisher. Shadow Arts (L3) grants a movable Darkness +
+# Darkvision + Minor Illusion. Shadow Step (L6) is the signature
+# bonus-action 60-ft teleport (between shadows) granting melee
+# Advantage; it improves at L11 (anywhere + free Unarmed Strike) and
+# caps at L17 Cloak of Shadows (invisibility + free Flurry). Built
+# around hit-and-run melee bursts.
+#
+# DEPENDS ON: Focus Points (f_monks_focus exists). Darkness/light-level
+# tracking is the main missing piece — Shadow Step's reposition works
+# without it, but the Dim-Light/Darkness gating needs a light model.
+
+id: sc_warrior_of_shadow
+name: Warrior of Shadow
+source: phb_2024
+parent_class: c_monk
+
+archetype_tags:
+  behavior_archetype: opportunistic_skirmisher
+  role: skirmisher                # INTERNAL-EVAL-ONLY per vocabulary firewall
+  flavor_tags: [shadowfell, stealthy, wraithlike, elusive]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_shadow_arts]
+  - level: 6
+    feature_ids: [f_shadow_step]
+  - level: 11
+    feature_ids: [f_improved_shadow_step]
+  - level: 17
+    feature_ids: [f_cloak_of_shadows]

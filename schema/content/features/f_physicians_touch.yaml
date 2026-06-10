@@ -1,0 +1,23 @@
+# f_physicians_touch — Physician's Touch (Warrior of Mercy L6)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Upgrades both hands:
+#   - Hand of Harm also inflicts Poisoned until the end of your next
+#     turn (disadvantage on attacks + ability checks).
+#   - Hand of Healing can also end one of Blinded, Deafened, Paralyzed,
+#     Poisoned, or Stunned on the target.
+#
+# Engine modeling (deferred — rides Hand of Harm / Hand of Healing): the
+# Poisoned rider is the combat-relevant half (a debuff stapled to the
+# Hand of Harm strike — maps to _apply_condition(poisoned)). The cleanse
+# is a condition-removal on heal.
+
+id: f_physicians_touch
+name: "Physician's Touch"
+source: phb_2024
+granted_by:
+  subclass: sc_warrior_of_mercy
+  level: 6
+type: passive
+
+effect_primitives: []

@@ -1,0 +1,28 @@
+# f_hand_of_harm — Hand of Harm (Warrior of Mercy L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Once per turn, on an Unarmed Strike hit that deals damage,
+# expend 1 Focus Point to deal extra Necrotic damage = one Martial Arts
+# die + WIS modifier.
+#
+# Engine modeling (HIGH wireability): once-per-turn damage rider gated
+# on a Focus Point — the exact Frenzy / Psionic Strike pattern
+# (engine/core/frenzy.py) with a resource gate. Focus Points + Martial
+# Arts die already exist, so this is a clean wire-first candidate.
+
+id: f_hand_of_harm
+name: Hand of Harm
+source: phb_2024
+granted_by:
+  subclass: sc_warrior_of_mercy
+  level: 3
+type: passive
+is_signature: true
+
+resource_cost:
+  type: feature_use   # 1 focus_point
+
+usage:
+  uses_per: per_turn
+
+effect_primitives: []

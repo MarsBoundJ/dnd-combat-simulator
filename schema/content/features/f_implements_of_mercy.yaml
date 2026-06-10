@@ -1,0 +1,17 @@
+# f_implements_of_mercy — Implements of Mercy (Warrior of Mercy L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Proficiency in Insight and Medicine skills and with the
+# Herbalism Kit.
+#
+# Engine modeling: non-combat (skill/tool proficiency). Stub.
+
+id: f_implements_of_mercy
+name: Implements of Mercy
+source: phb_2024
+granted_by:
+  subclass: sc_warrior_of_mercy
+  level: 3
+type: passive
+
+effect_primitives: []

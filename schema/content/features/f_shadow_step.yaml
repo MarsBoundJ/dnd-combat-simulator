@@ -1,0 +1,26 @@
+# f_shadow_step — Shadow Step (Warrior of Shadow L6)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: While entirely in Dim Light or Darkness, Bonus Action to
+# teleport up to 60 ft to an unoccupied space you can see that is also
+# in Dim Light or Darkness. You then have Advantage on your next melee
+# attack this turn.
+#
+# Engine modeling (deferred — needs light model for the gate): the
+# combat payload is "BA 60-ft reposition + advantage on next melee
+# strike" — a hit-and-run / focus-fire enabler. The reposition + the
+# one-shot advantage rider are both wireable today; only the
+# Dim-Light/Darkness precondition needs the light model (until then,
+# could approximate as always-available or gated on Shadow Arts'
+# Darkness being up).
+
+id: f_shadow_step
+name: Shadow Step
+source: phb_2024
+granted_by:
+  subclass: sc_warrior_of_shadow
+  level: 6
+type: active
+is_signature: true
+
+effect_primitives: []

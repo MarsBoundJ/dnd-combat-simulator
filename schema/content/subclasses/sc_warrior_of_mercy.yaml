@@ -1,0 +1,32 @@
+# sc_warrior_of_mercy — Warrior of Mercy (Monk subclass)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# The killer-medic. Two Focus-fuelled "hands": Hand of Harm (once/turn
+# necrotic strike rider) and Hand of Healing (touch heal, can replace a
+# Flurry strike). Later features add a Poisoned rider + condition
+# cleanse (L6), free Flurry-integrated healing/harm (L11), and a
+# 5-Focus revive (L17). Gets 3 features at L3.
+#
+# DEPENDS ON: Focus Points (f_monks_focus exists) + Martial Arts die
+# (f_martial_arts exists) + Flurry of Blows (f_flurry_of_blows exists).
+# The resource economy is already built, so the riders are wireable.
+
+id: sc_warrior_of_mercy
+name: Warrior of Mercy
+source: phb_2024
+parent_class: c_monk
+
+archetype_tags:
+  behavior_archetype: apex_predator
+  role: martial_striker           # INTERNAL-EVAL-ONLY per vocabulary firewall
+  flavor_tags: [physician, faceless, lifedrinking, dual-natured]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_hand_of_harm, f_hand_of_healing, f_implements_of_mercy]
+  - level: 6
+    feature_ids: [f_physicians_touch]
+  - level: 11
+    feature_ids: [f_flurry_of_healing_and_harm]
+  - level: 17
+    feature_ids: [f_hand_of_ultimate_mercy]

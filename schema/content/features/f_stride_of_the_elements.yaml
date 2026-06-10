@@ -1,0 +1,18 @@
+# f_stride_of_the_elements — Stride of the Elements (Warrior of the Elements L11)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: While Elemental Attunement is active, you also gain a Fly
+# Speed and a Swim Speed equal to your Speed.
+#
+# Engine modeling (deferred): movement upgrade tied to attunement.
+# Flight not modeled; no direct combat-round effect. Stub.
+
+id: f_stride_of_the_elements
+name: Stride of the Elements
+source: phb_2024
+granted_by:
+  subclass: sc_warrior_of_the_elements
+  level: 11
+type: passive
+
+effect_primitives: []

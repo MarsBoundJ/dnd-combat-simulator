@@ -1,0 +1,26 @@
+# f_hand_of_healing — Hand of Healing (Warrior of Mercy L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Magic action, expend 1 Focus Point to touch a creature and
+# restore HP = one Martial Arts die + WIS modifier. When you use Flurry
+# of Blows, you can replace one of its Unarmed Strikes with a Hand of
+# Healing without paying a Focus Point for the healing.
+#
+# Engine modeling (deferred): single-target touch heal on a Focus Point.
+# The heal primitive exists; the Flurry-replacement clause is an
+# action-economy option (swap a strike for a heal). Lets the Mercy monk
+# pivot between offense and in-combat healing without a separate action.
+
+id: f_hand_of_healing
+name: Hand of Healing
+source: phb_2024
+granted_by:
+  subclass: sc_warrior_of_mercy
+  level: 3
+type: active
+is_signature: true
+
+resource_cost:
+  type: feature_use   # 1 focus_point
+
+effect_primitives: []

@@ -8,7 +8,10 @@
 #     f_open_hand_technique.
 #   - L6 Wholeness of Body: BA self-heal (Martial Arts die + WIS),
 #     WIS-mod uses/long rest.
-#   - L11 Fleet Step / L17 Quivering Palm — deferred (movement / niche).
+#   - L11 Fleet Step: chain Step of the Wind after any other Bonus
+#     Action. Movement economy.
+#   - L17 Quivering Palm: 4-Focus delayed 10d12 Force CON-save bomb —
+#     the Monk's signature finisher.
 
 id: sc_warrior_of_the_open_hand
 name: Warrior of the Open Hand
@@ -25,3 +28,7 @@ features_by_level:
     feature_ids: [f_open_hand_technique]
   - level: 6
     feature_ids: [f_wholeness_of_body]
+  - level: 11
+    feature_ids: [f_fleet_step]
+  - level: 17
+    feature_ids: [f_quivering_palm]

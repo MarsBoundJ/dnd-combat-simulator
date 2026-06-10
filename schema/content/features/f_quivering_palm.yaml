@@ -1,0 +1,28 @@
+# f_quivering_palm — Quivering Palm (Warrior of the Open Hand L17)
+# Source: SRD CC v5.2.1
+#
+# RAW: On an Unarmed Strike hit, expend 4 Focus Points to set vibrations
+# lasting (Monk level) days. End them (an action, or forgo one attack of
+# your Attack action) to force a CON save: 10d12 Force on a fail, half on
+# success. One target at a time; can be ended harmlessly.
+#
+# Engine modeling (deferred): a two-step delayed nuke — apply a marker
+# on hit, then a CON-save 10d12 burst on trigger. The save-and-damage
+# half maps to _forced_save → _damage with save-DC Shapley attribution;
+# the setup/payoff split is the novel part. In a single combat this is
+# effectively "land a hit (turn N), then detonate (turn N+1) for a
+# huge CON-save bomb." High burst, 4-Focus cost.
+
+id: f_quivering_palm
+name: Quivering Palm
+source: srd_5.2.1
+granted_by:
+  subclass: sc_warrior_of_the_open_hand
+  level: 17
+type: active
+is_signature: true
+
+resource_cost:
+  type: feature_use   # 4 focus_points
+
+effect_primitives: []

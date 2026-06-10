@@ -1,0 +1,28 @@
+# f_elemental_attunement — Elemental Attunement (Warrior of the Elements L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: At the start of your turn, expend 1 Focus Point to attune
+# for 10 minutes (ends if Incapacitated):
+#   - Reach: Unarmed Strikes gain +10 ft reach.
+#   - Elemental Strikes: each Unarmed Strike hit can deal Acid/Cold/
+#     Fire/Lightning/Thunder instead of its normal type; when it does,
+#     force a STR save or you move the target up to 10 ft toward/away.
+#
+# Engine modeling (deferred — rides the strike pipeline): the +10 reach
+# changes threat range/engagement; the per-hit forced move (STR save) is
+# a control rider on every Unarmed Strike — maps to _forced_save →
+# forced-move. Strong sustained soft control while attuned.
+
+id: f_elemental_attunement
+name: Elemental Attunement
+source: phb_2024
+granted_by:
+  subclass: sc_warrior_of_the_elements
+  level: 3
+type: active
+is_signature: true
+
+resource_cost:
+  type: feature_use   # 1 focus_point
+
+effect_primitives: []

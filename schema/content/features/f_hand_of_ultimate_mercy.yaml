@@ -1,0 +1,27 @@
+# f_hand_of_ultimate_mercy — Hand of Ultimate Mercy (Warrior of Mercy L17)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Magic action — touch a creature dead within 24 hours,
+# expend 5 Focus Points to revive it with 4d10 + WIS HP, removing
+# Blinded/Deafened/Paralyzed/Poisoned/Stunned. 1/Long Rest.
+#
+# Engine modeling (deferred): in-combat raise-dead. Needs a revive
+# primitive (restore a downed/dead ally to positive HP). High-impact
+# but expensive (5 Focus, 1/rest); matters in multi-PC encounters where
+# a PC drops.
+
+id: f_hand_of_ultimate_mercy
+name: Hand of Ultimate Mercy
+source: phb_2024
+granted_by:
+  subclass: sc_warrior_of_mercy
+  level: 17
+type: active
+
+resource_cost:
+  type: feature_use   # 5 focus_points
+
+usage:
+  uses_per: per_long_rest
+
+effect_primitives: []

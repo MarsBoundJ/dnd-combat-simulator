@@ -1,0 +1,29 @@
+# f_elemental_epitome — Elemental Epitome (Warrior of the Elements L17)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: While Elemental Attunement is active:
+#   - Damage Resistance: Resistance to one of Acid/Cold/Fire/Lightning/
+#     Thunder; can change the choice at the start of each turn.
+#   - Destructive Stride: Step of the Wind grants +20 ft Speed, and a
+#     creature takes one Martial Arts die of (chosen-type) damage the
+#     first time you enter a space within 5 ft of it this turn.
+#   - Empowered Strikes: once per turn, deal an extra Martial Arts die
+#     of damage (same type as the strike) on an Unarmed Strike hit.
+#
+# Engine modeling (deferred — rides attunement): the once-per-turn
+# extra die (Empowered Strikes) is a flat DPR bump (Frenzy pattern); the
+# switchable resistance is a per-turn defensive grant; Destructive
+# Stride is move-through damage. All three are while-attuned riders.
+
+id: f_elemental_epitome
+name: Elemental Epitome
+source: phb_2024
+granted_by:
+  subclass: sc_warrior_of_the_elements
+  level: 17
+type: passive
+
+usage:
+  uses_per: per_turn   # Empowered Strikes extra die
+
+effect_primitives: []

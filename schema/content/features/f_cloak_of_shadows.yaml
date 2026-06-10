@@ -1,0 +1,28 @@
+# f_cloak_of_shadows — Cloak of Shadows (Warrior of Shadow L17)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Magic action while entirely in Dim Light or Darkness,
+# expend 3 Focus Points to shroud yourself for 1 minute (ends if
+# Incapacitated or you end your turn in Bright Light):
+#   - Invisibility: you have the Invisible condition.
+#   - Partially Incorporeal: move through occupied spaces as Difficult
+#     Terrain (shunted out if you end your turn there).
+#   - Shadow Flurry: use Flurry of Blows without spending Focus Points.
+#
+# Engine modeling (deferred — needs light model + Invisible handling):
+# sustained Invisibility (advantage on attacks, attackers have
+# disadvantage) + free Flurry. The Invisible condition exists in
+# concept; the combat value is a 1-minute advantage+free-attacks window.
+
+id: f_cloak_of_shadows
+name: Cloak of Shadows
+source: phb_2024
+granted_by:
+  subclass: sc_warrior_of_shadow
+  level: 17
+type: active
+
+resource_cost:
+  type: feature_use   # 3 focus_points
+
+effect_primitives: []

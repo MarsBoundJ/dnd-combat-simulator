@@ -1,0 +1,26 @@
+# f_elemental_burst — Elemental Burst (Warrior of the Elements L6)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Magic action, expend 2 Focus Points — 20-ft-radius Sphere
+# within 120 ft. Choose Acid/Cold/Fire/Lightning/Thunder. Each creature
+# in the Sphere makes a DEX save: 3x Martial Arts die damage on a fail,
+# half on success.
+#
+# Engine modeling (HIGH wireability): a textbook _forced_save → _damage
+# AoE — the Fireball pattern (sphere + DEX save-for-half), with damage
+# scaling off the Martial Arts die. Save-DC Shapley attribution applies.
+# This gives the Monk a real ranged AoE, unusual for the class — a good
+# wire candidate once Focus-fuelled AoE is supported.
+
+id: f_elemental_burst
+name: Elemental Burst
+source: phb_2024
+granted_by:
+  subclass: sc_warrior_of_the_elements
+  level: 6
+type: active
+
+resource_cost:
+  type: feature_use   # 2 focus_points
+
+effect_primitives: []

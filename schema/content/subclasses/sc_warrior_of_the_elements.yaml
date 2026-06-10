@@ -1,0 +1,33 @@
+# sc_warrior_of_the_elements — Warrior of the Elements (Monk subclass)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# The elemental zoner. Elemental Attunement (L3) is a 10-min stance
+# (1 Focus to start) granting +10 ft reach, elemental-typed strikes,
+# and a STR-save forced move on hit. Elemental Burst (L6) is a 2-Focus
+# 20-ft AoE (DEX save, 3x Martial Arts die). Later: flight/swim (L11),
+# resistance + on-move damage + bonus strike damage (L17). Reach +
+# forced movement + AoE make it the control/blaster Monk.
+#
+# DEPENDS ON: Focus Points (f_monks_focus exists) + Martial Arts die
+# (f_martial_arts exists). Elemental Burst is a clean AoE; the reach +
+# forced-move riders need the strike pipeline.
+
+id: sc_warrior_of_the_elements
+name: Warrior of the Elements
+source: phb_2024
+parent_class: c_monk
+
+archetype_tags:
+  behavior_archetype: apex_predator
+  role: blaster                   # INTERNAL-EVAL-ONLY per vocabulary firewall
+  flavor_tags: [elemental, planar, forceful, reaching]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_elemental_attunement, f_manipulate_elements]
+  - level: 6
+    feature_ids: [f_elemental_burst]
+  - level: 11
+    feature_ids: [f_stride_of_the_elements]
+  - level: 17
+    feature_ids: [f_elemental_epitome]
