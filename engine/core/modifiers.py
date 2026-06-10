@@ -74,6 +74,12 @@ class SaveModifierResult:
         self.auto_succeed: bool = False
         self.save_bonus_modifier: int = 0
         self.sources: list[dict] = []
+        # Per-modifier effect records for Shapley attribution
+        # (engine/core/attribution.py): what each source actually DID to
+        # this save — {"kind": "save_advantage"|"save_disadvantage"|
+        # "save_bonus"|"save_auto_fail"|"save_auto_succeed", "value": int,
+        # "source": {...}}.
+        self.contributions: list[dict] = []
 
     def net_outcome_override(self) -> str | None:
         """Returns 'auto_fail' / 'auto_succeed' / None.
@@ -211,17 +217,29 @@ def query_save_modifiers(
             continue
         outcome = params.get("outcome", "")
         modifier = params.get("modifier", "")
+        src = mod.get("source") or {}
+        kind = None
+        value = 0
         if outcome == "auto_fail":
             result.auto_fail = True
+            kind = "save_auto_fail"
         elif outcome == "auto_succeed":
             result.auto_succeed = True
+            kind = "save_auto_succeed"
         elif modifier == "advantage":
             result.has_advantage = True
+            kind = "save_advantage"
         elif modifier == "disadvantage":
             result.has_disadvantage = True
+            kind = "save_disadvantage"
         elif modifier == "flat":
-            result.save_bonus_modifier += params.get("value", 0)
-        result.sources.append(mod.get("source") or {})
+            value = params.get("value", 0)
+            result.save_bonus_modifier += value
+            kind = "save_bonus"
+        result.sources.append(src)
+        if kind is not None:
+            result.contributions.append(
+                {"kind": kind, "value": value, "source": src})
     # PR #71: Rage gives advantage on STR saves (RAW PHB 2024). Read
     # directly off Actor.rage_active rather than registering a
     # modifier at rage entry — keeps rage as an identity-state check
@@ -229,7 +247,10 @@ def query_save_modifiers(
     if getattr(target, "rage_active", False) \
             and save_ability in ("strength", "str"):
         result.has_advantage = True
-        result.sources.append({"type": "rage", "source_creature_id": target.id})
+        src = {"type": "rage", "source_creature_id": target.id}
+        result.sources.append(src)
+        result.contributions.append(
+            {"kind": "save_advantage", "value": 0, "source": src})
     # PR #75: racial trait save advantages (Halfling Brave, Elf Fey
     # Ancestry, Dwarf Dwarven Resilience). Reads
     # state.current_save_context (set by _forced_save and recurring
@@ -240,11 +261,14 @@ def query_save_modifiers(
     racial_trait = racial_save_advantage_for(target, state)
     if racial_trait is not None:
         result.has_advantage = True
-        result.sources.append({
+        src = {
             "type": "racial_trait",
             "trait": racial_trait,
             "source_creature_id": target.id,
-        })
+        }
+        result.sources.append(src)
+        result.contributions.append(
+            {"kind": "save_advantage", "value": 0, "source": src})
     return result
 
 

@@ -26,12 +26,16 @@ grouped per SOURCE CREATURE first, so n is bounded by party size in the worst
 imaginable stack.
 
 v1 scope (documented limits):
-  - Attack rolls only. Save-DC effects, Bardic-Inspiration post-roll die
-    spends, and defensive attribution (Shield's negative surplus belongs to
-    the defender's defensive ledger) are deferred.
-  - The value function works in normalized units (mean on-hit damage = 1.0)
-    with a crit-extra ratio folded in, so shares are computed once per damage
-    step and scaled by the step's realized amount.
+  - Attack rolls + save-gated damage (forced_save on_fail/on_success damage,
+    including persistent-aura ticks, which route through forced_save).
+    Bardic-Inspiration post-roll die spends, control-denial attribution
+    (crediting a save-debuffer for the stun it enabled), and defensive
+    attribution (Shield's negative surplus belongs to the defender's
+    defensive ledger) are deferred.
+  - The value function works in normalized units (attack: mean on-hit damage
+    = 1.0 with a crit-extra ratio folded in; save: mean on-FAIL damage = 1.0
+    with a success-ratio for save-for-half), so shares are computed once per
+    damage step and scaled by the step's realized amount.
 """
 from __future__ import annotations
 
@@ -127,6 +131,65 @@ def expected_attack_value(base_bonus: int, base_ac: int,
     p_hit = hit_probability(ac - bonus, adv)
     p_crit = min(crit_probability(crit_threshold, adv), p_hit)
     return p_hit + p_crit * crit_extra_ratio
+
+
+# ============================================================================
+# The save-side value function: expected save-gated damage (normalized)
+# ============================================================================
+
+def save_success_probability(needed: int, advantage: str = "normal") -> float:
+    """P(save succeeds) given the threshold (DC - total save bonus) and the
+    net advantage state. NO nat-1/nat-20 clamp — saves in 5e (and in
+    _forced_save's execution) have no auto-fail/auto-succeed faces."""
+    if needed <= 1:
+        p = 1.0
+    elif needed > 20:
+        p = 0.0
+    else:
+        p = (21 - needed) / 20.0
+    if advantage == "advantage":
+        return 1.0 - (1.0 - p) ** 2
+    if advantage == "disadvantage":
+        return p * p
+    return p
+
+
+def _net_save_advantage(effects: list[dict]) -> str:
+    adv = sum(1 for e in effects if e["kind"] == "save_advantage")
+    dis = sum(1 for e in effects if e["kind"] == "save_disadvantage")
+    if adv and dis:
+        return "normal"
+    if adv:
+        return "advantage"
+    if dis:
+        return "disadvantage"
+    return "normal"
+
+
+def expected_save_value(dc: int, save_bonus: int, effects: list[dict],
+                        success_ratio: float = 0.0) -> float:
+    """Expected damage of a save-gated effect in units of mean ON-FAIL
+    damage, with the given temporary `effects` active. Effect kinds:
+        {"kind": "save_advantage"|"save_disadvantage"|"save_bonus"|
+                 "save_auto_fail"|"save_auto_succeed", "value": int}
+    `success_ratio` = (mean on-success damage) / (mean on-fail damage) —
+    0.5 for save-for-half spells, 0.0 for full negates.
+
+    Note the sign convention: effects that HELP the target's save (advantage,
+    +save_bonus) LOWER this value — their Shapley shares come out negative,
+    which the offense ledger ignores (defensive attribution is the v2 lane).
+    """
+    if any(e["kind"] == "save_auto_fail" for e in effects):
+        # auto-fail trumps auto-succeed (mirrors net_outcome_override)
+        p_success = 0.0
+    elif any(e["kind"] == "save_auto_succeed" for e in effects):
+        p_success = 1.0
+    else:
+        bonus = save_bonus + sum(e.get("value", 0) for e in effects
+                                 if e["kind"] == "save_bonus")
+        adv = _net_save_advantage(effects)
+        p_success = save_success_probability(dc - bonus, adv)
+    return (1.0 - p_success) + p_success * success_ratio
 
 
 # ============================================================================
@@ -237,6 +300,35 @@ def build_attack_context(contributions: list[dict], *, base_bonus: int,
     }
 
 
+def _attribute_realized(ctx: dict, amount: float, value_fn,
+                        model: str) -> dict | None:
+    """Shared core: run Shapley over the ctx's contributors with `value_fn`,
+    then scale the (baseline, shares) decomposition so it sums exactly to the
+    realized `amount`."""
+    baseline, phis = shapley_shares(ctx["contributors"], value_fn)
+    total = baseline + sum(phis)
+    if total <= 0:
+        # Degenerate (can't-land-without-help edge): everything that landed is
+        # surplus; split it across contributors by their (all-positive) phis,
+        # or attribute nothing if even the full coalition is valueless.
+        pos = sum(p for p in phis if p > 0)
+        if pos <= 0:
+            return None
+        shares = [{"source_id": c["source_id"], "labels": c["labels"],
+                   "amount": amount * max(p, 0.0) / pos}
+                  for c, p in zip(ctx["contributors"], phis)]
+        return {"model": model, "baseline": 0.0,
+                "shares": [s for s in shares if s["amount"] > 0]}
+
+    scale = amount / total
+    shares = []
+    for c, p in zip(ctx["contributors"], phis):
+        shares.append({"source_id": c["source_id"], "labels": c["labels"],
+                       "amount": p * scale})
+    return {"model": model, "baseline": baseline * scale,
+            "shares": shares}
+
+
 def attribute_damage_event(ctx: dict, amount: float,
                            crit_extra_ratio: float = 0.0) -> dict | None:
     """Split one damage step's realized `amount` into the attacker's baseline
@@ -257,25 +349,51 @@ def attribute_damage_event(ctx: dict, amount: float,
             crit_threshold=ctx["crit_threshold"],
             crit_extra_ratio=crit_extra_ratio)
 
-    baseline, phis = shapley_shares(ctx["contributors"], value_fn)
-    total = baseline + sum(phis)
-    if total <= 0:
-        # Degenerate (can't-hit-without-help edge): everything that landed is
-        # surplus; split it across contributors by their (all-positive) phis,
-        # or give it to the attacker if even the full coalition is valueless.
-        pos = sum(p for p in phis if p > 0)
-        if pos <= 0:
-            return None
-        shares = [{"source_id": c["source_id"], "labels": c["labels"],
-                   "amount": amount * max(p, 0.0) / pos}
-                  for c, p in zip(ctx["contributors"], phis)]
-        return {"model": "shapley_v1", "baseline": 0.0,
-                "shares": [s for s in shares if s["amount"] > 0]}
+    return _attribute_realized(ctx, amount, value_fn, "shapley_v1")
 
-    scale = amount / total
-    shares = []
-    for c, p in zip(ctx["contributors"], phis):
-        shares.append({"source_id": c["source_id"], "labels": c["labels"],
-                       "amount": p * scale})
-    return {"model": "shapley_v1", "baseline": baseline * scale,
-            "shares": shares}
+
+# ============================================================================
+# Save context + realized save-damage attribution (engine integration API)
+# ============================================================================
+
+def build_save_attribution_context(contributions: list[dict], *, dc: int,
+                                   save_bonus: int, success_ratio: float,
+                                   caster_id: str | None) -> dict | None:
+    """Snapshot everything a save-gated damage step needs to attribute its
+    realized amount. Called by _forced_save per target once save modifiers
+    are final. `save_bonus` is the target's OWN bonus (ability save + cover);
+    temporary save modifiers travel as contributions. Returns None when no
+    creature-attributable contribution touched the save (the common case)."""
+    contributors, ambient = group_contributions(contributions or [])
+    if not contributors:
+        return None
+    if len(contributors) > MAX_EXACT_CONTRIBUTORS:
+        for extra in contributors[MAX_EXACT_CONTRIBUTORS:]:
+            ambient.extend(extra["effects"])
+        contributors = contributors[:MAX_EXACT_CONTRIBUTORS]
+    return {
+        "caster_id": caster_id,
+        "contributors": contributors,
+        "ambient": ambient,
+        "dc": int(dc),
+        "save_bonus": int(save_bonus),
+        "success_ratio": float(success_ratio),
+    }
+
+
+def attribute_save_damage_event(ctx: dict, amount: float) -> dict | None:
+    """Split one save-gated damage step's realized `amount` into the caster's
+    baseline share + per-contributor Shapley shares (e.g., the ally whose
+    Restrained imposed disadvantage on the DEX save), scaled so they sum
+    exactly to `amount`. Payload shape matches attribute_damage_event with
+    model "shapley_save_v1"."""
+    if amount <= 0 or not ctx:
+        return None
+    ambient = ctx["ambient"]
+
+    def value_fn(effects: list[dict]) -> float:
+        return expected_save_value(
+            ctx["dc"], ctx["save_bonus"], ambient + effects,
+            success_ratio=ctx["success_ratio"])
+
+    return _attribute_realized(ctx, amount, value_fn, "shapley_save_v1")

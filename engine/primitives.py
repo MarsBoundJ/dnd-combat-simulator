@@ -701,6 +701,7 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
     # enabler's share. crit_extra_ratio = the crit's bonus dice as a fraction
     # of a normal hit, so advantage's crit-rate lift is priced in.
     _attr_ctx = (state.current_attack or {}).get("attribution_ctx")
+    _save_attr_ctx = (state.current_attack or {}).get("save_attribution_ctx")
     if _attr_ctx is not None and total > 0:
         from engine.core import attribution as _attribution
         _mean_dice = _attribution.dice_mean(dice)
@@ -708,6 +709,16 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
         _crit_ratio = (_mean_dice / _mean_hit) if _mean_hit > 0 else 0.0
         _attr = _attribution.attribute_damage_event(
             _attr_ctx, float(total), crit_extra_ratio=_crit_ratio)
+        if _attr is not None:
+            _damage_event["attribution"] = _attr
+    elif _save_attr_ctx is not None and total > 0:
+        # Save-gated damage (forced_save on_fail/on_success, incl. aura
+        # ticks): split the realized amount between the caster's baseline
+        # and the creatures whose save debuffs/buffs shaped the roll
+        # (Restrained's DEX-save disadvantage → the Web caster's share).
+        from engine.core import attribution as _attribution
+        _attr = _attribution.attribute_save_damage_event(
+            _save_attr_ctx, float(total))
         if _attr is not None:
             _damage_event["attribution"] = _attr
     state.event_log.append(_damage_event)
@@ -1211,6 +1222,29 @@ def _sculpt_protected_count(state: CombatState) -> int:
     return 1 + level
 
 
+def _save_success_damage_ratio(params: dict) -> float:
+    """Mean on-success damage / mean on-fail damage for a forced_save's
+    sub-primitive lists — 0.5 for save-for-half spells, 0.0 for full
+    negates. Feeds the save-attribution value function (the ratio shapes
+    how much of the expected value survives a successful save)."""
+    from engine.core.attribution import dice_mean
+
+    def _mean(subs) -> float:
+        total = 0.0
+        for sub in subs or []:
+            if sub.get("primitive") != "damage":
+                continue
+            p = sub.get("params") or {}
+            total += ((dice_mean(p.get("dice")) + float(p.get("modifier", 0)))
+                      * float(p.get("multiplier", 1.0)))
+        return total
+
+    fail_mean = _mean(params.get("on_fail"))
+    if fail_mean <= 0:
+        return 0.0
+    return min(1.0, _mean(params.get("on_success")) / fail_mean)
+
+
 def _forced_save(params: dict, state: CombatState, bus: EventBus) -> dict:
     """Force the current target (or specified affected set) to make a save.
 
@@ -1250,6 +1284,13 @@ def _forced_save(params: dict, state: CombatState, bus: EventBus) -> dict:
     heightened = bool(params.get("heightened"))
     heightened_applied = False
     mm_caster = (state.current_attack or {}).get("actor")
+
+    # Shapley save attribution: the success-damage ratio (0.5 for save-for-
+    # half, 0.0 for negates) shapes the expected-value decomposition the
+    # damage step splits its realized amount by. Computed once — it's a
+    # property of the spell's on_fail/on_success shape, not of any target.
+    from engine.core import attribution as _attribution
+    _success_ratio = _save_success_damage_ratio(params)
 
     targets = _resolve_save_targets(params, state)
     rolls = []
@@ -1312,6 +1353,12 @@ def _forced_save(params: dict, state: CombatState, bus: EventBus) -> dict:
             if heightened and not heightened_applied:
                 adv_state = "disadvantage"
                 heightened_applied = True
+                # Sourceless contribution → grouped as AMBIENT: always active
+                # in the value function, credited to no contributor (i.e., it
+                # stays with the caster's baseline — the caster paid the
+                # sorcery points, the caster keeps the lift).
+                save_mods.contributions.append(
+                    {"kind": "save_disadvantage", "value": 0, "source": {}})
             if adv_state == "advantage":
                 d20 = max(rng.randint(1, 20), rng.randint(1, 20))
             elif adv_state == "disadvantage":
@@ -1350,12 +1397,29 @@ def _forced_save(params: dict, state: CombatState, bus: EventBus) -> dict:
                                 "ability": ability, "dc": dc,
                                 "d20": d20, "total": total, "outcome": outcome})
 
+        # Shapley save attribution context: snapshot WHO shaped this save
+        # (an ally's Restrained → DEX-save disadvantage, a flat save debuff,
+        # an auto-fail rider) so a save-gated damage sub-primitive can split
+        # its realized amount between the caster's baseline and each
+        # enabler's share. Base bonus = the target's OWN save + cover (the
+        # no-temporary-modifiers environment); None for the unmodified save.
+        _base_save_bonus = target.abilities.get(
+            _short_ability(ability), {}).get("save", 0)
+        if ability == "dexterity":
+            _base_save_bonus += _cover_ac_bonus(target.cover)
+        _save_attr_ctx = _attribution.build_save_attribution_context(
+            save_mods.contributions, dc=dc, save_bonus=_base_save_bonus,
+            success_ratio=_success_ratio,
+            caster_id=mm_caster.id if mm_caster is not None else None)
+
         # Swap state.current_attack.target to THIS iteration's target so
         # sub-primitives (damage, apply_condition) deal with the right
         # creature. Critical for AoE where the original .target is just
         # an "anchor"; each affected creature needs its own damage roll.
         saved_attack_target = state.current_attack.get("target")
         state.current_attack["target"] = target
+        if _save_attr_ctx is not None:
+            state.current_attack["save_attribution_ctx"] = _save_attr_ctx
         try:
             # Invoke on_fail or on_success sub-primitives (if specified inline)
             if outcome == "fail":
@@ -1366,6 +1430,7 @@ def _forced_save(params: dict, state: CombatState, bus: EventBus) -> dict:
                     _invoke_subprimitive(sub, state, bus)
         finally:
             state.current_attack["target"] = saved_attack_target
+            state.current_attack.pop("save_attribution_ctx", None)
     # PR #75: restore prior save context now that this forced_save
     # call is done. Restored rather than cleared so nested save calls
     # (rare; not currently used by any spell but defensive) leave the
