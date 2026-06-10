@@ -25,7 +25,7 @@ SCHEMA_DIR = REPO / "schema" / "definitions"
 SUBCLASS_FEATURE_LEVELS = {
     "c_barbarian": [3, 6, 10, 14],
     "c_bard":      [3, 6, 14],
-    "c_cleric":    [3, 6, 10, 14, 17],
+    "c_cleric":    [3, 6, 17],
     "c_druid":     [3, 6, 10, 14],
     "c_fighter":   [3, 7, 10, 15, 18],
     "c_monk":      [3, 6, 11, 17],

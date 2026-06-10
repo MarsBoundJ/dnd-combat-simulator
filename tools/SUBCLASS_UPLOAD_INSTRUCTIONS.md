@@ -16,37 +16,152 @@ schema/content/
 
 Templates are in `tools/subclass_template.yaml` and `tools/feature_template.yaml`.
 
-## Already Done (8 subclasses — skip these)
+## Already Done (skip these entirely)
+
+All 4 Barbarian subclasses and all 4 Bard subclasses are complete:
 
 | Class     | Subclass                    |
 |-----------|-----------------------------|
 | Barbarian | Path of the Berserker       |
 | Barbarian | Path of the Zealot          |
+| Barbarian | Path of the World Tree      |
+| Barbarian | Path of Wild Heart          |
 | Bard      | College of Lore             |
-| Druid     | Circle of the Land          |
-| Fighter   | Champion                    |
-| Monk      | Warrior of the Open Hand    |
-| Sorcerer  | Draconic Sorcery            |
-| Wizard    | Evoker                      |
+| Bard      | College of Dance            |
+| Bard      | College of Glamour          |
+| Bard      | College of Valor            |
+
+Plus these individual subclasses from other classes:
+
+| Class    | Subclass                    |
+|----------|-----------------------------|
+| Druid    | Circle of the Land          |
+| Fighter  | Champion                    |
+| Monk     | Warrior of the Open Hand    |
+| Sorcerer | Draconic Sorcery            |
+| Wizard   | Evoker                      |
 
 ## Subclass Feature Levels (2024 PHB)
 
-Every subclass MUST have features at exactly these levels:
+Subclass features vary by class. The number of features at level 3 varies
+by subclass — some get 1, others get 2 or 3 plus a spell list. Later levels
+always get exactly 1 feature each.
 
-| Class     | Levels             |
-|-----------|--------------------|
-| Barbarian | 3, 6, 10, 14      |
-| Bard      | 3, 6, 14          |
-| Cleric    | 3, 6, 10, 14, 17  |
-| Druid     | 3, 6, 10, 14      |
-| Fighter   | 3, 7, 10, 15, 18  |
-| Monk      | 3, 6, 11, 17      |
-| Paladin   | 3, 7, 15, 20      |
-| Ranger    | 3, 7, 11, 15      |
-| Rogue     | 3, 9, 13, 17      |
-| Sorcerer  | 3, 6, 14, 18      |
-| Warlock   | 3, 6, 10, 14      |
-| Wizard    | 3, 6, 10, 14      |
+### Cleric — subclass features at levels 3, 6, 17
+
+Level 3 grants **2 features + a Domain Spell list** (3 feature files total).
+Example: Life Domain gets Disciple of Life, Life Domain Spells, Preserve Life.
+
+| Level | Feature count | Notes                              |
+|-------|---------------|-------------------------------------|
+| 3     | 2-3 + spells  | Two features plus Domain Spell list |
+| 6     | 1             |                                     |
+| 17    | 1             |                                     |
+
+### Druid — subclass features at levels 3, 6, 10, 14
+
+Level 3 grants **1 feature + Subclass Spells**.
+Example: Circle of the Moon gets Circle Forms + Circle of the Moon Spells.
+
+| Level | Feature count | Notes                         |
+|-------|---------------|-------------------------------|
+| 3     | 1 + spells    | One feature plus spell list   |
+| 6     | 1             |                               |
+| 10    | 1             |                               |
+| 14    | 1             |                               |
+
+### Fighter — subclass features at levels 3, 7, 10, 15, 18
+
+Level 3 grants **2 features**.
+
+| Level | Feature count | Notes        |
+|-------|---------------|--------------|
+| 3     | 2             | Two features |
+| 7     | 1             |              |
+| 10    | 1             |              |
+| 15    | 1             |              |
+| 18    | 1             |              |
+
+### Monk — subclass features at levels 3, 6, 11, 17
+
+Level 3 feature count varies: Open Hand gets 1, Shadow gets 1, Elements
+gets 2, Mercy gets 3.
+
+| Level | Feature count | Notes                          |
+|-------|---------------|--------------------------------|
+| 3     | 1-3           | Varies by subclass (see above) |
+| 6     | 1             |                                |
+| 11    | 1             |                                |
+| 17    | 1             |                                |
+
+### Paladin — subclass features at levels 3, 7, 15, 20
+
+Level 3 feature count varies: Devotion gets 2, Glory gets 3, Ancients
+gets 2, Vengeance gets 2. All include Oath Spells.
+
+| Level | Feature count  | Notes                               |
+|-------|----------------|-------------------------------------|
+| 3     | 2-3 + spells   | Varies by subclass; includes spells |
+| 7     | 1              |                                     |
+| 15    | 1              |                                     |
+| 20    | 1              |                                     |
+
+### Ranger — subclass features at levels 3, 7, 11, 15
+
+Level 3 feature count varies: Beast Master gets 1, Fey Wanderer gets 3,
+Gloom Stalker gets 3, Hunter gets 2.
+
+| Level | Feature count | Notes                          |
+|-------|---------------|--------------------------------|
+| 3     | 1-3           | Varies by subclass (see above) |
+| 7     | 1             |                                |
+| 11    | 1             |                                |
+| 15    | 1             |                                |
+
+### Rogue — subclass features at levels 3, 9, 13, 17
+
+Level 3 grants **2 features**.
+
+| Level | Feature count | Notes        |
+|-------|---------------|--------------|
+| 3     | 2             | Two features |
+| 9     | 1             |              |
+| 13    | 1             |              |
+| 17    | 1             |              |
+
+### Sorcerer — subclass features at levels 3, 6, 14, 18
+
+Level 3 grants **2 features**.
+
+| Level | Feature count | Notes        |
+|-------|---------------|--------------|
+| 3     | 2             | Two features |
+| 6     | 1             |              |
+| 14    | 1             |              |
+| 18    | 1             |              |
+
+### Warlock — subclass features at levels 3, 6, 10, 14
+
+Level 3 grants **2 features** (Great Old One gets 3).
+Level 10: Great Old One gets 2 features; others get 1.
+
+| Level | Feature count | Notes                               |
+|-------|---------------|-------------------------------------|
+| 3     | 2-3           | GOO gets 3; others get 2            |
+| 6     | 1             |                                     |
+| 10    | 1-2           | GOO gets 2; others get 1            |
+| 14    | 1             |                                     |
+
+### Wizard — subclass features at levels 3, 6, 10, 14
+
+Level 3 grants **2 features**.
+
+| Level | Feature count | Notes        |
+|-------|---------------|--------------|
+| 3     | 2             | Two features |
+| 6     | 1             |              |
+| 10    | 1             |              |
+| 14    | 1             |              |
 
 ## The Loop — For Each Subclass
 
@@ -105,6 +220,9 @@ type: active
 - `triggered_choice` — fires on event, actor decides
 - `compound` — bundles sub-features (rare)
 
+**Domain/Subclass Spell lists** are a feature too. Create a feature file
+with type `passive` for each spell list (e.g., `f_life_domain_spells`).
+
 **For v1, keep features minimal.** Most features just need `id`, `name`,
 `source`, `granted_by`, and `type`. Add `effect_primitives` or
 `action_template` only for features with obvious mechanical mappings.
@@ -158,6 +276,7 @@ The validator checks:
 
 - Subclass IDs: `sc_<name>` — e.g., `sc_oath_of_devotion`, `sc_thief`
 - Feature IDs: `f_<name>` — e.g., `f_divine_smite`, `f_cunning_action`
+- Spell list features: `f_<subclass>_spells` — e.g., `f_life_domain_spells`
 - Use snake_case everywhere
 - Match D&D Beyond feature names (lowercase, underscored)
 
@@ -168,3 +287,4 @@ The validator checks:
 - Don't add engine code — just YAML declarations
 - Don't invent features not in the 2024 PHB
 - Don't skip levels — every subclass level needs at least one feature
+- Don't assume every subclass gets the same number of L3 features — check D&D Beyond
