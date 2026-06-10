@@ -1,0 +1,59 @@
+# m_vine_blight — Vine Blight
+# Source: 2024 Monster Manual (MM-only; not in SRD 5.2.1)
+# Triage: GREEN — Constricting Vine (reach 10, Bludgeoning + co_grappled on hit).
+#   DEFERRED: Entangling Plants (Recharge 5-6; Entangle spell AoE not in v1).
+
+id: m_vine_blight
+name: Vine Blight
+source: mm_2024
+
+size: medium
+creature_type: plant
+alignment: neutral evil
+
+combat:
+  armor_class: 12
+  hit_points: { average: 19, dice: "3d8", con_contribution: 6 }
+  speed: { walk: 10 }
+  initiative: { modifier: -1, score: 9 }
+
+abilities:
+  str: { score: 15, save: 2 }
+  dex: { score: 8, save: -1 }
+  con: { score: 14, save: 2 }
+  int: { score: 5, save: -3 }
+  wis: { score: 10, save: 0 }
+  cha: { score: 3, save: -4 }
+
+condition_immunities: [co_blinded, co_charmed, co_deafened, co_frightened]
+
+senses: { passive_perception: 10, special: { blindsight: 30 } }
+
+cr: { value: 0.5, xp: 100, proficiency_bonus: 2 }
+
+habitat: [forest]
+treasure: none
+
+traits:
+  - id: t_false_appearance
+    name: False Appearance
+    type: trait_passive
+
+actions:
+  - id: a_constricting_vine
+    name: Constricting Vine
+    type: weapon_attack
+    is_signature: true
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 4, reach_ft: 10 }
+      - primitive: damage
+        params: { dice: "1d8", modifier: 2, type: bludgeoning, average: 6 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: apply_condition
+        params: { condition_id: co_grappled, duration: until_removed }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: brute
+  presets: { retreat: never, ability_selection: default, targeting: closest_enemy, action_economy: casual }

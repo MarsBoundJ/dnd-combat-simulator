@@ -1,0 +1,66 @@
+# m_myconid_adult — Myconid Adult
+# Source: 2024 Monster Manual (MM-only; not in SRD 5.2.1)
+# Triage: GREEN — Slam (Bludgeoning + Poison dual); Pacifying Spores (1/Day,
+#   CON DC 11 → co_stunned).
+
+id: m_myconid_adult
+name: Myconid Adult
+source: mm_2024
+
+size: medium
+creature_type: plant
+alignment: lawful neutral
+
+combat:
+  armor_class: 12
+  hit_points: { average: 16, dice: "3d8", con_contribution: 3 }
+  speed: { walk: 20 }
+  initiative: { modifier: 1, score: 11 }
+
+abilities:
+  str: { score: 10, save: 0 }
+  dex: { score: 12, save: 1 }
+  con: { score: 13, save: 1 }
+  int: { score: 10, save: 0 }
+  wis: { score: 11, save: 0 }
+  cha: { score: 9, save: -1 }
+
+senses: { passive_perception: 10 }
+
+cr: { value: 0.5, xp: 100, proficiency_bonus: 2 }
+
+habitat: [underdark]
+treasure: any
+
+actions:
+  - id: a_slam
+    name: Slam
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 2, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d8", modifier: 0, type: bludgeoning, average: 4 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: damage
+        params: { dice: "1d6", modifier: 0, type: poison, average: 3 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  - id: a_pacifying_spores
+    name: Pacifying Spores
+    type: save_effect
+    recharge: "daily:1"
+    pipeline:
+      - primitive: forced_save
+        params:
+          ability: constitution
+          dc: 11
+          affected: current_target
+          on_fail:
+            - primitive: apply_condition
+              params: { condition_id: co_stunned, duration: until_actor_next_turn_start }
+          on_success: []
+
+behavior_profile:
+  archetype: support
+  presets: { retreat: cowardly, ability_selection: default, targeting: closest_enemy, action_economy: casual }

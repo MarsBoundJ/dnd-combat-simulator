@@ -1,0 +1,77 @@
+# m_faerie_dragon_youth — Faerie Dragon (Youth)
+# Source: 2024 Monster Manual (MM-only; not in SRD 5.2.1)
+# Triage: GREEN — Bite (Piercing + Psychic dual); Euphoria Breath (Recharge 5-6,
+#   WIS DC 12, cone 15 ft → co_incapacitated).
+#   DEFERRED: spellcasting (Dancing Lights, Faerie Fire, etc. not in library).
+
+id: m_faerie_dragon_youth
+name: Faerie Dragon (Youth)
+source: mm_2024
+
+size: tiny
+creature_type: dragon
+alignment: chaotic good
+
+combat:
+  armor_class: 13
+  hit_points: { average: 21, dice: "6d4", con_contribution: 6 }
+  speed: { walk: 10, fly: 60 }
+  initiative: { modifier: 3, score: 13 }
+
+abilities:
+  str: { score: 3, save: -4 }
+  dex: { score: 16, save: 3 }
+  con: { score: 13, save: 1 }
+  int: { score: 14, save: 2 }
+  wis: { score: 12, save: 1 }
+  cha: { score: 16, save: 3 }
+
+skills: { perception: 3, stealth: 5 }
+
+senses: { passive_perception: 13, special: { darkvision: 60 } }
+languages: ["Draconic", "Sylvan"]
+
+cr: { value: 1, xp: 200, proficiency_bonus: 2 }
+
+habitat: [forest, feywild]
+treasure: implements
+
+traits:
+  - id: t_magic_resistance
+    name: Magic Resistance
+    type: trait_passive
+
+actions:
+  - id: a_bite
+    name: Bite
+    type: weapon_attack
+    is_signature: true
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 5, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d4", modifier: 3, type: piercing, average: 5 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: damage
+        params: { dice: "1d4", modifier: 0, type: psychic, average: 2 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  - id: a_euphoria_breath
+    name: Euphoria Breath
+    type: aoe_attack
+    recharge: "5-6"
+    area: { shape: cone, length_ft: 15 }
+    pipeline:
+      - primitive: forced_save
+        params:
+          ability: wisdom
+          dc: 12
+          affected: all_in_area
+          on_fail:
+            - primitive: apply_condition
+              params: { condition_id: co_incapacitated, duration: until_actor_next_turn_start }
+          on_success: []
+
+behavior_profile:
+  archetype: skirmisher
+  presets: { retreat: cowardly, ability_selection: default, targeting: closest_enemy, action_economy: casual }
