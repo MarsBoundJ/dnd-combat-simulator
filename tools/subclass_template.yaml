@@ -1,0 +1,55 @@
+# ============================================================================
+# SUBCLASS TEMPLATE — copy this file to schema/content/subclasses/sc_<id>.yaml
+# ============================================================================
+# Naming convention: sc_<snake_case_subclass_name>.yaml
+#   e.g., sc_battle_master.yaml, sc_life_domain.yaml, sc_oath_of_devotion.yaml
+#
+# All subclasses follow the same structure. Fill in every field below.
+# Delete these comments in the final file (keep only the one-line header).
+
+# One-line header comment: # sc_<id> — <Name> (<Class> subclass)
+# Second line: # Source: PHB 2024
+
+id: sc_SUBCLASS_ID                    # must match filename without .yaml
+name: Subclass Name                   # human-readable, e.g. "Battle Master"
+source: phb_2024                      # always phb_2024 for 2024 PHB subclasses
+parent_class: c_CLASS_ID              # e.g. c_fighter, c_wizard, c_cleric
+
+archetype_tags:
+  # behavior_archetype: how the AI plays this subclass in combat.
+  # Pick ONE from: berserker_fanatic, apex_predator, cunning_tactician,
+  #                primal_guardian, pack_alpha, opportunistic_skirmisher,
+  #                cautious_defender
+  behavior_archetype: PICK_ONE
+
+  # role: combat role label. INTERNAL-EVAL-ONLY per vocabulary firewall.
+  # Pick ONE from: striker, martial_striker, arcane_striker, blaster,
+  #                controller, healer, tank, support, skirmisher
+  role: PICK_ONE                      # INTERNAL-EVAL-ONLY per vocabulary firewall
+
+  # flavor_tags: 3-5 descriptive words for the subclass identity
+  flavor_tags: [tag1, tag2, tag3]
+
+# features_by_level: one entry per subclass feature level.
+# 2024 PHB subclass feature levels by class:
+#   Barbarian:  3, 6, 10, 14
+#   Bard:       3, 6, 14
+#   Cleric:     3, 6, 10, 14, 17
+#   Druid:      3, 6, 10, 14
+#   Fighter:    3, 7, 10, 15, 18
+#   Monk:       3, 6, 11, 17
+#   Paladin:    3, 7, 15, 20
+#   Ranger:     3, 7, 11, 15
+#   Rogue:      3, 9, 13, 17
+#   Sorcerer:   3, 6, 14, 18
+#   Warlock:    3, 6, 10, 14
+#   Wizard:     3, 6, 10, 14
+#
+# EVERY level must have at least one feature_id.
+# Each feature_id must have a matching f_<id>.yaml in schema/content/features/.
+features_by_level:
+  - level: 3
+    feature_ids: [f_FEATURE_NAME]
+  - level: NEXT_LEVEL
+    feature_ids: [f_FEATURE_NAME]
+  # ... one entry per level from the schedule above

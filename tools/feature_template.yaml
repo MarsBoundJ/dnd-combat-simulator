@@ -1,0 +1,81 @@
+# ============================================================================
+# FEATURE TEMPLATE — copy to schema/content/features/f_<id>.yaml
+# ============================================================================
+# Naming: f_<snake_case_feature_name>.yaml
+#   e.g., f_improved_critical.yaml, f_frenzy.yaml, f_cutting_words.yaml
+#
+# Features come in several types. Choose the right pattern below.
+# Delete unused sections and these comments in the final file.
+
+# --- HEADER (always required) ---
+id: f_FEATURE_ID                      # must match filename without .yaml
+name: Feature Name                    # human-readable
+source: phb_2024
+granted_by:
+  subclass: sc_SUBCLASS_ID            # which subclass grants this
+  level: 3                            # level it's granted at
+
+# --- TYPE: pick exactly one ---
+# "passive"           = always-on stat modification or rider
+# "active"            = costs an action/bonus action/reaction
+# "triggered"         = fires automatically on an event
+# "triggered_choice"  = fires on event but actor decides
+# "compound"          = bundles multiple sub-features
+type: passive
+
+# --- OPTIONAL: is_signature (default false) ---
+# Set true for features that define the subclass identity and should always
+# be used when available (e.g., Frenzy, Sneak Attack, Channel Divinity).
+# is_signature: true
+
+# ===========================================================================
+# PASSIVE FEATURE (simplest — stat mods, damage riders, resistances)
+# ===========================================================================
+# For passive features, effect_primitives lists what it does:
+#
+# effect_primitives:
+#   - primitive: crit_threshold_modifier      # example: Improved Critical
+#     params:
+#       new_threshold: 19
+#
+# Common primitives: crit_threshold_modifier, damage_resistance,
+#   ac_modifier, save_modifier, hp_modifier
+#
+# If the feature is handled by dedicated engine code (like Frenzy),
+# effect_primitives can be empty: effect_primitives: []
+
+# ===========================================================================
+# ACTIVE FEATURE (costs an action economy slot)
+# ===========================================================================
+# action_template:
+#   id: a_FEATURE_ID                  # convention: a_ prefix
+#   name: Feature Name
+#   type: weapon_attack | spell_attack | defensive_buff | utility
+#   slot: action | bonus_action | reaction
+#   # For reactions:
+#   # trigger: attack_roll_pending | damage_taken | ...
+#   # condition: condition_name
+#   pipeline:
+#     - primitive: PRIMITIVE_NAME
+#       params: { ... }
+#
+# resource_cost:
+#   type: reaction | feature_use | spell_slot | none
+#   # feature_use: RESOURCE_NAME  (if uses a class resource)
+
+# ===========================================================================
+# TRIGGERED FEATURE (automatic, no choice)
+# ===========================================================================
+# trigger:
+#   event: damage_taken | attack_roll_pending | turn_start | ...
+#   conditions: [condition_name]
+#   chosen_by: automatic
+
+# ===========================================================================
+# CONTRACT (optional but recommended — documents data dependencies)
+# ===========================================================================
+# contract:
+#   reads: [list, of, state, paths, read]
+#   writes: [list, of, state, paths, written]
+#   event: event_name
+#   scope: passive | per_qualifying_hit | per_turn | per_rest
