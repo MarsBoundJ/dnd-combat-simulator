@@ -1,0 +1,74 @@
+# m_bestial_spirit_land — the Bestial Spirit (Land form) summoned by
+# Summon Beast (f_summon_beast), PHB 2024 — NOT in SRD 5.2.1.
+#
+# The Land form is the load-bearing pick: Pack Tactics makes it a
+# flanking buddy for any melee party (advantage whenever an ally is
+# adjacent to its target), 30 HP of expendable frontline, and a
+# climb speed. (Air = Flyby/60-ft fly, 20 HP; Water = swim — both
+# deferred, mirroring the Celestial Avenger-only precedent.)
+#
+# v1 modeled at the BASE 2nd-level form:
+#   AC 11 + 2 = 13;  HP 30;  Multiattack = floor(2/2) = 1 Rend;
+#   Rend 1d8 + 4 + 2 = 1d8 + 6 piercing.
+# Upcast (AC/HP/attack count/damage scale with slot level) is
+# deferred with the static block, mirroring m_celestial_spirit_avenger.
+# Rend's to-hit is the caster's spell attack modifier
+# (attack_bonus_from at summon time); the +6 below is only a fallback.
+
+id: m_bestial_spirit_land
+name: Bestial Spirit (Land)
+source: user_authored
+
+size: small
+creature_type: beast
+alignment: neutral
+
+combat:
+  armor_class: 13              # 11 + spell level (2)
+  hit_points: { average: 30, dice: "0d0", con_contribution: 0 }
+  speed: { walk: 30, climb: 30 }
+  initiative: { modifier: 0, score: 10 }
+
+abilities:
+  str: { score: 18, save: 4 }
+  dex: { score: 11, save: 0 }
+  con: { score: 16, save: 3 }
+  int: { score: 4, save: -3 }
+  wis: { score: 14, save: 2 }
+  cha: { score: 5, save: -3 }
+
+skills: {}
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: []
+condition_immunities: []
+
+senses: { passive_perception: 12, special: { darkvision: 60 } }
+languages: []
+
+cr: { value: 1, xp: 0, proficiency_bonus: 2 }
+
+traits:
+  - id: t_pack_tactics
+    name: Pack Tactics
+    description: >
+      Advantage on attack rolls against a creature when at least one
+      of the spirit's allies is within 5 ft of it and not Incapacitated.
+
+actions:
+  - id: a_rend
+    name: Rend
+    type: weapon_attack
+    # Melee, reach 5 ft. Bonus is a static proxy for the caster's
+    # spell attack modifier (overridden by attack_bonus_from at
+    # summon time). 1d8 + 4 + spell level (2) piercing.
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 6, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d8", modifier: 6, type: piercing, average: 10 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: apex_predator
+  presets: { retreat: never, ability_selection: default, targeting: nearest_enemy, action_economy: signature }

@@ -1,0 +1,53 @@
+# f_arcane_vigor — Arcane Vigor (2nd-level Abjuration, PHB 2024 —
+# NOT in SRD 5.2.1; new spell in the 2024 PHB)
+#
+# RAW summary (own words, from owned PHB 2024): Bonus Action, V/S,
+# Self, Instantaneous. Spend one or two of your unexpended Hit Point
+# Dice: regain HP equal to the roll + your spellcasting ability
+# modifier; the dice are expended. Upcast: +1 rollable die per slot
+# above 2. Classes: Sorcerer, Wizard.
+#
+# Engine modeling: a pc_builder heal — Bonus Action, self-only
+# (range_ft 0), 2d6 + spellcasting mod (Sorcerer/Wizard Hit Die is a
+# d6, and the AI would always roll the maximum two dice).
+#
+# Deferred RAW bits:
+#   - The Hit Dice COST. Actors track hit_dice_remaining, but the
+#     heal pipeline has no resource hook for them yet — v1 heals
+#     without expending dice, slightly overvaluing the spell across a
+#     multi-encounter day (in-encounter it's accurate: the slot +
+#     bonus action are the binding costs). Revisit with a hit-dice
+#     resource primitive.
+#   - Upcast (+1 die per slot above 2) — base cast only, matching the
+#     other heal builders.
+
+id: f_arcane_vigor
+name: Arcane Vigor
+source: user_authored
+granted_by:
+  class: c_sorcerer
+  level: 3                 # Sorcerers gain 2nd-level slots at L3
+type: passive
+spell:
+  class: c_sorcerer
+  level: 2
+
+pc_builder:
+  kind: heal
+  action_id: a_arcane_vigor
+  name: Arcane Vigor
+  params:
+    slot: bonus_action
+    slot_level: 2
+    range_ft: 0            # self-only
+    dice: "2d6"
+
+description: |
+  Bonus Action self-heal: 2d6 (two Hit Point Dice) + spellcasting
+  modifier. Hit-Dice expenditure and upcast deferred.
+
+contract:
+  reads: [actor.spell_ability_mod, actor.hp_current]
+  writes: [actor.hp_current]
+  event: passive
+  scope: builds_heal_action

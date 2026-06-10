@@ -91,7 +91,10 @@ class LoadShapeTest(unittest.TestCase):
             for field in ("id", "name", "source", "size", "creature_type",
                           "combat", "abilities", "cr"):
                 self.assertIn(field, m, f"{mid} missing {field}")
-            self.assertEqual(m["source"], "srd_5.2.1", mid)
+            # SRD monsters are srd_5.2.1; summon-spell stat blocks for
+            # PHB-only spells (Bestial Spirit, Celestial Spirit) are
+            # our own re-expression -> user_authored.
+            self.assertIn(m["source"], ("srd_5.2.1", "user_authored"), mid)
             self.assertIn("walk", m["combat"]["speed"], f"{mid} needs a walk speed")
 
     def test_action_pipelines_use_only_composable_primitives(self):

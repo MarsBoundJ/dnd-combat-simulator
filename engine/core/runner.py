@@ -840,6 +840,19 @@ class EncounterRunner:
                         aura.setdefault("_immune_ids", set()).add(actor.id)
             finally:
                 state.current_attack = saved_attack
+            # Charge-limited auras (Cordon of Arrows): each firing
+            # consumes one charge regardless of the save outcome (the
+            # arrow is destroyed either way); the aura ends when the
+            # last charge is spent.
+            if aura.get("remaining_triggers") is not None:
+                aura["remaining_triggers"] -= 1
+                if aura["remaining_triggers"] <= 0:
+                    state.persistent_auras = [
+                        a for a in state.persistent_auras if a is not aura]
+                    state.event_log.append({
+                        "event": "persistent_aura_depleted",
+                        "action": aura["action_id"],
+                    })
             # If the actor died from the aura, stop processing further
             # auras on them this turn (defensive).
             if not actor.is_alive():

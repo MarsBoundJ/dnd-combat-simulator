@@ -2002,6 +2002,18 @@ def _persistent_aura(params: dict, state: CombatState, bus: EventBus) -> None:
         "spell_slot_level": int(action.get("spell_slot_level", 0)),
         "upcast_scaling": dict(action.get("upcast_scaling") or {}) or None,
     }
+    # Charge-limited auras (Cordon of Arrows: 4 planted arrows, each
+    # destroyed after one shot; +2 per slot above base). `charges`
+    # sets remaining_triggers; the runner decrements per firing and
+    # removes the aura at 0. Absent → unlimited (normal auras).
+    if params.get("charges") is not None:
+        charges = int(params["charges"])
+        per_slot = int(params.get("charges_per_slot_above_base", 0))
+        if per_slot:
+            base = int(action.get("spell_slot_level", 0))
+            chosen = entry["chosen_slot_level"] or base
+            charges += per_slot * max(0, chosen - base)
+        entry["remaining_triggers"] = charges
     # PR #60 + PR #68: `creates_zone` param — persistent_auras that
     # ALSO declare an environment zone. The zone is stamped with
     # caster_id + action_id so concentration end can scrub it

@@ -1,0 +1,80 @@
+# f_cordon_of_arrows — Cordon of Arrows (2nd-level Transmutation,
+# PHB 2024 — NOT in SRD 5.2.1)
+#
+# RAW summary (own words, from owned PHB 2024): Action, V/S/M (4+
+# arrows or bolts), Touch, 8 hours, NOT concentration. Plant up to
+# four pieces of nonmagical ammunition in the ground in your space.
+# Whenever a creature other than you enters a space within 30 ft of
+# them for the first time on a turn or ends its turn there, one piece
+# flies at it: DEX save or 2d4 piercing; the piece is destroyed
+# (regardless of the save). You can designate creatures the spell
+# ignores. Ends when no ammunition remains. Upcast: +2 pieces per
+# slot above 2.
+#
+# Engine modeling: the first CHARGE-LIMITED persistent_aura (the
+# `charges` param + runner decrement shipped with this spell — the
+# roadmap's "traps" item, v1). Point-anchored 30-ft sphere planted at
+# the caster's own square (area shape emanation / range 0 locks the
+# placement origin to the caster; the aura itself is anchor: point,
+# so it stays where planted when the Ranger moves away). Enemies
+# only ("designate any creatures... the spell ignores them" — the
+# caster always exempts allies). Each turn-start trigger fires one
+# arrow (DEX save or 2d4 piercing) and consumes a charge whether or
+# not the save succeeds; the aura ends at 0. charges 4, +2 per slot
+# above 2.
+#
+# Deferred RAW bits:
+#   - Enter-area trigger (v1 fires at turn-start-in-area, the shared
+#     zone approximation — same cadence: once per creature-turn).
+#   - 8-hour duration / pre-cast placement (in-sim it's cast in
+#     combat; pre-planted ambush scenarios need encounter-setup
+#     support).
+#   - AI upcasting: the slot-picker only upcasts actions with an
+#     upcast_scaling damage block, so it always casts Cordon at base
+#     level. The charge math itself scales (charges_per_slot_above_
+#     base) and engages if a chosen_slot_level is stamped.
+
+id: f_cordon_of_arrows
+name: Cordon of Arrows
+source: user_authored
+granted_by:
+  class: c_ranger
+  level: 5                 # Rangers gain 2nd-level slots at L5
+type: active
+spell:
+  class: c_ranger
+  level: 2
+
+description: |
+  Plant 4 arrows (+2/upcast) at your square: any enemy whose turn
+  starts within 30 ft is shot by one — DEX save or 2d4 piercing; the
+  arrow is spent either way. Not concentration; ends at 0 arrows.
+
+action_template:
+  id: a_cordon_of_arrows
+  name: Cordon of Arrows
+  type: aoe_attack
+  spell_slot_level: 2
+  named_effect: cordon_of_arrows
+  range_ft: 0
+  area:
+    shape: emanation       # placement: origin locked to the caster's square
+    size_ft: 30
+    range_ft: 0
+    origin: caster
+  pipeline:
+    - primitive: persistent_aura
+      params:
+        shape: sphere
+        radius_ft: 30
+        anchor: point      # stays planted when the Ranger moves
+        trigger_event: target_turn_start_in_area
+        affected: enemies  # "designate creatures to ignore" -> allies exempt
+        ability: dexterity
+        dc_source: caster_spell_save_dc
+        charges: 4
+        charges_per_slot_above_base: 2
+        on_fail:
+          - primitive: damage
+            params: { dice: "2d4", modifier: 0, type: piercing }
+        on_success: []

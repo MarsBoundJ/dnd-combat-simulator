@@ -1,5 +1,5 @@
 # m_celestial_spirit_avenger — the Celestial Spirit (Avenger form) summoned by
-# Summon Celestial (f_summon_celestial), SRD/PHB-2024.
+# Summon Celestial (f_summon_celestial), PHB 2024 — NOT in SRD 5.2.1.
 #
 # The Avenger is the flying RANGED form: Multiattack of Radiant Bow (a 600-ft
 # ranged spell attack using the caster's spell attack modifier). Summoned by
@@ -22,7 +22,7 @@
 
 id: m_celestial_spirit_avenger
 name: Celestial Spirit (Avenger)
-source: srd_5.2.1
+source: user_authored   # PHB 2024 spell stat block NOT in SRD 5.2.1 — own-words re-expression
 
 size: large
 creature_type: celestial
