@@ -1,0 +1,25 @@
+# f_phantasmal_creatures — Phantasmal Creatures (Illusionist L6)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Always have Summon Beast and Summon Fey prepared. When
+# casting either, you can change its school to Illusion (spectral
+# appearance). You can cast the Illusion version of each spell once
+# without a spell slot per Long Rest — but the slotless casting
+# halves the summon's HP.
+#
+# Engine modeling (deferred — BLOCKED on spell library + summon actor
+# system): two free (half-HP) summons per Long Rest on top of slotted
+# castings. The school change to Illusion is mostly flavor but means
+# the casts ride any Illusion-school hooks. Summon actors need the
+# same companion infrastructure as Beast Master / Create Thrall /
+# Dragon Companion.
+
+id: f_phantasmal_creatures
+name: Phantasmal Creatures
+source: phb_2024
+granted_by:
+  subclass: sc_illusionist
+  level: 6
+type: passive
+
+effect_primitives: []

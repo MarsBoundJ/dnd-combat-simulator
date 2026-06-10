@@ -1,0 +1,23 @@
+# f_abjuration_savant — Abjuration Savant (Abjurer L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Add two Wizard Abjuration spells (level ≤ 2) to your
+# spellbook for free. Whenever you gain access to a new spell slot
+# level in this class, add one Wizard Abjuration spell of a castable
+# level to your spellbook for free.
+#
+# Engine modeling (LOW combat relevance directly): spellbook economy —
+# free known spells, no combat effect by itself. In sim terms it
+# widens the prepared-spell options (Shield, Absorb Elements, Mage
+# Armor early; Counterspell, Banishment later). Build-time spellbook
+# population. Stub.
+
+id: f_abjuration_savant
+name: Abjuration Savant
+source: phb_2024
+granted_by:
+  subclass: sc_abjurer
+  level: 3
+type: passive
+
+effect_primitives: []

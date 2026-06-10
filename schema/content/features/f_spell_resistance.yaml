@@ -1,0 +1,23 @@
+# f_spell_resistance — Spell Resistance (Abjurer L14)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Advantage on saving throws against spells. Resistance to
+# the damage of spells.
+#
+# Engine modeling (wireable at build time): two stamps — save
+# advantage conditioned on source being a spell, and damage resistance
+# conditioned on source being a spell. Needs damage/save events tagged
+# with is_spell provenance. Against caster-heavy encounters this is
+# enormous (half damage from ALL spells + advantage on every save);
+# against pure martials it does nothing — a strong encounter-mix
+# sensitivity case for the eHP analysis.
+
+id: f_spell_resistance
+name: Spell Resistance
+source: phb_2024
+granted_by:
+  subclass: sc_abjurer
+  level: 14
+type: passive
+
+effect_primitives: []

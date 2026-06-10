@@ -1,0 +1,39 @@
+# sc_illusionist — Illusionist (Wizard subclass)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Deception Wizard. Illusion Savant (L3, free Illusion spells in
+# book), Improved Illusions (L3, no Verbal components + +60 ft range
+# + enhanced BA Minor Illusion), Phantasmal Creatures (L6, always-
+# prepared Summon Beast/Fey castable as Illusion school, free cast
+# 1/LR at half HP), Illusory Self (L10, reaction: auto-miss one
+# attack, recharge on L2+ slot), Illusory Reality (L14, make an
+# illusory object real).
+#
+# Sim-relevant highlights: Illusory Self is HIGH wireability — a
+# guaranteed attack negation (better than Shield: auto-miss, not +5
+# AC) with a slot-based recharge. Phantasmal Creatures is a free
+# summon engine (half-HP spectral pet without a slot, 1/LR). Illusory
+# Reality is mostly non-combat creativity (can't deal damage or apply
+# conditions) — terrain manipulation like walls/bridges.
+# BLOCKED ON: spell library (Illusion school tagging, Minor Illusion,
+# Summon Beast/Fey), summon actor system
+
+id: sc_illusionist
+name: Illusionist
+source: phb_2024
+parent_class: c_wizard
+
+archetype_tags:
+  behavior_archetype: cunning_tactician
+  role: controller
+  flavor_tags: [deceptive, illusory, tricky, subtle]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_illusion_savant, f_improved_illusions]
+  - level: 6
+    feature_ids: [f_phantasmal_creatures]
+  - level: 10
+    feature_ids: [f_illusory_self]
+  - level: 14
+    feature_ids: [f_illusory_reality]

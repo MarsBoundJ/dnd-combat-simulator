@@ -1,0 +1,26 @@
+# f_spell_breaker — Spell Breaker (Abjurer L10)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Always have Counterspell and Dispel Magic prepared.
+#   - Can cast Dispel Magic as a Bonus Action.
+#   - Add Proficiency Bonus to Dispel Magic's ability check.
+#   - When you cast either spell with a slot and it FAILS to stop a
+#     spell, the slot isn't expended.
+#
+# Engine modeling (deferred — BLOCKED on spell library): the
+# risk-free Counterspell economy is the headline — failure refunds
+# the slot, so the AI should counterspell aggressively. BA Dispel
+# Magic enables dispel + full action in one turn. Both spells also
+# recharge Arcane Ward (Abjuration school).
+# DEPENDS ON: Counterspell/Dispel Magic spells, spell_cast_by_enemy
+# reaction lane
+
+id: f_spell_breaker
+name: Spell Breaker
+source: phb_2024
+granted_by:
+  subclass: sc_abjurer
+  level: 10
+type: passive
+
+effect_primitives: []

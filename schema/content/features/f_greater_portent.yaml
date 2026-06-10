@@ -1,0 +1,21 @@
+# f_greater_portent — Greater Portent (Diviner L14)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Roll three d20s for your Portent feature rather than two.
+#
+# Engine modeling (trivial rider on f_portent): portent_rolls pool
+# grows from 2 to 3. Statistically: 3 draws means better odds of
+# banking at least one extreme value (low for enemy sabotage or high
+# for guaranteed success) — the order statistics shift is itself a
+# nice eHP measurement target.
+# DEPENDS ON: f_portent
+
+id: f_greater_portent
+name: Greater Portent
+source: phb_2024
+granted_by:
+  subclass: sc_diviner
+  level: 14
+type: passive
+
+effect_primitives: []

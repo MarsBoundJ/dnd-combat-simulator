@@ -1,0 +1,27 @@
+# f_improved_illusions — Improved Illusions (Illusionist L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics:
+#   - Cast Illusion spells without Verbal components.
+#   - Illusion spells with range 10+ ft get +60 ft range.
+#   - Know Minor Illusion (free, doesn't count against cantrips; if
+#     already known, learn another Wizard cantrip). Single casting can
+#     create both a sound AND an image, and it can be cast as a Bonus
+#     Action.
+#
+# Engine modeling (LOW-MEDIUM combat relevance): the range extension
+# helps spells like Phantasmal Force (30→90 ft). No-Verbal casting is
+# stealth/Silence-proofing. BA Minor Illusion is action-economy
+# friendly but illusion cantrips need DM-adjudication mechanics that
+# are hard to sim — treat as utility-tier.
+# BLOCKED ON: spell library (Illusion school tagging, Minor Illusion)
+
+id: f_improved_illusions
+name: Improved Illusions
+source: phb_2024
+granted_by:
+  subclass: sc_illusionist
+  level: 3
+type: passive
+
+effect_primitives: []

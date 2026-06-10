@@ -1,0 +1,28 @@
+# f_projected_ward — Projected Ward (Abjurer L6)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: When a creature you can see within 30 ft takes damage,
+# take a Reaction to have your Arcane Ward absorb that damage. If the
+# damage reduces the ward to 0 HP, the warded creature takes the
+# remainder. The target's own Resistances/Vulnerabilities apply before
+# the ward HP reduction.
+#
+# Engine modeling (MEDIUM wireability): extends the Arcane Ward buffer
+# to allies via reaction — turns the Abjurer into a damage-sink tank
+# for the party. AI decision: spend the reaction (and ward HP) on
+# which ally hits. Rides the damage_taken_by_ally reaction lane.
+# DEPENDS ON: f_arcane_ward (the ward pool)
+
+id: f_projected_ward
+name: Projected Ward
+source: phb_2024
+granted_by:
+  subclass: sc_abjurer
+  level: 6
+type: triggered
+
+trigger:
+  event: ally_damage_taken
+  chosen_by: actor
+
+effect_primitives: []

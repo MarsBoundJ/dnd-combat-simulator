@@ -1,0 +1,22 @@
+# f_expert_divination — Expert Divination (Diviner L6)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: When you cast a Divination spell using a level 2+ spell
+# slot, you regain one expended spell slot. The regained slot must be
+# lower level than the expended one and can't exceed level 5.
+#
+# Engine modeling (deferred — BLOCKED on spell library): slot-economy
+# engine — every Divination cast at L2+ refunds a lower slot. In
+# attrition (multi-encounter day) sims this materially extends the
+# Wizard's slot budget. Needs Divination school tagging + slot
+# refund hook on cast.
+
+id: f_expert_divination
+name: Expert Divination
+source: phb_2024
+granted_by:
+  subclass: sc_diviner
+  level: 6
+type: passive
+
+effect_primitives: []

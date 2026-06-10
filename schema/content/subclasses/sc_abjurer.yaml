@@ -1,0 +1,40 @@
+# sc_abjurer — Abjurer (Wizard subclass)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Defensive Wizard built around Arcane Ward — a rechargeable damage
+# buffer. Abjuration Savant (L3, free Abjuration spells in book),
+# Arcane Ward (L3, ward HP = 2×level + INT, recharges 2×slot level
+# per Abjuration cast), Projected Ward (L6, reaction: ward absorbs an
+# ally's damage within 30 ft), Spell Breaker (L10, always-prepared
+# Counterspell/Dispel Magic, BA Dispel, slot refund on failure),
+# Spell Resistance (L14, advantage on saves vs spells + resistance to
+# spell damage).
+#
+# Sim-relevant highlights: Arcane Ward is HIGH wireability — a
+# persistent HP buffer that recharges with every Abjuration cast
+# (Shield reaction = 2 ward HP back at L1). Effectively raises the
+# Wizard's eHP dramatically. Projected Ward extends the buffer to
+# allies. Spell Resistance is one of the strongest L14 defensive
+# passives in the game.
+# BLOCKED ON: spell library (Abjuration school tagging, Shield,
+# Counterspell, Dispel Magic)
+
+id: sc_abjurer
+name: Abjurer
+source: phb_2024
+parent_class: c_wizard
+
+archetype_tags:
+  behavior_archetype: cautious_defender
+  role: tank
+  flavor_tags: [protective, warding, counterspelling, resilient]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_abjuration_savant, f_arcane_ward]
+  - level: 6
+    feature_ids: [f_projected_ward]
+  - level: 10
+    feature_ids: [f_spell_breaker]
+  - level: 14
+    feature_ids: [f_spell_resistance]

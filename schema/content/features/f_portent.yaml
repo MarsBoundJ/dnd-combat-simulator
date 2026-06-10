@@ -1,0 +1,35 @@
+# f_portent — Portent (Diviner L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: On each Long Rest, roll 2d20 and record the values
+# (foretelling rolls). You can replace any D20 Test made by you or a
+# creature you can see with one of these rolls — declared BEFORE the
+# roll, max once per turn. Each foretelling roll is single-use;
+# unused rolls are lost on the next Long Rest.
+#
+# Engine modeling (HIGH wireability): banked known d20 values with
+# pre-roll substitution. The AI policy is rich: a banked 2-5 is gold
+# (force an enemy's save vs your Hold Person to fail, or an enemy's
+# crucial attack to miss); a banked 15+ guarantees your own save or
+# a key ally attack. Because the values are KNOWN, the decision is
+# deterministic — no gamble. Needs a portent_rolls: [int] resource
+# and a pre-roll interception hook on any visible D20 Test.
+#
+# This is a flagship feature for the eHP/Shapley pipeline: the
+# attribution of a spent portent is exactly the swing between the
+# substituted outcome and the expected natural-roll outcome.
+
+id: f_portent
+name: Portent
+source: phb_2024
+granted_by:
+  subclass: sc_diviner
+  level: 3
+type: triggered_choice
+is_signature: true
+
+trigger:
+  event: d20_roll_pending
+  chosen_by: actor
+
+effect_primitives: []

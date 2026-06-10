@@ -1,0 +1,37 @@
+# sc_diviner — Diviner (Wizard subclass)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Fate-manipulation Wizard built around Portent — pre-rolled d20s that
+# replace any visible D20 Test. Divination Savant (L3, free Divination
+# spells in book), Portent (L3, 2 foretelling rolls/LR), Expert
+# Divination (L6, slot refund on Divination casts), The Third Eye
+# (L10, sensory utility menu), Greater Portent (L14, 3 foretelling
+# rolls).
+#
+# Sim-relevant highlights: Portent is HIGH wireability and one of the
+# most statistically interesting features in the game — known d20
+# values banked at dawn, spendable to force an enemy save to fail or
+# guarantee an ally's roll. The eHP/Shapley attribution of a banked
+# natural 3 spent on an enemy's save vs Hold Person is a flagship
+# analysis target. Expert Divination is a slot-economy engine.
+# BLOCKED ON: spell library (Divination school tagging)
+
+id: sc_diviner
+name: Diviner
+source: phb_2024
+parent_class: c_wizard
+
+archetype_tags:
+  behavior_archetype: cunning_tactician
+  role: controller
+  flavor_tags: [prescient, fate, scrying, knowing]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_divination_savant, f_portent]
+  - level: 6
+    feature_ids: [f_expert_divination]
+  - level: 10
+    feature_ids: [f_the_third_eye]
+  - level: 14
+    feature_ids: [f_greater_portent]

@@ -16,20 +16,28 @@ schema/content/
 
 Templates are in `tools/subclass_template.yaml` and `tools/feature_template.yaml`.
 
+## Still Missing (validated 2026-06-10 — these need uploading)
+
+Contrary to earlier belief, NOT all Barbarian/Bard subclasses exist:
+
+| Class     | Subclass                | Status                          |
+|-----------|-------------------------|---------------------------------|
+| Barbarian | Path of the World Tree  | missing entirely                |
+| Barbarian | Path of Wild Heart      | missing entirely                |
+| Bard      | College of Lore         | exists but missing L6, L14      |
+| Bard      | College of Dance        | missing entirely                |
+| Bard      | College of Glamour      | missing entirely                |
+| Bard      | College of Valor        | missing entirely                |
+
 ## Already Done (skip these entirely)
 
-All 4 Barbarian subclasses and all 4 Bard subclasses are complete:
+These Barbarian and Bard subclasses are complete:
 
 | Class     | Subclass                    |
 |-----------|-----------------------------|
 | Barbarian | Path of the Berserker       |
 | Barbarian | Path of the Zealot          |
-| Barbarian | Path of the World Tree      |
-| Barbarian | Path of Wild Heart          |
-| Bard      | College of Lore             |
-| Bard      | College of Dance            |
-| Bard      | College of Glamour          |
-| Bard      | College of Valor            |
+| Bard      | College of Lore (L3 only)   |
 
 All 4 Fighter and all 4 Cleric subclasses are complete:
 
@@ -87,11 +95,14 @@ All 4 Warlock subclasses are complete:
 | Warlock | Celestial Patron            |
 | Warlock | Great Old One Patron        |
 
-Plus this individual subclass:
+All 4 Wizard subclasses are complete:
 
-| Class    | Subclass                    |
-|----------|-----------------------------|
-| Wizard   | Evoker                      |
+| Class  | Subclass                    |
+|--------|-----------------------------|
+| Wizard | Evoker                      |
+| Wizard | Abjurer                     |
+| Wizard | Diviner                     |
+| Wizard | Illusionist                 |
 
 ## Source Field Rule (licensing — repo is going public)
 

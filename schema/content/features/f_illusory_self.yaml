@@ -1,0 +1,30 @@
+# f_illusory_self — Illusory Self (Illusionist L10)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: When a creature hits you with an attack roll, take a
+# Reaction to interpose an illusory duplicate — the attack
+# automatically misses you, then the illusion dissipates.
+# 1 use per Short/Long Rest; can also restore the use by expending a
+# level 2+ spell slot (no action).
+#
+# Engine modeling (HIGH wireability): guaranteed single-attack
+# negation — stronger than Shield (auto-miss vs +5 AC) but one attack
+# only. Rides the attack_hit_on_self reaction lane (same as Beguiling
+# Defenses but full negation instead of half). The slot recharge
+# means the AI can convert L2+ slots into attack negations — a clean
+# eHP exchange rate to measure (slot value vs expected hit damage).
+
+id: f_illusory_self
+name: Illusory Self
+source: phb_2024
+granted_by:
+  subclass: sc_illusionist
+  level: 10
+type: triggered
+is_signature: true
+
+trigger:
+  event: attack_hit_on_self
+  chosen_by: actor
+
+effect_primitives: []

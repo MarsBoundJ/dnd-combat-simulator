@@ -1,0 +1,24 @@
+# f_the_third_eye — The Third Eye (Diviner L10)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: As a Bonus Action, choose one benefit (lasts until you
+# start a Short/Long Rest; 1 use per Short/Long Rest):
+#   - Darkvision: 120-ft Darkvision
+#   - Greater Comprehension: read any language
+#   - See Invisibility: cast See Invisibility without a slot
+#
+# Engine modeling (deferred — BLOCKED on light/vision model): the
+# See Invisibility mode is the combat-relevant pick (counters
+# Invisible attackers); Darkvision matters in dark encounters.
+# Greater Comprehension is non-combat. Same lighting-model dependency
+# as Umbral Sight / Shadow Arts.
+
+id: f_the_third_eye
+name: The Third Eye
+source: phb_2024
+granted_by:
+  subclass: sc_diviner
+  level: 10
+type: active
+
+effect_primitives: []

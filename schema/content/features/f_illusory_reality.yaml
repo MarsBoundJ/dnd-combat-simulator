@@ -1,0 +1,29 @@
+# f_illusory_reality — Illusory Reality (Illusionist L14)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: When you cast an Illusion spell with a spell slot, you
+# can choose one inanimate, nonmagical object in the illusion and
+# make it real — as a Bonus Action on your turn while the spell is
+# ongoing. The object stays real for 1 minute and can't deal damage
+# or impose conditions.
+#
+# Engine modeling (deferred — terrain/object model): creative terrain
+# manipulation (real walls, bridges, cages without damage). Hard to
+# sim generically — needs an object/terrain placement system and an
+# AI capable of valuing improvised obstacles. Treat as stub until the
+# environment workstream lands; a v1 approximation could be a
+# placeable wall (cover/movement blocker).
+
+id: f_illusory_reality
+name: Illusory Reality
+source: phb_2024
+granted_by:
+  subclass: sc_illusionist
+  level: 14
+type: triggered_choice
+
+trigger:
+  event: illusion_spell_cast_with_slot
+  chosen_by: actor
+
+effect_primitives: []

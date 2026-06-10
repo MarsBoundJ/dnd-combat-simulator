@@ -1,0 +1,22 @@
+# f_divination_savant — Divination Savant (Diviner L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Add two Wizard Divination spells (level ≤ 2) to your
+# spellbook for free. Whenever you gain access to a new spell slot
+# level in this class, add one Wizard Divination spell of a castable
+# level to your spellbook for free.
+#
+# Engine modeling (LOW combat relevance): spellbook economy stub —
+# same pattern as Abjuration Savant. Divination is mostly utility
+# (See Invisibility is the notable combat pick). Build-time spellbook
+# population.
+
+id: f_divination_savant
+name: Divination Savant
+source: phb_2024
+granted_by:
+  subclass: sc_diviner
+  level: 3
+type: passive
+
+effect_primitives: []

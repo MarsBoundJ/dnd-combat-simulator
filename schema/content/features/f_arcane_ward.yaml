@@ -1,0 +1,33 @@
+# f_arcane_ward — Arcane Ward (Abjurer L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: When you cast an Abjuration spell with a spell slot, you
+# can simultaneously create a magical ward on yourself (lasts until
+# Long Rest; 1 creation per Long Rest).
+#   - Ward HP maximum = 2 × Wizard level + INT modifier
+#   - When you take damage, the ward takes it instead (apply your
+#     Resistances/Vulnerabilities BEFORE reducing ward HP). Overflow
+#     damage hits you. At 0 HP the ward stops absorbing but persists.
+#   - Recharge: whenever you cast an Abjuration spell with a slot,
+#     ward regains 2 × slot level HP. OR as a Bonus Action, expend a
+#     slot to regain 2 × slot level.
+#
+# Engine modeling (HIGH wireability): a second HP pool with a recharge
+# loop. At L10 with +5 INT: 25-HP ward, and every Shield reaction
+# (L1 Abjuration) recharges 2 HP. The eHP contribution is large and
+# measurable — exactly the kind of feature the eHP/Shapley pipeline
+# is built for. Needs: ward_hp state on actor, damage interception
+# before HP, Abjuration-school cast hook for recharge, BA recharge
+# action.
+# BLOCKED ON: spell library (Abjuration school tagging)
+
+id: f_arcane_ward
+name: Arcane Ward
+source: phb_2024
+granted_by:
+  subclass: sc_abjurer
+  level: 3
+type: passive
+is_signature: true
+
+effect_primitives: []
