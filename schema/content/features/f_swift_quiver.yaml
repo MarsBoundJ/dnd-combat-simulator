@@ -1,0 +1,47 @@
+# f_swift_quiver — Swift Quiver (5th-level Transmutation, PHB 2024
+# — NOT in SRD 5.2.1)
+#
+# RAW summary (own words, from owned PHB 2024): Action, V/S/M (a quiver
+# of arrows or bolts), Self, Concentration up to 1 minute. Transmute the
+# quiver: it produces its own ammunition. When you cast the spell, and as a
+# Bonus Action on each of your turns until it ends, you can make TWO
+# attacks with a weapon that fires Arrows or Bolts using your reaction.
+# No upcast scaling. Classes: Ranger.
+#
+# Engine modeling: defensive_buff that stamps a concentration-scrubable
+# swift_quiver_active marker on the caster via the swift_quiver_arm
+# primitive. The actual BA double-ranged-weapon-attack is deferred —
+# the action-economy injection hook (BA grant-multiattack at turn-start)
+# is not yet implemented. Documented undervalue: without the hook the
+# spell has no in-combat effect in v1 other than marking the caster.
+#
+# Deferred RAW bits:
+#   - BA double ranged weapon attack grant each turn.
+# Available for: Ranger (primary: c_ranger)
+
+id: f_swift_quiver
+name: Swift Quiver
+source: user_authored
+granted_by:
+  class: c_ranger
+  level: 17             # Half-caster: 5th-level slots at L17
+type: active
+spell:
+  class: c_ranger
+  level: 5
+
+description: |
+  Concentration (1 min). When cast and as a BA each turn: make two
+  ranged weapon attacks. v1 stamps the swift_quiver_active marker
+  (concentration-scrubbed); BA double-attack hook deferred.
+
+action_template:
+  id: a_swift_quiver
+  name: Swift Quiver
+  type: defensive_buff
+  spell_slot_level: 5
+  concentration: true
+  named_effect: swift_quiver
+  pipeline:
+    - primitive: swift_quiver_arm
+      params: {}

@@ -3459,6 +3459,42 @@ def _banishing_smite_arm(params: dict, state: CombatState,
               state=state, slot_level=slot_level)
 
 
+def _swift_quiver_arm(params: dict, state: CombatState,
+                        bus: EventBus) -> None:
+    """Swift Quiver — stamp a concentration-scrubable marker on the caster.
+
+    RAW (PHB 2024): Concentration, 1 min. When cast AND as a BA each turn,
+    make two ranged weapon attacks (spell creates the ammunition).
+
+    v1: registers a `swift_quiver_active` active_modifier on the caster;
+    the actual BA double-attack execution hook is deferred (documented
+    undervalue — the marker is present and scrubbed correctly). Source-
+    tagged so end_concentration removes it.
+    """
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        return
+    action = (state.current_attack or {}).get("action") or {}
+    source = {
+        "type": "action_buff",
+        "action_id": action.get("id", "a_swift_quiver"),
+        "caster_id": actor.id,
+        "named_effect": action.get("named_effect"),
+    }
+    actor.active_modifiers.append({
+        "primitive": "swift_quiver_active",
+        "params": {},
+        "lifetime": "until_short_rest",
+        "source": source,
+        "applied_at_round": state.round,
+        "owner_id": actor.id,
+    })
+    state.event_log.append({
+        "event": "swift_quiver_armed",
+        "caster": actor.id,
+    })
+
+
 def _wild_shape_transform(params: dict, state: CombatState,
                             bus: EventBus) -> None:
     """Druid Wild Shape — transform into a Beast form (form system).
@@ -4106,6 +4142,7 @@ def _populate_handler_table() -> None:
         "damage_resistance": _damage_resistance,
         "staggering_smite_arm": _staggering_smite_arm,
         "banishing_smite_arm": _banishing_smite_arm,
+        "swift_quiver_arm": _swift_quiver_arm,
         "hex_curse": _hex_curse,
         "hunters_mark_mark": _hunters_mark_mark,
         "forced_movement": _forced_movement,
@@ -4285,6 +4322,9 @@ def _all_primitives() -> list[Primitive]:
         # CHA save -> banished (co_incapacitated + escape re-save).
         Primitive("banishing_smite_arm", _banishing_smite_arm,
                     implemented=True),
+        # Swift Quiver — concentration marker (Ranger, 5th-level).
+        # Stamps swift_quiver_active on caster; BA double-attack deferred.
+        Primitive("swift_quiver_arm", _swift_quiver_arm, implemented=True),
         # Circle of Power — defensive ally aura: save advantage +
         # half-to-none marker fan-out to caster + allies ≤30 ft.
         Primitive("circle_of_power_aura", _circle_of_power_aura,

@@ -1,0 +1,43 @@
+# f_tashas_bubbling_cauldron — Tasha's Bubbling Cauldron (6th-level
+# Conjuration, PHB 2024 — NOT in SRD 5.2.1)
+#
+# RAW summary (own words, from owned PHB 2024): Action, V/S/M (a gilded
+# ladle worth 500+ gp), 5 ft, 10 minutes (no concentration). Conjure a
+# cauldron that produces Common or Uncommon potions of one type. As a BA,
+# you or an ally can withdraw one potion. The cauldron produces potions
+# equal to your spellcasting modifier (minimum 1). When the last is
+# withdrawn the spell ends. Classes: Warlock, Wizard.
+#
+# Engine modeling: stub. The potion-inventory and item-consumption system
+# required to model this is out of scope for the combat simulation engine
+# (potions are an out-of-combat resource). V1 records the spell in the
+# registry and defers all mechanical effects.
+#
+# Deferred RAW bits:
+#   - Cauldron placement, potion type selection, BA potion withdrawal,
+#     potion consumption and effects.
+# Available for: Warlock (c_warlock L11), Wizard (c_wizard L11)
+
+id: f_tashas_bubbling_cauldron
+name: "Tasha's Bubbling Cauldron"
+source: user_authored
+granted_by:
+  class: c_wizard
+  level: 11             # Full caster: 6th-level slots at L11
+type: active
+spell:
+  class: c_wizard
+  level: 6
+
+description: |
+  Conjure a cauldron producing Common/Uncommon potions (10 min). Potion
+  selection, BA withdrawal, and consumption mechanics deferred in v1
+  (out-of-combat resource system not modeled).
+
+action_template:
+  id: a_tashas_bubbling_cauldron
+  name: "Tasha's Bubbling Cauldron"
+  type: defensive_buff
+  spell_slot_level: 6
+  named_effect: tashas_bubbling_cauldron
+  pipeline: []

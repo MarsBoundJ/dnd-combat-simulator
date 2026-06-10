@@ -1,0 +1,55 @@
+# f_summon_fiend — Summon Fiend (6th-level Conjuration, PHB 2024 —
+# NOT in SRD 5.2.1)
+#
+# RAW summary (own words, from owned PHB 2024): Action, V/S/M (a bloody
+# vial worth 600+ gp), 90 ft, Concentration up to 1 hour. Call a Fiendish
+# Spirit that manifests in an unoccupied space within range. Choose Demon,
+# Devil, or Yugoloth — each has different HP, speed, and actions.
+# Multiattack = half the spell's level (round down). AC = 12 + spell level.
+# HP: Demon 50 + 15/level above 6, Devil 40 + 15/level above 6, Yugoloth
+# 60 + 15/level above 6. Classes: Warlock, Wizard.
+#
+# Engine modeling: summon action_template (Summon Celestial precedent)
+# calling m_fiendish_spirit_devil (Devil variant as primary — Fly 60 +
+# melee/ranged Fiery Strike is the strongest general-purpose form).
+# Demon (Death Throes explode) and Yugoloth (teleport on hit) are deferred
+# variants; upcast HP/AC/attack scaling is deferred.
+#
+# Deferred RAW bits:
+#   - Demon and Yugoloth variants.
+#   - Upcast scaling (HP + 15, attack count grows at 8th/10th).
+#   - Death Throes (Demon) and teleport-on-attack (Yugoloth).
+#   - Magic Resistance mechanical wiring (trait annotated, not applied).
+# Available for: Warlock (c_warlock L11), Wizard (c_wizard L11)
+
+id: f_summon_fiend
+name: Summon Fiend
+source: user_authored
+granted_by:
+  class: c_wizard
+  level: 11             # Full caster: 6th-level slots at L11
+type: active
+spell:
+  class: c_wizard
+  level: 6
+
+description: |
+  Summon a Fiendish Spirit (Devil variant: Fly 60, 3 Fiery Strike ranged
+  attacks) within 90 ft (Concentration, 1 hour). Demon and Yugoloth
+  variants deferred; upcast HP/attack scaling deferred.
+
+action_template:
+  id: a_summon_fiend
+  name: Summon Fiend
+  type: summon
+  spell_slot_level: 6
+  concentration: true
+  named_effect: summon_fiend
+  range_ft: 90
+  pipeline:
+    - primitive: summon
+      params:
+        monster: m_fiendish_spirit_devil
+        count: 1
+        max_total: 1
+        attack_bonus_from: caster_spell_attack
