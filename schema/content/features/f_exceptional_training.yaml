@@ -1,0 +1,21 @@
+# f_exceptional_training — Exceptional Training (Beast Master L7)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: When you BA-command the beast to act, you can also command
+# it to Dash/Disengage/Dodge/Help with ITS Bonus Action. Its attacks
+# can deal Force damage instead of their normal type.
+#
+# Engine modeling (deferred — rides f_primal_companion): action-economy
+# upgrade (beast gets a bonus action on command) + Force damage option
+# (bypasses B/P/S resistance). The Help option enables advantage-
+# feeding.
+
+id: f_exceptional_training
+name: Exceptional Training
+source: phb_2024
+granted_by:
+  subclass: sc_beast_master
+  level: 7
+type: passive
+
+effect_primitives: []

@@ -1,0 +1,24 @@
+# f_fey_reinforcements — Fey Reinforcements (Fey Wanderer L11)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Cast Summon Fey without Material component; once per Long
+# Rest without a slot. When casting it, you can drop Concentration —
+# the spell then lasts 1 minute instead.
+#
+# Engine modeling (deferred — BLOCKED on Summon Fey + summon actor
+# system): the no-concentration option mirrors War God's Blessing's
+# pattern (frees the conc slot for Hunter's Mark). Wire after the
+# summon system exists.
+
+id: f_fey_reinforcements
+name: Fey Reinforcements
+source: phb_2024
+granted_by:
+  subclass: sc_fey_wanderer
+  level: 11
+type: passive
+
+usage:
+  uses_per: per_long_rest   # the free cast
+
+effect_primitives: []

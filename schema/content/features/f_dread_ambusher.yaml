@@ -1,0 +1,32 @@
+# f_dread_ambusher — Dread Ambusher (Gloom Stalker L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Three benefits:
+#   - Ambusher's Leap: +10 ft Speed on your first turn of each combat.
+#   - Dreadful Strike: on a weapon hit, +2d6 Psychic. Once per turn;
+#     WIS-mod uses (min 1) per Long Rest.
+#   - Initiative Bonus: add WIS modifier to Initiative rolls.
+#
+# Engine modeling (HIGH wireability): the initiative bonus is a flat
+# stamp (initiative modeling exists — Remarkable Athlete's advantage
+# rides it); Dreadful Strike is a once-per-turn resource-gated damage
+# rider (Frenzy + feature_use, same as Hand of Harm); the first-turn
+# speed is a round-1 flag. The whole package is the alpha-strike
+# identity: act early, hit harder on round 1-3.
+
+id: f_dread_ambusher
+name: Dread Ambusher
+source: phb_2024
+granted_by:
+  subclass: sc_gloom_stalker
+  level: 3
+type: passive
+is_signature: true
+
+resource_cost:
+  type: feature_use   # dreadful_strike uses = WIS mod per long rest
+
+usage:
+  uses_per: per_long_rest
+
+effect_primitives: []

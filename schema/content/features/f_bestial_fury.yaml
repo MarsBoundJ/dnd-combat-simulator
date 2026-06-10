@@ -1,0 +1,22 @@
+# f_bestial_fury — Bestial Fury (Beast Master L11)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: When you command the Beast's Strike, the beast strikes
+# twice. Also, the first time each turn it hits a creature under your
+# Hunter's Mark, it deals extra Force damage equal to the mark's bonus
+# damage.
+#
+# Engine modeling (deferred — rides f_primal_companion +
+# f_hunters_mark, which EXISTS): doubles beast DPR + lets the beast
+# benefit from the Ranger's mark once per turn. The mark synergy makes
+# the Ranger+beast focus-fire loop the subclass's core engine.
+
+id: f_bestial_fury
+name: Bestial Fury
+source: phb_2024
+granted_by:
+  subclass: sc_beast_master
+  level: 11
+type: passive
+
+effect_primitives: []

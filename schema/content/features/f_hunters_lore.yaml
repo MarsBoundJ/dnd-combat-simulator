@@ -1,0 +1,20 @@
+# f_hunters_lore — Hunter's Lore (Hunter L3)
+# Source: SRD CC v5.2.1
+#
+# RAW: While a creature is marked by your Hunter's Mark, you know
+# whether it has Immunities, Resistances, or Vulnerabilities, and what
+# they are.
+#
+# Engine modeling: information-revelation (like Know Your Enemy). In a
+# perfect-information sim the AI already knows resistances, so the value
+# is implicit. Stub unless hidden-information targeting is added.
+
+id: f_hunters_lore
+name: "Hunter's Lore"
+source: srd_5.2.1
+granted_by:
+  subclass: sc_hunter
+  level: 3
+type: passive
+
+effect_primitives: []

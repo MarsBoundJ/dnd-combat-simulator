@@ -1,0 +1,19 @@
+# f_iron_mind — Iron Mind (Gloom Stalker L7)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Proficiency in WIS saves (or INT/CHA saves if already
+# proficient).
+#
+# Engine modeling (wireable at build time): a save-proficiency stamp in
+# pc_schema keyed on features_known — mental-save durability vs
+# control spells.
+
+id: f_iron_mind
+name: Iron Mind
+source: phb_2024
+granted_by:
+  subclass: sc_gloom_stalker
+  level: 7
+type: passive
+
+effect_primitives: []

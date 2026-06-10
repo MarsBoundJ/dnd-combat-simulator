@@ -1,0 +1,19 @@
+# f_share_spells — Share Spells (Beast Master L15)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: When you cast a spell targeting yourself, you can also
+# affect your Primal Companion beast if it's within 30 ft.
+#
+# Engine modeling (deferred — rides f_primal_companion + spell
+# library): duplicates self-target buffs onto the beast. Value scales
+# with the buff library (e.g., self-buffs the Ranger casts double up).
+
+id: f_share_spells
+name: Share Spells
+source: phb_2024
+granted_by:
+  subclass: sc_beast_master
+  level: 15
+type: passive
+
+effect_primitives: []

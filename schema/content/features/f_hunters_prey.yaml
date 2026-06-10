@@ -1,0 +1,31 @@
+# f_hunters_prey — Hunter's Prey (Hunter L3)
+# Source: SRD CC v5.2.1
+#
+# RAW: Choose one option (swappable on Short/Long Rest):
+#   - Colossus Slayer: when you hit with a weapon, +1d8 damage if the
+#     target is missing any HP. Once per turn.
+#   - Horde Breaker: once per turn when you attack with a weapon, make
+#     another attack with it vs a different creature within 5 ft of the
+#     original target (not yet attacked this turn).
+#
+# Engine modeling (HIGH wireability):
+#   - Colossus Slayer = once-per-turn conditional damage rider (the
+#     Frenzy pattern, gated on target.hp_current < hp_max). Trivial.
+#   - Horde Breaker = extra attack vs adjacent second target (the
+#     Sweeping-Attack / cleave shape).
+# Needs a pc_spec.hunters_prey_choice field; default Colossus Slayer
+# (better single-target benchmark vs bosses).
+
+id: f_hunters_prey
+name: "Hunter's Prey"
+source: srd_5.2.1
+granted_by:
+  subclass: sc_hunter
+  level: 3
+type: passive
+is_signature: true
+
+usage:
+  uses_per: per_turn
+
+effect_primitives: []

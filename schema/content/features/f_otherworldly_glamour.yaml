@@ -1,0 +1,17 @@
+# f_otherworldly_glamour — Otherworldly Glamour (Fey Wanderer L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Add WIS modifier (min +1) to Charisma checks. Gain
+# proficiency in Deception, Performance, or Persuasion.
+#
+# Engine modeling: non-combat (CHA checks + social skills). Stub.
+
+id: f_otherworldly_glamour
+name: Otherworldly Glamour
+source: phb_2024
+granted_by:
+  subclass: sc_fey_wanderer
+  level: 3
+type: passive
+
+effect_primitives: []

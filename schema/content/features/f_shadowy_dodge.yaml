@@ -1,0 +1,26 @@
+# f_shadowy_dodge — Shadowy Dodge (Gloom Stalker L15)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Reaction when a creature attacks you — impose Disadvantage
+# on that roll; hit or miss, then teleport up to 30 ft to a space you
+# can see.
+#
+# Engine modeling (HIGH wireability): rides the attack_roll_pending
+# reaction lane (Warding Flare's exact payload: incoming-attack
+# disadvantage) plus a post-resolution 30-ft teleport. No resource
+# limit — usable every round (one reaction). Strong sustained defense +
+# kiting.
+
+id: f_shadowy_dodge
+name: Shadowy Dodge
+source: phb_2024
+granted_by:
+  subclass: sc_gloom_stalker
+  level: 15
+type: triggered
+
+trigger:
+  event: attack_roll_pending
+  chosen_by: actor
+
+effect_primitives: []

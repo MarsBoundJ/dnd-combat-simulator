@@ -1,0 +1,21 @@
+# f_gloom_stalker_spells — Gloom Stalker Spells (Gloom Stalker L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Always-prepared spells by Ranger level:
+#   L3: Disguise Self | L5: Rope Trick | L9: Fear
+#   L13: Greater Invisibility | L17: Seeming
+#
+# Engine modeling (deferred — BLOCKED on spell library):
+#   NEEDED (combat): Fear (WIS-save AoE fear), Greater Invisibility
+#   (sustained advantage/disadvantage swing — high value)
+#   NON-COMBAT (stub-tier): Disguise Self, Rope Trick, Seeming
+
+id: f_gloom_stalker_spells
+name: Gloom Stalker Spells
+source: phb_2024
+granted_by:
+  subclass: sc_gloom_stalker
+  level: 3
+type: passive
+
+effect_primitives: []

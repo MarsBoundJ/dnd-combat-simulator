@@ -1,0 +1,33 @@
+# sc_hunter — Hunter (Ranger subclass)
+# Source: SRD CC v5.2.1 (PHB 2024)
+#
+# The SRD Ranger subclass — flexible sustained DPR built around
+# Hunter's Mark (which already exists in the engine: f_hunters_mark).
+# Hunter's Prey (L3) is a swappable choice: Colossus Slayer (1d8 rider
+# vs damaged foes) or Horde Breaker (extra attack vs adjacent second
+# target). Superior Hunter's Prey (L11) splashes mark damage; Superior
+# Hunter's Defense (L15) is a reaction self-resistance.
+#
+# DEPENDS ON: f_hunters_mark (EXISTS — wired for Ranger). The L3/L11
+# riders extend the existing mark; the choice features need a
+# pc_spec field for the selected option.
+
+id: sc_hunter
+name: Hunter
+source: srd_5.2.1
+parent_class: c_ranger
+
+archetype_tags:
+  behavior_archetype: opportunistic_skirmisher
+  role: martial_striker           # INTERNAL-EVAL-ONLY per vocabulary firewall
+  flavor_tags: [tracker, adaptive, wilderness, relentless]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_hunters_lore, f_hunters_prey]
+  - level: 7
+    feature_ids: [f_defensive_tactics]
+  - level: 11
+    feature_ids: [f_superior_hunters_prey]
+  - level: 15
+    feature_ids: [f_superior_hunters_defense]

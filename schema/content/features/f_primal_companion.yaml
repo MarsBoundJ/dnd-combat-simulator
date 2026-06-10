@@ -1,0 +1,35 @@
+# f_primal_companion — Primal Companion (Beast Master L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Summon a primal beast (choose stat block: Land, Sea, or
+# Sky). It acts on your turn; without a command it only Dodges. Bonus
+# Action to command an action from its stat block, or sacrifice one
+# attack from your Attack action for its Beast's Strike. If you're
+# Incapacitated it acts freely. Revive: Magic action + spell slot if
+# dead < 1 hour (returns in 1 min, full HP). Swap stat block each Long
+# Rest.
+#
+# Stat blocks (all: PB = your PB; Primal Bond adds PB to its
+# checks/saves; attack bonus = your spell attack mod):
+#   LAND: Med, AC 13+WIS, HP 5+5/level (d8s), Speed 40/climb 40.
+#     Strike: 1d8+2+WIS B/P/S; +1d6 & prone (Lg-) on a 20-ft charge.
+#   SEA:  Med, AC 13+WIS, HP 5+5/level (d8s), Speed 5/swim 60.
+#     Strike: 1d6+2+WIS B/P + Grappled (escape DC = your spell DC).
+#   SKY:  Small, AC 13+WIS, HP 4+4/level (d6s), Speed 10/fly 60, Flyby.
+#     Strike: 1d4+3+WIS Slashing.
+#
+# Engine modeling (deferred — BLOCKED on companion actor system): a
+# second controlled actor with turn-economy coupling (BA command /
+# attack sacrifice). Land beast is the default sim pick (charge rider +
+# prone). Shared infrastructure with summon spells + Find Steed.
+
+id: f_primal_companion
+name: Primal Companion
+source: phb_2024
+granted_by:
+  subclass: sc_beast_master
+  level: 3
+type: active
+is_signature: true
+
+effect_primitives: []

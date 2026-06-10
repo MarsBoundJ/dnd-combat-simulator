@@ -1,0 +1,28 @@
+# f_beguiling_twist — Beguiling Twist (Fey Wanderer L7)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Advantage on saves to avoid/end Charmed or Frightened.
+# Also: when you or a visible creature within 120 ft SUCCEEDS on a save
+# vs Charmed/Frightened, Reaction to force a different creature within
+# 120 ft to make a WIS save or be Charmed/Frightened (your choice) for
+# 1 minute (repeat save each turn-end).
+#
+# Engine modeling (deferred): the self save-advantage maps to the
+# existing save_advantage modifier system today. The redirect reaction
+# is a save-triggered _forced_save → _apply_condition — a counter-
+# control play that turns enemy fear/charm attempts into your own.
+# Rides the save-resolution event lane.
+
+id: f_beguiling_twist
+name: Beguiling Twist
+source: phb_2024
+granted_by:
+  subclass: sc_fey_wanderer
+  level: 7
+type: triggered
+
+trigger:
+  event: save_succeeded_vs_charm_or_fear
+  chosen_by: actor
+
+effect_primitives: []

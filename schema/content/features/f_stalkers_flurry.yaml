@@ -1,0 +1,23 @@
+# f_stalkers_flurry — Stalker's Flurry (Gloom Stalker L11)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Dreadful Strike becomes 2d8. When you use it, add one of:
+#   - Sudden Strike: another attack with the same weapon vs a different
+#     creature within 5 ft of the original target (in weapon range).
+#   - Mass Fear: target + creatures within 10 ft of it make a WIS save
+#     or are Frightened until the start of your next turn.
+#
+# Engine modeling (deferred — rides f_dread_ambusher): dice upgrade +
+# either a cleave (Horde Breaker shape) or an AoE fear (_forced_save →
+# _apply_condition(frightened)). The choice-per-use is an AI decision
+# point: cleave vs control.
+
+id: f_stalkers_flurry
+name: "Stalker's Flurry"
+source: phb_2024
+granted_by:
+  subclass: sc_gloom_stalker
+  level: 11
+type: passive
+
+effect_primitives: []

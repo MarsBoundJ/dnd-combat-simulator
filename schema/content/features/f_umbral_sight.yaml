@@ -1,0 +1,22 @@
+# f_umbral_sight — Umbral Sight (Gloom Stalker L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Darkvision 60 ft (or +60 ft if already present). While
+# entirely in Darkness, you are Invisible to any creature that relies on
+# Darkvision to see you in that Darkness.
+#
+# Engine modeling (deferred — BLOCKED on light/vision model): the
+# darkness-invisibility is the famous Gloom Stalker trick (permanently
+# unseen by darkvision-reliant monsters in dark encounters → attack
+# advantage + attacker disadvantage). Same light-model gap as Monk's
+# Shadow subclass — flag for the environment/lighting workstream.
+
+id: f_umbral_sight
+name: Umbral Sight
+source: phb_2024
+granted_by:
+  subclass: sc_gloom_stalker
+  level: 3
+type: passive
+
+effect_primitives: []

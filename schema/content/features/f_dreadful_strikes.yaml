@@ -1,0 +1,24 @@
+# f_dreadful_strikes — Dreadful Strikes (Fey Wanderer L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: On a weapon hit, deal +1d4 Psychic damage (1d6 at Ranger
+# L11). A target can take this extra damage only once per turn.
+#
+# Engine modeling (HIGH wireability): a free once-per-turn-per-target
+# psychic damage rider — the Frenzy pattern with a per-TARGET (not
+# per-attacker-turn) dedup. No resource gate, so it's pure sustained
+# DPR. One of the simplest unwired riders in the repo.
+
+id: f_dreadful_strikes
+name: Dreadful Strikes
+source: phb_2024
+granted_by:
+  subclass: sc_fey_wanderer
+  level: 3
+type: passive
+is_signature: true
+
+usage:
+  uses_per: per_turn   # once per target per turn
+
+effect_primitives: []

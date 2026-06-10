@@ -1,0 +1,23 @@
+# f_fey_wanderer_spells — Fey Wanderer Spells (Fey Wanderer L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Always-prepared spells by Ranger level:
+#   L3: Charm Person | L5: Misty Step | L9: Summon Fey
+#   L13: Dimension Door | L17: Mislead
+# (Also a cosmetic Feywild Gift — no mechanical effect.)
+#
+# Engine modeling (deferred — BLOCKED on spell library):
+#   NEEDED (combat): Charm Person, Summon Fey (needs summon actor
+#   system)
+#   NON-COMBAT (stub-tier): Misty Step (reposition), Dimension Door,
+#   Mislead
+
+id: f_fey_wanderer_spells
+name: Fey Wanderer Spells
+source: phb_2024
+granted_by:
+  subclass: sc_fey_wanderer
+  level: 3
+type: passive
+
+effect_primitives: []

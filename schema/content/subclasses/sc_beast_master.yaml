@@ -1,0 +1,36 @@
+# sc_beast_master — Beast Master (Ranger subclass)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# The companion class. Primal Companion (L3) summons a persistent beast
+# (Land/Sea/Sky stat block scaling with Ranger level + WIS) that acts on
+# the Ranger's turn — commanded via Bonus Action or by sacrificing an
+# attack. Later features upgrade its action economy (L7), double its
+# strikes + add Hunter's Mark synergy (L11), and share self-spells (L15).
+# Only 1 feature at L3.
+#
+# DEPENDS ON: a companion/pet actor system — the beast is a second
+# actor under the Ranger's control with its own stat block, HP, and
+# turn-economy coupling (acts on Ranger's turn, BA-commanded). This is
+# the same infrastructure summon spells (Conjure Animals, Summon Fey)
+# and Find Steed need — build once, reuse everywhere. The three beast
+# stat blocks are documented in f_primal_companion.
+
+id: sc_beast_master
+name: Beast Master
+source: phb_2024
+parent_class: c_ranger
+
+archetype_tags:
+  behavior_archetype: pack_alpha
+  role: martial_striker           # INTERNAL-EVAL-ONLY per vocabulary firewall
+  flavor_tags: [bonded, primal, companion, wild]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_primal_companion]
+  - level: 7
+    feature_ids: [f_exceptional_training]
+  - level: 11
+    feature_ids: [f_bestial_fury]
+  - level: 15
+    feature_ids: [f_share_spells]

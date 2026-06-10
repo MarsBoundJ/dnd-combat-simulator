@@ -1,0 +1,24 @@
+# f_defensive_tactics — Defensive Tactics (Hunter L7)
+# Source: SRD CC v5.2.1
+#
+# RAW: Choose one option (swappable on Short/Long Rest):
+#   - Escape the Horde: Opportunity Attacks against you have
+#     Disadvantage.
+#   - Multiattack Defense: when a creature hits you, it has Disadvantage
+#     on all other attack rolls against you this turn.
+#
+# Engine modeling (deferred): both are defensive attack-disadvantage
+# riders — Escape the Horde on incoming OAs, Multiattack Defense on
+# follow-up attacks from the same attacker. Multiattack Defense is the
+# stronger sim pick vs multiattack monsters (dragons). Needs a
+# pc_spec.defensive_tactics_choice field.
+
+id: f_defensive_tactics
+name: Defensive Tactics
+source: srd_5.2.1
+granted_by:
+  subclass: sc_hunter
+  level: 7
+type: passive
+
+effect_primitives: []

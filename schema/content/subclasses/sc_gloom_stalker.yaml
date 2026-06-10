@@ -1,0 +1,35 @@
+# sc_gloom_stalker — Gloom Stalker (Ranger subclass)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# The ambush alpha-striker. Dread Ambusher (L3) front-loads combat:
+# initiative bonus, first-turn speed, and a WIS-mod pool of 2d6 psychic
+# strike riders. Umbral Sight (L3) makes the Ranger invisible to
+# darkvision in darkness. Stalker's Flurry (L11) upgrades the rider to
+# 2d8 + cleave-or-fear; Shadowy Dodge (L15) is a reaction disadvantage +
+# teleport. Strongest round-1 burst among Ranger subclasses. Gets 3
+# features at L3.
+#
+# DEPENDS ON: initiative modeling (exists), psychic rider on hits
+# (Frenzy pattern). Umbral Sight needs the light/vision model (same gap
+# as Monk's Warrior of Shadow).
+
+id: sc_gloom_stalker
+name: Gloom Stalker
+source: phb_2024
+parent_class: c_ranger
+
+archetype_tags:
+  behavior_archetype: apex_predator
+  role: martial_striker           # INTERNAL-EVAL-ONLY per vocabulary firewall
+  flavor_tags: [shadowy, ambusher, dreadful, unseen]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_dread_ambusher, f_gloom_stalker_spells,
+                  f_umbral_sight]
+  - level: 7
+    feature_ids: [f_iron_mind]
+  - level: 11
+    feature_ids: [f_stalkers_flurry]
+  - level: 15
+    feature_ids: [f_shadowy_dodge]
