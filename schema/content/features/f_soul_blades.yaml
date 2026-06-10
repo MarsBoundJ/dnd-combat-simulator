@@ -1,0 +1,33 @@
+# f_soul_blades — Soul Blades (Soulknife L9)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Two new Psychic Blade powers:
+#   - Homing Strikes: if you miss with a Psychic Blade attack, roll
+#     one Psionic Energy Die and add to the attack roll. Die expended
+#     only if this causes the attack to hit.
+#   - Psychic Teleportation: as a Bonus Action, manifest a Psychic
+#     Blade, expend 1 Psionic Energy Die, roll it, throw the blade
+#     at an unoccupied space you can see up to (10 × roll) feet away,
+#     then teleport to that space.
+#
+# Engine modeling (HIGH wireability):
+#   Homing Strikes is a miss-to-hit converter — same conditional-
+#   expenditure pattern as Psi-Bolstered Knack. On a miss, add d8/d10/
+#   d12 to the roll; only spend if it now hits. At high levels this
+#   substantially raises effective hit rate on Psychic Blade attacks.
+#   Rides the attack_roll_miss event → reroll/modifier.
+#
+#   Psychic Teleportation is BA movement (10-120 ft depending on die
+#   size) — strong repositioning but competes with BA Psychic Blade
+#   attack. Tactical AI decision point.
+# DEPENDS ON: f_soulknife_psionic_power (energy dice resource)
+
+id: f_soul_blades
+name: Soul Blades
+source: phb_2024
+granted_by:
+  subclass: sc_soulknife
+  level: 9
+type: passive
+
+effect_primitives: []

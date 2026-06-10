@@ -1,0 +1,29 @@
+# f_thiefs_reflexes — Thief's Reflexes (Thief L17)
+# Source: SRD CC v5.2.1 (PHB 2024)
+#
+# Mechanics: You can take two turns during the first round of any
+# combat. First turn at normal Initiative, second turn at Initiative
+# minus 10.
+#
+# Engine modeling (HIGH wireability): massive first-round action economy
+# spike — effectively doubles the Rogue's round-1 output. Two full
+# turns = two potential Sneak Attacks (one per turn), two Cunning
+# Actions, two Bonus Actions. At L17 that's 2 × 9d6 SA potential.
+# Needs initiative_order manipulation to insert the second turn at
+# Initiative - 10. Same double-turn pattern could apply to other
+# features (e.g. Assassin's Assassinate synergy is enormous here
+# via multiclassing edge cases).
+#
+# DEPENDS ON: initiative_order system supporting mid-round turn
+# insertion at a modified initiative count.
+
+id: f_thiefs_reflexes
+name: "Thief's Reflexes"
+source: srd_5.2.1
+granted_by:
+  subclass: sc_thief
+  level: 17
+type: passive
+is_signature: true
+
+effect_primitives: []

@@ -1,0 +1,23 @@
+# f_supreme_sneak — Supreme Sneak (Thief L9)
+# Source: SRD CC v5.2.1 (PHB 2024)
+#
+# Mechanics: Adds a new Cunning Strike option:
+#   Stealth Attack (Cost: 1d6) — if you have the Hide action's
+#   Invisible condition, this attack doesn't end that condition if
+#   you end the turn behind Three-Quarters or Total Cover.
+#
+# Engine modeling (MEDIUM wireability): enables sustained stealth
+# sniping across turns — trades 1d6 SA damage to keep Invisible.
+# DEPENDS ON: Hide/Invisible state tracking, cover system, and
+# Cunning Strike framework. The economic tradeoff (1d6 for sustained
+# advantage) is significant at higher levels.
+
+id: f_supreme_sneak
+name: Supreme Sneak
+source: srd_5.2.1
+granted_by:
+  subclass: sc_thief
+  level: 9
+type: passive
+
+effect_primitives: []

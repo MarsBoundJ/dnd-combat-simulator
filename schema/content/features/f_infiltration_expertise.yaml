@@ -1,0 +1,25 @@
+# f_infiltration_expertise — Infiltration Expertise (Assassin L9)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics:
+#   - Masterful Mimicry: unerringly mimic another person's speech,
+#     handwriting, or both after 1+ hours of study.
+#   - Roving Aim: your Speed isn't reduced to 0 by using Steady Aim.
+#
+# Engine modeling (MEDIUM wireability — Roving Aim only): Masterful
+# Mimicry is non-combat. Roving Aim is notable in the sim: normally
+# Steady Aim sets Speed to 0 (no movement that turn), but Roving Aim
+# removes that restriction — the Assassin can Steady Aim AND move,
+# enabling hit-and-run with guaranteed Advantage. This is a meaningful
+# mobility upgrade.
+# DEPENDS ON: Steady Aim implementation (f_steady_aim on c_rogue L3)
+
+id: f_infiltration_expertise
+name: Infiltration Expertise
+source: phb_2024
+granted_by:
+  subclass: sc_assassin
+  level: 9
+type: passive
+
+effect_primitives: []

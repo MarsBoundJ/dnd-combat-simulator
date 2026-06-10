@@ -1,0 +1,35 @@
+# sc_arcane_trickster — Arcane Trickster (Rogue subclass)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Spellcasting Rogue — third-caster (INT, Wizard list) with
+# Mage Hand Legerdemain (L3), Magical Ambush (L9, save disadvantage
+# when invisible), Versatile Trickster (L13, Trip AoE via Mage Hand),
+# and Spell Thief (L17, negate + steal a spell as a reaction).
+#
+# Sim-relevant highlights: Magical Ambush is HIGH wireability — when
+# the Rogue is invisible, targets have Disadvantage on saves vs your
+# spells (strong with save-or-suck). Spell Thief is a unique reaction
+# economy piece. Third-caster slots give access to Shield, Absorb
+# Elements, and utility spells.
+#
+# BLOCKED ON: spell library (third-caster slot table + Wizard spell list)
+
+id: sc_arcane_trickster
+name: Arcane Trickster
+source: phb_2024
+parent_class: c_rogue
+
+archetype_tags:
+  behavior_archetype: opportunistic_skirmisher
+  role: arcane_striker
+  flavor_tags: [spellcaster, trickster, invisible, arcane]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_arcane_trickster_spellcasting, f_mage_hand_legerdemain]
+  - level: 9
+    feature_ids: [f_magical_ambush]
+  - level: 13
+    feature_ids: [f_versatile_trickster]
+  - level: 17
+    feature_ids: [f_spell_thief]

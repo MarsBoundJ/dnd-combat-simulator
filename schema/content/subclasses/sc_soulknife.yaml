@@ -1,0 +1,37 @@
+# sc_soulknife — Soulknife (Rogue subclass)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Psionic Rogue — manifests Psychic Blades (1d6 Psychic, Finesse,
+# Thrown 60/120, free Vex mastery) with a BA d4 offhand. Psionic Energy
+# Dice (scaling d6→d12, 4→12 dice) fuel Psi-Bolstered Knack, Psychic
+# Whispers, Homing Strikes, Psychic Teleportation, and Rend Mind.
+#
+# Sim-relevant highlights: Psychic Blades is HIGH wireability — always-
+# available Finesse weapon with free Vex + BA attack (Psychic damage
+# bypasses most resistances). Soul Blades/Homing Strikes (L9) is
+# basically a miss-to-hit converter. Rend Mind (L17) is a Stunned
+# condition on SA hit (WIS save, 1/LR or 3 dice). Psychic Veil (L13)
+# is self-Invisibility for 1 hour.
+#
+# DEPENDS ON: Psionic Energy Dice resource system (same pattern as
+# Psi Warrior but separate pool with different scaling table)
+
+id: sc_soulknife
+name: Soulknife
+source: phb_2024
+parent_class: c_rogue
+
+archetype_tags:
+  behavior_archetype: opportunistic_skirmisher
+  role: striker
+  flavor_tags: [psionic, psychic, blades, stealthy]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_soulknife_psionic_power, f_psychic_blades]
+  - level: 9
+    feature_ids: [f_soul_blades]
+  - level: 13
+    feature_ids: [f_psychic_veil]
+  - level: 17
+    feature_ids: [f_rend_mind]

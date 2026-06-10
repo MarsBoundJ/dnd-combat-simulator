@@ -1,0 +1,25 @@
+# f_use_magic_device — Use Magic Device (Thief L13)
+# Source: SRD CC v5.2.1 (PHB 2024)
+#
+# Mechanics:
+#   - Attunement: can attune to up to 4 magic items (normally 3).
+#   - Charges: when using a magic item property that expends charges,
+#     roll 1d6; on a 6, property used without expending charges.
+#   - Scrolls: can use any Spell Scroll (INT spellcasting ability).
+#     Cantrips/L1 spells auto-succeed. Higher-level: INT (Arcana)
+#     check DC 10 + spell level; fail = scroll disintegrates.
+#
+# Engine modeling (deferred — BLOCKED on magic item system): the
+# extra attunement slot and charge conservation are powerful in
+# campaigns with magic items. Scroll use is BLOCKED on spell library.
+# Stub for now.
+
+id: f_use_magic_device
+name: Use Magic Device
+source: srd_5.2.1
+granted_by:
+  subclass: sc_thief
+  level: 13
+type: passive
+
+effect_primitives: []

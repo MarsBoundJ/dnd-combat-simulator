@@ -1,0 +1,32 @@
+# f_spell_thief — Spell Thief (Arcane Trickster L17)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Immediately after a creature casts a spell that targets
+# you or includes you in its area of effect, take a Reaction to force
+# an INT save (DC = your spell save DC). On a failed save:
+#   - Negate the spell's effect against you
+#   - If the spell is L1+ and of a level you can cast, you steal it:
+#     you have it prepared for 8 hours, the caster can't cast it for
+#     8 hours.
+#   - 1/Long Rest
+#
+# Engine modeling (HIGH wireability): reaction-based spell negation +
+# theft. Rides the spell_targeting reaction lane. The negation alone
+# is potent defense (like Counterspell but after the spell resolves
+# targeting). Stealing the spell adds it to your prepared list.
+# BLOCKED ON: spell library + spell_cast reaction lane
+
+id: f_spell_thief
+name: Spell Thief
+source: phb_2024
+granted_by:
+  subclass: sc_arcane_trickster
+  level: 17
+type: triggered
+is_signature: true
+
+trigger:
+  event: spell_targets_you
+  chosen_by: actor
+
+effect_primitives: []

@@ -1,0 +1,35 @@
+# f_arcane_trickster_spellcasting — Spellcasting (Arcane Trickster L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Third-caster (INT, Wizard spell list). Knows Mage Hand +
+# 2 other Wizard cantrips (4th cantrip at L10). Prepared spells from
+# Wizard list.
+#
+# Arcane Trickster Spellcasting Table:
+#   Rogue L3:  3 prepared, 2/—/—/— slots
+#   Rogue L4:  4 prepared, 3/—/—/—
+#   Rogue L7:  5 prepared, 4/2/—/—
+#   Rogue L8:  6 prepared, 4/2/—/—
+#   Rogue L10: 7 prepared, 4/3/—/—
+#   Rogue L13: 9 prepared, 4/3/2/—
+#   Rogue L16: 11 prepared, 4/3/3/—
+#   Rogue L19: 12 prepared, 4/3/3/1
+#   Rogue L20: 13 prepared, 4/3/3/1
+#
+# Spellcasting ability: Intelligence
+# Spellcasting focus: Arcane Focus
+#
+# Engine modeling (deferred — BLOCKED on spell library): third-caster
+# slot table follows the same pattern as Eldritch Knight. Key combat
+# spells: Shield, Absorb Elements, Find Familiar, Shadow Blade,
+# Phantasmal Killer.
+
+id: f_arcane_trickster_spellcasting
+name: Spellcasting
+source: phb_2024
+granted_by:
+  subclass: sc_arcane_trickster
+  level: 3
+type: passive
+
+effect_primitives: []

@@ -1,0 +1,22 @@
+# f_versatile_trickster — Versatile Trickster (Arcane Trickster L13)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: When you use the Trip option of Cunning Strike on a
+# creature, you can also use that option on another creature within
+# 5 ft of the spectral hand (Mage Hand).
+#
+# Engine modeling (MEDIUM wireability): AoE Trip via Mage Hand —
+# extends the Cunning Strike Trip to a second target near the hand's
+# position. Requires Mage Hand position tracking + Cunning Strike
+# framework.
+# DEPENDS ON: Cunning Strike system, Mage Hand position tracking
+
+id: f_versatile_trickster
+name: Versatile Trickster
+source: phb_2024
+granted_by:
+  subclass: sc_arcane_trickster
+  level: 13
+type: passive
+
+effect_primitives: []

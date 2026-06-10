@@ -1,0 +1,19 @@
+# f_assassins_tools — Assassin's Tools (Assassin L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: You gain a Disguise Kit and a Poisoner's Kit, and you
+# have proficiency with them.
+#
+# Engine modeling (LOW combat relevance): tool proficiency grant.
+# The Poisoner's Kit is required for the Poison Cunning Strike option
+# (cost 1d6). Build-time stamp on pc_schema. Stub for now.
+
+id: f_assassins_tools
+name: "Assassin's Tools"
+source: phb_2024
+granted_by:
+  subclass: sc_assassin
+  level: 3
+type: passive
+
+effect_primitives: []

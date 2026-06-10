@@ -1,0 +1,41 @@
+# f_soulknife_psionic_power — Psionic Power (Soulknife L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Psionic Energy Dice — separate pool from Psi Warrior.
+# Fuel Psi-Bolstered Knack, Psychic Whispers, and later Soul Blades /
+# Rend Mind powers.
+#
+# Soulknife Energy Dice Table:
+#   Rogue L3:  4 × d6
+#   Rogue L5:  6 × d8
+#   Rogue L9:  8 × d8
+#   Rogue L11: 8 × d10
+#   Rogue L13: 10 × d10
+#   Rogue L17: 12 × d12
+#
+# Recovery: 1 die on Short Rest, all on Long Rest.
+#
+# Sub-powers at L3:
+#   - Psi-Bolstered Knack: on a failed ability check (proficient
+#     skill/tool), roll a Psionic Energy Die and add to the check.
+#     Die expended only if the check then succeeds.
+#   - Psychic Whispers: Magic action, choose up to Prof Bonus
+#     creatures, roll 1 die → telepathy for that many hours. Free
+#     first use per Long Rest, then costs 1 die.
+#
+# Engine modeling (compound resource): same pattern as Psi Warrior's
+# f_psionic_power but with different scaling table and different
+# sub-powers. Needs psionic_energy_dice resource on pc_schema.
+# Psi-Bolstered Knack is non-combat. Psychic Whispers is non-combat.
+# The dice mainly matter as fuel for Soul Blades (L9), Psychic Veil
+# (L13), and Rend Mind (L17).
+
+id: f_soulknife_psionic_power
+name: Psionic Power
+source: phb_2024
+granted_by:
+  subclass: sc_soulknife
+  level: 3
+type: compound
+
+effect_primitives: []

@@ -1,0 +1,26 @@
+# f_psychic_veil — Psychic Veil (Soulknife L13)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: As a Magic action, gain the Invisible condition for 1 hour
+# or until dismissed (no action). Invisibility ends early immediately
+# after you deal damage or force a saving throw.
+#
+# 1/Long Rest free, then costs 1 Psionic Energy Die (no action) to
+# restore the use.
+#
+# Engine modeling (MEDIUM wireability): self-Invisibility for stealth
+# approach — grants Advantage on attacks + Disadvantage on incoming
+# attacks. Breaks on dealing damage (unlike Greater Invisibility).
+# Useful for the first attack of combat (guaranteed SA). Limited
+# combat sustain since it drops on hit.
+# DEPENDS ON: Invisible condition tracking, f_soulknife_psionic_power
+
+id: f_psychic_veil
+name: Psychic Veil
+source: phb_2024
+granted_by:
+  subclass: sc_soulknife
+  level: 13
+type: active
+
+effect_primitives: []

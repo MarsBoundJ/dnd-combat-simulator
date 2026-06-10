@@ -1,0 +1,35 @@
+# sc_assassin — Assassin (Rogue subclass)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Alpha-strike specialist — Assassinate (L3) gives Initiative Advantage
+# + first-round attack Advantage vs creatures that haven't acted +
+# bonus weapon-type damage equal to Rogue level on Sneak Attack hits
+# that round. Death Strike (L17) doubles the hit's damage on a failed
+# CON save. Envenom Weapons (L13) adds 2d6 Poison to the Poison
+# Cunning Strike option (ignores Poison Resistance).
+#
+# Sim-relevant highlights: Assassinate is the classic nova opener — HIGH
+# wireability, rides initiative_roll + first_round_tracking. Death Strike
+# is multiplicative with Sneak Attack (double ALL damage on failed save).
+# Infiltration Expertise (L9) is largely non-combat (Roving Aim is
+# notable: Steady Aim no longer zeroes Speed).
+
+id: sc_assassin
+name: Assassin
+source: phb_2024
+parent_class: c_rogue
+
+archetype_tags:
+  behavior_archetype: apex_predator
+  role: martial_striker
+  flavor_tags: [ambusher, poisoner, infiltrator, lethal]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_assassinate, f_assassins_tools]
+  - level: 9
+    feature_ids: [f_infiltration_expertise]
+  - level: 13
+    feature_ids: [f_envenom_weapons]
+  - level: 17
+    feature_ids: [f_death_strike]

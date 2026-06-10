@@ -1,0 +1,36 @@
+# f_rend_mind — Rend Mind (Soulknife L17)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: When you use Psychic Blades to deal Sneak Attack damage,
+# force the target to make a WIS save (DC 8 + DEX mod + Prof Bonus).
+# On a failed save, the target has the Stunned condition for 1 minute.
+# The Stunned target repeats the save at the end of each of its turns,
+# ending on a success.
+#
+# 1/Long Rest free, then costs 3 Psionic Energy Dice (no action) to
+# restore the use.
+#
+# Engine modeling (HIGH wireability): Stunned is one of the most
+# powerful conditions in the game (incapacitated + auto-fail STR/DEX
+# saves + attacks against have Advantage). Applied on a Sneak Attack
+# hit (no extra action cost), gated by WIS save. The 3-die recharge
+# cost is steep but Stunned is worth it.
+# Rides the sneak_attack_hit event → _forced_save(WIS) →
+# _apply_condition(stunned, duration: 1_minute, save_end_of_turn: true)
+# DEPENDS ON: f_soulknife_psionic_power, Stunned condition, Psychic
+# Blades weapon check
+
+id: f_rend_mind
+name: Rend Mind
+source: phb_2024
+granted_by:
+  subclass: sc_soulknife
+  level: 17
+type: triggered
+is_signature: true
+
+trigger:
+  event: sneak_attack_hit
+  chosen_by: actor
+
+effect_primitives: []

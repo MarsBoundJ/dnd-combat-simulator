@@ -1,0 +1,22 @@
+# f_fast_hands — Fast Hands (Thief L3)
+# Source: SRD CC v5.2.1 (PHB 2024)
+#
+# Mechanics: As a Bonus Action, do one of:
+#   - Sleight of Hand: DEX (Sleight of Hand) check to pick lock/disarm
+#     trap with Thieves' Tools or pick a pocket.
+#   - Use an Object: take the Utilize action, or take the Magic action
+#     to use a magic item that requires it.
+#
+# Engine modeling (LOW combat relevance): primarily exploration/utility.
+# BA magic-item use could be significant with Healer's Kit or specific
+# items but requires magic-item integration. Stub for now.
+
+id: f_fast_hands
+name: Fast Hands
+source: srd_5.2.1
+granted_by:
+  subclass: sc_thief
+  level: 3
+type: active
+
+effect_primitives: []

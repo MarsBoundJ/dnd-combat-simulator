@@ -44,12 +44,35 @@ All 4 Fighter and all 4 Cleric subclasses are complete:
 | Cleric  | Trickery Domain |
 | Cleric  | War Domain      |
 
+All 4 Druid, all 4 Monk, all 4 Paladin, all 4 Ranger, and all 4 Rogue subclasses are complete:
+
+| Class   | Subclass                       |
+|---------|--------------------------------|
+| Druid   | Circle of the Land             |
+| Druid   | Circle of the Moon             |
+| Druid   | Circle of the Sea              |
+| Druid   | Circle of the Stars            |
+| Monk    | Warrior of the Open Hand       |
+| Monk    | Warrior of Mercy               |
+| Monk    | Warrior of Shadow              |
+| Monk    | Warrior of the Elements        |
+| Paladin | Oath of Devotion               |
+| Paladin | Oath of Glory                  |
+| Paladin | Oath of the Ancients           |
+| Paladin | Oath of Vengeance              |
+| Ranger  | Hunter                         |
+| Ranger  | Beast Master                   |
+| Ranger  | Fey Wanderer                   |
+| Ranger  | Gloom Stalker                  |
+| Rogue   | Thief                          |
+| Rogue   | Arcane Trickster               |
+| Rogue   | Assassin                       |
+| Rogue   | Soulknife                      |
+
 Plus these individual subclasses from other classes:
 
 | Class    | Subclass                    |
 |----------|-----------------------------|
-| Druid    | Circle of the Land          |
-| Monk     | Warrior of the Open Hand    |
 | Sorcerer | Draconic Sorcery            |
 | Wizard   | Evoker                      |
 

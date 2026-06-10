@@ -1,0 +1,36 @@
+# f_psychic_blades — Psychic Blades (Soulknife L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Whenever you take the Attack action or make an Opportunity
+# Attack, you can manifest a Psychic Blade in your free hand. Traits:
+#   - Weapon Category: Simple Melee
+#   - Damage: 1d6 Psychic + ability modifier
+#   - Properties: Finesse, Thrown (60/120 ft)
+#   - Mastery: Vex (free — doesn't count against Weapon Mastery limit)
+#
+# The blade vanishes immediately after hit/miss, leaves no mark.
+#
+# After attacking with the blade on your turn, you can make a melee or
+# ranged attack with a second psychic blade as a Bonus Action (same
+# turn, other hand free). The BA attack uses 1d4 instead of 1d6.
+#
+# Engine modeling (HIGH wireability): always-available Finesse weapon
+# that deals Psychic damage (bypasses most physical resistances). Free
+# Vex mastery = Advantage on next attack vs same target. BA offhand
+# attack (1d4) = consistent two-attack pattern without TWF feat.
+# Qualifies for Sneak Attack (Finesse). No need to carry physical
+# weapons.
+#
+# The weapon needs to be registered as a virtual weapon in the weapon
+# system — appears on Attack action, disappears after resolution.
+
+id: f_psychic_blades
+name: Psychic Blades
+source: phb_2024
+granted_by:
+  subclass: sc_soulknife
+  level: 3
+type: active
+is_signature: true
+
+effect_primitives: []

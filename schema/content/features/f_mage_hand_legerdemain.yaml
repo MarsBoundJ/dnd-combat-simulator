@@ -1,0 +1,23 @@
+# f_mage_hand_legerdemain — Mage Hand Legerdemain (Arcane Trickster L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: When you cast Mage Hand:
+#   - Can cast it as a Bonus Action
+#   - Can make the spectral hand Invisible
+#   - Can control the hand as a Bonus Action
+#   - Can make DEX (Sleight of Hand) checks through it
+#
+# Engine modeling (LOW combat relevance): primarily utility/stealth.
+# The BA casting/control is the main sim-relevant piece — keeps the
+# action economy tight. Stub for now.
+# BLOCKED ON: spell library (Mage Hand spell)
+
+id: f_mage_hand_legerdemain
+name: Mage Hand Legerdemain
+source: phb_2024
+granted_by:
+  subclass: sc_arcane_trickster
+  level: 3
+type: passive
+
+effect_primitives: []

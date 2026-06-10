@@ -1,0 +1,28 @@
+# f_death_strike — Death Strike (Assassin L17)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: When you hit with your Sneak Attack on the first round of
+# a combat, the target must succeed on a CON save (DC 8 + DEX mod +
+# Prof Bonus) or the attack's damage is doubled against the target.
+#
+# Engine modeling (HIGH wireability): multiplicative damage doubling on
+# the entire hit (weapon + SA + Assassinate bonus). At L17 that's
+# potentially (weapon + 9d6 SA + 17 Assassinate) × 2 on a failed save.
+# Rides the sneak_attack_hit event on first_round. The CON save DC
+# scales with DEX + proficiency.
+#
+# Combined with Assassinate's first-round Advantage, this is a
+# classic one-shot nova. Against a target with moderate CON save,
+# expected damage is enormous.
+# DEPENDS ON: first_round tracking, sneak_attack_hit event
+
+id: f_death_strike
+name: Death Strike
+source: phb_2024
+granted_by:
+  subclass: sc_assassin
+  level: 17
+type: passive
+is_signature: true
+
+effect_primitives: []

@@ -1,0 +1,35 @@
+# f_assassinate — Assassinate (Assassin L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics:
+#   - Initiative: Advantage on Initiative rolls.
+#   - Surprising Strikes: during the first round of each combat, you
+#     have Advantage on attack rolls against any creature that hasn't
+#     taken a turn. If your Sneak Attack hits any target during that
+#     round, the target takes extra damage of the weapon's type equal
+#     to your Rogue level.
+#
+# Engine modeling (HIGH wireability): two pieces:
+#   1. Initiative Advantage — same pattern as Champion's Remarkable
+#      Athlete or Assassin's old Assassinate. Modifier on the
+#      initiative_roll event.
+#   2. First-round Advantage + bonus damage — needs first_round
+#      tracking + "target hasn't acted yet" check. The bonus damage
+#      (= Rogue level, weapon type) stacks ON TOP of Sneak Attack.
+#      At L3 that's +3 weapon-type damage; at L20 that's +20. This
+#      is the nova opener that defines the subclass.
+#
+# Synergy: Death Strike (L17) doubles ALL damage from the hit
+# including this bonus + SA dice. Combined first-round burst is
+# enormous.
+
+id: f_assassinate
+name: Assassinate
+source: phb_2024
+granted_by:
+  subclass: sc_assassin
+  level: 3
+type: passive
+is_signature: true
+
+effect_primitives: []

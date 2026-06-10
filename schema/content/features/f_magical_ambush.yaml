@@ -1,0 +1,24 @@
+# f_magical_ambush — Magical Ambush (Arcane Trickster L9)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: If you have the Invisible condition when you cast a spell
+# on a creature, it has Disadvantage on any saving throw it makes
+# against the spell on the same turn.
+#
+# Engine modeling (HIGH wireability): strong synergy with save-or-suck
+# spells. Condition check (am I Invisible?) → impose Disadvantage on
+# target's save. Same pattern as Heightened Spell metamagic. Requires
+# Invisible condition tracking + spell_cast event → save_modifier.
+# Combos with Psychic Veil (if multiclass), Greater Invisibility, or
+# Hide action.
+# BLOCKED ON: spell library + Invisible condition tracking
+
+id: f_magical_ambush
+name: Magical Ambush
+source: phb_2024
+granted_by:
+  subclass: sc_arcane_trickster
+  level: 9
+type: passive
+
+effect_primitives: []
