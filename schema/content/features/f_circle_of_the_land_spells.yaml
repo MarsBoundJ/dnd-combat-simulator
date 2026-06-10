@@ -1,0 +1,29 @@
+# f_circle_of_the_land_spells — Circle of the Land Spells (Circle of the Land L3)
+# Source: SRD CC v5.2.1
+#
+# RAW: On each Long Rest choose a land type (arid/polar/temperate/
+# tropical); you have that table's spells (for your level and lower)
+# always prepared.
+#   ARID:      L3 Blur, Burning Hands, Fire Bolt | L5 Fireball |
+#              L7 Blight | L9 Wall of Stone
+#   POLAR:     L3 Fog Cloud, Hold Person, Ray of Frost | L5 Sleet Storm |
+#              L7 Ice Storm | L9 Cone of Cold
+#   TEMPERATE: L3 Misty Step, Shocking Grasp, Sleep | L5 Lightning Bolt |
+#              L7 Freedom of Movement | L9 Tree Stride
+#   TROPICAL:  L3 Acid Splash, Ray of Sickness, Web | L5 Stinking Cloud |
+#              L7 Polymorph | L9 Insect Plague
+#
+# Engine modeling (deferred — needs pc_spec.land_choice + spell
+# library): Fireball + Hold Person exist today (arid L5 / polar L3).
+# Most others not yet built. The land choice is a per-long-rest
+# build-time selection that swaps the prepared set.
+
+id: f_circle_of_the_land_spells
+name: Circle of the Land Spells
+source: srd_5.2.1
+granted_by:
+  subclass: sc_circle_of_the_land
+  level: 3
+type: passive
+
+effect_primitives: []

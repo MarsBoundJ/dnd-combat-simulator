@@ -1,0 +1,27 @@
+# f_moonlight_step — Moonlight Step (Circle of the Moon L10)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Bonus Action — teleport up to 30 ft to a space you can see
+# and gain Advantage on your next attack roll this turn. Uses = WIS
+# modifier (min 1) per Long Rest; restore a use by expending a level 2+
+# spell slot (no action).
+#
+# Engine modeling (deferred): BA teleport + self-advantage rider.
+# Movement layer supports the reposition; the advantage is a one-shot
+# next-attack modifier. Resource: moonlight_step_uses = WIS mod.
+
+id: f_moonlight_step
+name: Moonlight Step
+source: phb_2024
+granted_by:
+  subclass: sc_circle_of_the_moon
+  level: 10
+type: active
+
+resource_cost:
+  type: feature_use   # moonlight_step_uses = WIS mod per long rest
+
+usage:
+  uses_per: per_long_rest
+
+effect_primitives: []

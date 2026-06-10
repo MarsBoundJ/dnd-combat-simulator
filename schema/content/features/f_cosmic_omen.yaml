@@ -1,0 +1,39 @@
+# f_cosmic_omen — Cosmic Omen (Circle of the Stars L6)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: After a Long Rest, roll a die for Weal (even) or Woe (odd)
+# until your next Long Rest. As a Reaction when a creature within 30 ft
+# is about to make a D20 Test:
+#   - Weal: add 1d6 to the roll.
+#   - Woe: subtract 1d6 from the roll.
+# Uses = WIS modifier (min 1) per Long Rest.
+#
+# Engine modeling (HIGH wireability): a reaction that adds/subtracts a
+# d6 on any d20 test in range — rides the d20-pending hooks the engine
+# already exposes for attack-roll and save reactions (Cutting Words /
+# Warding Flare / Guided Strike lane). Woe-on-enemy-attack and
+# Weal-on-ally-save are the combat modes; condition gate = "the d6
+# could plausibly flip the result." Resource: cosmic_omen_uses = WIS
+# mod. The Weal/Woe polarity is a per-long-rest random that the AI
+# plays around.
+
+id: f_cosmic_omen
+name: Cosmic Omen
+source: phb_2024
+granted_by:
+  subclass: sc_circle_of_the_stars
+  level: 6
+type: triggered
+is_signature: true
+
+resource_cost:
+  type: feature_use   # cosmic_omen_uses = WIS mod per long rest
+
+usage:
+  uses_per: per_long_rest
+
+trigger:
+  event: d20_test_pending
+  chosen_by: actor
+
+effect_primitives: []

@@ -1,0 +1,22 @@
+# f_star_map — Star Map (Circle of the Stars L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: A Tiny object usable as a Spellcasting Focus. While holding
+# it you have Guidance and Guiding Bolt prepared, and can cast Guiding
+# Bolt without a slot WIS-mod times (min 1) per Long Rest.
+#
+# Engine modeling (deferred — needs Guiding Bolt): the free Guiding
+# Bolts are real per-encounter ranged radiant damage (spell attack,
+# 4d6 + advantage-granting rider). Wireable once Guiding Bolt exists;
+# resource is star_map_guiding_bolt_uses = WIS mod.
+
+id: f_star_map
+name: Star Map
+source: phb_2024
+granted_by:
+  subclass: sc_circle_of_the_stars
+  level: 3
+type: passive
+is_signature: true
+
+effect_primitives: []

@@ -1,0 +1,23 @@
+# f_stormborn — Stormborn (Circle of the Sea L10)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: While Wrath of the Sea is active, you also gain:
+#   - Flight: Fly Speed equal to your Speed.
+#   - Resistance: to Cold, Lightning, and Thunder damage.
+#
+# Engine modeling (deferred — rides f_wrath_of_the_sea): conditional
+# resistance (active only while the emanation is up) is the
+# combat-relevant part — a triple resistance against the most common
+# elemental blast types. Flight deferred (not modeled). Resistance is
+# a while-active grant rather than a static build stamp, so it keys off
+# emanation state.
+
+id: f_stormborn
+name: Stormborn
+source: phb_2024
+granted_by:
+  subclass: sc_circle_of_the_sea
+  level: 10
+type: passive
+
+effect_primitives: []

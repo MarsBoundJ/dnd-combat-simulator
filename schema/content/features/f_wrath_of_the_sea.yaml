@@ -1,0 +1,30 @@
+# f_wrath_of_the_sea — Wrath of the Sea (Circle of the Sea L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Bonus Action, expend a Wild Shape use — manifest a 5-ft
+# ocean-spray Emanation around yourself for 10 minutes (ends if
+# dismissed, re-manifested, or Incapacitated). On manifest and as a
+# Bonus Action each later turn, target one creature in the Emanation:
+# CON save vs spell DC or take (WIS-mod)d6 Cold damage and, if Large or
+# smaller, be pushed up to 15 ft away.
+#
+# Engine modeling (deferred — needs Wild Shape resource + emanation
+# tracking): repeated BA save-gated damage + forced push. The
+# damage maps to _forced_save → _damage (save-DC Shapley attribution
+# applies); the push is a forced-move primitive. The sustained
+# bonus-action cadence makes this a strong, low-opportunity-cost
+# control engine — good sim candidate once emanations are modeled.
+
+id: f_wrath_of_the_sea
+name: Wrath of the Sea
+source: phb_2024
+granted_by:
+  subclass: sc_circle_of_the_sea
+  level: 3
+type: active
+is_signature: true
+
+resource_cost:
+  type: feature_use   # wild_shape_uses
+
+effect_primitives: []

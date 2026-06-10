@@ -1,0 +1,24 @@
+# f_circle_forms — Circle Forms (Circle of the Moon L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: While in Wild Shape, lunar magic improves the form:
+#   - Max beast CR = Druid level / 3 (round down)
+#   - AC = max(beast AC, 13 + WIS modifier) until you leave the form
+#   - Temp HP = 3 x Druid level on transform (vs the base Druid-level THP)
+#
+# Engine modeling (deferred — rides Wild Shape / forms.py): modifies the
+# transform to allow higher-CR forms, floor the AC, and grant larger
+# THP. The THP + AC floor are simple overrides at transform time; the
+# CR ceiling change feeds the form-eligibility selector. Beast-form
+# combat must work first.
+
+id: f_circle_forms
+name: Circle Forms
+source: phb_2024
+granted_by:
+  subclass: sc_circle_of_the_moon
+  level: 3
+type: passive
+is_signature: true
+
+effect_primitives: []

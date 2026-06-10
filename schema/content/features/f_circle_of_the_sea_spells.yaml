@@ -1,0 +1,24 @@
+# f_circle_of_the_sea_spells — Circle of the Sea Spells (Circle of the Sea L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Always-prepared spells by Druid level:
+#   L3: Fog Cloud, Gust of Wind, Ray of Frost, Shatter, Thunderwave
+#   L5: Lightning Bolt, Water Breathing
+#   L7: Control Water, Ice Storm
+#   L9: Conjure Elemental, Hold Monster
+#
+# Engine modeling (deferred — BLOCKED on spell library):
+#   NEEDED (combat): Gust of Wind, Shatter, Thunderwave, Lightning Bolt,
+#   Ice Storm, Conjure Elemental, Hold Monster
+#   NON-COMBAT (stub-tier): Fog Cloud, Water Breathing, Control Water
+#   (Ray of Frost is a cantrip — may exist)
+
+id: f_circle_of_the_sea_spells
+name: Circle of the Sea Spells
+source: phb_2024
+granted_by:
+  subclass: sc_circle_of_the_sea
+  level: 3
+type: passive
+
+effect_primitives: []

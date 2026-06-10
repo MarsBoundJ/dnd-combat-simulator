@@ -1,0 +1,32 @@
+# sc_circle_of_the_sea — Circle of the Sea (Druid subclass)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# The storm-controller. Wrath of the Sea (L3) is a sustained
+# Wild-Shape-fuelled emanation: each turn, CON-save a creature in it
+# for WIS-many d6 Cold + a 15-ft push. Later features grow the aura,
+# add flight + cold/lightning/thunder resistance (Stormborn L10), and
+# let you project it onto an ally (Oceanic Gift L14). Domain list is
+# storm blasting (Lightning Bolt, Ice Storm, Shatter).
+#
+# DEPENDS ON: Wild Shape resource (f_wild_shape exists) fuels the
+# emanation. The repeated bonus-action save-and-push is the core loop.
+
+id: sc_circle_of_the_sea
+name: Circle of the Sea
+source: phb_2024
+parent_class: c_druid
+
+archetype_tags:
+  behavior_archetype: cunning_tactician
+  role: controller                # INTERNAL-EVAL-ONLY per vocabulary firewall
+  flavor_tags: [tempestuous, tidal, elemental, vengeful]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_circle_of_the_sea_spells, f_wrath_of_the_sea]
+  - level: 6
+    feature_ids: [f_aquatic_affinity]
+  - level: 10
+    feature_ids: [f_stormborn]
+  - level: 14
+    feature_ids: [f_oceanic_gift]

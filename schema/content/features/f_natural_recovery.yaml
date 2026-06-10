@@ -1,0 +1,21 @@
+# f_natural_recovery — Natural Recovery (Circle of the Land L6)
+# Source: SRD CC v5.2.1
+#
+# RAW: Cast one prepared Circle Spell of level 1+ without a slot
+# (1/Long Rest). Also, on a Short Rest, recover expended slots with a
+# combined level <= half Druid level (round up), none level 6+
+# (1/Long Rest).
+#
+# Engine modeling (deferred): pure resource economy — extra free cast +
+# short-rest slot refund. No per-round combat effect; matters only in
+# multi-encounter attrition modeling.
+
+id: f_natural_recovery
+name: Natural Recovery
+source: srd_5.2.1
+granted_by:
+  subclass: sc_circle_of_the_land
+  level: 6
+type: passive
+
+effect_primitives: []

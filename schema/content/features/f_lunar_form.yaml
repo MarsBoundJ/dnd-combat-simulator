@@ -1,0 +1,27 @@
+# f_lunar_form — Lunar Form (Circle of the Moon L14)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Two upgrades:
+#   - Improved Lunar Radiance: once per turn, deal an extra 2d10 Radiant
+#     on a Wild Shape form attack that hits.
+#   - Shared Moonlight: when you use Moonlight Step, also teleport one
+#     willing creature within 10 ft of you to within 10 ft of your
+#     destination.
+#
+# Engine modeling (deferred — rides beast-form attacks + Moonlight
+# Step): the 2d10 once-per-turn radiant rider mirrors the Frenzy /
+# Psionic Strike pattern (engine/core/frenzy.py) and is the main DPR
+# bump. Shared Moonlight is an ally-reposition tag on the teleport.
+
+id: f_lunar_form
+name: Lunar Form
+source: phb_2024
+granted_by:
+  subclass: sc_circle_of_the_moon
+  level: 14
+type: passive
+
+usage:
+  uses_per: per_turn   # the 2d10 radiant rider
+
+effect_primitives: []

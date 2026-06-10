@@ -1,0 +1,20 @@
+# f_full_of_stars — Full of Stars (Circle of the Stars L14)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: While in Starry Form, you become partially incorporeal,
+# gaining Resistance to Bludgeoning, Piercing, and Slashing damage.
+#
+# Engine modeling (deferred — rides f_starry_form): conditional B/P/S
+# resistance while the form is active (not a static build stamp — keys
+# off Starry Form state). Strong defensive eHP during the form's
+# 10-minute window.
+
+id: f_full_of_stars
+name: Full of Stars
+source: phb_2024
+granted_by:
+  subclass: sc_circle_of_the_stars
+  level: 14
+type: passive
+
+effect_primitives: []

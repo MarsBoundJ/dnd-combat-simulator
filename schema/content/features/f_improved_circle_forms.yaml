@@ -1,0 +1,21 @@
+# f_improved_circle_forms — Improved Circle Forms (Circle of the Moon L6)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: While in a Wild Shape form:
+#   - Lunar Radiance: each beast-form attack can deal its normal type
+#     OR Radiant (choose per hit) — lets you bypass B/P/S resistances.
+#   - Increased Toughness: add WIS modifier to CON saving throws.
+#
+# Engine modeling (deferred — rides beast-form attacks): per-hit damage
+# type swap (matters vs resistant foes) + a CON-save bonus. Both are
+# small riders once beast-form attacks resolve through the engine.
+
+id: f_improved_circle_forms
+name: Improved Circle Forms
+source: phb_2024
+granted_by:
+  subclass: sc_circle_of_the_moon
+  level: 6
+type: passive
+
+effect_primitives: []

@@ -1,0 +1,22 @@
+# f_oceanic_gift — Oceanic Gift (Circle of the Sea L14)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: You can manifest Wrath of the Sea's Emanation around a
+# willing creature within 60 ft instead of yourself (it uses your spell
+# DC + WIS mod). By spending two Wild Shape uses instead of one, you can
+# manifest it around both that creature and yourself.
+#
+# Engine modeling (deferred — rides f_wrath_of_the_sea): lets the aura
+# ride an ally (e.g., the front-line tank) or both. Decouples the
+# emanation origin from the caster — a targeting tweak on the manifest
+# step plus a two-use cost option.
+
+id: f_oceanic_gift
+name: Oceanic Gift
+source: phb_2024
+granted_by:
+  subclass: sc_circle_of_the_sea
+  level: 14
+type: passive
+
+effect_primitives: []

@@ -1,0 +1,32 @@
+# sc_circle_of_the_stars — Circle of the Stars (Druid subclass)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# The toolkit support-caster. Starry Form (L3) spends Wild Shape for a
+# constellation stance — Archer (BA ranged radiant attack), Chalice
+# (heal rider), or Dragon (concentration/check floor). Star Map grants
+# free Guiding Bolts. Cosmic Omen (L6) is a Weal/Woe reaction that
+# buffs allies' or debuffs enemies' d20 rolls. Highly flexible; covers
+# striker, healer, and control modes from one resource.
+#
+# DEPENDS ON: Wild Shape resource (f_wild_shape exists) fuels Starry
+# Form. Guiding Bolt + Guidance spells needed for Star Map.
+
+id: sc_circle_of_the_stars
+name: Circle of the Stars
+source: phb_2024
+parent_class: c_druid
+
+archetype_tags:
+  behavior_archetype: cunning_tactician
+  role: support                   # INTERNAL-EVAL-ONLY per vocabulary firewall
+  flavor_tags: [celestial, astral, versatile, mystical]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_star_map, f_starry_form]
+  - level: 6
+    feature_ids: [f_cosmic_omen]
+  - level: 10
+    feature_ids: [f_twinkling_constellations]
+  - level: 14
+    feature_ids: [f_full_of_stars]

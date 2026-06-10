@@ -1,0 +1,22 @@
+# f_twinkling_constellations — Twinkling Constellations (Circle of the Stars L10)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Starry Form's Archer and Chalice dice improve from 1d8 to
+# 2d8. While the Dragon constellation is active you gain a 20-ft Fly
+# Speed and can hover. Also, at the start of each turn while in Starry
+# Form, you can change which constellation is active.
+#
+# Engine modeling (deferred — rides f_starry_form): dice bump (2d8) on
+# Archer/Chalice + per-turn constellation swapping (lets the druid pivot
+# striker/healer/sustain each round). Flight deferred. The per-turn
+# swap is an AI flexibility lever once Starry Form is wired.
+
+id: f_twinkling_constellations
+name: Twinkling Constellations
+source: phb_2024
+granted_by:
+  subclass: sc_circle_of_the_stars
+  level: 10
+type: passive
+
+effect_primitives: []

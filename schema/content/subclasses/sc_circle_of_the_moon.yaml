@@ -1,0 +1,33 @@
+# sc_circle_of_the_moon — Circle of the Moon (Druid subclass)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# The combat shapeshifter. Circle Forms (L3) turns Wild Shape into a
+# front-line chassis: higher-CR beasts, AC floor of 13 + WIS, and 3x
+# Druid level temp HP per transform. Later features layer radiant
+# damage onto beast attacks (Improved Circle Forms L6, Lunar Form L14)
+# and add a teleport (Moonlight Step L10). The bruiser druid.
+#
+# DEPENDS ON: Wild Shape (Druid L2 class feature — f_wild_shape exists)
+# and the beast stat-block / form-swap system (engine/core/forms.py).
+# Beast-form combat is the load-bearing dependency for this whole
+# subclass.
+
+id: sc_circle_of_the_moon
+name: Circle of the Moon
+source: phb_2024
+parent_class: c_druid
+
+archetype_tags:
+  behavior_archetype: berserker_fanatic
+  role: tank                      # INTERNAL-EVAL-ONLY per vocabulary firewall
+  flavor_tags: [lunar, shapeshifting, ferocious, resilient]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_circle_forms, f_circle_of_the_moon_spells]
+  - level: 6
+    feature_ids: [f_improved_circle_forms]
+  - level: 10
+    feature_ids: [f_moonlight_step]
+  - level: 14
+    feature_ids: [f_lunar_form]

@@ -8,18 +8,17 @@
 #     f_lands_aid). The subclass's standout combat option and a second
 #     sink for the Wild Shape resource.
 #
-# Deferred subclass features (utility / economy / positional — out of
-# scope for the combat sim's eHP/DPR measurement in v1):
-#   - L3 Circle Spells: a land-type (arid/polar/temperate/tropical)
-#     always-prepared spell list. Needs a land-choice field + several
-#     spells not yet built (Fireball, Lightning Bolt, Cone of Cold, ...);
-#     wire once those exist and a pc_spec.land_choice is added.
-#   - L6 Natural Recovery: free Circle-spell cast 1/long rest + short-rest
-#     slot recovery. Pure resource economy; no combat-round effect.
-#   - L10 Nature's Ward: Poisoned immunity + Resistance to a land-keyed
-#     damage type. Modelable once land_choice exists (build-time grant).
-#   - L14 Nature's Sanctuary: a movable 15-ft Half-Cover/Resistance aura.
-#     Positional cover not modeled in v1.
+# Subclass features (now fully declared; mechanics deferred per notes
+# in each feature file):
+#   - L3 Land's Aid (f_lands_aid): WILD-SHAPE-fuelled 10-ft sphere,
+#     2d6 necrotic CON-save-for-half + 2d6 heal. The standout combat
+#     option (wired). The damage scales 3d6/4d6 at L10/L14.
+#   - L3 Circle Spells: land-type (arid/polar/temperate/tropical)
+#     always-prepared list. Needs a land-choice field + several spells.
+#   - L6 Natural Recovery: free Circle-spell cast + short-rest slot
+#     recovery. Resource economy.
+#   - L10 Nature's Ward: Poisoned immunity + land-keyed resistance.
+#   - L14 Nature's Sanctuary: movable 15-ft Half-Cover/Resistance aura.
 
 id: sc_circle_of_the_land
 name: Circle of the Land
@@ -33,4 +32,10 @@ archetype_tags:
 
 features_by_level:
   - level: 3
-    feature_ids: [f_lands_aid]
+    feature_ids: [f_circle_of_the_land_spells, f_lands_aid]
+  - level: 6
+    feature_ids: [f_natural_recovery]
+  - level: 10
+    feature_ids: [f_natures_ward]
+  - level: 14
+    feature_ids: [f_natures_sanctuary]

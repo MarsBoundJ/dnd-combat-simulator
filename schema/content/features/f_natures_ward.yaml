@@ -1,0 +1,21 @@
+# f_natures_ward — Nature's Ward (Circle of the Land L10)
+# Source: SRD CC v5.2.1
+#
+# RAW: Immune to the Poisoned condition; Resistance to a damage type
+# keyed to your current land choice:
+#   Arid → Fire | Polar → Cold | Temperate → Lightning | Tropical → Poison
+#
+# Engine modeling (deferred — needs pc_spec.land_choice): build-time
+# grant of Poisoned immunity + one resistance into template, keyed on
+# the land choice. Same stamp pattern as f_elemental_affinity, but the
+# resistance type follows land_choice rather than being fixed.
+
+id: f_natures_ward
+name: "Nature's Ward"
+source: srd_5.2.1
+granted_by:
+  subclass: sc_circle_of_the_land
+  level: 10
+type: passive
+
+effect_primitives: []

@@ -1,0 +1,34 @@
+# f_starry_form — Starry Form (Circle of the Stars L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Bonus Action, expend a Wild Shape use — take a luminous
+# starry form for 10 min (no shape-shift). Choose a constellation:
+#   - Archer: on activation and as a BA each later turn, make a ranged
+#     spell attack vs a creature within 60 ft for 1d8 + WIS Radiant.
+#   - Chalice: when you cast a slot spell that restores HP, you or a
+#     creature within 30 ft regains 1d8 + WIS HP.
+#   - Dragon: treat a d20 of 9 or lower as a 10 on INT/WIS checks and on
+#     CON saves to maintain Concentration.
+#
+# Engine modeling (deferred — needs Wild Shape resource):
+#   - Archer = recurring BA ranged spell attack (1d8+WIS radiant) — the
+#     combat-DPR mode; maps cleanly to _attack_roll → _damage with the
+#     attack-lane Shapley attribution.
+#   - Chalice = heal rider on slot-cast heals (Disciple-of-Life shape).
+#   - Dragon = concentration reliability floor (matters for sustaining
+#     Moonbeam/Spirit-Guardians-style spells) — a min-10 clamp on the
+#     conc save.
+
+id: f_starry_form
+name: Starry Form
+source: phb_2024
+granted_by:
+  subclass: sc_circle_of_the_stars
+  level: 3
+type: active
+is_signature: true
+
+resource_cost:
+  type: feature_use   # wild_shape_uses
+
+effect_primitives: []

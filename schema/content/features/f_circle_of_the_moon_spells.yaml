@@ -1,0 +1,26 @@
+# f_circle_of_the_moon_spells — Circle of the Moon Spells (Circle of the Moon L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Always-prepared spells by Druid level (castable even while in Wild
+# Shape form):
+#   L3: Cure Wounds, Moonbeam, Starry Wisp
+#   L5: Conjure Animals
+#   L7: Fount of Moonlight
+#   L9: Mass Cure Wounds
+#
+# Engine modeling (deferred — partial): Cure Wounds + Starry Wisp exist
+# today. Blocked on spell library for:
+#   NEEDED: Moonbeam (concentration radiant zone — high sim value for
+#   Moon), Conjure Animals, Fount of Moonlight, Mass Cure Wounds.
+# The "cast while shape-shifted" clause is a Moon-specific override of
+# Wild Shape's no-spellcasting rule.
+
+id: f_circle_of_the_moon_spells
+name: Circle of the Moon Spells
+source: phb_2024
+granted_by:
+  subclass: sc_circle_of_the_moon
+  level: 3
+type: passive
+
+effect_primitives: []

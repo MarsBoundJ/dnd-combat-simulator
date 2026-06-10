@@ -1,0 +1,19 @@
+# f_aquatic_affinity — Aquatic Affinity (Circle of the Sea L6)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Wrath of the Sea's Emanation grows from 5 ft to 10 ft.
+# You also gain a Swim Speed equal to your Speed.
+#
+# Engine modeling (deferred — rides f_wrath_of_the_sea): emanation
+# radius bump (more valid targets in range) + swim speed (no combat
+# effect unless aquatic terrain is modeled).
+
+id: f_aquatic_affinity
+name: Aquatic Affinity
+source: phb_2024
+granted_by:
+  subclass: sc_circle_of_the_sea
+  level: 6
+type: passive
+
+effect_primitives: []
