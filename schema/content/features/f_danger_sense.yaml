@@ -1,0 +1,21 @@
+# f_danger_sense — Danger Sense (Barbarian L2)
+# Source: SRD CC v5.2.1 / PHB 2024
+#
+# RAW: "You gain an uncanny sense of when things aren't as they should be...
+# You have Advantage on Dexterity saving throws unless you have the
+# Incapacitated condition."
+#
+# Engine modeling: STUB (deferred). Would grant Advantage on the actor's DEX
+# saving throws (the same save-advantage substrate used elsewhere), gated off
+# while Incapacitated. Documented here so the feature is countable in
+# features_known and surfaced by the loader; no runtime hook is registered yet.
+#
+# Feature wiring status: STUB (deferred — DEX-save advantage).
+
+id: f_danger_sense
+name: Danger Sense
+source: srd_5.2.1
+granted_by:
+  class: c_barbarian
+  level: 2
+type: passive

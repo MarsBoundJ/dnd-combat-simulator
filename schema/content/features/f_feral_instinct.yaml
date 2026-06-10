@@ -1,0 +1,21 @@
+# f_feral_instinct — Feral Instinct (Barbarian L7)
+# Source: SRD CC v5.2.1 / PHB 2024
+#
+# RAW: "Your instincts are so honed that you have Advantage on Initiative
+# rolls."
+#
+# Engine modeling: STUB (deferred). Would grant Advantage on the actor's
+# initiative roll (rides the roll_initiative path — compare Jack of All Trades
+# / Tandem Footwork, which already adjust initiative). Documented here so the
+# feature is countable in features_known and surfaced by the loader; no runtime
+# hook is registered yet.
+#
+# Feature wiring status: STUB (deferred — initiative advantage).
+
+id: f_feral_instinct
+name: Feral Instinct
+source: srd_5.2.1
+granted_by:
+  class: c_barbarian
+  level: 7
+type: passive

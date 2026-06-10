@@ -1,0 +1,23 @@
+# f_instinctive_pounce — Instinctive Pounce (Barbarian L7)
+# Source: SRD CC v5.2.1 / PHB 2024
+#
+# RAW: "As part of the Bonus Action you take to enter your Rage, you can move
+# up to half your Speed."
+#
+# Engine modeling: STUB (deferred — positioning). A free half-Speed reposition
+# bundled into the a_rage Bonus Action. This is a movement/positioning effect;
+# its combat value depends on the positioning-AI substrate (bounded
+# single-encounter signal), so it is deferred like other reposition riders
+# (compare Eagle Rage-of-the-Wilds, Inspiring Movement). Documented here so the
+# feature is countable in features_known and surfaced by the loader; no runtime
+# hook is registered yet.
+#
+# Feature wiring status: STUB (deferred — Rage-entry reposition).
+
+id: f_instinctive_pounce
+name: Instinctive Pounce
+source: srd_5.2.1
+granted_by:
+  class: c_barbarian
+  level: 7
+type: passive
