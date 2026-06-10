@@ -1,0 +1,28 @@
+# f_martial_training — Martial Training (College of Valor, Bard L3)
+# Source: PHB 2024
+#
+# RAW: "You gain proficiency with Martial weapons and training with Medium
+# armor and Shields. In addition, you can use a Simple or Martial weapon
+# as a Spellcasting Focus to cast spells from your Bard spell list."
+#
+# Engine modeling: MARKER. Armor/weapon proficiency are applied at build
+# time via the actor's equipment spec (ac, weapon list). The Spellcasting
+# Focus rule is non-combat flavor. No runtime hook needed.
+
+id: f_martial_training
+name: Martial Training
+source: srd_5.2.1
+granted_by:
+  subclass: sc_college_of_valor
+  level: 3
+type: passive
+
+description: |
+  Proficiency with Martial weapons, Medium armor, and Shields. A Simple or
+  Martial weapon may be used as a Spellcasting Focus.
+
+contract:
+  reads: []
+  writes: []
+  event: passive
+  scope: passive

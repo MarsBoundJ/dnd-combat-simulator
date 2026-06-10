@@ -119,6 +119,12 @@ def generate_candidates(actor: Actor, state: CombatState,
     from engine.core.recharge import is_available as _recharge_available
     actions = [a for a in actions
                 if _recharge_available(actor, a)]
+    # Battle Magic gate (Valor Bard L14): the bonus-action weapon attack
+    # requires_battle_magic is only a candidate after a spell action completes
+    # this turn (pipeline.execute sets battle_magic_triggered on that event).
+    actions = [a for a in actions
+               if not a.get("requires_battle_magic")
+               or actor.actions_used_this_turn.get("battle_magic_triggered")]
     # Decision-efficiency fix (grind diagnosis #70): while the actor is ALREADY
     # concentrating, suppress every concentration-spell candidate. You can hold
     # only one concentration effect, so casting another either re-applies the
@@ -1150,6 +1156,15 @@ def execute(chosen: dict, state: CombatState, event_bus, primitives) -> None:
         actor.actions_used_this_turn[slot] = True
     else:
         actor.actions_used_this_turn[slot] = True   # safe to add
+
+    # Battle Magic (Valor Bard L14): after completing a spell action,
+    # unlock a bonus-action weapon attack this turn.
+    if (slot == "action"
+            and action.get("spell_slot_level") is not None
+            and not cast_was_cancelled
+            and "f_battle_magic" in (
+                actor.template.get("features_known") or [])):
+        actor.actions_used_this_turn["battle_magic_triggered"] = True
 
     # Concentration: if the action is flagged `concentration: true`,
     # the actor takes up (or replaces) their concentration slot.

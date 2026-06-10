@@ -37,15 +37,21 @@ def die_max(die: str) -> int:
 
 
 def register_inspiration_die(target: Actor, die: str, source_id: str,
-                               state: CombatState) -> None:
+                               state: CombatState,
+                               combat_inspiration: bool = False) -> None:
     """Attach a held Bardic Inspiration die marker to `target` (an ally).
 
     A creature can hold only one Bardic Inspiration die at a time (RAW),
-    so registering replaces any existing marker."""
+    so registering replaces any existing marker.
+
+    `combat_inspiration=True` tags the die for College of Valor's Combat
+    Inspiration feature — the holder can spend it for AC defense (when hit)
+    or damage offense (after hitting), in addition to the base attack-roll add.
+    """
     clear_inspiration_die(target)
     target.active_modifiers.append({
         "primitive": INSPIRATION_DIE_PRIMITIVE,
-        "params": {"die": die},
+        "params": {"die": die, "combat_inspiration": combat_inspiration},
         # RAW: usable within the next hour. The sim has no 1-hour timer;
         # until_short_rest is the closest existing lifetime bucket.
         "lifetime": "until_short_rest",
