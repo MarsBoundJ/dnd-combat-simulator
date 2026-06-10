@@ -454,7 +454,7 @@ class YamlTest(unittest.TestCase):
         tmpl = feature["action_template"]
         self.assertEqual(tmpl["type"], "defensive_buff")
         self.assertEqual(tmpl["spell_slot_level"], 1)
-        self.assertEqual(tmpl["slot"], "action")
+        self.assertEqual(tmpl["slot"], "bonus_action")   # PHB 2024
         # AoA is NOT concentration per RAW
         self.assertNotIn("concentration", tmpl)
         self.assertEqual(tmpl["named_effect"], "armor_of_agathys")

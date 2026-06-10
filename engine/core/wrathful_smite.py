@@ -5,20 +5,26 @@ Owns the SmiteRiderSpec and re-exports public functions with
 per-spell signatures so callers (arm primitive, _damage hook,
 tests) resolve here.
 
-RAW (PHB 2024):
-  Bonus Action, V, Self, Concentration up to 1 minute. The next
-  time you hit with a melee weapon attack, the attack deals an
-  extra 1d6 necrotic damage. The target must succeed on a Wisdom
-  saving throw or be Frightened of you until the spell ends.
+RAW (PHB 2024, verified against the owned book 2026-06-10):
+  Bonus Action cast immediately after hitting with a melee weapon or
+  Unarmed Strike; V, Self, 1 minute — NOT concentration (the 2024
+  redesign dropped it). The hit deals an extra 1d6 necrotic damage,
+  and the target makes a Wisdom saving throw or is Frightened until
+  the spell ends; it repeats the save at the end of each of its
+  turns, ending the effect on a success.
   At Higher Levels: +1d6 per slot above 1st.
 
 Spec specifics: melee-only; 1d6 necrotic bonus damage (scales with
-upcast); WIS save -> co_frightened.
+upcast); WIS save -> co_frightened; repeat_save_to_end (end-of-turn
+re-save, the 2024 escape valve that replaced concentration).
 
 source: user_authored
 
-Deferred: target's action to repeat the WIS check to end the
-effect (same pattern as Searing Smite's deferred action-to-save).
+Approximation note: the engine arms the smite BEFORE the triggering
+hit (shared smite_rider model); RAW 2024 casts it after the hit
+lands. Mechanically equivalent except the armed-but-never-hit case.
+The 1-minute cap on Frightened is modeled as "until the target saves
+out" (same simplification as f_fear / Intimidating Presence).
 """
 from __future__ import annotations
 
@@ -40,6 +46,7 @@ WRATHFUL_SMITE_SPEC = SmiteRiderSpec(
     melee_only=True,
     bonus_damage_die=6,             # 1d6 necrotic on the empowering hit
     bonus_scales_with_upcast=True,
+    repeat_save_to_end=True,        # 2024: end-of-turn WIS re-save
 )
 
 

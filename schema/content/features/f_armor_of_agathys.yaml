@@ -1,18 +1,18 @@
 # f_armor_of_agathys — Armor of Agathys
-# (1st-level Warlock/Wizard Abjuration spell, SRD CC v5.2.1)
+# (1st-level Warlock/Wizard Abjuration spell, PHB 2024 — NOT in SRD 5.2.1)
 #
-# RAW summary: Action cast time, self only, 1-hour duration, NOT
-# concentration. A protective magical force surrounds you. You gain
-# 5 temporary hit points for the duration. If a creature hits you
-# with a melee attack while you have these hit points, the creature
-# takes 5 cold damage.
+# RAW summary (PHB 2024, verified vs the owned book 2026-06-10):
+# Bonus Action cast time (the 2024 redesign — 2014 was an Action),
+# self only, 1-hour duration, NOT concentration. Protective frost
+# surrounds you: 5 temp HP; a creature that hits you with a melee
+# attack roll while the spell lasts takes 5 cold damage; the spell
+# ends early when you have no temp HP.
 # At Higher Levels: both temp HP AND cold damage increase by 5 for
 # each slot level above 1st.
 #
-# Engine modeling (PR #96):
+# Engine modeling (PR #96; cast time corrected to BA 2026-06-10):
 #   - type: defensive_buff (self-targeted; the spell wraps the caster)
-#   - 1 Action cast time (RAW; NOT bonus action — distinguishes it
-#     from typical buff-shaped self-casts like Shield of Faith)
+#   - 1 Bonus Action cast time (PHB 2024)
 #   - NOT concentration — Warlock can cast Hex / Hunter's Mark on a
 #     subsequent turn without dropping Agathys.
 #     **v1 simplification:** the engine doesn't model true 1-hour
@@ -39,7 +39,7 @@
 # Deferred RAW bits:
 #   - True 1-hour duration timer (not modeled; treated as until short
 #     rest)
-#   - Material component (cup of water) — not yet modeled
+#   - Material component (a shard of blue glass) — not yet modeled
 #
 # **Class wiring note:** Armor of Agathys is a Warlock/Wizard spell.
 # c_warlock doesn't exist yet in the engine (placeholder used in
@@ -50,7 +50,7 @@
 
 id: f_armor_of_agathys
 name: Armor of Agathys
-source: srd_5.2.1
+source: user_authored   # PHB 2024 / XGE spell NOT in SRD 5.2.1 — own-words re-expression
 granted_by:
   class: c_warlock           # placeholder — c_warlock not yet implemented
   level: 1
@@ -69,7 +69,7 @@ action_template:
   name: Armor of Agathys
   type: defensive_buff
   spell_slot_level: 1
-  slot: action                 # RAW: Action cast (NOT bonus action)
+  slot: bonus_action           # PHB 2024: Bonus Action (2014 was Action)
   named_effect: armor_of_agathys
   range_ft: 0                  # self-only
   pipeline:

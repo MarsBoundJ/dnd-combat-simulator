@@ -1,0 +1,57 @@
+# f_hail_of_thorns — Hail of Thorns (1st-level Ranger spell,
+# PHB 2024 — NOT in SRD 5.2.1)
+#
+# RAW summary (own words, from owned PHB 2024): Bonus Action taken
+# immediately after hitting a creature with a Ranged weapon; V, Self,
+# Instantaneous. Thorns sprout from the weapon/ammunition: the struck
+# target AND each creature within 5 ft of it make a DEX save, taking
+# 1d10 piercing on a fail or half on a success. +1d10 per slot
+# above 1st. NOT concentration (2024 redesign dropped it).
+#
+# Engine modeling: the first RANGED smite rider. Rides smite_rider's
+# marker infrastructure with a custom trigger
+# (engine.core.hail_of_thorns) because the payload is a save-for-half
+# damage BURST, not the melee smites' bonus-damage + save-for-
+# condition shape:
+#   - `hail_of_thorns_arm` registers the one-shot marker (WIS-based
+#     Ranger spell save DC + cast slot level).
+#   - On the next RANGED weapon hit, _damage fires the burst: target
+#     + every living creature within 5 ft of it (friendly fire is
+#     RAW) makes a DEX save — Nd10 piercing on a fail, half on a
+#     success (N = 1 + slot above 1st).
+#
+# Deferred RAW bits:
+#   - Arm-before-hit vs RAW cast-after-hit (shared approximation).
+#   - Damage rolled per creature instead of RAW's one shared roll
+#     (same expected value, slightly different variance).
+#   - Burst damage never doubles on crit (it's save-based spell
+#     damage, not attack damage — RAW-correct).
+
+id: f_hail_of_thorns
+name: Hail of Thorns
+source: user_authored
+granted_by:
+  class: c_ranger
+  level: 2                   # Rangers gain 1st-level slots at L2
+type: active
+spell:
+  class: c_ranger
+  level: 1
+
+description: |
+  Self-buff. The Ranger's next ranged weapon hit sprouts a thorn
+  burst: the target and each creature within 5 ft of it make a DEX
+  save, taking 1d10 piercing (+1d10/upcast) on a fail or half on a
+  success. Instantaneous, no concentration. BA cast.
+
+action_template:
+  id: a_hail_of_thorns
+  name: Hail of Thorns
+  type: defensive_buff
+  spell_slot_level: 1
+  slot: bonus_action
+  named_effect: hail_of_thorns
+  range_ft: 0                # self-only
+  pipeline:
+    - primitive: hail_of_thorns_arm
+      params: {}

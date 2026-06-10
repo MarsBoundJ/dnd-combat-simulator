@@ -1,0 +1,52 @@
+# f_thunderous_smite — Thunderous Smite (1st-level Paladin spell,
+# PHB 2024 — NOT in SRD 5.2.1)
+#
+# RAW summary (own words, from owned PHB 2024): Bonus Action taken
+# immediately after hitting with a melee weapon or Unarmed Strike; V,
+# Self, Instantaneous. The strike booms (audible 300 ft): the target
+# takes an extra 2d6 thunder damage from the attack, and (if a
+# creature) makes a STR save or is pushed 10 ft away from you and has
+# the Prone condition. +1d6 per slot above 1st.
+#
+# Engine modeling: smite_rider core, exercising the two spec
+# extensions shipped with it (roadmap "Thunderous: prone + push"):
+#   - bonus_damage_dice_base 2 → 2d6 thunder folded into the hit
+#     (+1d6/upcast, doubled on crit).
+#   - on_fail_push_ft 10 → failed STR save: forced_movement shoves
+#     the target 10 ft from the Paladin, then co_prone applies.
+#   - Instantaneous, NO concentration — the prone/push fires once.
+#   - Pipeline: `thunderous_smite_arm` registers the one-shot marker;
+#     _damage fires the rider on the next melee weapon hit.
+#
+# Deferred RAW bits:
+#   - Arm-before-hit vs RAW cast-after-hit (shared smite_rider
+#     approximation).
+#   - 300-ft audibility (flavor; no sound modeling).
+
+id: f_thunderous_smite
+name: Thunderous Smite
+source: user_authored
+granted_by:
+  class: c_paladin
+  level: 2                   # Paladins gain 1st-level slots at L2
+type: active
+spell:
+  class: c_paladin
+  level: 1
+
+description: |
+  Self-buff. The Paladin's next melee weapon hit deals +2d6 thunder
+  damage; target makes a STR save or is pushed 10 ft away and knocked
+  Prone. Instantaneous, no concentration. BA cast.
+
+action_template:
+  id: a_thunderous_smite
+  name: Thunderous Smite
+  type: defensive_buff
+  spell_slot_level: 1
+  slot: bonus_action
+  named_effect: thunderous_smite
+  range_ft: 0                # self-only
+  pipeline:
+    - primitive: thunderous_smite_arm
+      params: {}

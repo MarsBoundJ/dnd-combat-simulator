@@ -1,30 +1,36 @@
 # f_wrathful_smite — Wrathful Smite (1st-level Paladin spell)
 #
-# RAW summary (PHB 2024): Bonus Action, V, Self, Concentration up to
-# 1 minute. The next time you hit with a melee weapon attack during
-# the spell's duration, the attack deals an extra 1d6 necrotic damage.
-# The target must succeed on a Wisdom saving throw or be Frightened of
-# you until the spell ends.
+# RAW summary (PHB 2024, verified vs the owned book 2026-06-10):
+# Bonus Action taken immediately after hitting with a melee weapon or
+# Unarmed Strike; V, Self, 1 minute — NOT concentration (the 2024
+# redesign dropped it). The hit deals an extra 1d6 necrotic damage,
+# and the target makes a WIS save or is Frightened until the spell
+# ends; it repeats the save at the end of each of its turns, ending
+# the effect on a success.
 # At Higher Levels: damage increases by 1d6 per slot above 1st.
 #
 # Engine modeling: structural twin of Searing Smite — "arm a one-shot
 # rider on the next melee weapon hit" via smite_rider core.
 #   - type: defensive_buff (self-targeted; the Paladin arms themselves)
-#   - 1 Bonus Action cast time
-#   - Concentration — competes with Bless / Shield of Faith / Searing
-#     Smite / etc. for the Paladin's single concentration slot.
+#   - 1 Bonus Action cast time; NO concentration (2024) — stacks with
+#     Bless / Shield of Faith etc.
 #   - Pipeline: `wrathful_smite_arm` primitive registers a one-shot
 #     marker modifier on the caster. The _damage primitive checks the
 #     marker on the caster's next melee weapon hit, rolls 1d6 necrotic
 #     (+1d6 per upcast level, doubled on crit), fires a WIS forced_save
-#     on the target, and on fail applies co_frightened.
+#     on the target, and on fail applies co_frightened PLUS an
+#     end-of-turn recurring WIS save that ends the effect on a success
+#     (spec repeat_save_to_end — the 2024 escape valve that replaced
+#     concentration).
 #   - named_effect: "wrathful_smite"
 #
 # source: user_authored
 #
 # Deferred RAW bits:
-#   - Target's action to repeat the WIS check to end the effect.
-#     v1 ends Frightened only when the caster drops concentration.
+#   - Arm-before-hit vs RAW cast-after-hit (shared smite_rider
+#     approximation; equivalent except the armed-but-never-hit case).
+#   - The 1-minute hard cap (modeled as "until the target saves out",
+#     same simplification as f_fear).
 #   - co_frightened's movement restriction and line-of-sight-based
 #     disadvantage are declared in the condition YAML but not yet
 #     enforced by the engine's movement/positioning system.
@@ -42,8 +48,8 @@ spell:
 
 description: |
   Self-buff. The Paladin's next melee weapon hit deals +1d6 necrotic
-  damage; target makes a WIS save or is Frightened until concentration
-  ends. Concentration, 1 minute. BA cast.
+  damage; target makes a WIS save or is Frightened, re-saving at the
+  end of each of its turns. 1 minute, NOT concentration. BA cast.
 
 action_template:
   id: a_wrathful_smite
@@ -51,7 +57,6 @@ action_template:
   type: defensive_buff
   spell_slot_level: 1
   slot: bonus_action
-  concentration: true
   named_effect: wrathful_smite
   range_ft: 0                # self-only
   pipeline:
