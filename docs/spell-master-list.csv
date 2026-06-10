@@ -214,7 +214,7 @@ Water Walk,,3,Transmutation,srd_5.2.1,D,todo,,
 Wind Wall,,3,Evocation,srd_5.2.1,C,todo,,
 Arcane Eye,,4,Divination,srd_5.2.1,B,todo,,
 Aura of Life,,4,Abjuration,srd_5.2.1,C,todo,,
-Aura of Purity,,4,Abjuration,phb_2024,C,todo,,
+Aura of Purity,,4,Abjuration,phb_2024,C,built,f_aura_of_purity.yaml,aura_of_purity_aura primitive; damage_resistance:poison + condition_save_advantage fan-out ≤30ft
 Banishment,,4,Abjuration,srd_5.2.1,S,built,f_banishment.yaml,
 Blight,,4,Necromancy,srd_5.2.1,C,built,f_blight.yaml,
 Charm Monster,,4,Enchantment,srd_5.2.1,B,built,f_charm_monster.yaml,
@@ -230,10 +230,10 @@ Dominate Beast,,4,Enchantment,srd_5.2.1,B,built,f_dominate_beast.yaml,
 Evard's Black Tentacles,Black Tentacles,4,Conjuration,srd_5.2.1,B,todo,,renamed in SRD
 Fabricate,,4,Transmutation,srd_5.2.1,D,todo,,
 Fire Shield,,4,Evocation,srd_5.2.1,B,todo,,
-Fount of Moonlight,,4,Evocation,phb_2024,B,todo,,
+Fount of Moonlight,,4,Evocation,phb_2024,B,built,f_fount_of_moonlight.yaml,fount_of_moonlight_buff primitive; weapon_damage_bonus 2d6 radiant (melee) + damage_resistance:radiant
 Freedom of Movement,,4,Abjuration,srd_5.2.1,B,todo,,
 Giant Insect,,4,Conjuration,srd_5.2.1,C,todo,,
-Grasping Vine,,4,Conjuration,phb_2024,C,todo,,
+Grasping Vine,,4,Conjuration,phb_2024,C,built,f_grasping_vine.yaml,pc_builder spell_attack 4d8 bludgeoning; pull+grapple deferred
 Greater Invisibility,,4,Illusion,srd_5.2.1,S,todo,,
 Guardian of Faith,,4,Conjuration,srd_5.2.1,B,built,f_guardian_of_faith.yaml,
 Hallucinatory Terrain,,4,Illusion,srd_5.2.1,D,todo,,
@@ -246,12 +246,12 @@ Otiluke's Resilient Sphere,Resilient Sphere,4,Abjuration,srd_5.2.1,C,todo,,renam
 Phantasmal Killer,,4,Illusion,srd_5.2.1,C,built,f_phantasmal_killer.yaml,
 Polymorph,,4,Transmutation,srd_5.2.1,S,built,f_polymorph.yaml,
 Sickening Radiance,,4,Evocation,xge,C,built,f_sickening_radiance.yaml,outside PHB/SRD scope; already implemented
-Staggering Smite,,4,Enchantment,phb_2024,A,todo,,
+Staggering Smite,,4,Enchantment,phb_2024,A,built,f_staggering_smite.yaml,SmiteRiderSpec 4d6 psychic + WIS save → co_stunned; staggering_smite_arm primitive
 Stone Shape,,4,Transmutation,srd_5.2.1,D,todo,,
 Stoneskin,,4,Transmutation,srd_5.2.1,B,todo,,
-Summon Aberration,,4,Conjuration,phb_2024,B,todo,,
-Summon Construct,,4,Conjuration,phb_2024,B,todo,,
-Summon Elemental,,4,Conjuration,phb_2024,C,todo,,
+Summon Aberration,,4,Conjuration,phb_2024,B,built,f_summon_aberration.yaml,Beholderkin form; Eye Ray 1d8+7 psychic range 150; MF+Slaad forms deferred
+Summon Construct,,4,Conjuration,phb_2024,B,built,f_summon_construct.yaml,Clay form; Slam 1d8+8 bludgeoning; Metal+Stone forms deferred
+Summon Elemental,,4,Conjuration,phb_2024,C,built,f_summon_elemental.yaml,Air form; Slam 1d10+8 lightning fly40 hover; Earth+Fire+Water forms deferred
 Vitriolic Sphere,,4,Evocation,srd_5.2.1,C,built,f_vitriolic_sphere.yaml,
 Wall of Fire,,4,Evocation,srd_5.2.1,B,todo,,
 Animate Objects,,5,Transmutation,srd_5.2.1,C,built,f_animate_objects.yaml,

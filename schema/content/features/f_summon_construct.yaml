@@ -1,0 +1,56 @@
+# f_summon_construct — Summon Construct (4th-level Conjuration,
+# PHB 2024 — NOT in SRD 5.2.1)
+#
+# RAW summary (own words, from owned PHB 2024): Action, V/S/M (lockbox
+# 400+ GP), 90 ft, Concentration up to 1 hour. Call a Construct Spirit
+# (choose Clay, Metal, or Stone form — affects HP, traits, and reaction).
+# Ally; shares your initiative, acts after you, obeys verbal commands;
+# vanishes at 0 HP or spell end. Upcast: use slot level in the stat block.
+# Classes: Wizard, Artificer, Clockwork Sorcery.
+#
+# Engine modeling: `summon` action_template. v1 summons
+# m_construct_spirit_clay — the baseline form (no special passive):
+#   - Clay: Berserk Lashing reaction (deferred) + Slam.
+#   - Metal: Heated Body (1d10 fire on melee contact) + Slam (deferred).
+#   - Stone: Stony Lethargy AoE slow + Slam (deferred).
+# Clay is the load-bearing pick because the Slam is the primary combat
+# action for all three forms; the form-specific traits are all deferred.
+#
+# Deferred RAW bits:
+#   - Berserk Lashing Clay reaction (retaliatory Slam when damaged).
+#   - Metal Heated Body (fire damage on melee hit/grapple-start).
+#   - Stone Stony Lethargy (WIS save → half Speed + no OA aura).
+#   - Stat-block upcast scaling.
+# Available for: Wizard, Artificer, Clockwork Sorcery (primary: c_wizard)
+
+id: f_summon_construct
+name: Summon Construct
+source: user_authored
+granted_by:
+  class: c_wizard
+  level: 7              # Full caster: 4th-level slots at L7
+type: active
+spell:
+  class: c_wizard
+  level: 4
+
+description: |
+  Summon a Construct Spirit (Clay form) within 90 ft for the duration
+  (Concentration, 1 hour). Melee Slam bruiser attacking with your spell
+  attack modifier. (Form variants + Berserk Lashing + upcast deferred.)
+
+action_template:
+  id: a_summon_construct
+  name: Summon Construct
+  type: summon
+  spell_slot_level: 4
+  concentration: true
+  named_effect: summon_construct
+  range_ft: 90
+  pipeline:
+    - primitive: summon
+      params:
+        monster: m_construct_spirit_clay
+        count: 1
+        max_total: 1
+        attack_bonus_from: caster_spell_attack

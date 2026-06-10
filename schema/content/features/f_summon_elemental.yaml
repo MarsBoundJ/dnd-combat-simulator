@@ -1,0 +1,58 @@
+# f_summon_elemental — Summon Elemental (4th-level Conjuration,
+# PHB 2024 — NOT in SRD 5.2.1)
+#
+# RAW summary (own words, from owned PHB 2024): Action, V/S/M (air,
+# pebble, ash, and water in gold-inlaid vial 400+ GP), 90 ft,
+# Concentration up to 1 hour. Call an Elemental Spirit (choose Air,
+# Earth, Fire, or Water form — determines movement type, damage type,
+# and resistances). Ally; shares your initiative, acts after you, obeys
+# verbal commands; vanishes at 0 HP or spell end. Upcast: use slot level
+# in the stat block. Classes: Druid, Ranger, Wizard, Fathomless Patron.
+#
+# Engine modeling: `summon` action_template. v1 summons
+# m_elemental_spirit_air — the Air form (fly 40 hover, Lightning Slam,
+# resistance to Lightning + Thunder, Amorphous Form deferred). Air is
+# the load-bearing pick for the simulator: the hover mobility makes it
+# the striker a Druid actually prefers, and the Lightning damage is the
+# clearest single-damage-type model for the slot.
+#
+# Deferred RAW bits:
+#   - Earth (Burrow 40, Piercing/Slashing resistance, Bludgeoning Slam).
+#   - Fire (Fire immunity, Fire Slam).
+#   - Water (Swim 40, Acid resistance, Cold Slam).
+#   - Amorphous Form (squeeze through 1-inch gaps).
+#   - Stat-block upcast scaling.
+# Available for: Druid, Ranger, Wizard, Fathomless (primary: c_druid)
+
+id: f_summon_elemental
+name: Summon Elemental
+source: user_authored
+granted_by:
+  class: c_druid
+  level: 7              # Full caster: 4th-level slots at L7
+type: active
+spell:
+  class: c_druid
+  level: 4
+
+description: |
+  Summon an Elemental Spirit (Air form) within 90 ft for the duration
+  (Concentration, 1 hour). Fly 40 hover, Lightning Slam striking with
+  your spell attack modifier. (Earth / Fire / Water forms + upcast
+  deferred.)
+
+action_template:
+  id: a_summon_elemental
+  name: Summon Elemental
+  type: summon
+  spell_slot_level: 4
+  concentration: true
+  named_effect: summon_elemental
+  range_ft: 90
+  pipeline:
+    - primitive: summon
+      params:
+        monster: m_elemental_spirit_air
+        count: 1
+        max_total: 1
+        attack_bonus_from: caster_spell_attack

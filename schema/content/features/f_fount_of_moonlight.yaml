@@ -1,0 +1,57 @@
+# f_fount_of_moonlight — Fount of Moonlight (4th-level Evocation,
+# PHB 2024 — NOT in SRD 5.2.1)
+#
+# RAW summary (own words, from owned PHB 2024): Action, V/S, Self,
+# Concentration up to 10 minutes. Cool light wreathes you (bright 20 ft,
+# dim 20 ft more). You have Resistance to Radiant damage. Your melee
+# attacks deal an extra 2d6 Radiant damage on a hit. In addition,
+# immediately after taking damage from a creature within 60 ft you can
+# use a Reaction to force it to make a CON save — on a fail it has the
+# Blinded condition until the end of your next turn.
+# Classes: Bard, Druid.
+#
+# Engine modeling: concentration self-buff via `fount_of_moonlight_buff`
+# primitive that applies two source-tagged entries on the caster:
+#   1. weapon_damage_bonus {value: 7, when: melee_attack} — 2d6 radiant
+#      avg 7 on melee hits (same flat-average convention as Divine
+#      Favor / Crusader's Mantle).
+#   2. damage_resistance {type: radiant} — halves radiant damage via
+#      the active_modifiers resistance gate in _damage.
+# Both entries are concentration-scrubbed on end_concentration.
+#
+# Deferred RAW bits:
+#   - The Reaction component (CON save → Blinded after taking damage).
+#   - Light emission (no lighting model).
+#   - Melee-only gate on weapon_damage_bonus (engine currently fires on
+#     all weapon attacks when the when-clause fires; the "melee_attack"
+#     when-clause IS wired so this is correct for melee attacks, but the
+#     when-clause enforces it properly via _eval_weapon_damage_when).
+# Available for: Bard, Druid (primary: c_druid)
+
+id: f_fount_of_moonlight
+name: Fount of Moonlight
+source: user_authored
+granted_by:
+  class: c_druid
+  level: 7              # Full caster: 4th-level slots at L7
+type: active
+spell:
+  class: c_druid
+  level: 4
+
+description: |
+  Concentration self-buff (10 min). Resistance to Radiant damage;
+  your melee attacks deal +2d6 Radiant damage on a hit (modeled as
+  flat +7 avg). Reaction CON-save → Blinded deferred.
+
+action_template:
+  id: a_fount_of_moonlight
+  name: Fount of Moonlight
+  type: defensive_buff
+  spell_slot_level: 4
+  concentration: true
+  named_effect: fount_of_moonlight
+  range_ft: 0
+  pipeline:
+    - primitive: fount_of_moonlight_buff
+      params: {}

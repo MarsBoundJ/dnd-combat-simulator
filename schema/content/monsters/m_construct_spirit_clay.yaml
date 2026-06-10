@@ -1,0 +1,72 @@
+# m_construct_spirit_clay — the Construct Spirit (Clay form) summoned by
+# Summon Construct (f_summon_construct), PHB 2024 — NOT in SRD 5.2.1.
+#
+# v1 models the CLAY form as the baseline bruiser: heavy AC, high HP,
+# and a straight Slam — the safest pick to summon as the primary frontline
+# for a Wizard or Artificer. Metal (Heated Body) and Stone (Stony Lethargy)
+# forms deferred.
+#
+# v1 modeled at the BASE 4th-level form:
+#   AC 13 + 4 = 17;  HP 40 + 15*(4-4) = 40;
+#   Multiattack = floor(4/2) = 2;
+#   Slam 1d8 + 4 + spell level (4) = 1d8 + 8 bludgeoning, reach 5 ft.
+# Upcast (AC/HP/attack count/damage) deferred with the static block.
+# Slam to-hit is the caster's spell attack modifier (overridden at summon
+# time; +6 is a fallback).
+#
+# Berserk Lashing (Clay reaction — retaliatory Slam when damaged) is
+# deferred as a reaction-trigger engine item.
+
+id: m_construct_spirit_clay
+name: Construct Spirit (Clay)
+source: user_authored
+
+size: medium
+creature_type: construct
+alignment: neutral
+
+combat:
+  armor_class: 17              # 13 + spell level (4)
+  hit_points: { average: 40, dice: "0d0", con_contribution: 0 }
+  speed: { walk: 30 }
+  initiative: { modifier: 0, score: 10 }
+
+abilities:
+  str: { score: 18, save: 4 }
+  dex: { score: 10, save: 0 }
+  con: { score: 18, save: 4 }
+  int: { score: 14, save: 2 }
+  wis: { score: 11, save: 0 }
+  cha: { score: 5, save: -3 }
+
+skills: {}
+damage_resistances: [poison]
+damage_vulnerabilities: []
+damage_immunities: []
+condition_immunities: [co_charmed, co_exhaustion, co_frightened, co_paralyzed, co_poisoned]
+
+senses: { passive_perception: 10, special: { darkvision: 60 } }
+languages: []
+
+cr: { value: 0, xp: 0, proficiency_bonus: 3 }
+
+multiattack:
+  count: 2
+  action_id: a_construct_slam
+
+actions:
+  - id: a_construct_slam
+    name: Slam
+    type: weapon_attack
+    # Melee, reach 5 ft. Bonus overridden by attack_bonus_from at
+    # summon time. 1d8 + 4 + spell level (4) = 1d8 + 8 bludgeoning.
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 6, range_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d8", modifier: 8, type: bludgeoning, average: 13 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: apex_predator
+  presets: { retreat: never, ability_selection: default, targeting: nearest_enemy, action_economy: signature }

@@ -1,0 +1,57 @@
+# f_summon_aberration — Summon Aberration (4th-level Conjuration,
+# PHB 2024 — NOT in SRD 5.2.1)
+#
+# RAW summary (own words, from owned PHB 2024): Action, V/S/M (pickled
+# tentacle + eyeball in platinum-inlaid vial 400+ GP), 90 ft,
+# Concentration up to 1 hour. Call an Aberrant Spirit (choose Beholderkin,
+# Mind Flayer, or Slaad form — affects traits and attack). Ally; shares
+# your initiative, acts after you, obeys verbal commands; vanishes at 0 HP
+# or spell end. Upcast: use slot level in the stat block.
+# Classes: Warlock, Wizard, Aberrant Sorcery, Great Old One Patron.
+#
+# Engine modeling: `summon` action_template riding the Stage 2a/2b
+# lifecycle. v1 summons m_aberrant_spirit_beholderkin — the 150-ft Eye
+# Ray ranged sniper (Beholderkin form) whose Eye Ray fires at the
+# caster's spell attack modifier. The other two forms (Mind Flayer:
+# melee + Whispering Aura; Slaad: melee + Regeneration + anti-heal
+# Claw) are deferred alongside the one-form precedent.
+#
+# Deferred RAW bits:
+#   - Mind Flayer form (Psychic Slam + Whispering Aura psionic damage).
+#   - Slaad form (Claw + Regeneration + anti-regen no-healing clause).
+#   - Stat-block upcast scaling (HP, AC, attack count, damage by slot).
+# Available for: Warlock, Wizard, Aberrant Sorcery, GOO Patron
+#               (primary: c_wizard)
+
+id: f_summon_aberration
+name: Summon Aberration
+source: user_authored
+granted_by:
+  class: c_wizard
+  level: 7              # Full caster: 4th-level slots at L7
+type: active
+spell:
+  class: c_wizard
+  level: 4
+
+description: |
+  Summon an Aberrant Spirit (Beholderkin form) within 90 ft for the
+  duration (Concentration, 1 hour). 150-ft Eye Ray ranged sniper
+  attacking with your spell attack modifier. (Mind Flayer / Slaad
+  forms + upcast deferred.)
+
+action_template:
+  id: a_summon_aberration
+  name: Summon Aberration
+  type: summon
+  spell_slot_level: 4
+  concentration: true
+  named_effect: summon_aberration
+  range_ft: 90
+  pipeline:
+    - primitive: summon
+      params:
+        monster: m_aberrant_spirit_beholderkin
+        count: 1
+        max_total: 1
+        attack_bonus_from: caster_spell_attack

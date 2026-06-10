@@ -549,6 +549,15 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
                 actor, target, state, attack_params, rng,
                 is_crit=(sa_state == "crit"))
             total += ts_damage
+        # Staggering Smite rider (Paladin, 4th-level). Melee-only;
+        # 4d6 psychic bonus (+1d6/upcast), WIS save -> co_stunned.
+        if is_weapon_attack and (attack_params or {}).get(
+                "kind", "melee") == "melee":
+            from engine.core import staggering_smite as _stg
+            stg_damage = _stg.try_apply_staggering_smite_followup(
+                actor, target, state, attack_params, rng,
+                is_crit=(sa_state == "crit"))
+            total += stg_damage
         # Hail of Thorns rider (Ranger, 1st-level). RANGED-only; thorn
         # burst around the struck target — target + creatures within
         # 5 ft make a DEX save, Nd10 piercing / half (separate
@@ -635,6 +644,23 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
                              or _rage.applies_rage_bps_resistance(target, dmg_type))
         if not already_resisted:
             total = total // 2
+
+    # Spell-granted resistance from active_modifiers (Aura of Purity,
+    # Fount of Moonlight, etc.). RAW: resistances don't stack, so skip
+    # if template-level or any feature-level resistance already halved.
+    _already_halved = (
+        dmg_type in (template.get("damage_immunities") or [])
+        or dmg_type in (template.get("damage_resistances") or [])
+        or _rage.applies_rage_bps_resistance(target, dmg_type)
+        or _rotg_resist(target, dmg_type)
+        or _bear_resist(target, dmg_type)
+    )
+    if not _already_halved:
+        for _mod in target.active_modifiers:
+            if (_mod.get("primitive") == "damage_resistance"
+                    and (_mod.get("params") or {}).get("type") == dmg_type):
+                total = total // 2
+                break
 
     # Apply multiplier (after resistance per 5e ordering: resistance halves
     # the post-multiplier? Or multiplier-then-resistance? Per RAW saves halve
@@ -2477,6 +2503,134 @@ def _crusaders_mantle_aura(params: dict, state: CombatState,
     })
 
 
+def _aura_of_purity_aura(params: dict, state: CombatState,
+                           bus: EventBus) -> None:
+    """Aura of Purity — defensive ally aura (Paladin, 4th-level).
+
+    RAW (PHB 2024): a 30-ft Emanation for the concentration duration;
+    the caster and allies in it have Resistance to Poison damage and
+    Advantage on saves vs Blinded/Charmed/Deafened/Frightened/
+    Paralyzed/Poisoned/Stunned.
+
+    v1: cast-time snapshot (same discipline as Crusader's Mantle) —
+    apply two source-tagged modifier entries to the caster and every
+    living ally within `radius_ft`:
+      1. damage_resistance {type: poison} — consumed by _damage's
+         active_modifiers resistance gate.
+      2. condition_save_advantage {conditions: [...]} — marker for
+         future save-roll wiring; the entry is present and scrubbed
+         but not yet evaluated by the save roll.
+    Both entries are tagged with the action + caster so
+    end_concentration removes all copies at once.
+
+    Params:
+      - radius_ft (int, default 30)
+    """
+    from engine.core.geometry import distance_ft
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        return
+    action = (state.current_attack or {}).get("action") or {}
+    radius = int(params.get("radius_ft", 30))
+    source = {
+        "type": "action_buff",
+        "action_id": action.get("id", "a_aura_of_purity"),
+        "caster_id": actor.id,
+        "named_effect": action.get("named_effect"),
+    }
+    buffed = []
+    for candidate in state.encounter.actors:
+        if candidate.side != actor.side or not candidate.is_alive():
+            continue
+        if distance_ft(actor.position, candidate.position) > radius:
+            continue
+        candidate.active_modifiers.append({
+            "primitive": "damage_resistance",
+            "params": {"type": "poison"},
+            "lifetime": "until_short_rest",
+            "source": source,
+            "applied_at_round": state.round,
+            "owner_id": candidate.id,
+        })
+        candidate.active_modifiers.append({
+            "primitive": "condition_save_advantage",
+            "params": {"conditions": ["blinded", "charmed", "deafened",
+                                       "frightened", "paralyzed", "poisoned",
+                                       "stunned"]},
+            "lifetime": "until_short_rest",
+            "source": source,
+            "applied_at_round": state.round,
+            "owner_id": candidate.id,
+        })
+        buffed.append(candidate.id)
+    state.event_log.append({
+        "event": "aura_of_purity_applied",
+        "caster": actor.id,
+        "allies": buffed,
+    })
+
+
+def _fount_of_moonlight_buff(params: dict, state: CombatState,
+                               bus: EventBus) -> None:
+    """Fount of Moonlight — concentration self-buff (Druid/Bard, 4th-level).
+
+    RAW (PHB 2024): Resistance to Radiant damage + melee attacks deal
+    +2d6 Radiant on a hit (+ Reaction component deferred).
+
+    v1: apply two source-tagged entries to the caster:
+      1. weapon_damage_bonus {value: 7, when: melee_attack} — 2d6
+         radiant avg 7, gated to melee attacks via the existing
+         _eval_weapon_damage_when melee_attack clause.
+      2. damage_resistance {type: radiant} — consumed by _damage's
+         active_modifiers resistance gate.
+    Both entries are concentration-scrubbed on end_concentration.
+    """
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        return
+    action = (state.current_attack or {}).get("action") or {}
+    source = {
+        "type": "action_buff",
+        "action_id": action.get("id", "a_fount_of_moonlight"),
+        "caster_id": actor.id,
+        "named_effect": action.get("named_effect"),
+    }
+    actor.active_modifiers.append({
+        "primitive": "weapon_damage_bonus",
+        "params": {"value": 7, "when": "melee_attack"},
+        "lifetime": "until_short_rest",
+        "source": source,
+        "applied_at_round": state.round,
+        "owner_id": actor.id,
+    })
+    actor.active_modifiers.append({
+        "primitive": "damage_resistance",
+        "params": {"type": "radiant"},
+        "lifetime": "until_short_rest",
+        "source": source,
+        "applied_at_round": state.round,
+        "owner_id": actor.id,
+    })
+    state.event_log.append({
+        "event": "fount_of_moonlight_applied",
+        "caster": actor.id,
+    })
+
+
+def _damage_resistance(params: dict, state: CombatState,
+                         bus: EventBus) -> None:
+    """Register a damage_resistance modifier on the target/actor.
+
+    Consumed by _damage's active_modifiers resistance gate: when
+    params.type matches the in-flight damage type and no higher-
+    priority resistance (template / rage / feature) has already halved,
+    damage is halved. Source-tagged for concentration scrub.
+    """
+    owner = _resolve_modifier_owner(params, state)
+    entry = _build_modifier_entry("damage_resistance", params, owner, state)
+    owner.active_modifiers.append(entry)
+
+
 def _zealous_presence(params: dict, state: CombatState,
                         bus: EventBus) -> None:
     """Zealous Presence (Path of the Zealot, Barbarian L10+).
@@ -3180,6 +3334,30 @@ def _lightning_arrow_arm(params: dict, state: CombatState,
                      action_id=action_id, state=state)
 
 
+def _staggering_smite_arm(params: dict, state: CombatState,
+                             bus: EventBus) -> None:
+    """Arm the caster with Staggering Smite's one-shot melee rider.
+
+    Called from f_staggering_smite's cast pipeline. 4th-level Paladin
+    spell; 4d6 psychic bonus damage + WIS save → co_stunned. Trigger
+    lives in engine.core.staggering_smite.
+    """
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        raise ValueError("staggering_smite_arm requires a current actor")
+    slot_level = int((state.current_attack or {}).get(
+        "chosen_slot_level") or 4)
+    if "dc" in params:
+        dc = int(params["dc"])
+    else:
+        dc = _caster_spell_save_dc(actor)
+    action = (state.current_attack or {}).get("action") or {}
+    action_id = action.get("id", "a_staggering_smite")
+    from engine.core.staggering_smite import register_armed as _stg_arm
+    _stg_arm(actor, spell_save_dc=dc, action_id=action_id,
+              state=state, slot_level=slot_level)
+
+
 def _wild_shape_transform(params: dict, state: CombatState,
                             bus: EventBus) -> None:
     """Druid Wild Shape — transform into a Beast form (form system).
@@ -3821,6 +3999,10 @@ def _populate_handler_table() -> None:
         "lightning_arrow_arm": _lightning_arrow_arm,
         "recurring_heal": _recurring_heal,
         "crusaders_mantle_aura": _crusaders_mantle_aura,
+        "aura_of_purity_aura": _aura_of_purity_aura,
+        "fount_of_moonlight_buff": _fount_of_moonlight_buff,
+        "damage_resistance": _damage_resistance,
+        "staggering_smite_arm": _staggering_smite_arm,
         "hex_curse": _hex_curse,
         "hunters_mark_mark": _hunters_mark_mark,
         "forced_movement": _forced_movement,
@@ -3979,6 +4161,21 @@ def _all_primitives() -> list[Primitive]:
         # Crusader's Mantle — offensive ally aura: weapon_damage_bonus
         # fan-out to caster + allies in radius at cast time.
         Primitive("crusaders_mantle_aura", _crusaders_mantle_aura,
+                    implemented=True),
+        # Aura of Purity — defensive ally aura: damage_resistance:poison
+        # + condition_save_advantage fan-out to caster + allies ≤30 ft.
+        Primitive("aura_of_purity_aura", _aura_of_purity_aura,
+                    implemented=True),
+        # Fount of Moonlight — concentration self-buff: weapon_damage_bonus
+        # 2d6 radiant (melee) + damage_resistance:radiant on self.
+        Primitive("fount_of_moonlight_buff", _fount_of_moonlight_buff,
+                    implemented=True),
+        # General damage_resistance primitive — registers a damage_resistance
+        # modifier in active_modifiers (consumed by _damage's resistance gate).
+        Primitive("damage_resistance", _damage_resistance, implemented=True),
+        # Staggering Smite arming primitive (Paladin, 4th-level).
+        # Rider: 4d6 psychic bonus, WIS save -> co_stunned.
+        Primitive("staggering_smite_arm", _staggering_smite_arm,
                     implemented=True),
         # Bardic Inspiration — grant a held die to an ally. The holder's
         # post-roll self-add lives in engine.core.bardic_inspiration

@@ -1,0 +1,53 @@
+# f_staggering_smite — Staggering Smite (4th-level Enchantment,
+# PHB 2024 — NOT in SRD 5.2.1)
+#
+# RAW summary (own words, from owned PHB 2024): Bonus Action cast
+# immediately after hitting a creature with a Melee weapon or Unarmed
+# Strike; V, Self, Instantaneous. The target takes an extra 4d6 Psychic
+# damage from the attack, and the target must succeed on a Wisdom saving
+# throw or have the Stunned condition until the end of your next turn.
+# At Higher Levels: the extra damage increases by 1d6 for each spell
+# slot level above 4th. Classes: Paladin, Hexblade (XGtE).
+#
+# Engine modeling: SmiteRiderSpec adapter (engine.core.staggering_smite)
+# — melee-only; 4d6 psychic bonus damage base (scales with upcast);
+# WIS save → co_stunned. Rides the two-phase arm/trigger architecture:
+#   1. Arm: `staggering_smite_arm` primitive registers a one-shot marker.
+#   2. Trigger: _damage fires try_apply_staggering_smite_followup on the
+#      caster's next melee weapon hit.
+#
+# Deferred RAW bits:
+#   - Duration expiry: co_stunned lasts until END of the caster's next
+#     turn (not until short rest). The engine v1 condition does not scrub
+#     at turn-end yet; this is tracked as a deferred duration-scrub item.
+#   - Unarmed Strike trigger (engine models weapon attacks only).
+# Available for: Paladin, Hexblade (primary: c_paladin)
+
+id: f_staggering_smite
+name: Staggering Smite
+source: user_authored
+granted_by:
+  class: c_paladin
+  level: 13             # Half-caster: 4th-level slots at L13
+type: active
+spell:
+  class: c_paladin
+  level: 4
+
+description: |
+  Bonus Action after a melee hit. +4d6 Psychic damage on the hit;
+  WIS save or Stunned until end of your next turn. Upcast: +1d6/slot
+  above 4th. (Stun duration expiry deferred.)
+
+action_template:
+  id: a_staggering_smite
+  name: Staggering Smite
+  type: smite
+  cast_time: bonus_action
+  spell_slot_level: 4
+  named_effect: staggering_smite
+  pipeline:
+    - primitive: staggering_smite_arm
+      params:
+        dc: 15            # placeholder; overridden by caster's spell save DC
+        slot_level: 4
