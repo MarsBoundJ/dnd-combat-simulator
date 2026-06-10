@@ -1,0 +1,31 @@
+# sc_oath_of_vengeance — Oath of Vengeance (Paladin subclass)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# The relentless focus-fire hunter. Vow of Enmity (L3) grants Advantage
+# on all attacks vs one target (Channel Divinity); Relentless Avenger
+# (L7) locks down fleeing foes; Soul of Vengeance (L15) adds reaction
+# strikes vs the Vow target; Avenging Angel (L20) is a flight + fear
+# aura capstone. Single-target burst specialist. 2 features at L3.
+#
+# DEPENDS ON: Channel Divinity (deferred) gates Vow of Enmity. The Vow's
+# advantage rider keys off a per-target tag.
+
+id: sc_oath_of_vengeance
+name: Oath of Vengeance
+source: phb_2024
+parent_class: c_paladin
+
+archetype_tags:
+  behavior_archetype: apex_predator
+  role: martial_striker           # INTERNAL-EVAL-ONLY per vocabulary firewall
+  flavor_tags: [vengeful, relentless, merciless, focused]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_oath_of_vengeance_spells, f_vow_of_enmity]
+  - level: 7
+    feature_ids: [f_relentless_avenger]
+  - level: 15
+    feature_ids: [f_soul_of_vengeance]
+  - level: 20
+    feature_ids: [f_avenging_angel]

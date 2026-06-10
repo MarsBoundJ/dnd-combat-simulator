@@ -1,0 +1,20 @@
+# f_aura_of_devotion — Aura of Devotion (Oath of Devotion L7)
+# Source: SRD CC v5.2.1
+#
+# RAW: You and allies in your Aura of Protection have Immunity to the
+# Charmed condition (a Charmed ally entering the aura is unaffected
+# while there).
+#
+# Engine modeling (deferred — rides Aura of Protection): party-wide
+# Charm immunity within the aura. Once the aura emanation is modeled,
+# this is a conditional immunity grant scoped to aura membership.
+
+id: f_aura_of_devotion
+name: Aura of Devotion
+source: srd_5.2.1
+granted_by:
+  subclass: sc_oath_of_devotion
+  level: 7
+type: passive
+
+effect_primitives: []

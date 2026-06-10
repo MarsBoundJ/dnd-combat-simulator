@@ -1,0 +1,28 @@
+# f_natures_wrath — Nature's Wrath (Oath of the Ancients L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Magic action, expend one Channel Divinity use — each
+# creature of your choice within 15 ft makes a STR save or is Restrained
+# for 1 minute. A Restrained creature repeats the save at the end of
+# each of its turns, ending the effect on a success.
+#
+# Engine modeling (deferred — BLOCKED on Channel Divinity): a multi-
+# target STR-save Restrain (control). Maps to _forced_save →
+# _apply_condition(restrained) with an end-of-turn repeat-save. The
+# Restrained condition exists; the recurring save is the Hold-Person
+# pattern. Save-DC Shapley attribution credits the control. Solid
+# AoE lockdown.
+
+id: f_natures_wrath
+name: "Nature's Wrath"
+source: phb_2024
+granted_by:
+  subclass: sc_oath_of_the_ancients
+  level: 3
+type: active
+is_signature: true
+
+resource_cost:
+  type: feature_use   # channel_divinity_uses
+
+effect_primitives: []

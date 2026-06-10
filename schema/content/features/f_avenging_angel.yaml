@@ -1,0 +1,30 @@
+# f_avenging_angel — Avenging Angel (Oath of Vengeance L20)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Bonus Action — for 10 minutes:
+#   - Flight: 60-ft Fly Speed, can hover.
+#   - Frightful Aura: enemies starting their turn in your Aura of
+#     Protection make a WIS save or are Frightened for 1 min (or until
+#     damaged); attacks vs a Frightened creature have Advantage.
+# 1/Long Rest (or expend a level 5 slot to restore).
+#
+# Engine modeling (deferred — rides Aura of Protection): the Frightful
+# Aura is a recurring WIS-save fear zone (Spirit-Guardians-shaped, but
+# fear instead of damage) that also grants the party attack advantage vs
+# affected foes — a control + DPR-amplifier capstone. Flight deferred.
+
+id: f_avenging_angel
+name: Avenging Angel
+source: phb_2024
+granted_by:
+  subclass: sc_oath_of_vengeance
+  level: 20
+type: active
+
+resource_cost:
+  type: feature_use
+
+usage:
+  uses_per: per_long_rest
+
+effect_primitives: []

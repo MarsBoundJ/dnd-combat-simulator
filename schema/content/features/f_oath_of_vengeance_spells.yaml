@@ -1,0 +1,26 @@
+# f_oath_of_vengeance_spells — Oath of Vengeance Spells (L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Always-prepared spells by Paladin level:
+#   L3: Bane, Hunter's Mark
+#   L5: Hold Person, Misty Step
+#   L9: Haste, Protection from Energy
+#   L13: Banishment, Dimension Door
+#   L17: Hold Monster, Scrying
+#
+# Engine modeling (deferred — partial): Hold Person exists
+# (sp_hold_person). Hunter's Mark exists as a feature (built for Ranger).
+# Blocked on spell library for:
+#   NEEDED (combat): Bane, Haste, Protection from Energy, Banishment,
+#   Hold Monster
+#   NON-COMBAT (stub-tier): Misty Step, Dimension Door, Scrying
+
+id: f_oath_of_vengeance_spells
+name: Oath of Vengeance Spells
+source: phb_2024
+granted_by:
+  subclass: sc_oath_of_vengeance
+  level: 3
+type: passive
+
+effect_primitives: []

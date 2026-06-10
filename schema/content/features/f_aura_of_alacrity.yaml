@@ -1,0 +1,22 @@
+# f_aura_of_alacrity — Aura of Alacrity (Oath of Glory L7)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Your Speed +10 ft. Allies entering your Aura of Protection
+# (or starting their turn there) gain +10 ft Speed until end of their
+# next turn. (Note: this aura is a separate 10-ft emanation effect that
+# rides the Aura of Protection's geometry.)
+#
+# Engine modeling (deferred — rides Aura of Protection): team mobility
+# buff. Speed changes affect engagement/kiting; modest direct combat
+# effect. Self speed bump is a static stamp; the ally buff keys off
+# aura membership.
+
+id: f_aura_of_alacrity
+name: Aura of Alacrity
+source: phb_2024
+granted_by:
+  subclass: sc_oath_of_glory
+  level: 7
+type: passive
+
+effect_primitives: []

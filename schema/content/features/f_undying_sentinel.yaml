@@ -1,0 +1,31 @@
+# f_undying_sentinel — Undying Sentinel (Oath of the Ancients L15)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: When reduced to 0 HP and not killed outright, drop to 1 HP
+# instead and regain 3x Paladin level HP. 1/Long Rest. (Also: no magical
+# aging.)
+#
+# Engine modeling (deferred): a death-save / once-per-rest survival
+# trigger — fires on the drop-to-0 event, converts to 1 HP + a heal.
+# Maps to the same on-lethal-damage hook as Relentless Endurance /
+# Undying-style traits. High eHP value (a free "second life" each rest).
+
+id: f_undying_sentinel
+name: Undying Sentinel
+source: phb_2024
+granted_by:
+  subclass: sc_oath_of_the_ancients
+  level: 15
+type: triggered
+
+resource_cost:
+  type: feature_use
+
+usage:
+  uses_per: per_long_rest
+
+trigger:
+  event: reduced_to_zero_hp
+  chosen_by: actor
+
+effect_primitives: []

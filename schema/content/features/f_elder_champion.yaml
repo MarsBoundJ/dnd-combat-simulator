@@ -1,0 +1,31 @@
+# f_elder_champion — Elder Champion (Oath of the Ancients L20)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Bonus Action — imbue your Aura of Protection for 1 minute:
+#   - Diminish Defiance: enemies in the aura have Disadvantage on saves
+#     vs your spells and Channel Divinity options.
+#   - Regeneration: regain 10 HP at the start of each of your turns.
+#   - Swift Spells: cast action-cast spells as a Bonus Action instead.
+# 1/Long Rest (or expend a level 5 slot to restore).
+#
+# Engine modeling (deferred — rides Aura of Protection): Diminish
+# Defiance is a save-disadvantage aura that boosts the Paladin's own
+# control (Nature's Wrath, save spells) — ties into the save-DC Shapley
+# attribution. Regeneration is a per-turn self-heal. Swift Spells is an
+# action-economy multiplier.
+
+id: f_elder_champion
+name: Elder Champion
+source: phb_2024
+granted_by:
+  subclass: sc_oath_of_the_ancients
+  level: 20
+type: active
+
+resource_cost:
+  type: feature_use
+
+usage:
+  uses_per: per_long_rest
+
+effect_primitives: []

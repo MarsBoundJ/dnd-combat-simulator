@@ -1,0 +1,26 @@
+# f_relentless_avenger — Relentless Avenger (Oath of Vengeance L7)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: When you hit with an Opportunity Attack, you can reduce the
+# target's Speed to 0 until end of turn, then move up to half your Speed
+# as part of the same Reaction (no Opportunity Attacks provoked).
+#
+# Engine modeling (deferred — rides Opportunity Attacks): a sticky-melee
+# control rider — pins fleeing foes and lets the Paladin follow. Maps to
+# an on-OA-hit effect (Speed→0 tag + free half-move). Once OAs and
+# Speed-reduction are modeled, this is a soft-control rider on the
+# existing OA path.
+
+id: f_relentless_avenger
+name: Relentless Avenger
+source: phb_2024
+granted_by:
+  subclass: sc_oath_of_vengeance
+  level: 7
+type: triggered
+
+trigger:
+  event: opportunity_attack_hit
+  chosen_by: actor
+
+effect_primitives: []

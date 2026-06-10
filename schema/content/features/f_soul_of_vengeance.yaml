@@ -1,0 +1,27 @@
+# f_soul_of_vengeance — Soul of Vengeance (Oath of Vengeance L15)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Immediately after a creature under your Vow of Enmity hits
+# or misses with an attack roll, you can take a Reaction to make one
+# melee attack against it (if in range).
+#
+# Engine modeling (deferred — rides Vow of Enmity): a reaction melee
+# strike triggered by the Vow target attacking — extra DPR (with
+# Advantage from the Vow, and smite-able). Mirrors f_retaliation's
+# reaction-melee payload but triggered on the marked creature's attack
+# rather than on taking damage. Combines with Vow for a hard focus-fire
+# loop.
+
+id: f_soul_of_vengeance
+name: Soul of Vengeance
+source: phb_2024
+granted_by:
+  subclass: sc_oath_of_vengeance
+  level: 15
+type: triggered
+
+trigger:
+  event: vow_target_attacks
+  chosen_by: actor
+
+effect_primitives: []

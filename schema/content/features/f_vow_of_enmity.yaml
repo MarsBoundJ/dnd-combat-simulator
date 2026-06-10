@@ -1,0 +1,29 @@
+# f_vow_of_enmity — Vow of Enmity (Oath of Vengeance L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: When you take the Attack action, expend one Channel
+# Divinity use to mark a creature within 30 ft. You have Advantage on
+# attack rolls against it for 1 minute (or until reused). If it drops to
+# 0 HP first, transfer the vow to another creature within 30 ft (no
+# action).
+#
+# Engine modeling (HIGH wireability once Channel Divinity exists): a
+# per-target Advantage tag on the caster's attacks — a sustained
+# focus-fire enabler. Advantage handling already exists in the attack
+# pipeline; this is a "while tagged" attack-advantage source plus a
+# transfer-on-kill rule. Pairs brutally with Divine Smite (advantage =
+# more crits = bigger smites). Strong DPR; good wire candidate.
+
+id: f_vow_of_enmity
+name: Vow of Enmity
+source: phb_2024
+granted_by:
+  subclass: sc_oath_of_vengeance
+  level: 3
+type: active
+is_signature: true
+
+resource_cost:
+  type: feature_use   # channel_divinity_uses
+
+effect_primitives: []

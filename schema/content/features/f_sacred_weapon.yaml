@@ -1,0 +1,27 @@
+# f_sacred_weapon — Sacred Weapon (Oath of Devotion L3)
+# Source: SRD CC v5.2.1
+#
+# RAW: When you take the Attack action, expend one Channel Divinity use
+# to imbue a Melee weapon for 10 minutes (or until reused/dropped): add
+# your CHA modifier to attack rolls with it (min +1), and each hit can
+# deal its normal type or Radiant. (Also emits Bright Light.)
+#
+# Engine modeling (deferred — BLOCKED on Channel Divinity): a 10-minute
+# attack-roll buff (+CHA to hit) + radiant damage option. The to-hit
+# bonus is a flat attack modifier; the radiant option bypasses B/P/S
+# resistance. High sustained value (essentially +3 to +5 to hit for the
+# whole fight). Wireable as a self-buff once Channel Divinity exists.
+
+id: f_sacred_weapon
+name: Sacred Weapon
+source: srd_5.2.1
+granted_by:
+  subclass: sc_oath_of_devotion
+  level: 3
+type: active
+is_signature: true
+
+resource_cost:
+  type: feature_use   # channel_divinity_uses
+
+effect_primitives: []

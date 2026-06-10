@@ -1,0 +1,25 @@
+# f_smite_of_protection — Smite of Protection (Oath of Devotion L15)
+# Source: SRD CC v5.2.1
+#
+# RAW: Whenever you cast Divine Smite, you and your allies have Half
+# Cover while in your Aura of Protection, until the start of your next
+# turn.
+#
+# Engine modeling (deferred — rides Divine Smite + Aura + cover system):
+# a smite-triggered party-wide Half Cover (+2 AC / +2 DEX saves) pulse.
+# Divine Smite exists (f_divine_smite); needs the aura emanation + cover
+# system. Ties the Paladin's offense to a defensive team pulse.
+
+id: f_smite_of_protection
+name: Smite of Protection
+source: srd_5.2.1
+granted_by:
+  subclass: sc_oath_of_devotion
+  level: 15
+type: triggered
+
+trigger:
+  event: divine_smite_cast
+  chosen_by: automatic
+
+effect_primitives: []

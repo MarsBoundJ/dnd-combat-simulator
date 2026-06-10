@@ -1,0 +1,30 @@
+# f_holy_nimbus — Holy Nimbus (Oath of Devotion L20)
+# Source: SRD CC v5.2.1
+#
+# RAW: Bonus Action — imbue your Aura of Protection for 10 minutes:
+#   - Holy Ward: Advantage on saves forced by Fiends/Undead.
+#   - Radiant Damage: enemies starting their turn in the aura take
+#     (CHA mod + PB) Radiant damage.
+#   - Sunlight: the aura is filled with sunlight.
+# 1/Long Rest (or expend a level 5 slot to restore).
+#
+# Engine modeling (deferred — rides Aura of Protection): the
+# Radiant-Damage tick is a start-of-turn aura damage zone (Spirit
+# Guardians pattern, but enemy-only and self-anchored). Maps to a
+# per-turn _damage on enemies in the emanation once auras are modeled.
+
+id: f_holy_nimbus
+name: Holy Nimbus
+source: srd_5.2.1
+granted_by:
+  subclass: sc_oath_of_devotion
+  level: 20
+type: active
+
+resource_cost:
+  type: feature_use
+
+usage:
+  uses_per: per_long_rest
+
+effect_primitives: []

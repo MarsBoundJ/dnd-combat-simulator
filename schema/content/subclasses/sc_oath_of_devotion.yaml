@@ -1,0 +1,33 @@
+# sc_oath_of_devotion — Oath of Devotion (Paladin subclass)
+# Source: SRD CC v5.2.1 (PHB 2024)
+#
+# The SRD Paladin oath — the knight in shining armor. Sacred Weapon
+# (L3) adds CHA to attack rolls + radiant damage via Channel Divinity;
+# the higher tiers layer protective auras (Charm immunity L7, Half
+# Cover on smite L15) and a capstone radiant aura (L20). Balanced
+# protector-striker.
+#
+# DEPENDS ON: Channel Divinity (Paladin L3 class feature — deferred,
+# see c_paladin) gates Sacred Weapon. Aura of Protection (Paladin L6 —
+# deferred) is the substrate for Aura of Devotion, Smite of Protection,
+# and Holy Nimbus. Divine Smite exists (f_divine_smite).
+
+id: sc_oath_of_devotion
+name: Oath of Devotion
+source: srd_5.2.1
+parent_class: c_paladin
+
+archetype_tags:
+  behavior_archetype: pack_alpha
+  role: martial_striker           # INTERNAL-EVAL-ONLY per vocabulary firewall
+  flavor_tags: [honorable, radiant, knightly, protective]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_oath_of_devotion_spells, f_sacred_weapon]
+  - level: 7
+    feature_ids: [f_aura_of_devotion]
+  - level: 15
+    feature_ids: [f_smite_of_protection]
+  - level: 20
+    feature_ids: [f_holy_nimbus]

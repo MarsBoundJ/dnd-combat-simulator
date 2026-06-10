@@ -1,0 +1,22 @@
+# f_peerless_athlete — Peerless Athlete (Oath of Glory L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Bonus Action, expend one Channel Divinity use — for 1 hour,
+# Advantage on Athletics (STR) and Acrobatics (DEX) checks; Long/High
+# Jump distance +10 ft.
+#
+# Engine modeling: non-combat (skill checks + jump). Stub — relevant
+# only if grapple/shove contests or jump-based positioning are modeled.
+
+id: f_peerless_athlete
+name: Peerless Athlete
+source: phb_2024
+granted_by:
+  subclass: sc_oath_of_glory
+  level: 3
+type: active
+
+resource_cost:
+  type: feature_use   # channel_divinity_uses
+
+effect_primitives: []

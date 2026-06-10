@@ -1,0 +1,25 @@
+# f_oath_of_the_ancients_spells — Oath of the Ancients Spells (L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Always-prepared spells by Paladin level:
+#   L3: Ensnaring Strike, Speak with Animals
+#   L5: Misty Step, Moonbeam
+#   L9: Plant Growth, Protection from Energy
+#   L13: Ice Storm, Stoneskin
+#   L17: Commune with Nature, Tree Stride
+#
+# Engine modeling (deferred — BLOCKED on spell library):
+#   NEEDED (combat): Ensnaring Strike, Moonbeam, Protection from Energy,
+#   Ice Storm, Stoneskin
+#   NON-COMBAT (stub-tier): Speak with Animals, Misty Step, Plant Growth,
+#   Commune with Nature, Tree Stride
+
+id: f_oath_of_the_ancients_spells
+name: Oath of the Ancients Spells
+source: phb_2024
+granted_by:
+  subclass: sc_oath_of_the_ancients
+  level: 3
+type: passive
+
+effect_primitives: []

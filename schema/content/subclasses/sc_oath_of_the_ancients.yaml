@@ -1,0 +1,32 @@
+# sc_oath_of_the_ancients — Oath of the Ancients (Paladin subclass)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# The resilient nature-warden. Nature's Wrath (L3) is a Channel
+# Divinity STR-save Restrain (control); Aura of Warding (L7) gives the
+# party Necrotic/Psychic/Radiant resistance — one of the strongest
+# defensive auras in the game; Undying Sentinel (L15) is a death-save;
+# Elder Champion (L20) is a save-debuff + regen capstone. Durable
+# protector with soft control. 2 features at L3.
+#
+# DEPENDS ON: Channel Divinity (deferred) gates Nature's Wrath. Aura of
+# Protection (deferred) substrates Aura of Warding.
+
+id: sc_oath_of_the_ancients
+name: Oath of the Ancients
+source: phb_2024
+parent_class: c_paladin
+
+archetype_tags:
+  behavior_archetype: primal_guardian
+  role: tank                      # INTERNAL-EVAL-ONLY per vocabulary firewall
+  flavor_tags: [primal, life-light, warding, enduring]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_natures_wrath, f_oath_of_the_ancients_spells]
+  - level: 7
+    feature_ids: [f_aura_of_warding]
+  - level: 15
+    feature_ids: [f_undying_sentinel]
+  - level: 20
+    feature_ids: [f_elder_champion]

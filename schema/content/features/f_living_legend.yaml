@@ -1,0 +1,29 @@
+# f_living_legend — Living Legend (Oath of Glory L20)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Bonus Action — for 10 minutes:
+#   - Charismatic: Advantage on all CHA checks.
+#   - Saving Throw Reroll: Reaction to reroll a failed save (use new roll).
+#   - Unerring Strike: once per turn, a missed weapon attack hits instead.
+# 1/Long Rest (or expend a level 5 slot to restore).
+#
+# Engine modeling (deferred): Unerring Strike (once/turn miss→hit) is a
+# flat DPR/reliability bump — a guaranteed-hit once per turn. The save
+# reroll is a defensive reaction. Both are wireable riders; the capstone
+# bundles them into a 10-min buff window.
+
+id: f_living_legend
+name: Living Legend
+source: phb_2024
+granted_by:
+  subclass: sc_oath_of_glory
+  level: 20
+type: active
+
+resource_cost:
+  type: feature_use
+
+usage:
+  uses_per: per_long_rest
+
+effect_primitives: []

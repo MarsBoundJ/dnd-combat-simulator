@@ -1,0 +1,31 @@
+# f_inspiring_smite — Inspiring Smite (Oath of Glory L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Immediately after casting Divine Smite, expend one Channel
+# Divinity use to distribute 2d8 + Paladin level Temporary Hit Points
+# among creatures of your choice within 30 ft (can include you), split
+# however you like.
+#
+# Engine modeling (deferred — BLOCKED on Channel Divinity; rides Divine
+# Smite): a smite-triggered party-wide THP pool with free allocation.
+# Divine Smite exists (f_divine_smite); the THP primitive exists
+# (Rally pattern). AI policy: pool-fill lowest-effective-HP allies. Ties
+# burst offense to team durability.
+
+id: f_inspiring_smite
+name: Inspiring Smite
+source: phb_2024
+granted_by:
+  subclass: sc_oath_of_glory
+  level: 3
+type: triggered
+is_signature: true
+
+resource_cost:
+  type: feature_use   # channel_divinity_uses
+
+trigger:
+  event: divine_smite_cast
+  chosen_by: actor
+
+effect_primitives: []

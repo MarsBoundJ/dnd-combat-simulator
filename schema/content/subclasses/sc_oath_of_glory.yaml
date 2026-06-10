@@ -1,0 +1,33 @@
+# sc_oath_of_glory — Oath of Glory (Paladin subclass)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# The heroic team-buffer. Inspiring Smite (L3) converts a smite into
+# party-wide temp HP; Aura of Alacrity (L7) hands out speed; Glorious
+# Defense (L15) is a reaction AC-bump-plus-counterattack; Living Legend
+# (L20) adds miss-to-hit conversion + save rerolls. Gets 3 features at
+# L3. Buff-forward striker.
+#
+# DEPENDS ON: Channel Divinity (deferred) gates Inspiring Smite +
+# Peerless Athlete. Aura of Protection (deferred) substrates Aura of
+# Alacrity. Divine Smite exists (f_divine_smite).
+
+id: sc_oath_of_glory
+name: Oath of Glory
+source: phb_2024
+parent_class: c_paladin
+
+archetype_tags:
+  behavior_archetype: pack_alpha
+  role: support                   # INTERNAL-EVAL-ONLY per vocabulary firewall
+  flavor_tags: [heroic, inspiring, athletic, destined]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_inspiring_smite, f_oath_of_glory_spells,
+                  f_peerless_athlete]
+  - level: 7
+    feature_ids: [f_aura_of_alacrity]
+  - level: 15
+    feature_ids: [f_glorious_defense]
+  - level: 20
+    feature_ids: [f_living_legend]

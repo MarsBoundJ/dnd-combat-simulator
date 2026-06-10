@@ -1,0 +1,21 @@
+# f_aura_of_warding — Aura of Warding (Oath of the Ancients L7)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: You and allies in your Aura of Protection have Resistance
+# to Necrotic, Psychic, and Radiant damage.
+#
+# Engine modeling (deferred — rides Aura of Protection): party-wide
+# triple resistance scoped to aura membership — a very strong defensive
+# eHP multiplier against three common magical damage types. Conditional
+# resistance keyed on aura geometry (not a static build stamp). One of
+# the highest-value defensive auras to model once emanations exist.
+
+id: f_aura_of_warding
+name: Aura of Warding
+source: phb_2024
+granted_by:
+  subclass: sc_oath_of_the_ancients
+  level: 7
+type: passive
+
+effect_primitives: []

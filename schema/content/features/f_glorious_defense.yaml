@@ -1,0 +1,35 @@
+# f_glorious_defense — Glorious Defense (Oath of Glory L15)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Reaction when you or a creature within 10 ft is hit by an
+# attack roll — grant the target +CHA AC (min +1) against that attack,
+# potentially making it miss. If it misses, you can make one weapon
+# attack against the attacker (if in range). Uses = CHA modifier
+# (min 1) per Long Rest.
+#
+# Engine modeling (HIGH wireability): rides the attack-roll-pending /
+# damage reaction lane (Shield / Cutting Words / Warding Flare shape) —
+# a post-hit AC bump that can convert hit to miss, PLUS a counterattack
+# rider (Riposte pattern, like f_retaliation's melee swing). Combines
+# two already-modeled mechanics. Strong defensive eHP + tempo. Good
+# wire candidate once Aura/CHA context exists.
+
+id: f_glorious_defense
+name: Glorious Defense
+source: phb_2024
+granted_by:
+  subclass: sc_oath_of_glory
+  level: 15
+type: triggered
+
+resource_cost:
+  type: feature_use   # CHA-mod uses per long rest
+
+usage:
+  uses_per: per_long_rest
+
+trigger:
+  event: attack_roll_pending
+  chosen_by: actor
+
+effect_primitives: []

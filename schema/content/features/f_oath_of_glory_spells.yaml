@@ -1,0 +1,25 @@
+# f_oath_of_glory_spells — Oath of Glory Spells (Oath of Glory L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Always-prepared spells by Paladin level:
+#   L3: Guiding Bolt, Heroism
+#   L5: Enhance Ability, Magic Weapon
+#   L9: Haste, Protection from Energy
+#   L13: Compulsion, Freedom of Movement
+#   L17: Legend Lore, Yolande's Regal Presence
+#
+# Engine modeling (deferred — BLOCKED on spell library):
+#   NEEDED (combat): Guiding Bolt, Heroism, Magic Weapon, Haste,
+#   Protection from Energy, Compulsion, Yolande's Regal Presence
+#   NON-COMBAT (stub-tier): Enhance Ability, Freedom of Movement,
+#   Legend Lore
+
+id: f_oath_of_glory_spells
+name: Oath of Glory Spells
+source: phb_2024
+granted_by:
+  subclass: sc_oath_of_glory
+  level: 3
+type: passive
+
+effect_primitives: []
