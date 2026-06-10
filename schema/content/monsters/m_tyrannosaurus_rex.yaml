@@ -1,0 +1,77 @@
+# m_tyrannosaurus_rex — Tyrannosaurus Rex
+# Source: SRD CC v5.2.1
+# Triage: GREEN — Multiattack (Bite + Tail). Bite grapples (escape DC 17) + Restrained; Tail knocks Prone. Existing co_grappled/co_restrained/co_prone.
+
+id: m_tyrannosaurus_rex
+name: Tyrannosaurus Rex
+source: srd_5.2.1
+
+size: huge
+creature_type: beast
+type_tags: [dinosaur]
+alignment: unaligned
+
+combat:
+  armor_class: 13
+  hit_points: { average: 136, dice: "13d12", con_contribution: 52 }
+  speed: { walk: 50 }
+  initiative: { modifier: 3, score: 13 }
+
+abilities:
+  str: { score: 25, save: 10 }
+  dex: { score: 10, save: 0 }
+  con: { score: 19, save: 4 }
+  int: { score: 2, save: -4 }
+  wis: { score: 12, save: 4 }
+  cha: { score: 9, save: -1 }
+
+skills: { perception: 4 }
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: []
+condition_immunities: []
+
+senses: { passive_perception: 14 }
+languages: []
+
+cr: { value: 8, xp: 3900, proficiency_bonus: 3 }
+
+traits: []
+
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 2
+    sub_actions: [a_bite, a_tail]
+  - id: a_bite
+    name: Bite
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 10, reach_ft: 10 }
+      - primitive: damage
+        params: { dice: "4d12", modifier: 7, type: piercing, average: 33 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: apply_condition
+        params: { condition_id: co_grappled, duration: until_removed }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: apply_condition
+        params: { condition_id: co_restrained, duration: until_removed }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+  - id: a_tail
+    name: Tail
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 10, reach_ft: 15 }
+      - primitive: damage
+        params: { dice: "4d8", modifier: 7, type: bludgeoning, average: 25 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: apply_condition
+        params: { condition_id: co_prone, duration: until_removed }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: apex_predator
+  presets: { retreat: ftd, ability_selection: default, targeting: weakest_target, action_economy: casual }
