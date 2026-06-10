@@ -1,0 +1,67 @@
+# f_destructive_wave — Destructive Wave (5th-level Evocation, PHB 2024
+# — NOT in SRD 5.2.1)
+#
+# RAW summary (own words, from owned PHB 2024): Action, V, Self (30-ft
+# Emanation), Instantaneous. Each creature YOU CHOOSE in the Emanation
+# makes a CON save. Fail: 5d6 Thunder damage + 5d6 Radiant or Necrotic
+# damage (your choice) + the Prone condition. Success: half as much
+# damage only. No upcast scaling. Classes: Paladin, Tempest Domain.
+#
+# Engine modeling: aoe_attack with the Arms-of-Hadar emanation shape
+# at 30-ft size. "You choose" → affected: enemies_in_area. The dual
+# damage is two damage steps on a failed save (5d6 thunder + 5d6
+# radiant — Radiant chosen as the Paladin-flavored default; the
+# Necrotic option is a flavor swap with no mechanical difference
+# in v1) + co_prone; success halves both and skips Prone.
+#
+# Deferred RAW bits:
+#   - The Radiant-vs-Necrotic choice (fixed to Radiant).
+# Available for: Paladin, Tempest Domain (primary: c_paladin)
+
+id: f_destructive_wave
+name: Destructive Wave
+source: user_authored
+granted_by:
+  class: c_paladin
+  level: 17             # Half-caster: 5th-level slots at L17
+type: active
+spell:
+  class: c_paladin
+  level: 5
+
+description: |
+  30-ft emanation: every ENEMY in it makes a CON save — on a fail,
+  5d6 thunder + 5d6 radiant and Prone; on a success, half damage and
+  no Prone. Allies are never affected ("you choose"). No upcast.
+
+action_template:
+  id: a_destructive_wave
+  name: Destructive Wave
+  type: aoe_attack
+  spell_slot_level: 5
+  named_effect: destructive_wave
+  school: evocation
+  range_ft: 0
+  area:
+    shape: emanation
+    size_ft: 30
+    range_ft: 0          # origin locked to the caster's own square
+    origin: caster
+  pipeline:
+    - primitive: forced_save
+      params:
+        ability: constitution
+        dc_source: caster_spell_save_dc
+        affected: enemies_in_area
+        on_fail:
+          - primitive: damage
+            params: { dice: "5d6", modifier: 0, type: thunder }
+          - primitive: damage
+            params: { dice: "5d6", modifier: 0, type: radiant }
+          - primitive: apply_condition
+            params: { condition_id: co_prone }
+        on_success:
+          - primitive: damage
+            params: { dice: "5d6", modifier: 0, type: thunder, multiplier: 0.5 }
+          - primitive: damage
+            params: { dice: "5d6", modifier: 0, type: radiant, multiplier: 0.5 }

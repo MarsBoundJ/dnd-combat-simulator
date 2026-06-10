@@ -1,0 +1,76 @@
+# f_jallarzis_storm_of_radiance — Jallarzi's Storm of Radiance
+# (5th-level Evocation, PHB 2024 — NOT in SRD 5.2.1)
+#
+# RAW summary (own words, from owned PHB 2024): Action, V/S/M (a pinch
+# of phosphorus), 120 ft, Concentration up to 1 minute. A storm of
+# flashing light and thunder fills a 10-ft-radius, 40-ft-high Cylinder
+# centered on a point within range. Creatures in the area are Blinded
+# and Deafened and can't cast spells with a Verbal component. When the
+# storm appears — and when a creature enters the area for the first
+# time on a turn or ends its turn there (once per turn) — it makes a
+# CON save: 2d10 Radiant + 2d10 Thunder damage on a fail, half on a
+# success. Upcast: +1d10 Radiant AND +1d10 Thunder per slot above 5.
+# Classes: Warlock, Wizard.
+#
+# Engine modeling: persistent_aura zone (Hunger of Hadar precedent) —
+# sphere radius 10 (the 2D grid collapses the cylinder), anchored to a
+# point within 120 ft. Per-turn CON save: 4d10 radiant on a fail
+# (2d10 radiant + 2d10 thunder combined under radiant typing, the
+# Hunger of Hadar combined-typing approximation), half on a success.
+# Upcast +2d10/slot (the two +1d10 components combined).
+#
+# Deferred RAW bits:
+#   - Blinded + Deafened + no-Verbal-casting while inside the area.
+#   - The initial save when the storm appears + the enter-area
+#     trigger; v1 fires at turn-start in area (zone precedent).
+#   - Split radiant/thunder typing.
+# Available for: Warlock, Wizard (primary: c_wizard)
+
+id: f_jallarzis_storm_of_radiance
+name: Jallarzi's Storm of Radiance
+source: user_authored
+granted_by:
+  class: c_wizard
+  level: 9              # Full caster: 5th-level slots at L9
+type: active
+spell:
+  class: c_wizard
+  level: 5
+
+description: |
+  10-ft-radius storm cylinder within 120 ft (Concentration, 1 min).
+  Each turn-start in the area: CON save — 4d10 (radiant+thunder) on
+  a fail, half on a success. +2d10 per slot above 5th. Blinded /
+  Deafened / no-Verbal-casting inside the storm deferred.
+
+action_template:
+  id: a_jallarzis_storm_of_radiance
+  name: Jallarzi's Storm of Radiance
+  type: persistent_aura
+  spell_slot_level: 5
+  concentration: true
+  named_effect: jallarzis_storm_of_radiance
+  upcast_scaling:
+    extra_dice_per_level: "2d10"
+    damage_type: radiant
+  area:
+    shape: sphere
+    radius_ft: 10
+    range_ft: 120
+  pipeline:
+    - primitive: persistent_aura
+      params:
+        shape: sphere
+        radius_ft: 10
+        anchor: point
+        trigger_event: target_turn_start_in_area
+        affected: all_creatures
+        ability: constitution
+        dc: 15                  # caster's spell save DC; fixture-overridable
+        on_fail:
+          # Combined 2d10 radiant + 2d10 thunder (v1 combined typing).
+          - primitive: damage
+            params: { dice: "4d10", type: radiant }
+        on_success:
+          - primitive: damage
+            params: { dice: "4d10", type: radiant, multiplier: 0.5 }

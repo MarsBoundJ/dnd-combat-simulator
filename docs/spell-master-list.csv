@@ -257,19 +257,19 @@ Wall of Fire,,4,Evocation,srd_5.2.1,B,todo,,
 Animate Objects,,5,Transmutation,srd_5.2.1,C,built,f_animate_objects.yaml,
 Antilife Shell,,5,Abjuration,srd_5.2.1,C,todo,,
 Awaken,,5,Transmutation,srd_5.2.1,D,todo,,
-Banishing Smite,,5,Conjuration,phb_2024,A,todo,,
+Banishing Smite,,5,Conjuration,phb_2024,A,built,f_banishing_smite.yaml,custom rider module; 5d10 force + HP≤50-conditional CHA save → banished (co_incapacitated)
 Bigby's Hand,Arcane Hand,5,Evocation,srd_5.2.1,C,built,f_bigbys_hand.yaml,renamed in SRD
-Circle of Power,,5,Abjuration,phb_2024,C,todo,,
+Circle of Power,,5,Abjuration,phb_2024,C,built,f_circle_of_power.yaml,circle_of_power_aura primitive; save advantage fan-out ≤30ft; half-to-none marker deferred
 Cloudkill,,5,Conjuration,srd_5.2.1,C,built,f_cloudkill.yaml,
 Commune,,5,Divination,srd_5.2.1,B,todo,,
 Commune with Nature,,5,Divination,srd_5.2.1,B,todo,,
 Cone of Cold,,5,Evocation,srd_5.2.1,C,built,f_cone_of_cold.yaml,
 Conjure Elemental,,5,Conjuration,srd_5.2.1,B,todo,,
-Conjure Volley,,5,Conjuration,phb_2024,C,todo,,
+Conjure Volley,,5,Conjuration,phb_2024,C,built,f_conjure_volley.yaml,40-ft-radius DEX save 8d8 force enemies_in_area at 150 ft
 Contact Other Plane,,5,Divination,srd_5.2.1,D,todo,,
 Contagion,,5,Necromancy,srd_5.2.1,C,built,f_contagion.yaml,
 Creation,,5,Illusion,srd_5.2.1,D,todo,,
-Destructive Wave,,5,Evocation,phb_2024,C,todo,,
+Destructive Wave,,5,Evocation,phb_2024,C,built,f_destructive_wave.yaml,30-ft emanation CON save 5d6 thunder + 5d6 radiant + prone; enemies_in_area
 Dispel Evil and Good,,5,Abjuration,srd_5.2.1,C,todo,,
 Dominate Person,,5,Enchantment,srd_5.2.1,B,built,f_dominate_person.yaml,
 Dream,,5,Illusion,srd_5.2.1,D,todo,,
@@ -279,7 +279,7 @@ Greater Restoration,,5,Abjuration,srd_5.2.1,B,todo,,
 Hallow,,5,Abjuration,srd_5.2.1,D,todo,,
 Hold Monster,,5,Enchantment,srd_5.2.1,B,built,f_hold_monster.yaml,
 Insect Plague,,5,Conjuration,srd_5.2.1,B,built,f_insect_plague.yaml,
-Jallarzi's Storm of Radiance,,5,Evocation,phb_2024,C,todo,,
+Jallarzi's Storm of Radiance,,5,Evocation,phb_2024,C,built,f_jallarzis_storm_of_radiance.yaml,persistent_aura zone; CON 4d10 per turn-start in area; blind/deafen deferred
 Legend Lore,,5,Divination,srd_5.2.1,B,todo,,
 Mass Cure Wounds,,5,Abjuration,srd_5.2.1,B,built,f_mass_cure_wounds.yaml,
 Mislead,,5,Illusion,srd_5.2.1,B,todo,,
@@ -291,7 +291,7 @@ Rary's Telepathic Bond,Telepathic Bond,5,Divination,srd_5.2.1,B,todo,,renamed in
 Reincarnate,,5,Necromancy,srd_5.2.1,D,todo,,
 Scrying,,5,Divination,srd_5.2.1,B,todo,,
 Seeming,,5,Illusion,srd_5.2.1,B,todo,,
-Steel Wind Strike,,5,Conjuration,phb_2024,B,todo,,
+Steel Wind Strike,,5,Conjuration,phb_2024,B,built,f_steel_wind_strike.yaml,pc_builder spell_attack 6d10 force single-strike; 5-target fan + teleport deferred
 Summon Celestial,,5,Conjuration,phb_2024,B,built,f_summon_celestial.yaml,
 Summon Dragon,,5,Conjuration,srd_5.2.1,B,todo,,
 Swift Quiver,,5,Transmutation,phb_2024,C,todo,,

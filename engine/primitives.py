@@ -558,6 +558,16 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
                 actor, target, state, attack_params, rng,
                 is_crit=(sa_state == "crit"))
             total += stg_damage
+        # Banishing Smite rider (Paladin, 5th-level). Melee-only;
+        # 5d10 force bonus; if the hit leaves the target at <=50 HP,
+        # CHA save -> banished (co_incapacitated + escape re-save).
+        if is_weapon_attack and (attack_params or {}).get(
+                "kind", "melee") == "melee":
+            from engine.core import banishing_smite as _ban
+            ban_damage = _ban.try_apply_banishing_smite_followup(
+                actor, target, state, attack_params, rng,
+                is_crit=(sa_state == "crit"))
+            total += ban_damage
         # Hail of Thorns rider (Ranger, 1st-level). RANGED-only; thorn
         # burst around the struck target — target + creatures within
         # 5 ft make a DEX save, Nd10 piercing / half (separate
@@ -2617,6 +2627,73 @@ def _fount_of_moonlight_buff(params: dict, state: CombatState,
     })
 
 
+def _circle_of_power_aura(params: dict, state: CombatState,
+                            bus: EventBus) -> None:
+    """Circle of Power — defensive ally aura (Paladin/Cleric/Wizard,
+    5th-level).
+
+    RAW (PHB 2024): a 30-ft Emanation for the concentration duration;
+    the caster and allies in it have Advantage on saving throws
+    against spells and other magical effects, and a successful save
+    that would normally halve damage negates it instead.
+
+    v1: cast-time snapshot (Crusader's Mantle discipline) — apply two
+    source-tagged entries to the caster and every living ally within
+    `radius_ft`:
+      1. save_modifier {modifier: advantage} — Advantage on ALL saves
+         (the engine doesn't tag saves as spell vs non-spell; most
+         simulated saves ARE magical, so this is a slight documented
+         overvalue).
+      2. magic_save_half_to_none — marker for the "half becomes none"
+         evasion-like rider; present + scrubbed but not yet evaluated
+         by the damage path (deferred wiring).
+    Both entries are scrubbed by end_concentration.
+
+    Params:
+      - radius_ft (int, default 30)
+    """
+    from engine.core.geometry import distance_ft
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        return
+    action = (state.current_attack or {}).get("action") or {}
+    radius = int(params.get("radius_ft", 30))
+    source = {
+        "type": "action_buff",
+        "action_id": action.get("id", "a_circle_of_power"),
+        "caster_id": actor.id,
+        "named_effect": action.get("named_effect"),
+    }
+    buffed = []
+    for candidate in state.encounter.actors:
+        if candidate.side != actor.side or not candidate.is_alive():
+            continue
+        if distance_ft(actor.position, candidate.position) > radius:
+            continue
+        candidate.active_modifiers.append({
+            "primitive": "save_modifier",
+            "params": {"modifier": "advantage"},
+            "lifetime": "until_short_rest",
+            "source": source,
+            "applied_at_round": state.round,
+            "owner_id": candidate.id,
+        })
+        candidate.active_modifiers.append({
+            "primitive": "magic_save_half_to_none",
+            "params": {},
+            "lifetime": "until_short_rest",
+            "source": source,
+            "applied_at_round": state.round,
+            "owner_id": candidate.id,
+        })
+        buffed.append(candidate.id)
+    state.event_log.append({
+        "event": "circle_of_power_applied",
+        "caster": actor.id,
+        "allies": buffed,
+    })
+
+
 def _damage_resistance(params: dict, state: CombatState,
                          bus: EventBus) -> None:
     """Register a damage_resistance modifier on the target/actor.
@@ -3358,6 +3435,30 @@ def _staggering_smite_arm(params: dict, state: CombatState,
               state=state, slot_level=slot_level)
 
 
+def _banishing_smite_arm(params: dict, state: CombatState,
+                            bus: EventBus) -> None:
+    """Arm the caster with Banishing Smite's one-shot melee rider.
+
+    Called from f_banishing_smite's cast pipeline. 5th-level Paladin
+    spell; 5d10 force bonus + (if the hit leaves the target at <=50 HP)
+    CHA save → banished. Trigger lives in engine.core.banishing_smite.
+    """
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        raise ValueError("banishing_smite_arm requires a current actor")
+    slot_level = int((state.current_attack or {}).get(
+        "chosen_slot_level") or 5)
+    if "dc" in params:
+        dc = int(params["dc"])
+    else:
+        dc = _caster_spell_save_dc(actor)
+    action = (state.current_attack or {}).get("action") or {}
+    action_id = action.get("id", "a_banishing_smite")
+    from engine.core.banishing_smite import register_armed as _ban_arm
+    _ban_arm(actor, spell_save_dc=dc, action_id=action_id,
+              state=state, slot_level=slot_level)
+
+
 def _wild_shape_transform(params: dict, state: CombatState,
                             bus: EventBus) -> None:
     """Druid Wild Shape — transform into a Beast form (form system).
@@ -4001,8 +4102,10 @@ def _populate_handler_table() -> None:
         "crusaders_mantle_aura": _crusaders_mantle_aura,
         "aura_of_purity_aura": _aura_of_purity_aura,
         "fount_of_moonlight_buff": _fount_of_moonlight_buff,
+        "circle_of_power_aura": _circle_of_power_aura,
         "damage_resistance": _damage_resistance,
         "staggering_smite_arm": _staggering_smite_arm,
+        "banishing_smite_arm": _banishing_smite_arm,
         "hex_curse": _hex_curse,
         "hunters_mark_mark": _hunters_mark_mark,
         "forced_movement": _forced_movement,
@@ -4176,6 +4279,15 @@ def _all_primitives() -> list[Primitive]:
         # Staggering Smite arming primitive (Paladin, 4th-level).
         # Rider: 4d6 psychic bonus, WIS save -> co_stunned.
         Primitive("staggering_smite_arm", _staggering_smite_arm,
+                    implemented=True),
+        # Banishing Smite arming primitive (Paladin, 5th-level).
+        # Rider: 5d10 force bonus; if hit leaves target <=50 HP,
+        # CHA save -> banished (co_incapacitated + escape re-save).
+        Primitive("banishing_smite_arm", _banishing_smite_arm,
+                    implemented=True),
+        # Circle of Power — defensive ally aura: save advantage +
+        # half-to-none marker fan-out to caster + allies ≤30 ft.
+        Primitive("circle_of_power_aura", _circle_of_power_aura,
                     implemented=True),
         # Bardic Inspiration — grant a held die to an ally. The holder's
         # post-roll self-add lives in engine.core.bardic_inspiration

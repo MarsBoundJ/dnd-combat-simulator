@@ -1,0 +1,60 @@
+# f_conjure_volley — Conjure Volley (5th-level Conjuration, PHB 2024
+# — NOT in SRD 5.2.1)
+#
+# RAW summary (own words, from owned PHB 2024): Action, V/S/M (a melee
+# or ranged weapon worth 1+ CP), 150 ft, Instantaneous. Hundreds of
+# spectral weapons rain down in a 40-ft-radius, 20-ft-high Cylinder
+# centered on a point within range. Each creature OF YOUR CHOICE you
+# can see in the area makes a DEX save — 8d8 Force damage on a fail,
+# half on a success. No upcast scaling. Classes: Ranger.
+#
+# Engine modeling: the Conjure Barrage shape scaled up — aoe_attack
+# with a sphere area (the 2D grid has no height, so the cylinder
+# collapses to its 40-ft-radius footprint) at 150-ft range. "Of your
+# choice" → affected: enemies_in_area (allies never hit, no
+# friendly-fire eHP penalty).
+#
+# Deferred RAW bits: none beyond the cylinder→circle footprint
+# simplification (inherent to the 2D grid).
+# Available for: Ranger (primary: c_ranger)
+
+id: f_conjure_volley
+name: Conjure Volley
+source: user_authored
+granted_by:
+  class: c_ranger
+  level: 17                # Half-caster: 5th-level slots at L17
+type: active
+spell:
+  class: c_ranger
+  level: 5
+
+description: |
+  40-ft-radius cylinder centered on a point within 150 ft: every
+  ENEMY in it makes a DEX save — 8d8 force on a fail, half on a
+  success; allies are never affected ("of your choice"). No upcast.
+
+action_template:
+  id: a_conjure_volley
+  name: Conjure Volley
+  type: aoe_attack
+  spell_slot_level: 5
+  named_effect: conjure_volley
+  school: conjuration
+  range_ft: 150
+  area:
+    shape: sphere
+    radius_ft: 40
+    range_ft: 150
+  pipeline:
+    - primitive: forced_save
+      params:
+        ability: dexterity
+        dc_source: caster_spell_save_dc
+        affected: enemies_in_area
+        on_fail:
+          - primitive: damage
+            params: { dice: "8d8", modifier: 0, type: force }
+        on_success:
+          - primitive: damage
+            params: { dice: "8d8", modifier: 0, type: force, multiplier: 0.5 }

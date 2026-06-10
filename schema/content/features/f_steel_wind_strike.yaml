@@ -1,0 +1,51 @@
+# f_steel_wind_strike — Steel Wind Strike (5th-level Conjuration,
+# PHB 2024 — NOT in SRD 5.2.1)
+#
+# RAW summary (own words, from owned PHB 2024): Action, S/M (a melee
+# weapon worth 1+ SP), 30 ft, Instantaneous. Flourish the weapon and
+# vanish to strike like the wind: choose up to FIVE creatures within
+# 30 ft and make a melee spell attack against EACH. On a hit, a target
+# takes 6d10 Force damage. Then teleport to an unoccupied space within
+# 5 ft of one of the targets. No upcast scaling. Classes: Ranger,
+# Wizard, War Domain.
+#
+# Engine modeling: pc_builder spell_attack — ONE melee spell attack
+# for 6d10 force at 30 ft (the Thorn Whip "reach 30" convention for
+# melee spell attacks at range). The multi-target fan (one attack per
+# creature, up to five) and the closing teleport are deferred — the
+# focus-fire ray_count alternative would overvalue 5x against single
+# bosses (RAW caps one attack per creature), so single-attack is the
+# safe undervalue.
+#
+# Deferred RAW bits:
+#   - Up to 5 distinct targets, one attack each (needs a distinct-
+#     target multiattack shape; documented undervalue vs groups).
+#   - The post-strike 5-ft teleport.
+# Available for: Ranger, Wizard, War Domain (primary: c_wizard)
+
+id: f_steel_wind_strike
+name: Steel Wind Strike
+source: user_authored
+granted_by:
+  class: c_wizard
+  level: 9              # Full caster: 5th-level slots at L9
+type: active
+spell:
+  class: c_wizard
+  level: 5
+
+description: |
+  Melee spell attack at 30 ft for 6d10 force damage. RAW strikes up
+  to five creatures (one attack each) then teleports you adjacent to
+  one — v1 models a single strike (documented undervalue vs groups);
+  multi-target + teleport deferred. No upcast.
+
+pc_builder:
+  kind: spell_attack
+  action_id: a_steel_wind_strike
+  name: Steel Wind Strike
+  params:
+    slot_level: 5
+    range_ft: 30
+    damage_dice: "6d10"
+    damage_type: force

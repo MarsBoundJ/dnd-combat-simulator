@@ -1,0 +1,57 @@
+# f_banishing_smite — Banishing Smite (5th-level Conjuration,
+# PHB 2024 — NOT in SRD 5.2.1)
+#
+# RAW summary (own words, from owned PHB 2024): Bonus Action cast
+# immediately after hitting a creature with a Melee weapon or Unarmed
+# Strike; V, Self, Concentration up to 1 minute. The target takes an
+# extra 5d10 Force damage from the attack. If the attack reduces the
+# target to 50 HP or fewer, it must succeed on a Charisma saving throw
+# or be transported to a harmless demiplane for the duration, where it
+# has the Incapacitated condition; it reappears when the spell ends.
+# No upcast scaling. Classes: Paladin, Hexblade (XGtE).
+#
+# Engine modeling: custom rider module (engine.core.banishing_smite —
+# the Lightning Arrow custom-trigger pattern) because the banish save
+# is HP-conditional, which SmiteRiderSpec's unconditional save path
+# can't express. Two-phase: `banishing_smite_arm` registers the
+# marker; _damage fires the rider on the caster's next melee hit.
+#
+# Deferred RAW bits:
+#   - The <=50 HP check uses (pre-hit HP - the 5d10 bonus); the weapon
+#     damage of the same hit isn't visible to the hook (slight
+#     undervalue, documented in the module).
+#   - Demiplane = co_incapacitated (Banishment precedent); the
+#     untargetable facet is not modeled. Turn-end CHA re-save as the
+#     v1 escape proxy.
+#   - Unarmed Strike trigger (weapon attacks only).
+# Available for: Paladin, Hexblade (primary: c_paladin)
+
+id: f_banishing_smite
+name: Banishing Smite
+source: user_authored
+granted_by:
+  class: c_paladin
+  level: 17             # Half-caster: 5th-level slots at L17
+type: active
+spell:
+  class: c_paladin
+  level: 5
+
+description: |
+  Bonus Action after a melee hit. +5d10 Force damage on the hit; if
+  the target is left at 50 HP or fewer, CHA save or banished
+  (Incapacitated) while you concentrate, up to 1 minute. No upcast.
+
+action_template:
+  id: a_banishing_smite
+  name: Banishing Smite
+  type: smite
+  cast_time: bonus_action
+  spell_slot_level: 5
+  concentration: true
+  named_effect: banishing_smite
+  pipeline:
+    - primitive: banishing_smite_arm
+      params:
+        dc: 15            # placeholder; overridden by caster's spell save DC
+        slot_level: 5
