@@ -7,9 +7,9 @@ follow it for every spell added.
 ## THE MASTER LIST (added 2026-06-10 — start here)
 
 **`docs/spell-master-list.csv`** is now the single spell inventory:
-every spell in PHB 2024 ∪ SRD 5.2.1, one row each, plus the two
-already-built out-of-scope extras (Sickening Radiance, Synaptic Static —
-XGE). `tests/test_spell_master_list.py` enforces it: a new spell YAML
+every spell in PHB 2024 ∪ SRD 5.2.1, one row each, plus the one
+already-built out-of-scope extra (Sickening Radiance — XGE).
+`tests/test_spell_master_list.py` enforces it: a new spell YAML
 cannot land without its master-list row being updated, and no row can
 claim a file that doesn't exist. Nothing falls between the cracks.
 
@@ -23,7 +23,7 @@ Columns:
   usable verbatim under the generic name; only the proper name itself
   is the PHB-flavored part.
 - **source** — `srd_5.2.1` (339 spells; CC-BY, text may be ingested
-  verbatim from `docs/srd/SRD_CC_v5.2.1.pdf`) or `phb_2024` (51
+  verbatim from `docs/srd/SRD_CC_v5.2.1.pdf`) or `phb_2024` (52
   spells; mechanics-only, own-words re-expression per
   `data-sources.md` — same posture as the PHB subclasses).
 - **tier** — build priority (Phil's Phase-2 scheme): **S** combat
@@ -41,15 +41,15 @@ State at creation: **128 built / 264 todo**. S-tier gaps (the
 highest-leverage five): **Misty Step, Dispel Magic, Haste, Dimension
 Door, Greater Invisibility.**
 
-### Verification flags (Phil)
-- SRD side is authoritative: all 339 rows (name/level/school) were
-  machine-extracted from the SRD 5.2.1 PDF in `docs/srd/` (CC-BY, so
-  extraction is clean). The PHB-only rows are from Claude's knowledge:
-  339 + 51 = **390 vs the 391 figure for PHB 2024** — one spell is
-  unaccounted for, and PHB-only level/school values are unverified.
-  **Diff the master list against Phil's Google-Doc spell list** (paste
-  the names/level/school into a session) to find the missing row and
-  confirm the 51.
+### Verification — DONE (2026-06-10)
+- SRD side: all 339 rows (name/level/school) machine-extracted from
+  the SRD 5.2.1 PDF in `docs/srd/` (CC-BY, so extraction is clean).
+- PHB side: Phil pasted his full 391-spell PHB 2024 list and it was
+  diffed against the master list — **all 391 present, zero
+  level/school mismatches.** The initially unaccounted 52nd PHB-only
+  spell was **Synaptic Static** (an XGE spell reprinted in PHB 2024 —
+  already built as `f_synaptic_static.yaml`; its source tag was
+  corrected from `xge` to `phb_2024`). 339 SRD + 52 PHB-only = 391. ✓
 
 ### Corrections to the rest of this doc (SRD 5.2.1 verified 2026-06-10)
 The "verify SRD 5.2.1 coverage" quick-win has now been run. It moves
@@ -62,8 +62,8 @@ several spells this doc treats as non-SRD INTO the free pile:
   which is SRD. **Feeblemind** is now **Befuddlement** — SRD, already
   built. The "True Strike decision" is resolved: 2024 attack-cantrip
   redesign, SRD text.
-- The true PHB-only (non-SRD) set is **51 spells** (8 already built),
-  not the 38/34 counted below.
+- The true PHB-only (non-SRD) set is **52 spells** (9 already built,
+  counting Synaptic Static), not the 38/34 counted below.
 
 ## What Phil actually directed (2026-05-30)
 

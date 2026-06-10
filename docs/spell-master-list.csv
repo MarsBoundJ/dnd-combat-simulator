@@ -295,7 +295,7 @@ Steel Wind Strike,,5,Conjuration,phb_2024,B,todo,,
 Summon Celestial,,5,Conjuration,phb_2024,B,built,f_summon_celestial.yaml,
 Summon Dragon,,5,Conjuration,srd_5.2.1,B,todo,,
 Swift Quiver,,5,Transmutation,phb_2024,C,todo,,
-Synaptic Static,,5,Enchantment,xge,C,built,f_synaptic_static.yaml,outside PHB/SRD scope; already implemented
+Synaptic Static,,5,Enchantment,phb_2024,C,built,f_synaptic_static.yaml,
 Telekinesis,,5,Transmutation,srd_5.2.1,B,todo,,
 Teleportation Circle,,5,Conjuration,srd_5.2.1,D,todo,,
 Tree Stride,,5,Conjuration,srd_5.2.1,B,todo,,
