@@ -1,0 +1,33 @@
+# f_guided_strike — Guided Strike (War Domain L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: When you or a creature within 30 ft misses with an attack
+# roll, expend one Channel Divinity use for a +10 bonus to that roll,
+# potentially converting the miss to a hit. Free on your own attacks;
+# costs your Reaction when used on another creature's attack.
+#
+# Engine modeling (HIGH wireability once Channel Divinity exists):
+# rides the post-roll miss window — same shape as Battle Master's
+# Precision Attack and the Shield/Cutting Words reaction lane, but as a
+# flat +10. Condition gate: fire only when +10 actually converts the
+# miss (roll vs AC gap <= 10). The ally-assist mode is a Reaction with
+# the same gate. Per-roll Shapley attribution credits the Cleric for
+# the converted hit's damage.
+
+id: f_guided_strike
+name: Guided Strike
+source: phb_2024
+granted_by:
+  subclass: sc_war_domain
+  level: 3
+type: triggered
+is_signature: true
+
+resource_cost:
+  type: feature_use   # channel_divinity_uses
+
+trigger:
+  event: attack_roll_pending
+  chosen_by: actor
+
+effect_primitives: []

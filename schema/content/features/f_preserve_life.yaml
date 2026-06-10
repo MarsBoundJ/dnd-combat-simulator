@@ -1,0 +1,27 @@
+# f_preserve_life — Preserve Life (Life Domain L3)
+# Source: SRD CC v5.2.1
+#
+# RAW: As a Magic action, expend one Channel Divinity use to restore a
+# pool of HP equal to 5 x Cleric level, divided among Bloodied creatures
+# within 30 ft (can include self). Can't raise a creature above half its
+# HP maximum.
+#
+# Engine modeling (deferred — BLOCKED on Channel Divinity resource,
+# Cleric L2 class feature): multi-target heal with a pool-allocation
+# decision. AI policy: greedy fill of lowest-HP-ratio allies up to the
+# half-max cap. The heal primitive handles single targets today; pool
+# splitting is the new part.
+
+id: f_preserve_life
+name: Preserve Life
+source: srd_5.2.1
+granted_by:
+  subclass: sc_life_domain
+  level: 3
+type: active
+is_signature: true
+
+resource_cost:
+  type: feature_use   # channel_divinity_uses
+
+effect_primitives: []

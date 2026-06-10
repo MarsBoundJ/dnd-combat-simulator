@@ -1,0 +1,31 @@
+# sc_life_domain — Life Domain (Cleric subclass)
+# Source: SRD CC v5.2.1 (PHB 2024)
+#
+# The healing specialist. Every feature amplifies HP restoration:
+# Disciple of Life (rider on slot-cast heals), Preserve Life (Channel
+# Divinity mass heal), Blessed Healer (self-heal echo), Supreme Healing
+# (max healing dice). Domain spells are the heal/buff staples.
+#
+# DEPENDS ON: Channel Divinity (Cleric L2 class feature — not yet
+# built, see c_cleric deferred list) gates Preserve Life. Healing
+# spells: Cure Wounds + Healing Word exist; Aid + Bless exist;
+# Mass Healing Word / Revivify / Aura of Life / Death Ward /
+# Greater Restoration / Mass Cure Wounds are not yet built.
+
+id: sc_life_domain
+name: Life Domain
+source: srd_5.2.1
+parent_class: c_cleric
+
+archetype_tags:
+  behavior_archetype: cautious_defender
+  role: healer                    # INTERNAL-EVAL-ONLY per vocabulary firewall
+  flavor_tags: [nurturing, devoted, resilient, communal]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_disciple_of_life, f_life_domain_spells, f_preserve_life]
+  - level: 6
+    feature_ids: [f_blessed_healer]
+  - level: 17
+    feature_ids: [f_supreme_healing]

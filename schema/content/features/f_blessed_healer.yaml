@@ -1,0 +1,20 @@
+# f_blessed_healer — Blessed Healer (Life Domain L6)
+# Source: SRD CC v5.2.1
+#
+# RAW: Immediately after you cast a spell with a spell slot that
+# restores HP to one or more creatures other than yourself, you regain
+# HP equal to 2 plus the spell slot's level.
+#
+# Engine modeling (deferred): self-heal echo on slot-cast heals
+# targeting others. Same hook as f_disciple_of_life (post-heal rider
+# with slot level in context), so wire the two together.
+
+id: f_blessed_healer
+name: Blessed Healer
+source: srd_5.2.1
+granted_by:
+  subclass: sc_life_domain
+  level: 6
+type: passive
+
+effect_primitives: []

@@ -1,0 +1,31 @@
+# sc_light_domain — Light Domain (Cleric subclass)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# The radiant blaster-controller. Warding Flare (L3) is a reaction that
+# imposes disadvantage on attacks — the defensive workhorse, same
+# reaction lane as Cutting Words. Radiance of the Dawn (L3) is a
+# Channel Divinity AoE burst. Domain list brings Fireball / Scorching
+# Ray fire-blasting to the Cleric chassis.
+#
+# DEPENDS ON: Channel Divinity resource (Cleric L2, not yet built)
+# gates Radiance of the Dawn. Fireball exists (sp_fireball); most other
+# domain spells not yet built.
+
+id: sc_light_domain
+name: Light Domain
+source: phb_2024
+parent_class: c_cleric
+
+archetype_tags:
+  behavior_archetype: cunning_tactician
+  role: blaster                   # INTERNAL-EVAL-ONLY per vocabulary firewall
+  flavor_tags: [radiant, vigilant, revealing, fiery]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_light_domain_spells, f_radiance_of_the_dawn,
+                  f_warding_flare]
+  - level: 6
+    feature_ids: [f_improved_warding_flare]
+  - level: 17
+    feature_ids: [f_corona_of_light]

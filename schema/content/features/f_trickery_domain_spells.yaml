@@ -1,0 +1,25 @@
+# f_trickery_domain_spells — Trickery Domain Spells (Trickery Domain L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Always-prepared spells by Cleric level (don't count against prepared
+# total):
+#   L3: Charm Person, Disguise Self, Invisibility, Pass without Trace
+#   L5: Hypnotic Pattern, Nondetection
+#   L7: Confusion, Dimension Door
+#   L9: Dominate Person, Modify Memory
+#
+# Engine modeling (deferred — BLOCKED on spell library):
+#   NEEDED (combat): Charm Person, Invisibility, Hypnotic Pattern,
+#   Confusion, Dimension Door, Dominate Person
+#   NON-COMBAT (stub-tier): Disguise Self, Pass without Trace,
+#   Nondetection, Modify Memory
+
+id: f_trickery_domain_spells
+name: Trickery Domain Spells
+source: phb_2024
+granted_by:
+  subclass: sc_trickery_domain
+  level: 3
+type: passive
+
+effect_primitives: []

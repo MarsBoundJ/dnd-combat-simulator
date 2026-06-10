@@ -31,15 +31,50 @@ All 4 Barbarian subclasses and all 4 Bard subclasses are complete:
 | Bard      | College of Glamour          |
 | Bard      | College of Valor            |
 
+All 4 Fighter and all 4 Cleric subclasses are complete:
+
+| Class   | Subclass        |
+|---------|-----------------|
+| Fighter | Champion        |
+| Fighter | Battle Master   |
+| Fighter | Eldritch Knight |
+| Fighter | Psi Warrior     |
+| Cleric  | Life Domain     |
+| Cleric  | Light Domain    |
+| Cleric  | Trickery Domain |
+| Cleric  | War Domain      |
+
 Plus these individual subclasses from other classes:
 
 | Class    | Subclass                    |
 |----------|-----------------------------|
 | Druid    | Circle of the Land          |
-| Fighter  | Champion                    |
 | Monk     | Warrior of the Open Hand    |
 | Sorcerer | Draconic Sorcery            |
 | Wizard   | Evoker                      |
+
+## Source Field Rule (licensing — repo is going public)
+
+Exactly ONE subclass per class is in the SRD 5.2.1 (CC-BY-4.0) and gets
+`source: srd_5.2.1`. ALL others get `source: phb_2024`:
+
+| Class     | SRD subclass (srd_5.2.1)  |
+|-----------|---------------------------|
+| Barbarian | Path of the Berserker     |
+| Bard      | College of Lore           |
+| Cleric    | Life Domain               |
+| Druid     | Circle of the Land        |
+| Fighter   | Champion                  |
+| Monk      | Warrior of the Open Hand  |
+| Paladin   | Oath of Devotion          |
+| Ranger    | Hunter                    |
+| Rogue     | Thief                     |
+| Sorcerer  | Draconic Sorcery          |
+| Warlock   | Fiend Patron              |
+| Wizard    | Evoker                    |
+
+For `phb_2024` files, write feature comments as clean-room MECHANICAL
+SUMMARIES — do not copy rules text or flavor text verbatim.
 
 ## Subclass Feature Levels (2024 PHB)
 

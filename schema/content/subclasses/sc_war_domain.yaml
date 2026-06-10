@@ -1,0 +1,32 @@
+# sc_war_domain — War Domain (Cleric subclass)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# The martial Cleric. War Priest (L3) is a bonus-action weapon attack
+# (WIS mod uses/short rest); Guided Strike (L3) converts Channel
+# Divinity into +10 on a missed attack (own, or ally via Reaction);
+# War God's Blessing (L6) casts Shield of Faith / Spiritual Weapon via
+# Channel Divinity WITHOUT concentration; Avatar of Battle (L17) is
+# B/P/S resistance. Domain list is the martial-buff stack (Spiritual
+# Weapon, Spirit Guardians, Shield of Faith).
+#
+# DEPENDS ON: Channel Divinity resource (Cleric L2, not yet built)
+# gates Guided Strike + War God's Blessing. Shield of Faith and
+# Spirit Guardians exist; Spiritual Weapon not yet built.
+
+id: sc_war_domain
+name: War Domain
+source: phb_2024
+parent_class: c_cleric
+
+archetype_tags:
+  behavior_archetype: pack_alpha
+  role: martial_striker           # INTERNAL-EVAL-ONLY per vocabulary firewall
+  flavor_tags: [valorous, militant, inspiring, relentless]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_guided_strike, f_war_domain_spells, f_war_priest]
+  - level: 6
+    feature_ids: [f_war_gods_blessing]
+  - level: 17
+    feature_ids: [f_avatar_of_battle]

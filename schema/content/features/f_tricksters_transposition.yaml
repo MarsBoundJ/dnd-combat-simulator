@@ -1,0 +1,19 @@
+# f_tricksters_transposition — Trickster's Transposition (Trickery Domain L6)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Whenever you take the Bonus Action to create or move your
+# Invoke Duplicity illusion, you can teleport, swapping places with it.
+#
+# Engine modeling (deferred — rides f_invoke_duplicity): position swap
+# with the illusion marker. Strong kiting/escape tool once the illusion
+# entity exists; trivial to add at that point.
+
+id: f_tricksters_transposition
+name: "Trickster's Transposition"
+source: phb_2024
+granted_by:
+  subclass: sc_trickery_domain
+  level: 6
+type: passive
+
+effect_primitives: []

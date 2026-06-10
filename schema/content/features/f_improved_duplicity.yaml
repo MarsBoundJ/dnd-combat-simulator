@@ -1,0 +1,23 @@
+# f_improved_duplicity — Improved Duplicity (Trickery Domain L17)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Two upgrades to Invoke Duplicity:
+#   Shared Distraction — you AND allies have Advantage on attack rolls
+#     vs creatures within 5 ft of the illusion
+#   Healing Illusion — when the illusion ends, you or a chosen creature
+#     within 5 ft of it regains HP equal to Cleric level
+#
+# Engine modeling (deferred — rides f_invoke_duplicity): widens the
+# Distract advantage to the whole party (drops the "you within 5 ft"
+# requirement) + an on-expiry heal. Both are small once the illusion
+# entity exists.
+
+id: f_improved_duplicity
+name: Improved Duplicity
+source: phb_2024
+granted_by:
+  subclass: sc_trickery_domain
+  level: 17
+type: passive
+
+effect_primitives: []

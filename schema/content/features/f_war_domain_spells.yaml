@@ -1,0 +1,26 @@
+# f_war_domain_spells — War Domain Spells (War Domain L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Always-prepared spells by Cleric level (don't count against prepared
+# total):
+#   L3: Guiding Bolt, Magic Weapon, Shield of Faith, Spiritual Weapon
+#   L5: Crusader's Mantle, Spirit Guardians
+#   L7: Fire Shield, Freedom of Movement
+#   L9: Hold Monster, Steel Wind Strike
+#
+# Engine modeling (deferred — partial): Shield of Faith and Spirit
+# Guardians exist today and can attach via the features_known
+# auto-attach pass. Blocked on spell library for:
+#   NEEDED (combat): Guiding Bolt, Magic Weapon, Spiritual Weapon,
+#   Crusader's Mantle, Fire Shield, Hold Monster, Steel Wind Strike
+#   NON-COMBAT (stub-tier): Freedom of Movement (situational)
+
+id: f_war_domain_spells
+name: War Domain Spells
+source: phb_2024
+granted_by:
+  subclass: sc_war_domain
+  level: 3
+type: passive
+
+effect_primitives: []

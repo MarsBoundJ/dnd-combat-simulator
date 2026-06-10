@@ -1,0 +1,27 @@
+# f_war_gods_blessing — War God's Blessing (War Domain L6)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Expend a Channel Divinity use to cast Shield of Faith or
+# Spiritual Weapon without a spell slot — and the spell does NOT
+# require Concentration: it lasts 1 minute instead (ends early on
+# recast, Incapacitated, or death).
+#
+# Engine modeling (deferred — BLOCKED on Channel Divinity + Spiritual
+# Weapon): the no-concentration variant is the interesting part — it
+# frees the concentration slot for Spirit Guardians, the classic War
+# Cleric stack (Spirit Guardians + non-conc Spiritual Weapon). Shield
+# of Faith exists; needs a cast-variant flag that skips
+# apply_concentration and attaches a 1-minute duration instead.
+
+id: f_war_gods_blessing
+name: "War God's Blessing"
+source: phb_2024
+granted_by:
+  subclass: sc_war_domain
+  level: 6
+type: active
+
+resource_cost:
+  type: feature_use   # channel_divinity_uses
+
+effect_primitives: []

@@ -1,0 +1,33 @@
+# sc_trickery_domain — Trickery Domain (Cleric subclass)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# The illusionist-controller Cleric. Centerpiece is Invoke Duplicity
+# (L3): a Channel Divinity illusion that grants spell-origin
+# repositioning + advantage when flanking with it; upgrades at L6
+# (teleport-swap) and L17 (party-wide advantage + heal on end).
+# Domain list is control/stealth (Hypnotic Pattern, Dominate Person,
+# Pass without Trace).
+#
+# DEPENDS ON: Channel Divinity resource (Cleric L2, not yet built)
+# gates Invoke Duplicity. Hold Person exists (sp_hold_person); most
+# domain spells not yet built. The illusion itself needs a
+# pseudo-actor / marker-entity concept the engine doesn't have yet.
+
+id: sc_trickery_domain
+name: Trickery Domain
+source: phb_2024
+parent_class: c_cleric
+
+archetype_tags:
+  behavior_archetype: cunning_tactician
+  role: controller                # INTERNAL-EVAL-ONLY per vocabulary firewall
+  flavor_tags: [deceptive, elusive, mischievous, subversive]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_blessing_of_the_trickster, f_invoke_duplicity,
+                  f_trickery_domain_spells]
+  - level: 6
+    feature_ids: [f_tricksters_transposition]
+  - level: 17
+    feature_ids: [f_improved_duplicity]

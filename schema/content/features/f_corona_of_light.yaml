@@ -1,0 +1,31 @@
+# f_corona_of_light — Corona of Light (Light Domain L17)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Magic action — emit sunlight aura (60-ft Bright Light +
+# 30-ft Dim) for 1 minute (dismissable, no action). Enemies in the
+# Bright Light have Disadvantage on saves vs Radiance of the Dawn and
+# vs your Fire/Radiant-damage spells. Uses = WIS modifier (min 1) per
+# Long Rest.
+#
+# Engine modeling (deferred): aura-scoped save_disadvantage modifier
+# keyed to damage type — the modifier system (query_save_modifiers)
+# already supports save_disadvantage contributions and the save-DC
+# Shapley attribution will credit the aura for enabled damage. Needs:
+# aura/emanation tracking + light levels (or approximate as a 60-ft
+# radius zone).
+
+id: f_corona_of_light
+name: Corona of Light
+source: phb_2024
+granted_by:
+  subclass: sc_light_domain
+  level: 17
+type: active
+
+resource_cost:
+  type: feature_use
+
+usage:
+  uses_per: per_long_rest
+
+effect_primitives: []

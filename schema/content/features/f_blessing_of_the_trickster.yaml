@@ -1,0 +1,20 @@
+# f_blessing_of_the_trickster — Blessing of the Trickster (Trickery Domain L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Magic action — grant self or a willing creature within
+# 30 ft Advantage on Dexterity (Stealth) checks until your next Long
+# Rest (or until used again).
+#
+# Engine modeling: non-combat (stealth checks). Stub until
+# stealth/surprise setup parameters are modeled — at that point this
+# becomes a pre-combat surprise-odds buff.
+
+id: f_blessing_of_the_trickster
+name: Blessing of the Trickster
+source: phb_2024
+granted_by:
+  subclass: sc_trickery_domain
+  level: 3
+type: active
+
+effect_primitives: []

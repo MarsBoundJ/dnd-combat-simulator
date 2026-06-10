@@ -1,0 +1,35 @@
+# f_war_priest — War Priest (War Domain L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Bonus Action — make one attack with a weapon or Unarmed
+# Strike. Uses = WIS modifier (min 1), regained on Short or Long Rest.
+#
+# Engine modeling (HIGH wireability): bonus-action weapon attack with
+# a feature_use gate — the action template + weapon-attack routing
+# already exist (f_retaliation's melee swing is the same payload on a
+# different slot). Resource: war_priest_uses = WIS mod, short-rest
+# recharge. Good wire-first candidate alongside f_warding_flare.
+
+id: f_war_priest
+name: War Priest
+source: phb_2024
+granted_by:
+  subclass: sc_war_domain
+  level: 3
+type: active
+is_signature: true
+
+resource_cost:
+  type: feature_use   # war_priest_uses = WIS mod per short/long rest
+
+usage:
+  uses_per: per_rest
+
+action_template:
+  id: a_war_priest
+  name: War Priest
+  type: weapon_attack
+  slot: bonus_action
+  pipeline: []        # weapon-attack routing deferred (see notes above)
+
+effect_primitives: []

@@ -1,0 +1,27 @@
+# f_radiance_of_the_dawn — Radiance of the Dawn (Light Domain L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Magic action, expend one Channel Divinity use. 30-ft
+# Emanation from self: dispels magical darkness in the area; chosen
+# creatures in the area make a CON save vs spell DC — 2d10 + Cleric
+# level Radiant damage on fail, half on success.
+#
+# Engine modeling (deferred — BLOCKED on Channel Divinity resource):
+# otherwise a clean _forced_save → _damage AoE, fully covered by
+# existing primitives (sphere AoE + save-for-half is the Fireball
+# pattern, and the save-DC Shapley attribution applies). Creature
+# choice within the emanation = ally-safe AoE (Sculpt Spells pattern).
+
+id: f_radiance_of_the_dawn
+name: Radiance of the Dawn
+source: phb_2024
+granted_by:
+  subclass: sc_light_domain
+  level: 3
+type: active
+is_signature: true
+
+resource_cost:
+  type: feature_use   # channel_divinity_uses
+
+effect_primitives: []

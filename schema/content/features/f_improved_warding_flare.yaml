@@ -1,0 +1,21 @@
+# f_improved_warding_flare — Improved Warding Flare (Light Domain L6)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Warding Flare uses recharge on Short OR Long Rest. When
+# you use Warding Flare, you can also grant the attack's target temp HP
+# equal to 2d6 + WIS modifier.
+#
+# Engine modeling (deferred): two riders on f_warding_flare — recharge
+# upgrade + THP grant on fire. Wire as part of the Warding Flare
+# reaction payload (THP primitive already exists for Rally-style
+# effects).
+
+id: f_improved_warding_flare
+name: Improved Warding Flare
+source: phb_2024
+granted_by:
+  subclass: sc_light_domain
+  level: 6
+type: passive
+
+effect_primitives: []

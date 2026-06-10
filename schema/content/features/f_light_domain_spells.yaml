@@ -1,0 +1,26 @@
+# f_light_domain_spells — Light Domain Spells (Light Domain L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Always-prepared spells by Cleric level (don't count against prepared
+# total):
+#   L3: Burning Hands, Faerie Fire, Scorching Ray, See Invisibility
+#   L5: Daylight, Fireball
+#   L7: Arcane Eye, Wall of Fire
+#   L9: Flame Strike, Scrying
+#
+# Engine modeling (deferred — partial): Fireball exists (sp_fireball)
+# and can attach at L5 now. Blocked on spell library for the rest:
+#   NEEDED (combat): Burning Hands, Faerie Fire, Scorching Ray,
+#   Wall of Fire, Flame Strike
+#   NON-COMBAT (stub-tier): See Invisibility, Daylight, Arcane Eye,
+#   Scrying
+
+id: f_light_domain_spells
+name: Light Domain Spells
+source: phb_2024
+granted_by:
+  subclass: sc_light_domain
+  level: 3
+type: passive
+
+effect_primitives: []

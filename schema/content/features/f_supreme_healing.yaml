@@ -1,0 +1,20 @@
+# f_supreme_healing — Supreme Healing (Life Domain L17)
+# Source: SRD CC v5.2.1
+#
+# RAW: When you would roll dice to restore HP with a spell or Channel
+# Divinity, use the highest number possible for each die instead
+# (2d6 heal → 12).
+#
+# Engine modeling (deferred): max-instead-of-roll on healing dice.
+# Trivial once the heal pipeline rolls dice through a shared helper —
+# swap roll() for die-max when caster knows this feature.
+
+id: f_supreme_healing
+name: Supreme Healing
+source: srd_5.2.1
+granted_by:
+  subclass: sc_life_domain
+  level: 17
+type: passive
+
+effect_primitives: []

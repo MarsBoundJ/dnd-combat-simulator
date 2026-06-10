@@ -1,0 +1,36 @@
+# f_warding_flare — Warding Flare (Light Domain L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Reaction when a creature you can see within 30 ft makes an
+# attack roll — impose Disadvantage on that roll. Uses = WIS modifier
+# (min 1) per Long Rest. (2024 change vs 2014: works on attacks against
+# ANY target, not just self.)
+#
+# Engine modeling (HIGH wireability): rides the attack_roll_pending
+# reaction window — the exact lane Cutting Words and Shield use. Payload
+# is an attack-disadvantage modifier instead of an AC bump, so the
+# reaction trigger + condition gate ("attack would hit, disadvantage
+# could plausibly flip it") mirror f_cutting_words almost verbatim.
+# Resource: warding_flare_uses = WIS mod, long-rest recharge. This is
+# the best wire-first candidate in the Cleric set.
+
+id: f_warding_flare
+name: Warding Flare
+source: phb_2024
+granted_by:
+  subclass: sc_light_domain
+  level: 3
+type: triggered
+is_signature: true
+
+resource_cost:
+  type: feature_use   # warding_flare_uses = WIS mod per long rest
+
+usage:
+  uses_per: per_long_rest
+
+trigger:
+  event: attack_roll_pending
+  chosen_by: actor
+
+effect_primitives: []

@@ -1,0 +1,32 @@
+# f_invoke_duplicity — Invoke Duplicity (Trickery Domain L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Bonus Action, expend one Channel Divinity use — create an
+# intangible illusion of yourself within 30 ft, lasting 1 minute (ends
+# early if dismissed or you're Incapacitated). While it persists:
+#   - Cast Spells: your spells can originate from the illusion's space
+#     (range/LoE measured from it; you still use your own senses)
+#   - Distract: Advantage on attack rolls vs creatures within 5 ft of
+#     both you and the illusion
+#   - Move: BA to move the illusion 30 ft (within 120 ft of you)
+#
+# Engine modeling (deferred — BLOCKED on Channel Divinity + needs a
+# marker-entity concept): the illusion is a positional pseudo-actor
+# with no HP/turns. Spell-origin redirection touches the targeting/LoE
+# layer; the Distract advantage is a positional modifier (both-within-
+# 5ft check, similar shape to flanking logic). High design cost,
+# moderate sim value — wire late.
+
+id: f_invoke_duplicity
+name: Invoke Duplicity
+source: phb_2024
+granted_by:
+  subclass: sc_trickery_domain
+  level: 3
+type: active
+is_signature: true
+
+resource_cost:
+  type: feature_use   # channel_divinity_uses
+
+effect_primitives: []
