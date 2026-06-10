@@ -1,0 +1,40 @@
+# f_magical_discoveries — Magical Discoveries (College of Lore L6)
+# Source: SRD CC v5.2.1 / PHB 2024
+#
+# RAW: "You learn two spells of your choice. These spells can come from the
+# Cleric, Druid, or Wizard spell list or any combination thereof. A spell you
+# choose must be a cantrip or a spell for which you have spell slots... You
+# always have the chosen spells prepared, and whenever you gain a Bard level,
+# you can replace one of the spells with another spell that meets these
+# requirements."
+#
+# Engine modeling: BUILD-CONFIG / spell-selection (same family as Magical
+# Secrets, f_magical_secrets). It widens the legal spell-pick pool for a
+# College of Lore Bard to include Cleric/Druid/Wizard list spells, and the
+# two chosen spells are always prepared (they don't count against the normal
+# prepared-spells limit). In the sim a build already declares the spells it
+# prepares; this marker records that two of them MAY come from the expanded
+# lists so the build-validator doesn't reject a Cleric/Druid/Wizard pick.
+# No direct combat mechanic of its own — value rides whatever spells the
+# build chooses, which carry their own wiring.
+#
+# Feature wiring status: MARKER (build-config; widens legal spell picks).
+
+id: f_magical_discoveries
+name: Magical Discoveries
+source: srd_5.2.1
+granted_by:
+  subclass: sc_college_of_lore
+  level: 6
+type: passive
+
+resource_cost:
+  type: none
+
+effect_primitives: []
+
+contract:
+  reads: [actor.template.features_known]
+  writes: []
+  event: passive
+  scope: passive
