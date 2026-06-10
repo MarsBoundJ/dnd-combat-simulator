@@ -88,7 +88,16 @@ def _blank(side: str) -> dict:
             # at targets it can't reach — a reach/positioning failure, NOT bad
             # luck. Kept separate so hit% reflects only real rolls.
             "auto_misses": 0,
-            "heal_ehp": 0.0, "control_ehp": 0.0}
+            "heal_ehp": 0.0, "control_ehp": 0.0,
+            # Shapley attribution (engine/core/attribution.py):
+            #   enablement_ehp    = damage credited to THIS actor for boosting
+            #                       an ALLY's rolls (Web's advantage, Bless).
+            #   enabled_by_others = the slice of this actor's OWN dealt damage
+            #                       that allies' effects created.
+            # attributed_offense (derived below) = damage_dealt −
+            # enabled_by_others + enablement_ehp; sums across a side to the
+            # side's realized damage (the closed-ledger property).
+            "enablement_ehp": 0.0, "enabled_by_others": 0.0}
 
 
 def build_contribution_ledger(state: CombatState) -> dict:
@@ -165,6 +174,23 @@ def build_contribution_ledger(state: CombatState) -> dict:
                     bucket["pc_damage"] += amt
                 else:
                     bucket["enemy_damage"] += amt
+                # Shapley attribution: route each enabler share to its source.
+                # Only positive shares from a SAME-SIDE, non-self creature
+                # move (the Cleric's Bless on the Fighter's hit). Shares
+                # sourced by the attacker itself (Reckless) or by the enemy
+                # side (target's own exposure, Shield's negative surplus)
+                # stay with the executor — defensive attribution is a
+                # documented v2 lane.
+                attr = e.get("attribution")
+                if attr:
+                    for share in attr.get("shares") or []:
+                        sid = share.get("source_id")
+                        s_amt = float(share.get("amount", 0))
+                        if (not sid or sid == aid or s_amt <= 0
+                                or side_of(sid) != side_of(aid)):
+                            continue
+                        row(sid)["enablement_ehp"] += s_amt
+                        row(aid)["enabled_by_others"] += s_amt
         elif ev == "healed":
             # `healed` carries only the target; attribute to the turn's actor.
             amt = float(e.get("amount", 0))
@@ -191,6 +217,11 @@ def build_contribution_ledger(state: CombatState) -> dict:
     rounds = max(1, max_round)
     for aid, r in per_actor.items():
         r["dpr"] = round(r["damage_dealt"] / rounds, 1)
+        # Cause-credited offense: own realized damage minus the slice allies
+        # created, plus credit earned boosting allies. Per side this sums to
+        # the side's realized damage_dealt (shares only move within a side).
+        r["attributed_offense"] = (r["damage_dealt"] - r["enabled_by_others"]
+                                   + r["enablement_ehp"])
 
     # Empirical encounter difficulty (Dunn's d_iff): gross damage the PC side
     # took / party total max HP, classified into his bands. The realized
@@ -230,16 +261,18 @@ def format_ledger(state: CombatState, ledger: dict | None = None) -> str:
     led = ledger if ledger is not None else build_contribution_ledger(state)
     rounds = led["rounds"]
     lines = [f"rounds: {rounds}   outcome: {state.termination_reason}", ""]
-    lines.append(f"{'actor':20} {'side':6} {'dmg':>7} {'dpr':>6} "
+    lines.append(f"{'actor':20} {'side':6} {'dmg':>7} {'attr':>7} {'dpr':>6} "
                  f"{'atk':>4} {'hit%':>5} {'oor':>4} {'ctrl_eHP':>9} "
-                 f"{'heal_eHP':>9}")
+                 f"{'heal_eHP':>9} {'enab_eHP':>9}")
     for aid, r in sorted(led["per_actor"].items(),
                          key=lambda kv: (kv[1]["side"], -kv[1]["damage_dealt"])):
         hitpct = (100 * r["hits"] / r["attacks"]) if r["attacks"] else 0.0
         lines.append(
-            f"{aid:20} {r['side']:6} {r['damage_dealt']:>7.0f} {r['dpr']:>6.1f} "
+            f"{aid:20} {r['side']:6} {r['damage_dealt']:>7.0f} "
+            f"{r['attributed_offense']:>7.0f} {r['dpr']:>6.1f} "
             f"{r['attacks']:>4} {hitpct:>4.0f}% {r['auto_misses']:>4} "
-            f"{r['control_ehp']:>9.0f} {r['heal_ehp']:>9.0f}")
+            f"{r['control_ehp']:>9.0f} {r['heal_ehp']:>9.0f} "
+            f"{r['enablement_ehp']:>9.0f}")
     pc, en = led["sides"]["pc"], led["sides"]["enemy"]
     pc_per_round = (pc["damage_dealt"] + pc["control_ehp"]) / rounds
     en_per_round = en["damage_dealt"] / rounds

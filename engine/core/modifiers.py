@@ -47,6 +47,11 @@ class AttackModifierResult:
         self.attack_bonus_modifier: int = 0
         # Sources that contributed (for event logging / debugging)
         self.sources: list[dict] = []
+        # Per-modifier effect records for Shapley attribution
+        # (engine/core/attribution.py): what each source actually DID to
+        # this roll — {"kind": "advantage"|"disadvantage"|"attack_bonus"|
+        # "ac_modifier", "value": int, "source": {...}}.
+        self.contributions: list[dict] = []
 
     def net_advantage(self) -> str:
         """D&D 5e: advantage and disadvantage cancel out, even if multiple sources."""
@@ -152,18 +157,24 @@ def query_attack_modifiers(
         attack_params = _extract_inflight_attack_params(state)
         if _ra.applies_self_advantage(attacker, attack_params):
             result.has_advantage = True
-            result.sources.append({
+            src = {
                 "type": "reckless_attack",
                 "source_creature_id": attacker.id,
                 "arm": "self_advantage",
-            })
+            }
+            result.sources.append(src)
+            result.contributions.append(
+                {"kind": "advantage", "value": 0, "source": src})
     if _ra.applies_attacker_advantage_against(target):
         result.has_advantage = True
-        result.sources.append({
+        src = {
             "type": "reckless_attack",
             "source_creature_id": target.id,
             "arm": "grants_advantage_to_attacker",
-        })
+        }
+        result.sources.append(src)
+        result.contributions.append(
+            {"kind": "advantage", "value": 0, "source": src})
     return result
 
 
@@ -424,6 +435,18 @@ def _iter_relevant_modifiers(actors: list[Actor], primitive_name: str):
                 yield actor, mod
 
 
+# modifier_type → attribution "kind" (advantage/disadvantage collapse to the
+# two canonical kinds; valued kinds carry their numeric effect).
+_ATTRIBUTION_KIND = {
+    "advantage_for_attacker": "advantage",
+    "advantage_for_self": "advantage",
+    "disadvantage_for_attacker": "disadvantage",
+    "disadvantage_for_self": "disadvantage",
+    "ac_modifier": "ac_modifier",
+    "attack_bonus": "attack_bonus",
+}
+
+
 def _apply_attack_modifier(result: AttackModifierResult, modifier_type: str,
                             params: dict, mod: dict) -> None:
     """Mutate result to include this modifier's effect."""
@@ -440,6 +463,13 @@ def _apply_attack_modifier(result: AttackModifierResult, modifier_type: str,
     elif modifier_type == "attack_bonus":
         result.attack_bonus_modifier += params.get("value", 0)
     result.sources.append(mod.get("source") or {})
+    kind = _ATTRIBUTION_KIND.get(modifier_type)
+    if kind:
+        result.contributions.append({
+            "kind": kind,
+            "value": int(params.get("value", 0) or 0),
+            "source": mod.get("source") or {},
+        })
 
 
 def _lifetime_matches(lifetime: Any, trigger_events: set[str]) -> bool:

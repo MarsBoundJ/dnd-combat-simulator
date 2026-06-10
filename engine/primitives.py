@@ -266,6 +266,21 @@ def _attack_roll(params: dict, state: CombatState, bus: EventBus) -> dict:
     # in v1, not modifiable mid-attack).
     post_attack_mods = _modifiers.query_attack_modifiers(actor, target, state)
     effective_ac = target.ac + post_attack_mods.ac_modifier + cover_ac_bonus
+    # Shapley attribution context: snapshot WHO shaped this roll (advantage
+    # from a condition, attack-bonus buffs, AC modifiers) so the damage step
+    # can split its realized amount between the attacker's baseline and each
+    # enabler's share. None (and no cost) for the plain unmodified attack.
+    from engine.core import attribution as _attribution
+    _attr_ctx = _attribution.build_attack_context(
+        post_attack_mods.contributions,
+        base_bonus=bonus,
+        base_ac=target.ac + cover_ac_bonus,
+        crit_threshold=crit_mods.crit_threshold,
+        attacker_id=actor.id)
+    if _attr_ctx is not None:
+        state.current_attack["attribution_ctx"] = _attr_ctx
+    else:
+        state.current_attack.pop("attribution_ctx", None)
     # Bardic Inspiration self-add: an attacker holding a granted die may
     # spend it post-roll to try to turn a miss into a hit (RAW: add the
     # die after seeing the result). Uses the FINAL effective_ac so it
@@ -677,9 +692,25 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
 
     bus.emit("damage_dealt", {"actor": actor, "target": target,
                                 "amount": total, "type": dmg_type})
-    state.event_log.append({"event": "damage_dealt", "actor": actor.id,
-                            "target": target.id, "amount": total, "type": dmg_type,
-                            "target_hp_remaining": target.hp_current})
+    _damage_event = {"event": "damage_dealt", "actor": actor.id,
+                     "target": target.id, "amount": total, "type": dmg_type,
+                     "target_hp_remaining": target.hp_current}
+    # Shapley attribution: if this damage flows from an attack roll that
+    # carried attributable modifiers (advantage from Web, Bless's bonus, ...),
+    # split the realized amount into the attacker's baseline share + each
+    # enabler's share. crit_extra_ratio = the crit's bonus dice as a fraction
+    # of a normal hit, so advantage's crit-rate lift is priced in.
+    _attr_ctx = (state.current_attack or {}).get("attribution_ctx")
+    if _attr_ctx is not None and total > 0:
+        from engine.core import attribution as _attribution
+        _mean_dice = _attribution.dice_mean(dice)
+        _mean_hit = _mean_dice + modifier
+        _crit_ratio = (_mean_dice / _mean_hit) if _mean_hit > 0 else 0.0
+        _attr = _attribution.attribute_damage_event(
+            _attr_ctx, float(total), crit_extra_ratio=_crit_ratio)
+        if _attr is not None:
+            _damage_event["attribution"] = _attr
+    state.event_log.append(_damage_event)
 
     # Break-on-damage control (RAW): any damage ends a break_on_damage
     # condition FOR THE DAMAGED CREATURE (Hypnotic Pattern's charm, Sleep).
