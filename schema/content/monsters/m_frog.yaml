@@ -35,6 +35,8 @@ languages: []
 
 cr: { value: 0, xp: 10, proficiency_bonus: 2 }
 
+habitat: [forest, swamp]
+
 traits:
   - id: t_amphibious
     name: Amphibious

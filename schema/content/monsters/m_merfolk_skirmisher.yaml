@@ -1,0 +1,58 @@
+# m_merfolk_skirmisher — Merfolk Skirmisher
+# Source: SRD CC v5.2.1
+# Triage: GREEN — Ocean Spear (Piercing + Cold dual damage).
+#   DEFERRED: Speed reduction on hit (no slow/speed debuff condition in v1).
+#   Note: 2024 MM reclassifies Merfolk as Elemental (Plane of Water connection).
+
+id: m_merfolk_skirmisher
+name: Merfolk Skirmisher
+source: srd_5.2.1
+
+size: medium
+creature_type: elemental
+alignment: neutral
+
+combat:
+  armor_class: 11
+  hit_points: { average: 11, dice: "2d8", con_contribution: 2 }
+  speed: { walk: 10, swim: 40 }
+  initiative: { modifier: 1, score: 11 }
+
+abilities:
+  str: { score: 10, save: 0 }
+  dex: { score: 13, save: 1 }
+  con: { score: 12, save: 1 }
+  int: { score: 11, save: 0 }
+  wis: { score: 14, save: 2 }
+  cha: { score: 12, save: 1 }
+
+senses: { passive_perception: 12 }
+languages: ["Common", "Primordial (Aquan)"]
+
+cr: { value: 0.125, xp: 25, proficiency_bonus: 2 }
+
+habitat: [coastal, underwater]
+
+traits:
+  - id: t_amphibious
+    name: Amphibious
+    type: trait_passive
+
+actions:
+  - id: a_ocean_spear
+    name: Ocean Spear
+    type: weapon_attack
+    is_signature: true
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 2, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d6", modifier: 0, type: piercing, average: 3 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: damage
+        params: { dice: "1d4", modifier: 0, type: cold, average: 2 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: skirmisher
+  presets: { retreat: cowardly, ability_selection: default, targeting: closest_enemy, action_economy: casual }

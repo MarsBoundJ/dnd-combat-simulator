@@ -52,6 +52,9 @@ cr:
   xp: 25
   proficiency_bonus: 2
 
+habitat: [arctic, coastal, desert, forest, hill, mountain, swamp, underdark, urban]
+treasure: armaments
+
 traits:
   - id: t_pack_tactics
     name: Pack Tactics
