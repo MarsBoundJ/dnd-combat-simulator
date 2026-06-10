@@ -1,4 +1,4 @@
-# f_synaptic_static — Synaptic Static (Level 5 Enchantment, SRD CC v5.2.1)
+# f_synaptic_static — Synaptic Static (Level 5 Enchantment, PHB 2024 — NOT in SRD 5.2.1)
 #
 # RAW summary: 20-ft-radius Sphere within 120 ft. Each creature in the area
 # makes an Intelligence save: 8d6 Psychic on a fail (half on a success). A
@@ -24,7 +24,7 @@
 
 id: f_synaptic_static
 name: Synaptic Static
-source: srd_5.2.1
+source: user_authored   # PHB 2024 / XGE spell NOT in SRD 5.2.1 — own-words re-expression
 granted_by:
   class: c_wizard
   level: 9            # 5th-level slot -> full caster at character level 9

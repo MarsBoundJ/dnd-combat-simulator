@@ -530,7 +530,8 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
                 is_crit=(sa_state == "crit"))
             total += bs_damage
         # Wrathful Smite rider (Paladin, 1st-level). Melee-only;
-        # 1d6 necrotic bonus (+1d6/upcast), WIS save -> co_frightened.
+        # 1d6 necrotic bonus (+1d6/upcast), WIS save -> co_frightened
+        # (+ end-of-turn re-save; non-concentration per PHB 2024).
         if is_weapon_attack and (attack_params or {}).get(
                 "kind", "melee") == "melee":
             from engine.core import wrathful_smite as _ws
@@ -538,6 +539,26 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
                 actor, target, state, attack_params, rng,
                 is_crit=(sa_state == "crit"))
             total += ws_damage
+        # Thunderous Smite rider (Paladin, 1st-level). Melee-only;
+        # 2d6 thunder bonus (+1d6/upcast), STR save -> 10-ft push
+        # + co_prone.
+        if is_weapon_attack and (attack_params or {}).get(
+                "kind", "melee") == "melee":
+            from engine.core import thunderous_smite as _ts
+            ts_damage = _ts.try_apply_thunderous_smite_followup(
+                actor, target, state, attack_params, rng,
+                is_crit=(sa_state == "crit"))
+            total += ts_damage
+        # Hail of Thorns rider (Ranger, 1st-level). RANGED-only; thorn
+        # burst around the struck target — target + creatures within
+        # 5 ft make a DEX save, Nd10 piercing / half (separate
+        # save-based damage, never folded into the attack total).
+        if is_weapon_attack and (attack_params or {}).get(
+                "kind", "melee") == "ranged":
+            from engine.core import hail_of_thorns as _ht
+            _ht.try_apply_hail_of_thorns_followup(
+                actor, target, state, attack_params, rng,
+                is_crit=(sa_state == "crit"))
         # Monk on-hit strike riders (Stunning Strike + Open Hand Topple).
         # Melee-only, once per turn each; no bonus damage (control only).
         if is_weapon_attack and (attack_params or {}).get(
@@ -2973,6 +2994,56 @@ def _wrathful_smite_arm(params: dict, state: CombatState,
                      action_id=action_id, state=state)
 
 
+def _thunderous_smite_arm(params: dict, state: CombatState,
+                             bus: EventBus) -> None:
+    """Arm the caster with Thunderous Smite's one-shot rider.
+
+    Called from f_thunderous_smite's cast pipeline. 1st-level spell;
+    reads cast slot level from state.current_attack.chosen_slot_level
+    and the caster's CHA-based spell save DC. Mirrors _searing_smite_arm.
+    """
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        raise ValueError("thunderous_smite_arm requires a current actor")
+    slot_level = int((state.current_attack or {}).get(
+        "chosen_slot_level") or 1)
+    if "dc" in params:
+        dc = int(params["dc"])
+    else:
+        dc = _caster_spell_save_dc(actor)
+    action = (state.current_attack or {}).get("action") or {}
+    action_id = action.get("id", "a_thunderous_smite")
+    from engine.core.thunderous_smite import register_armed
+    register_armed(actor, slot_level=slot_level, spell_save_dc=dc,
+                     action_id=action_id, state=state)
+
+
+def _hail_of_thorns_arm(params: dict, state: CombatState,
+                           bus: EventBus) -> None:
+    """Arm the caster with Hail of Thorns' one-shot ranged rider.
+
+    Called from f_hail_of_thorns' cast pipeline. 1st-level Ranger
+    spell; reads cast slot level from chosen_slot_level and the
+    caster's WIS-based spell save DC. Mirrors _searing_smite_arm; the
+    trigger (DEX-save thorn burst around the struck target) lives in
+    engine.core.hail_of_thorns.
+    """
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        raise ValueError("hail_of_thorns_arm requires a current actor")
+    slot_level = int((state.current_attack or {}).get(
+        "chosen_slot_level") or 1)
+    if "dc" in params:
+        dc = int(params["dc"])
+    else:
+        dc = _caster_spell_save_dc(actor)
+    action = (state.current_attack or {}).get("action") or {}
+    action_id = action.get("id", "a_hail_of_thorns")
+    from engine.core.hail_of_thorns import register_armed
+    register_armed(actor, slot_level=slot_level, spell_save_dc=dc,
+                     action_id=action_id, state=state)
+
+
 def _wild_shape_transform(params: dict, state: CombatState,
                             bus: EventBus) -> None:
     """Druid Wild Shape — transform into a Beast form (form system).
@@ -3447,10 +3518,13 @@ def _resolve_save_targets(params: dict, state: CombatState) -> list[Actor]:
     if affected == "current_target":
         target = state.current_attack.get("target") or state.current_actor()
         return [target] if target else []
-    if affected == "all_creatures_in_area":
+    if affected in ("all_creatures_in_area", "enemies_in_area"):
         # AoE-aware path: dispatch on area.shape using state.current_attack's
         # area_origin (sphere) or area_origin + area_direction (cone, line).
-        # Living creatures only; includes allies (friendly fire is RAW).
+        # Living creatures only. 'all_creatures_in_area' includes allies
+        # (friendly fire is RAW); 'enemies_in_area' filters to the caster's
+        # enemies — the "each creature of your choice" spells (Word of
+        # Radiance), where the caster always chooses only foes.
         # Legacy fallback (no area declared) returns all living enemies.
         actor = state.current_actor() or state.current_attack.get("actor")
         if actor is None:
@@ -3473,12 +3547,16 @@ def _resolve_save_targets(params: dict, state: CombatState) -> list[Actor]:
             elif shape == "emanation":
                 # A self-centered Emanation is a sphere of `size_ft`
                 # radius originating from the actor (origin == caster's
-                # position). Used by Barbarian Intimidating Presence.
+                # position). Used by Barbarian Intimidating Presence and
+                # the emanation cantrips (Thunderclap, Word of Radiance).
+                # 2024 Emanation rule: the originator is NOT included in
+                # its own area.
                 size_ft = area.get("size_ft")
                 if size_ft is not None:
                     from engine.core.geometry import actors_in_radius
-                    members = actors_in_radius(tuple(origin), int(size_ft),
-                                                 living)
+                    members = [m for m in actors_in_radius(
+                                   tuple(origin), int(size_ft), living)
+                               if m.id != actor.id]
             elif shape == "cone":
                 length_ft = area.get("length_ft")
                 if length_ft is not None and direction is not None:
@@ -3501,8 +3579,11 @@ def _resolve_save_targets(params: dict, state: CombatState) -> list[Actor]:
             if _walls:
                 from engine.core.geometry import clear_line_of_effect
                 members = clear_line_of_effect(tuple(origin), members, _walls)
+            if affected == "enemies_in_area":
+                members = [m for m in members if m.side != actor.side]
             return members
-        # Legacy fallback: all living enemies
+        # Legacy fallback: all living enemies (already enemies-only,
+        # so it serves both affected modes)
         return [a for a in state.encounter.actors
                 if a.side != actor.side and a.is_alive()]
     return []
@@ -3599,6 +3680,8 @@ def _populate_handler_table() -> None:
         "recurring_damage": _recurring_damage,
         "searing_smite_arm": _searing_smite_arm,
         "ensnaring_strike_arm": _ensnaring_strike_arm,
+        "thunderous_smite_arm": _thunderous_smite_arm,
+        "hail_of_thorns_arm": _hail_of_thorns_arm,
         "hex_curse": _hex_curse,
         "hunters_mark_mark": _hunters_mark_mark,
         "forced_movement": _forced_movement,
@@ -3736,6 +3819,15 @@ def _all_primitives() -> list[Primitive]:
         # pattern: registers a one-shot marker; _damage fires the
         # rider (1d6 psychic + WIS save -> Frightened).
         Primitive("wrathful_smite_arm", _wrathful_smite_arm,
+                    implemented=True),
+        # Thunderous Smite arming primitive (Paladin, 1st-level).
+        # Rider: 2d6 thunder bonus, STR save -> 10-ft push + Prone.
+        Primitive("thunderous_smite_arm", _thunderous_smite_arm,
+                    implemented=True),
+        # Hail of Thorns arming primitive (Ranger, 1st-level). RANGED
+        # rider: DEX-save thorn burst (Nd10 / half) around the struck
+        # target — trigger lives in engine.core.hail_of_thorns.
+        Primitive("hail_of_thorns_arm", _hail_of_thorns_arm,
                     implemented=True),
         # Bardic Inspiration — grant a held die to an ally. The holder's
         # post-roll self-add lives in engine.core.bardic_inspiration

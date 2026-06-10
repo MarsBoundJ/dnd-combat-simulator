@@ -1,0 +1,52 @@
+# f_thunderclap — Thunderclap (Evocation cantrip, PHB 2024 — NOT in SRD 5.2.1)
+#
+# RAW summary (own words, from owned PHB 2024): every creature in a
+# 5-ft Emanation around you makes a CON save or takes 1d6 thunder
+# damage; audible out to 100 ft. S only. Cantrip Upgrade: +1d6 at
+# character levels 5/11/17. Classes: Bard, Druid, Sorcerer, Warlock,
+# Wizard.
+#
+# Engine modeling: the first aoe_save_cantrip pc_builder (built
+# alongside Word of Radiance). type aoe_attack with an emanation area
+# (size_ft 5, range_ft 0 → the positioner's only origin candidate is
+# the caster's own square; per the 2024 Emanation rule the caster is
+# excluded from its own area). "Each creature" — TRUE friendly fire,
+# so affected: all_creatures_in_area; the AoE scorer subtracts allies
+# caught in the blast, making the AI swing it only when enemies
+# outweigh allies in reach. The melee-caster nova option.
+#
+# Deferred RAW bits:
+#   - 100-ft audibility (flavor; no sound/stealth modeling).
+
+id: f_thunderclap
+name: Thunderclap
+source: user_authored
+granted_by:
+  class: c_druid
+  level: 1
+type: passive
+spell:
+  class: c_druid
+  level: 0
+
+pc_builder:
+  kind: aoe_save_cantrip
+  action_id: a_thunderclap
+  name: Thunderclap
+  params:
+    save_ability: constitution
+    damage_type: thunder
+    die: 6
+    emanation_ft: 5
+    affected: all_creatures_in_area
+
+description: |
+  Cantrip. Every creature (allies included) in a 5-ft emanation around
+  the caster makes a CON save or takes Nd6 thunder damage (N scales
+  1/2/3/4 at character level 1/5/11/17). Nothing on a success.
+
+contract:
+  reads: [target.saves.constitution, actor.spell_save_dc, actor.position]
+  writes: [combat.damage_total]
+  event: passive
+  scope: builds_aoe_save_cantrip_action

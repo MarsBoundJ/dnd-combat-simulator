@@ -1,0 +1,41 @@
+# f_friends — Friends (Enchantment cantrip, PHB 2024 — NOT in SRD 5.2.1)
+#
+# RAW summary (own words, from owned PHB 2024): concentration, 1
+# minute, 10 ft. One Humanoid you can see makes a WIS save or is
+# Charmed for the duration; it auto-succeeds if you're fighting it (or
+# it isn't a Humanoid, or you've cast this on it in the past 24h). The
+# spell ends if the target takes damage or you attack/damage/force a
+# save on anyone; on end, the target knows it was charmed. S, M.
+# Classes: Bard, Sorcerer, Warlock, Wizard.
+#
+# STUB — deliberately not modeled (master-list tier D). The
+# auto-success-while-fighting clause makes Friends mechanically inert
+# inside combat: any combat use case fails RAW. It's a social
+# manipulation cantrip with no sim-relevant effect, in the same
+# never-modeled bucket as Beast Sense / Feign Death / Telepathy
+# (docs/spell-content-roadmap.md "non-combat" set). The stub exists so
+# the spell is loadable/inventoried; no action_template or pc_builder
+# on purpose — it grants nothing at PC build time.
+
+id: f_friends
+name: Friends
+source: user_authored
+granted_by:
+  class: c_bard
+  level: 1
+type: passive
+spell:
+  class: c_bard
+  level: 0
+
+description: |
+  Cantrip (STUB — non-combat). Charms one non-hostile Humanoid for up
+  to 1 minute of social interaction; RAW it cannot affect anyone the
+  caster is fighting, so it has no combat-sim effect and is
+  deliberately left unmodeled.
+
+contract:
+  reads: []
+  writes: []
+  event: passive
+  scope: noncombat_stub

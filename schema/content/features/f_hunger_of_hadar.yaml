@@ -1,4 +1,4 @@
-# f_hunger_of_hadar — Hunger of Hadar (Warlock 3rd-level, SRD CC v5.2.1)
+# f_hunger_of_hadar — Hunger of Hadar (Warlock 3rd-level, PHB 2024 — NOT in SRD 5.2.1)
 #
 # RAW summary: A 20-ft-radius Sphere of otherworldly darkness centered
 # on a point within 150 ft. The area is filled with absolute darkness;
@@ -33,7 +33,7 @@
 
 id: f_hunger_of_hadar
 name: Hunger of Hadar
-source: srd_5.2.1
+source: user_authored   # PHB 2024 / XGE spell NOT in SRD 5.2.1 — own-words re-expression
 granted_by:
   class: c_warlock
   level: 5                 # Warlocks gain access to 3rd-level Pact slots at L5

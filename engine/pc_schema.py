@@ -1485,6 +1485,50 @@ def _build_save_cantrip_action(action_id: str, name: str, level: int, *,
     }
 
 
+def _build_aoe_save_cantrip_action(action_id: str, name: str, level: int, *,
+                                      save_ability: str, damage_type: str,
+                                      die: int, emanation_ft: int,
+                                      affected: str) -> dict:
+    """Self-emanation save-for-damage cantrip (Thunderclap / Word of
+    Radiance). Same Nd<die> character-level scaling as
+    _build_save_cantrip_action, but the save hits every creature in a
+    small Emanation around the caster: type aoe_attack with an
+    emanation area whose range_ft 0 makes the positioner's only origin
+    candidate the caster's own square (and the 2024 Emanation rule
+    excludes the caster from its own area). `affected` distinguishes
+    true friendly fire (Thunderclap: all_creatures_in_area) from
+    "each creature of your choice" (Word of Radiance: enemies_in_area).
+    No half on success."""
+    n = _cantrip_dice_count(level)
+    return {
+        "id": action_id,
+        "name": name,
+        "type": "aoe_attack",
+        "slot": "action",
+        "spell_slot_level": 0,            # cantrip — consumes no slot
+        "save_ability": save_ability,
+        "save_dc_source": "caster_spell_save_dc",
+        "half_on_success": False,
+        "range_ft": emanation_ft,
+        "area": {"shape": "emanation", "size_ft": emanation_ft,
+                  "range_ft": 0, "origin": "caster"},
+        "pipeline": [
+            {"primitive": "forced_save",
+              "params": {
+                  "ability": save_ability,
+                  "dc_source": "caster_spell_save_dc",
+                  "affected": affected,
+                  "on_fail": [
+                      {"primitive": "damage",
+                        "params": {"dice": f"{n}d{die}", "modifier": 0,
+                                     "type": damage_type}},
+                  ],
+                  "on_success": [],
+              }},
+        ],
+    }
+
+
 def _build_sacred_flame_action(level: int) -> dict:
     """Sacred Flame (PR #115): 60 ft, DEX save or Nd8 radiant. Ignores
     cover RAW — cover modeling on save_attack is deferred (v1 treats it
@@ -1596,14 +1640,21 @@ def _build_leveled_spell_attack_action(action_id: str, name: str, *,
                                           proficiency_bonus: int, class_id: str,
                                           damage_dice: str, damage_type: str,
                                           ray_count: int = 1,
-                                          upcast_dice: str | None = None) -> dict:
+                                          upcast_dice: str | None = None,
+                                          concentration: bool = False,
+                                          extra_pipeline: list | None = None,
+                                          ) -> dict:
     """Generic leveled ranged-spell-attack action (Guiding Bolt,
     Chromatic Orb, Scorching Ray). Attack bonus = spell mod + PB, baked
     at PC-build time because the attack_roll primitive takes a fixed
     bonus. `ray_count` > 1 emits that many (attack_roll, damage-on-hit)
     pairs in one action (Scorching Ray's three rays focus-fired in v1).
     `upcast_dice` (single-ray only) attaches a per-slot-level scaling
-    block; multi-ray upcast adds RAYS not dice (RAW), so it's left off."""
+    block; multi-ray upcast adds RAYS not dice (RAW), so it's left off.
+    `extra_pipeline` steps (single-ray only) are appended after the
+    attack/damage pair and run UNCONDITIONALLY — Witch Bolt's channel
+    registration ("even if the first attack missed", PHB 2024).
+    `concentration` marks the action for the concentration tracker."""
     attack_bonus, abbr = _spell_attack_bonus(
         ability_scores, proficiency_bonus, class_id)
     pipeline: list[dict] = []
@@ -1617,6 +1668,8 @@ def _build_leveled_spell_attack_action(action_id: str, name: str, *,
               "params": {"dice": damage_dice, "modifier": 0,
                           "type": damage_type},
               "when": {"condition": "combat.attack_state == hit"}})
+    if extra_pipeline and ray_count == 1:
+        pipeline.extend(extra_pipeline)
     action = {
         "id": action_id,
         "name": name,
@@ -1625,6 +1678,8 @@ def _build_leveled_spell_attack_action(action_id: str, name: str, *,
         "spell_slot_level": slot_level,
         "pipeline": pipeline,
     }
+    if concentration:
+        action["concentration"] = True
     if upcast_dice and ray_count == 1:
         action["upcast_scaling"] = {"extra_dice_per_level": upcast_dice,
                                       "damage_type": damage_type}
@@ -1676,17 +1731,21 @@ def _dispatch_pc_builder(feature_def: dict, level: int,
 
     pc_builder shape:
         pc_builder:
-          kind: attack_cantrip | save_cantrip | spell_attack | heal
+          kind: attack_cantrip | save_cantrip | aoe_save_cantrip |
+                spell_attack | heal
           action_id: a_<spell>
           name: <Spell Name>
           params: { ...kind-specific... }
 
     Kind-specific params:
-      attack_cantrip: damage_type, die, range_ft
-      save_cantrip:   save_ability, damage_type, die, range_ft
-      spell_attack:   slot_level, range_ft, damage_dice, damage_type,
-                      [ray_count], [upcast_dice]
-      heal:           slot, slot_level, range_ft, dice, [max_targets]
+      attack_cantrip:   damage_type, die, range_ft, [attack_kind]
+      save_cantrip:     save_ability, damage_type, die, range_ft
+      aoe_save_cantrip: save_ability, damage_type, die, [emanation_ft],
+                        [affected]
+      spell_attack:     slot_level, range_ft, damage_dice, damage_type,
+                        [ray_count], [upcast_dice], [concentration],
+                        [extra_pipeline]
+      heal:             slot, slot_level, range_ft, dice, [max_targets]
 
     Returns the built action dict, or None if the feature has no
     pc_builder block. Raises ValueError on an unknown kind."""
@@ -1711,6 +1770,12 @@ def _dispatch_pc_builder(feature_def: dict, level: int,
             aid, name, level, save_ability=p["save_ability"],
             damage_type=p["damage_type"], die=int(p["die"]),
             range_ft=int(p["range_ft"]))
+    if kind == "aoe_save_cantrip":
+        return _build_aoe_save_cantrip_action(
+            aid, name, level, save_ability=p["save_ability"],
+            damage_type=p["damage_type"], die=int(p["die"]),
+            emanation_ft=int(p.get("emanation_ft", 5)),
+            affected=p.get("affected", "all_creatures_in_area"))
     if kind == "spell_attack":
         return _build_leveled_spell_attack_action(
             aid, name, slot_level=int(p["slot_level"]),
@@ -1718,7 +1783,9 @@ def _dispatch_pc_builder(feature_def: dict, level: int,
             proficiency_bonus=proficiency_bonus, class_id=class_id,
             damage_dice=p["damage_dice"], damage_type=p["damage_type"],
             ray_count=int(p.get("ray_count", 1)),
-            upcast_dice=p.get("upcast_dice"))
+            upcast_dice=p.get("upcast_dice"),
+            concentration=bool(p.get("concentration", False)),
+            extra_pipeline=p.get("extra_pipeline"))
     if kind == "heal":
         return _build_heal_action(
             aid, name, level, ability_scores, class_id,

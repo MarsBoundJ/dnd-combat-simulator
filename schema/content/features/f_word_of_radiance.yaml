@@ -1,0 +1,48 @@
+# f_word_of_radiance — Word of Radiance (Evocation cantrip, PHB 2024 — NOT in SRD 5.2.1)
+#
+# RAW summary (own words, from owned PHB 2024): each creature OF YOUR
+# CHOICE that you can see in a 5-ft Emanation around you makes a CON
+# save or takes 1d6 radiant damage. V, M (a sunburst token). Cantrip
+# Upgrade: +1d6 at character levels 5/11/17. Classes: Cleric.
+#
+# Engine modeling: aoe_save_cantrip pc_builder, the Cleric twin of
+# Thunderclap with one load-bearing difference — "of your choice"
+# means NO friendly fire, modeled as forced_save affected:
+# enemies_in_area (new resolver option shipped with this spell). The
+# AoE scorer skips allies entirely for enemies_in_area actions, so a
+# swarmed Cleric values it by enemies-adjacent only. This is what
+# makes Word of Radiance strictly better than Thunderclap in a melee
+# scrum — exactly the RAW distinction.
+
+id: f_word_of_radiance
+name: Word of Radiance
+source: user_authored
+granted_by:
+  class: c_cleric
+  level: 1
+type: passive
+spell:
+  class: c_cleric
+  level: 0
+
+pc_builder:
+  kind: aoe_save_cantrip
+  action_id: a_word_of_radiance
+  name: Word of Radiance
+  params:
+    save_ability: constitution
+    damage_type: radiant
+    die: 6
+    emanation_ft: 5
+    affected: enemies_in_area
+
+description: |
+  Cantrip. Each ENEMY in a 5-ft emanation around the caster makes a
+  CON save or takes Nd6 radiant damage (N scales 1/2/3/4 at character
+  level 1/5/11/17). Allies are never affected ("of your choice").
+
+contract:
+  reads: [target.saves.constitution, actor.spell_save_dc, actor.position]
+  writes: [combat.damage_total]
+  event: passive
+  scope: builds_aoe_save_cantrip_action

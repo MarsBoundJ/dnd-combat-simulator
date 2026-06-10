@@ -1,4 +1,4 @@
-# f_summon_celestial — Summon Celestial (Level 5 Conjuration, SRD/PHB-2024)
+# f_summon_celestial — Summon Celestial (Level 5 Conjuration, PHB 2024 — NOT in SRD 5.2.1)
 #
 # RAW summary: call a Celestial spirit (Avenger or Defender) within 90 ft for
 # the duration (Concentration, up to 1 hour). It acts on your initiative,
@@ -31,7 +31,7 @@
 
 id: f_summon_celestial
 name: Summon Celestial
-source: srd_5.2.1
+source: user_authored   # PHB 2024 / XGE spell NOT in SRD 5.2.1 — own-words re-expression
 granted_by:
   class: c_cleric
   level: 9            # 5th-level slot -> full caster at character level 9

@@ -1,0 +1,51 @@
+# f_thorn_whip — Thorn Whip (Transmutation cantrip, PHB 2024 — NOT in SRD 5.2.1)
+#
+# RAW summary (own words, from owned PHB 2024): make a melee spell
+# attack against one creature within 30 ft. On a hit: 1d6 piercing
+# damage, and if the target is Large or smaller you can pull it up to
+# 10 ft closer to you. V, S, M (a thorny plant stem). Cantrip Upgrade:
+# +1d6 at character levels 5/11/17. Classes: Druid.
+#
+# Engine modeling: an attack_cantrip pc_builder with attack_kind melee
+# — the 30-ft "melee spell attack" reach rides the same reach_ft path
+# as Chill Touch / Shocking Grasp (which use 5).
+#
+# Deferred RAW bits:
+#   - The 10-ft PULL on hit (Large or smaller). We have forced-movement
+#     PUSH (push_creature, Repelling Blast / Thunderwave); pull is the
+#     inverse and is tracked engine work (spell-content-roadmap §D —
+#     Thorn Whip / Grasping Vine share it). When pull lands, append a
+#     hit-gated forced_movement step with a direction: toward_caster
+#     param, mirroring the Repelling Blast wiring.
+
+id: f_thorn_whip
+name: Thorn Whip
+source: user_authored
+granted_by:
+  class: c_druid
+  level: 1
+type: passive
+spell:
+  class: c_druid
+  level: 0
+
+pc_builder:
+  kind: attack_cantrip
+  action_id: a_thorn_whip
+  name: Thorn Whip
+  params:
+    damage_type: piercing
+    die: 6
+    range_ft: 30
+    attack_kind: melee
+
+description: |
+  Cantrip. Melee spell attack at 30 ft; on a hit deals Nd6 piercing
+  (N scales 1/2/3/4 at character level 1/5/11/17). The 10-ft pull
+  rider is deferred on the forced-movement-pull engine item.
+
+contract:
+  reads: [actor.spell_ability_mod, actor.proficiency_bonus, actor.levels]
+  writes: [combat.attack_roll, combat.damage_total]
+  event: passive
+  scope: builds_attack_cantrip_action

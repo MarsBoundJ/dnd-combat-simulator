@@ -1396,6 +1396,16 @@ def offensive_ehp_aoe(actor: Actor, origin: tuple[int, int], action: dict,
         if radius_ft is None:
             return 0.0
         affected = actors_in_radius(tuple(origin), int(radius_ft), living)
+    elif shape == "emanation":
+        # Self-centered Emanation (Thunderclap / Word of Radiance):
+        # a sphere of size_ft radius around the origin. 2024 Emanation
+        # rule — the originator is NOT in its own area.
+        size_ft = area.get("size_ft")
+        if size_ft is None:
+            return 0.0
+        affected = [a for a in actors_in_radius(tuple(origin),
+                                                  int(size_ft), living)
+                    if a.id != actor.id]
     elif shape == "cone":
         length_ft = area.get("length_ft")
         if length_ft is None or direction is None:
@@ -1453,7 +1463,13 @@ def offensive_ehp_aoe(actor: Actor, origin: tuple[int, int], action: dict,
         sculpt_budget = 1 + int(action.get("spell_slot_level", 0) or 0)
 
     total = 0.0
+    enemies_only = _aoe_enemies_only(action)
     for target in affected:
+        if enemies_only and target.side == actor.side:
+            # 'Each creature of your choice' spells (forced_save
+            # affected: enemies_in_area) never touch allies — no
+            # contribution, no friendly-fire penalty.
+            continue
         # Damage contribution
         full_dmg = _aoe_target_damage(target, fail_damage_by_step)
         half_dmg = _aoe_target_damage(target, succ_damage_by_step)
@@ -1500,6 +1516,18 @@ def offensive_ehp_aoe(actor: Actor, origin: tuple[int, int], action: dict,
         else:
             total += target_total
     return total
+
+
+def _aoe_enemies_only(action: dict) -> bool:
+    """True when the action's forced_save targets only enemies
+    (affected: enemies_in_area) — 'each creature of your choice'
+    spells like Word of Radiance. The scorer then neither counts nor
+    penalizes allies caught in the area."""
+    for step in (action.get("pipeline") or []):
+        if step.get("primitive") == "forced_save":
+            params = step.get("params") or {}
+            return params.get("affected") == "enemies_in_area"
+    return False
 
 
 def _extract_aoe_save_info(action: dict, caster: Actor) -> tuple[str, int] | None:

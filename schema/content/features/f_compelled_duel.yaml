@@ -1,4 +1,4 @@
-# f_compelled_duel — Compelled Duel (1st-level Paladin spell, SRD CC v5.2.1)
+# f_compelled_duel — Compelled Duel (1st-level Paladin spell, PHB 2024 — NOT in SRD 5.2.1)
 #
 # RAW summary: Bonus Action, 30 ft, one creature. WIS save; on fail
 # the target is compelled into a duel — disadvantage on attack rolls
@@ -26,7 +26,7 @@
 
 id: f_compelled_duel
 name: Compelled Duel
-source: srd_5.2.1
+source: user_authored   # PHB 2024 / XGE spell NOT in SRD 5.2.1 — own-words re-expression
 granted_by:
   class: c_paladin
   level: 2                   # Paladins gain 1st-level slots at L2
