@@ -69,11 +69,19 @@ All 4 Druid, all 4 Monk, all 4 Paladin, all 4 Ranger, and all 4 Rogue subclasses
 | Rogue   | Assassin                       |
 | Rogue   | Soulknife                      |
 
-Plus these individual subclasses from other classes:
+All 4 Sorcerer subclasses are complete:
 
 | Class    | Subclass                    |
 |----------|-----------------------------|
 | Sorcerer | Draconic Sorcery            |
+| Sorcerer | Aberrant Sorcery            |
+| Sorcerer | Clockwork Sorcery           |
+| Sorcerer | Wild Magic Sorcery          |
+
+Plus this individual subclass:
+
+| Class    | Subclass                    |
+|----------|-----------------------------|
 | Wizard   | Evoker                      |
 
 ## Source Field Rule (licensing — repo is going public)

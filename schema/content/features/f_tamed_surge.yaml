@@ -1,0 +1,29 @@
+# f_tamed_surge — Tamed Surge (Wild Magic Sorcery L18)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Immediately after casting a Sorcerer spell with a spell
+# slot, create an effect of your choice from the Wild Magic Surge
+# table instead of rolling. Any row except the final (resource-refund)
+# row; if the chosen effect involves a roll, you must make it.
+# 1/Long Rest.
+#
+# Engine modeling (deferred — rides surge table): turns the chaos
+# engine deterministic once per day — pick the best row for the
+# situation (extra action, max-damage next spell, resistance to all
+# damage, mass invisibility...). The AI choice reduces to argmax over
+# surge-row utilities, the same scoring Controlled Chaos needs.
+# DEPENDS ON: f_wild_magic_surge table implementation
+
+id: f_tamed_surge
+name: Tamed Surge
+source: phb_2024
+granted_by:
+  subclass: sc_wild_magic_sorcery
+  level: 18
+type: triggered_choice
+
+trigger:
+  event: spell_cast_with_slot
+  chosen_by: actor
+
+effect_primitives: []

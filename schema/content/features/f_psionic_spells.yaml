@@ -1,0 +1,30 @@
+# f_psionic_spells — Psionic Spells (Aberrant Sorcery L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Always-prepared spells by Sorcerer level:
+#   L3: Arms of Hadar, Calm Emotions, Detect Thoughts,
+#       Dissonant Whispers, Mind Sliver
+#   L5: Hunger of Hadar, Sending
+#   L7: Evard's Black Tentacles, Summon Aberration
+#   L9: Rary's Telepathic Bond, Telekinesis
+#
+# Engine modeling (deferred — BLOCKED on spell library):
+#   NEEDED (combat): Mind Sliver (save-debuff cantrip), Dissonant
+#   Whispers (forced-movement + OA bait), Arms of Hadar, Hunger of
+#   Hadar (zone denial), Evard's Black Tentacles (restraint AoE),
+#   Telekinesis, Summon Aberration (summon system)
+#   NON-COMBAT (stub-tier): Calm Emotions, Detect Thoughts, Sending,
+#   Rary's Telepathic Bond
+#
+# These are also the Psionic Sorcery (L6) targets — castable with
+# Sorcery Points instead of slots.
+
+id: f_psionic_spells
+name: Psionic Spells
+source: phb_2024
+granted_by:
+  subclass: sc_aberrant_sorcery
+  level: 3
+type: passive
+
+effect_primitives: []

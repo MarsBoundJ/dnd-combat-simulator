@@ -1,0 +1,30 @@
+# f_bend_luck — Bend Luck (Wild Magic Sorcery L6)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Immediately after another creature you can see rolls the
+# d20 for a D20 Test, take a Reaction and spend 1 Sorcery Point to
+# roll 1d4 and apply it as a bonus or penalty (your choice) to the
+# roll.
+#
+# Engine modeling (HIGH wireability): post-roll d20 nudge — the
+# Cutting Words / Cosmic Omen pattern. Works on ANY creature's roll
+# (boost an ally's near-miss attack or save, or sink an enemy's
+# near-hit). Because it's post-roll, the AI can use it only when the
+# ±1d4 has real flip probability (roll within 4 of the threshold) —
+# very efficient at 1 SP. Rides the d20_rolled reaction lane with
+# known margin.
+# DEPENDS ON: sorcery_points resource, post-roll reaction lane
+
+id: f_bend_luck
+name: Bend Luck
+source: phb_2024
+granted_by:
+  subclass: sc_wild_magic_sorcery
+  level: 6
+type: triggered
+
+trigger:
+  event: d20_rolled_by_other
+  chosen_by: actor
+
+effect_primitives: []

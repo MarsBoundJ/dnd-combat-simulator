@@ -1,0 +1,19 @@
+# f_telepathic_speech — Telepathic Speech (Aberrant Sorcery L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: As a Bonus Action, choose one creature you can see within
+# 30 ft. Two-way telepathy while within CHA-modifier miles (min 1).
+# Lasts Sorcerer-level minutes; ends early if used on a new creature.
+#
+# Engine modeling (LOW combat relevance): pure communication utility.
+# Stub.
+
+id: f_telepathic_speech
+name: Telepathic Speech
+source: phb_2024
+granted_by:
+  subclass: sc_aberrant_sorcery
+  level: 3
+type: active
+
+effect_primitives: []

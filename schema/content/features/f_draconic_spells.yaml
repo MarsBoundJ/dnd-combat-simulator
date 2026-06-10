@@ -1,0 +1,26 @@
+# f_draconic_spells — Draconic Spells (Draconic Sorcery L3)
+# Source: SRD CC v5.2.1 (PHB 2024)
+#
+# Always-prepared spells by Sorcerer level:
+#   L3: Alter Self, Chromatic Orb, Command, Dragon's Breath
+#   L5: Fear, Fly
+#   L7: Arcane Eye, Charm Monster
+#   L9: Legend Lore, Summon Dragon
+#
+# Engine modeling (deferred — BLOCKED on spell library):
+#   NEEDED (combat): Chromatic Orb (single-target elemental blast —
+#   synergizes with Elemental Affinity +CHA rider), Dragon's Breath
+#   (AoE elemental, also Affinity fuel), Command, Fear, Charm Monster,
+#   Summon Dragon (also keys Dragon Companion at L18)
+#   NON-COMBAT (stub-tier): Alter Self, Fly (until flight modeled),
+#   Arcane Eye, Legend Lore
+
+id: f_draconic_spells
+name: Draconic Spells
+source: srd_5.2.1
+granted_by:
+  subclass: sc_draconic_sorcery
+  level: 3
+type: passive
+
+effect_primitives: []

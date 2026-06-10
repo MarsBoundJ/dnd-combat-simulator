@@ -1,0 +1,22 @@
+# f_controlled_chaos — Controlled Chaos (Wild Magic Sorcery L14)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Whenever you roll on the Wild Magic Surge table, roll
+# twice and use either number.
+#
+# Engine modeling (trivial once surge table exists): best-of-two
+# sampling on the surge table — shifts the outcome distribution
+# toward whichever result the AI values higher. Needs a value
+# ordering over surge rows (a per-row utility score) so "use either"
+# is decidable. Pure rider on f_wild_magic_surge.
+# DEPENDS ON: f_wild_magic_surge table implementation
+
+id: f_controlled_chaos
+name: Controlled Chaos
+source: phb_2024
+granted_by:
+  subclass: sc_wild_magic_sorcery
+  level: 14
+type: passive
+
+effect_primitives: []

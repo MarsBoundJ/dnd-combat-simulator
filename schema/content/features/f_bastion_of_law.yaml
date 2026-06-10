@@ -1,0 +1,28 @@
+# f_bastion_of_law — Bastion of Law (Clockwork Sorcery L6)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Magic action — spend 1-5 Sorcery Points to ward yourself
+# or a creature you can see within 30 ft. The ward holds that many
+# d8s. When the warded creature takes damage, it can expend any number
+# of those dice, roll them, and reduce the damage by the total.
+# Ward lasts until your next Long Rest or until you re-use the feature
+# (one ward at a time).
+#
+# Engine modeling (MEDIUM wireability): a stored dice pool acting as
+# on-demand damage reduction — similar shape to Psi Warrior's
+# Protective Field but pre-paid and target-persistent. Needs a ward
+# state on the target (bastion_dice: N × d8) + a damage_taken hook
+# letting the warded creature spend dice. AI decisions: how many
+# points to invest, who carries the ward, how many dice to spend per
+# hit.
+# DEPENDS ON: sorcery_points resource, damage_taken interception
+
+id: f_bastion_of_law
+name: Bastion of Law
+source: phb_2024
+granted_by:
+  subclass: sc_clockwork_sorcery
+  level: 6
+type: active
+
+effect_primitives: []

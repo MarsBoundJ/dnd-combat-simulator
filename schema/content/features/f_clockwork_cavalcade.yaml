@@ -1,0 +1,27 @@
+# f_clockwork_cavalcade — Clockwork Cavalcade (Clockwork Sorcery L18)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Magic action — summon intangible, invulnerable order
+# spirits in a 30-ft Cube originating from you. Before vanishing they:
+#   - Heal: restore up to 100 HP divided as you choose among any
+#     creatures of your choice in the Cube
+#   - Repair: damaged objects entirely in the Cube are repaired
+#   - Dispel: every spell of level 6 or lower ends on creatures and
+#     objects of your choice in the Cube
+# 1/Long Rest free, then 7 Sorcery Points (no action) to restore.
+#
+# Engine modeling (MEDIUM wireability): the Heal is a flexible
+# 100-HP mass heal (_heal divided among targets in AoE) — instant
+# party stabilization. The Dispel is a mass debuff-cleanse / enemy-
+# buff-strip (needs active-spell-effect tracking to wire). Repair is
+# non-combat.
+
+id: f_clockwork_cavalcade
+name: Clockwork Cavalcade
+source: phb_2024
+granted_by:
+  subclass: sc_clockwork_sorcery
+  level: 18
+type: active
+
+effect_primitives: []

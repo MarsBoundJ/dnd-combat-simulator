@@ -1,0 +1,24 @@
+# f_trance_of_order — Trance of Order (Clockwork Sorcery L14)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Bonus Action — enter a trance for 1 minute:
+#   - Attack rolls against you can't benefit from Advantage
+#   - On your D20 Tests, treat d20 rolls of 9 or lower as 10
+# 1/Long Rest free, then 5 Sorcery Points (no action) to restore.
+#
+# Engine modeling (MEDIUM wireability): two clean modifiers — an
+# incoming-attack advantage-denial aura on self (Elusive pattern,
+# Rogue L18) + a min-10 floor on own d20 rolls (Reliable Talent
+# pattern but for ALL D20 Tests including attacks and saves). The
+# min-10 on attack rolls is a large consistency boost; on saves it
+# nearly eliminates low-roll failures for the duration.
+
+id: f_trance_of_order
+name: Trance of Order
+source: phb_2024
+granted_by:
+  subclass: sc_clockwork_sorcery
+  level: 14
+type: active
+
+effect_primitives: []

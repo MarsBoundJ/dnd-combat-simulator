@@ -1,0 +1,21 @@
+# f_psychic_defenses — Psychic Defenses (Aberrant Sorcery L6)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Resistance to Psychic damage. Advantage on saving throws
+# to avoid or end the Charmed or Frightened condition.
+#
+# Engine modeling (wireable at build time): both halves are build-time
+# template stamps in pc_schema keyed on features_known — the Elemental
+# Affinity pattern for the resistance, plus a conditional save-
+# advantage stamp (save_advantage vs charmed/frightened). No runtime
+# primitive needed.
+
+id: f_psychic_defenses
+name: Psychic Defenses
+source: phb_2024
+granted_by:
+  subclass: sc_aberrant_sorcery
+  level: 6
+type: passive
+
+effect_primitives: []

@@ -9,6 +9,8 @@
 #     (pc_spec.draconic_element, default fire) + add CHA mod to one
 #     damage roll of spells of that type (the +CHA rider is deferred).
 #   - L14 Dragon Wings: 60-ft fly speed (deferred — flight not modeled).
+#   - L18 Dragon Companion: free Summon Dragon 1/LR, optional
+#     no-Concentration mode (BLOCKED on spell library + summon system).
 #   - Draconic Spells: always-prepared list (wire the built ones).
 
 id: sc_draconic_sorcery
@@ -23,6 +25,10 @@ archetype_tags:
 
 features_by_level:
   - level: 3
-    feature_ids: [f_draconic_resilience]
+    feature_ids: [f_draconic_resilience, f_draconic_spells]
   - level: 6
     feature_ids: [f_elemental_affinity]
+  - level: 14
+    feature_ids: [f_dragon_wings]
+  - level: 18
+    feature_ids: [f_dragon_companion]

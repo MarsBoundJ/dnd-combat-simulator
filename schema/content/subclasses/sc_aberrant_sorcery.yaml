@@ -1,0 +1,37 @@
+# sc_aberrant_sorcery — Aberrant Sorcery (Sorcerer subclass)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Psionic Sorcerer — alien-influence themed. Psionic Spells (L3,
+# always-prepared psychic/aberrant list), Telepathic Speech (L3,
+# non-combat), Psionic Sorcery (L6, cast Psionic Spells with Sorcery
+# Points instead of slots — component-free), Psychic Defenses (L6,
+# Psychic resistance + save advantage vs Charmed/Frightened),
+# Revelation in Flesh (L14, body-warp utility), Warping Implosion
+# (L18, teleport + 30-ft pull/damage AoE).
+#
+# Sim-relevant highlights: Psionic Sorcery is the economy engine —
+# converts sorcery points directly into castings of Hunger of Hadar,
+# Telekinesis, etc. Effectively extra spell slots for the psionic
+# list. Note: Aberrant gets TWO features at L6.
+#
+# BLOCKED ON: spell library (psionic spell list)
+
+id: sc_aberrant_sorcery
+name: Aberrant Sorcery
+source: phb_2024
+parent_class: c_sorcerer
+
+archetype_tags:
+  behavior_archetype: cunning_tactician
+  role: controller
+  flavor_tags: [psionic, aberrant, telepathic, alien]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_psionic_spells, f_telepathic_speech]
+  - level: 6
+    feature_ids: [f_psionic_sorcery, f_psychic_defenses]
+  - level: 14
+    feature_ids: [f_revelation_in_flesh]
+  - level: 18
+    feature_ids: [f_warping_implosion]

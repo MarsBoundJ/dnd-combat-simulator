@@ -1,0 +1,26 @@
+# f_tides_of_chaos — Tides of Chaos (Wild Magic Sorcery L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Give yourself Advantage on one D20 Test before rolling.
+# Once used, you must cast a Sorcerer spell with a spell slot or
+# finish a Long Rest to use it again. If you DO cast a Sorcerer spell
+# with a slot before your next Long Rest (while recharging), you
+# automatically roll on the Wild Magic Surge table.
+#
+# Engine modeling (HIGH wireability for the advantage half): self-
+# advantage on any d20 (attack, save, check) — free and recurring.
+# The recharge loop is the interesting part: using it arms a
+# guaranteed surge on your next slot-cast, which recharges the
+# feature. Steady state ≈ advantage once per casting + a surge per
+# cycle. State machine: ready → used → (slot cast → forced surge →
+# ready). DEPENDS ON: f_wild_magic_surge for the forced-surge arm.
+
+id: f_tides_of_chaos
+name: Tides of Chaos
+source: phb_2024
+granted_by:
+  subclass: sc_wild_magic_sorcery
+  level: 3
+type: active
+
+effect_primitives: []

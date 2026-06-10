@@ -1,0 +1,25 @@
+# f_dragon_companion — Dragon Companion (Draconic Sorcery L18)
+# Source: SRD CC v5.2.1 (PHB 2024)
+#
+# Mechanics:
+#   - Cast Summon Dragon without a Material component.
+#   - Cast it once without a spell slot per Long Rest.
+#   - When casting, may modify it to not require Concentration; if so,
+#     duration becomes 1 minute for that casting.
+#
+# Engine modeling (deferred — BLOCKED on spell library + companion/
+# summon actor system): the no-Concentration mode is the combat
+# headline — a free dragon summon that doesn't compete with other
+# concentration spells for 1 minute (≈ a full combat). Same summon
+# actor infrastructure as Beast Master / Summon Aberration / Summon
+# Construct.
+
+id: f_dragon_companion
+name: Dragon Companion
+source: srd_5.2.1
+granted_by:
+  subclass: sc_draconic_sorcery
+  level: 18
+type: passive
+
+effect_primitives: []

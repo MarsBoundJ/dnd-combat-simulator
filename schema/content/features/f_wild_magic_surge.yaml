@@ -1,0 +1,37 @@
+# f_wild_magic_surge — Wild Magic Surge (Wild Magic Sorcery L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Once per turn, immediately after casting a Sorcerer spell
+# with a spell slot, you can roll 1d20. On a 20, roll on the d100 Wild
+# Magic Surge table for a random magical effect. Surge-produced spells
+# can't be modified by Metamagic.
+#
+# Surge table shape (50 rows, d100 in bands of 4) — combat-relevant
+# bands include: recurring surges, random friendly summon, 5 HP regen
+# per turn (1 min), save-disadvantage on next spell, BA-casting for
+# 1 min, max-damage next spell, resistance to all damage (1 min),
+# potted-plant self-incapacitation, BA teleports, mass invisibility,
+# +2 AC shield, extra action, random spell cast (Fireball/Polymorph/
+# Confusion/etc.), self-Frightened, necrotic drain, 4d10 lightning,
+# piercing vulnerability aura, and a resource-refund row (HP/slots/
+# sorcery points).
+#
+# Engine modeling (deferred — needs dedicated surge-table data file):
+# the table is its own content artifact (~50 weighted outcomes, many
+# BLOCKED on spell library + monster library). The trigger hook is
+# simple: spell_cast_with_slot → optional d20 → on 20, sample table.
+# The "optional" is an AI knob (when is a 5% chaos bomb worth it? —
+# always, per RAW it's the player's choice to roll... but Tides of
+# Chaos can FORCE the roll). Monte Carlo variance analysis of this
+# subclass is a flagship use case for the sim.
+
+id: f_wild_magic_surge
+name: Wild Magic Surge
+source: phb_2024
+granted_by:
+  subclass: sc_wild_magic_sorcery
+  level: 3
+type: passive
+is_signature: true
+
+effect_primitives: []

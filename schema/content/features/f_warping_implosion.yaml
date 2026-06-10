@@ -1,0 +1,28 @@
+# f_warping_implosion — Warping Implosion (Aberrant Sorcery L18)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Magic action — teleport to an unoccupied space you can
+# see within 120 ft. Each creature within 30 ft of the space you LEFT
+# makes a STR save vs your spell save DC:
+#   - Fail: 3d10 Force damage + pulled straight toward your former
+#     space (ends as close to it as possible)
+#   - Success: half damage, no pull
+# 1/Long Rest free, then 5 Sorcery Points (no action) to restore.
+#
+# Engine modeling (MEDIUM wireability): escape + AoE in one action —
+# teleport out of a melee scrum and punish everyone who was near you.
+# Pattern: _teleport(self, 120ft) → _forced_save(STR, AoE 30ft radius
+# at origin) → _damage(3d10 force, half_on_save) + _forced_move(pull).
+# Forced-movement pull needs the same machinery as Wrath of the Sea /
+# Dissonant Whispers.
+
+id: f_warping_implosion
+name: Warping Implosion
+source: phb_2024
+granted_by:
+  subclass: sc_aberrant_sorcery
+  level: 18
+type: active
+is_signature: true
+
+effect_primitives: []

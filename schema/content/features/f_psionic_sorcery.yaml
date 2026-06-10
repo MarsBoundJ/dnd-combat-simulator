@@ -1,0 +1,27 @@
+# f_psionic_sorcery — Psionic Sorcery (Aberrant Sorcery L6)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: When casting a level 1+ spell from the Psionic Spells
+# feature, you may pay with Sorcery Points equal to the spell's level
+# instead of a spell slot. If cast with Sorcery Points, the spell
+# needs no Verbal/Somatic components and no Material components
+# (unless consumed or costed).
+#
+# Engine modeling (HIGH wireability once spells exist): an alternate
+# payment path — sorcery_points as a casting currency for a specific
+# spell list. Note the exchange rate beats Font of Magic slot
+# creation (e.g. a L5 Telekinesis costs 5 SP here vs 7 SP to create a
+# L5 slot). This is the subclass's resource engine and a meaningful
+# eHP/attrition advantage in multi-encounter days.
+# DEPENDS ON: f_psionic_spells, sorcery_points resource, spell library
+
+id: f_psionic_sorcery
+name: Psionic Sorcery
+source: phb_2024
+granted_by:
+  subclass: sc_aberrant_sorcery
+  level: 6
+type: passive
+is_signature: true
+
+effect_primitives: []

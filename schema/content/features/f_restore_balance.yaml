@@ -1,0 +1,30 @@
+# f_restore_balance — Restore Balance (Clockwork Sorcery L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: When a creature you can see within 60 ft is about to roll
+# a d20 with Advantage or Disadvantage, take a Reaction to make the
+# roll unaffected by Advantage and Disadvantage.
+# Uses: CHA modifier per Long Rest (min 1).
+#
+# Engine modeling (HIGH wireability): a reaction on the
+# advantage_state_pending lane — strips adv/disadv from any visible
+# roll. Dual-use: cancel an enemy's Advantage (Reckless Attack, Pack
+# Tactics, prone-melee) OR cancel an ally's Disadvantage (long range,
+# poisoned). The AI decision is which rolls are worth a limited
+# reaction. Needs a pre-roll interception hook that knows the roll's
+# advantage state before the dice land.
+
+id: f_restore_balance
+name: Restore Balance
+source: phb_2024
+granted_by:
+  subclass: sc_clockwork_sorcery
+  level: 3
+type: triggered
+is_signature: true
+
+trigger:
+  event: d20_roll_pending_with_advantage_state
+  chosen_by: actor
+
+effect_primitives: []

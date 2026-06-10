@@ -1,0 +1,36 @@
+# sc_clockwork_sorcery — Clockwork Sorcery (Sorcerer subclass)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Order-themed support/control Sorcerer. Clockwork Spells (L3,
+# always-prepared protective list), Restore Balance (L3, reaction:
+# cancel Advantage/Disadvantage on a d20 roll within 60 ft), Bastion
+# of Law (L6, sorcery-point d8 damage ward), Trance of Order (L14,
+# 1 min: no Advantage against you + min-10 on your d20s), Clockwork
+# Cavalcade (L18, 30-ft cube: 100 HP heal + mass dispel).
+#
+# Sim-relevant highlights: Restore Balance is a unique anti-advantage
+# reaction (CHA-mod uses/LR) — denies Reckless Attack, Pack Tactics,
+# etc. Bastion of Law is a sorcery-point damage sponge. The subclass
+# trades blasting for defense/consistency.
+#
+# BLOCKED ON: spell library (clockwork spell list)
+
+id: sc_clockwork_sorcery
+name: Clockwork Sorcery
+source: phb_2024
+parent_class: c_sorcerer
+
+archetype_tags:
+  behavior_archetype: cautious_defender
+  role: support
+  flavor_tags: [order, clockwork, protective, lawful]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_clockwork_spells, f_restore_balance]
+  - level: 6
+    feature_ids: [f_bastion_of_law]
+  - level: 14
+    feature_ids: [f_trance_of_order]
+  - level: 18
+    feature_ids: [f_clockwork_cavalcade]

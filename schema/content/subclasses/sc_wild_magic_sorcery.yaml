@@ -1,0 +1,43 @@
+# sc_wild_magic_sorcery — Wild Magic Sorcery (Sorcerer subclass)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Chaos-themed Sorcerer built around the d100 Wild Magic Surge table.
+# Wild Magic Surge (L3, once/turn d20 check after casting with a slot
+# — on a 20, roll on the surge table), Tides of Chaos (L3, free
+# Advantage on one D20 Test, recharged by casting with a slot — which
+# then forces a surge), Bend Luck (L6, reaction + 1 SP: ±1d4 to any
+# creature's d20 roll), Controlled Chaos (L14, roll surges twice pick
+# either), Tamed Surge (L18, choose a surge effect instead of rolling,
+# 1/LR).
+#
+# Sim-relevant highlights: the surge table is a 50-row random-effect
+# engine — a genuinely unique modeling problem (Monte Carlo loves it;
+# variance analysis is the whole point of this subclass). Bend Luck
+# is a cheap universal d20 nudge (HIGH wireability — Cutting Words
+# pattern, works on allies AND enemies). Tides of Chaos creates a
+# deliberate surge-fishing loop with the recharge mechanic.
+#
+# MODELING NOTE: the full d100 surge table needs its own data file
+# when wired — many rows reference spells (Fireball, Polymorph,
+# Confusion...) and MM creatures, so it's BLOCKED on spell library +
+# monster library. v1 could implement a combat-relevant subset.
+
+id: sc_wild_magic_sorcery
+name: Wild Magic Sorcery
+source: phb_2024
+parent_class: c_sorcerer
+
+archetype_tags:
+  behavior_archetype: berserker_fanatic
+  role: blaster
+  flavor_tags: [chaotic, random, surging, volatile]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_wild_magic_surge, f_tides_of_chaos]
+  - level: 6
+    feature_ids: [f_bend_luck]
+  - level: 14
+    feature_ids: [f_controlled_chaos]
+  - level: 18
+    feature_ids: [f_tamed_surge]

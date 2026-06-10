@@ -1,0 +1,29 @@
+# f_clockwork_spells — Clockwork Spells (Clockwork Sorcery L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Always-prepared spells by Sorcerer level:
+#   L3: Aid, Alarm, Lesser Restoration, Protection from Evil and Good
+#   L5: Dispel Magic, Protection from Energy
+#   L7: Freedom of Movement, Summon Construct
+#   L9: Greater Restoration, Wall of Force
+#
+# (Also grants a cosmetic Manifestations of Order visual — no
+# mechanical effect.)
+#
+# Engine modeling (deferred — BLOCKED on spell library):
+#   NEEDED (combat): Aid (party HP-max buff), Lesser Restoration
+#   (condition removal), Protection from Evil and Good, Dispel Magic,
+#   Protection from Energy, Wall of Force (premier battlefield
+#   denial), Summon Construct (summon system)
+#   NON-COMBAT (stub-tier): Alarm, Freedom of Movement (situational),
+#   Greater Restoration
+
+id: f_clockwork_spells
+name: Clockwork Spells
+source: phb_2024
+granted_by:
+  subclass: sc_clockwork_sorcery
+  level: 3
+type: passive
+
+effect_primitives: []

@@ -1,0 +1,22 @@
+# f_dragon_wings — Dragon Wings (Draconic Sorcery L14)
+# Source: SRD CC v5.2.1 (PHB 2024)
+#
+# Mechanics: As a Bonus Action, manifest draconic wings for 1 hour or
+# until dismissed (no action). Fly Speed 60 ft for the duration.
+# 1/Long Rest free, then costs 3 Sorcery Points (no action) to restore
+# the use.
+#
+# Engine modeling (deferred — BLOCKED on flight/3D movement model):
+# sustained 60-ft flight is a major defensive tool vs melee-only
+# threats (kiting). The sorcery-point recharge follows the same
+# pattern as other L14+ subclass features.
+
+id: f_dragon_wings
+name: Dragon Wings
+source: srd_5.2.1
+granted_by:
+  subclass: sc_draconic_sorcery
+  level: 14
+type: active
+
+effect_primitives: []

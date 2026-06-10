@@ -1,0 +1,27 @@
+# f_revelation_in_flesh — Revelation in Flesh (Aberrant Sorcery L14)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: As a Bonus Action, spend 1+ Sorcery Points to alter your
+# body for 10 minutes. Per point spent, choose one benefit (lasts the
+# duration):
+#   - Aquatic Adaptation: Swim Speed = 2 × Speed, water breathing
+#   - Glistening Flight: Fly Speed = Speed, can hover
+#   - See the Invisible: see Invisible creatures within 60 ft (not
+#     behind Total Cover)
+#   - Wormlike Movement: squeeze through 1-inch gaps; 5 ft of movement
+#     to escape nonmagical restraints or the Grappled condition
+#
+# Engine modeling (deferred): Glistening Flight BLOCKED on flight
+# model; See the Invisible BLOCKED on vision/invisibility model
+# (counters Greater Invisibility etc.); the others are niche. Menu-
+# style sorcery point spend.
+
+id: f_revelation_in_flesh
+name: Revelation in Flesh
+source: phb_2024
+granted_by:
+  subclass: sc_aberrant_sorcery
+  level: 14
+type: active
+
+effect_primitives: []
