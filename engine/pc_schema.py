@@ -1269,10 +1269,16 @@ def _build_feature_actions(features_known: set[str], level: int,
     # L5 — Extra Attack only once, so it caps at f_extra_attack → 2).
     # Both consume the same f_extra_attack marker + multiattack builder;
     # the Monk runs a separate f_martial_arts path above and is excluded.
-    if class_id in ("c_fighter", "c_barbarian"):
+    if class_id in ("c_fighter", "c_barbarian", "c_bard"):
         count = _extra_attack_count(features_known)
         if count > 1 and weapon_actions:
             actions.append(_build_extra_attack_action(count, weapon_actions))
+    # Battle Magic (College of Valor L14): bonus-action weapon attack,
+    # gated on the `battle_magic_triggered` flag set by pipeline.execute()
+    # after a spell action completes.
+    if ("f_battle_magic" in features_known and class_id == "c_bard"
+            and weapon_actions):
+        actions.append(_build_battle_magic_action(weapon_actions))
     # PR #102: Warlock Eldritch Blast — iconic at-will cantrip. Ranged
     # spell attack, 1d10 force, beams scale with CHARACTER level
     # (1/2/3/4 at L1/L5/L11/L17). Mirrors the Extra Attack pattern: a
@@ -1907,6 +1913,22 @@ def _build_extra_attack_action(count: int,
         "count": int(count),
         "sub_actions": [primary_id] * int(count),
     }
+
+
+def _build_battle_magic_action(weapon_actions: list[dict]) -> dict:
+    """Build the Battle Magic bonus-action weapon attack (College of Valor L14).
+
+    Copies the primary weapon's pipeline but assigns it to the bonus_action
+    slot and marks it `requires_battle_magic: True` so generate_candidates()
+    only surfaces it after the actor casts a spell on their action this turn.
+    """
+    primary = weapon_actions[0]
+    ba = dict(primary)
+    ba["id"] = "a_battle_magic_attack"
+    ba["name"] = f"Battle Magic ({primary.get('name', 'weapon')})"
+    ba["slot"] = "bonus_action"
+    ba["requires_battle_magic"] = True
+    return ba
 
 
 def _monk_martial_arts_die(level: int) -> str:

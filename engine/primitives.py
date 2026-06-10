@@ -275,6 +275,11 @@ def _attack_roll(params: dict, state: CombatState, bus: EventBus) -> dict:
     from engine.core import bardic_inspiration as _bardic
     total = _bardic.maybe_add_to_attack(
         actor, total, effective_ac, is_crit, state, rng)
+    # Combat Inspiration Defense (Valor Bard): target may spend their tagged
+    # BI die to raise their AC against this attack (may turn hit into miss).
+    from engine.core.college_of_valor import maybe_defend_with_combat_inspiration
+    effective_ac = maybe_defend_with_combat_inspiration(
+        target, total, effective_ac, is_crit, state, rng)
     is_hit = is_crit or (total >= effective_ac)
     # Metamagic Seeking Spell: if a spell attack misses, reroll the d20
     # once and use the new roll (set on the action by the metamagic
@@ -551,6 +556,12 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
             # Versatile melee weapon applies Topple (CON save → Prone).
             from engine.core import world_tree as _wt
             _wt.try_apply_battering_roots(actor, target, state, attack_params)
+        # Combat Inspiration Offense (Valor Bard): if the attacker holds a
+        # Combat-Inspiration-tagged BI die, spend it for bonus damage.
+        from engine.core.college_of_valor import (
+            maybe_add_combat_inspiration_to_damage)
+        total += maybe_add_combat_inspiration_to_damage(
+            actor, True, state, rng)
 
     # Resistance / vulnerability / immunity (template-level)
     template = target.template or {}
@@ -3225,7 +3236,11 @@ def _grant_bardic_inspiration(params: dict, state: CombatState,
         raise ValueError("grant_bardic_inspiration needs an actor + target")
     die = str((actor.template or {}).get("bardic_die", "d6"))
     from engine.core.bardic_inspiration import register_inspiration_die
-    register_inspiration_die(target, die, actor.id, state)
+    # College of Valor: tag the die so Defense + Offense hooks activate.
+    combat_insp = "f_combat_inspiration" in (
+        (actor.template or {}).get("features_known") or [])
+    register_inspiration_die(target, die, actor.id, state,
+                             combat_inspiration=combat_insp)
     # Agile Strikes (College of Dance L3): expending a Bardic Inspiration use
     # lets a Dance Bard make one Unarmed Strike as part of this Bonus Action.
     from engine.core.college_of_dance import try_agile_strike

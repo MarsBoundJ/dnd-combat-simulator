@@ -1,0 +1,40 @@
+# sc_college_of_valor — College of Valor (Bard subclass)
+# Source: PHB 2024.
+#
+# A battle-ready Bard who weaves inspiration into the heat of combat.
+# Gains Martial weapons + Medium armor (Martial Training, L3), Combat
+# Inspiration that lets inspired allies boost AC or damage (L3), a
+# second attack (Extra Attack, L6), and a free weapon swing after
+# casting a spell (Battle Magic, L14).
+#
+# Feature wiring status:
+#   - f_combat_inspiration (L3) → FULLY WIRED — BI die tagged at grant
+#     time; Defense (maybe_defend_with_combat_inspiration, called from
+#     _attack_roll) + Offense (maybe_add_combat_inspiration_to_damage,
+#     called from _damage). See engine/core/college_of_valor.py.
+#   - f_martial_training (L3)   → MARKER — armor/weapon proficiency
+#     modeled at build time via ac + weapon specs; no runtime hook.
+#   - f_extra_attack (L6)       → FULLY WIRED — shared marker with
+#     Fighter/Barbarian; _extra_attack_count() in pc_schema builds the
+#     multiattack action for class_id == c_bard.
+#   - f_battle_magic (L14)      → FULLY WIRED — pipeline.execute() sets
+#     battle_magic_triggered after a spell action; generate_candidates()
+#     gates the BA weapon attack on that flag.
+
+id: sc_college_of_valor
+name: College of Valor
+source: srd_5.2.1
+parent_class: c_bard
+
+archetype_tags:
+  behavior_archetype: melee_skirmisher
+  role: skirmisher
+  flavor_tags: [valor, martial, storyteller, inspiring]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_combat_inspiration, f_martial_training]
+  - level: 6
+    feature_ids: [f_extra_attack]
+  - level: 14
+    feature_ids: [f_battle_magic]

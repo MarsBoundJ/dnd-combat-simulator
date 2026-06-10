@@ -1,0 +1,40 @@
+# f_combat_inspiration — Combat Inspiration (College of Valor, Bard L3)
+# Source: PHB 2024
+#
+# RAW: "A creature that has a Bardic Inspiration die from you can use it
+# for one of the following effects:
+#   Defense — when the creature is hit by an attack roll, that creature
+#     can use its Reaction to roll the Bardic Inspiration die and add the
+#     number rolled to its AC against that attack, potentially causing the
+#     attack to miss.
+#   Offense — immediately after the creature hits a target with an attack
+#     roll, the creature can roll the Bardic Inspiration die and add the
+#     number rolled to the attack's damage against the target."
+#
+# Engine modeling: the BI die granted by a Valor Bard is tagged
+# `combat_inspiration: true` in its modifier params (see
+# engine.core.bardic_inspiration.register_inspiration_die). Two hooks
+# in primitives read this tag:
+#   - Defense: maybe_defend_with_combat_inspiration (college_of_valor.py)
+#     is called from _attack_roll after all other roll-pending reactions.
+#     If the attack would hit and the die can turn it into a miss, the
+#     die is spent and effective_ac is increased.
+#   - Offense: maybe_add_combat_inspiration_to_damage (college_of_valor.py)
+#     is called from _damage in the on-hit rider section. The die is spent
+#     and its roll added to the damage total.
+# v1 always uses the die optimally (Defense if it can prevent a hit,
+# Offense on confirmed hits). Reaction slot NOT consumed — modeling the
+# decision as automatic optimal play (no AI pacing for BI die use).
+
+id: f_combat_inspiration
+name: Combat Inspiration
+source: srd_5.2.1
+granted_by:
+  subclass: sc_college_of_valor
+  level: 3
+type: active
+
+description: |
+  Creatures holding a Bardic Inspiration die from you can use it for
+  Defense (Reaction when hit → roll die, add to AC, potentially miss) or
+  Offense (after hitting → roll die, add to attack's damage).
