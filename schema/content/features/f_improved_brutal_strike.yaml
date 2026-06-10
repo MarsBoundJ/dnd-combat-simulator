@@ -1,0 +1,22 @@
+# f_improved_brutal_strike — Improved Brutal Strike (Barbarian L13)
+# Source: SRD CC v5.2.1 / PHB 2024
+#
+# RAW: "The following effects are now among your Brutal Strike options.
+# Staggering Blow: the target has Disadvantage on its next saving throw and
+# can't make Opportunity Attacks until the start of your next turn. Sundering
+# Blow: the next attack roll by another creature against the target gains +5."
+#
+# Engine modeling: STUB (deferred). Extends f_brutal_strike (L9) with two more
+# effect options; depends on the Brutal Strike substrate, which is itself
+# deferred. Documented here so the feature is countable in features_known and
+# surfaced by the loader; no runtime hook is registered yet.
+#
+# Feature wiring status: STUB (deferred — extends Brutal Strike options).
+
+id: f_improved_brutal_strike
+name: Improved Brutal Strike
+source: srd_5.2.1
+granted_by:
+  class: c_barbarian
+  level: 13
+type: passive

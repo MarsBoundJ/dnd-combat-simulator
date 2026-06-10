@@ -1,0 +1,24 @@
+# f_improved_brutal_strike_2 — Improved Brutal Strike (Barbarian L17)
+# Source: SRD CC v5.2.1 / PHB 2024
+#
+# RAW: "The extra damage of your Brutal Strike increases to 2d10. In addition,
+# you can use two different Brutal Strike effects whenever you use your Brutal
+# Strike feature."
+#
+# Engine modeling: STUB (deferred). The L17 upgrade to Brutal Strike (2d10 and
+# two effects at once). Distinct feature id from the L13 grant
+# (f_improved_brutal_strike) so both levels are countable. Depends on the
+# Brutal Strike substrate, which is itself deferred. Documented here so the
+# feature is countable in features_known and surfaced by the loader; no runtime
+# hook is registered yet.
+#
+# Feature wiring status: STUB (deferred — upgrades Brutal Strike to 2d10 + two
+# effects).
+
+id: f_improved_brutal_strike_2
+name: Improved Brutal Strike
+source: srd_5.2.1
+granted_by:
+  class: c_barbarian
+  level: 17
+type: passive

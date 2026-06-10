@@ -1,0 +1,25 @@
+# f_relentless_rage — Relentless Rage (Barbarian L11)
+# Source: SRD CC v5.2.1 / PHB 2024
+#
+# RAW: "If you drop to 0 Hit Points while your Rage is active and don't die
+# outright, you can make a DC 10 Constitution saving throw. If you succeed,
+# your Hit Points instead change to a number equal to twice your Barbarian
+# level. Each time you use this feature after the first, the DC increases by 5.
+# When you finish a Short or Long Rest, the DC resets to 10."
+#
+# Engine modeling: STUB (deferred — survivability). A drop-to-0 trigger: on
+# hitting 0 HP while raging, a CON save (escalating DC) sets HP to 2x level
+# instead. Would ride a "would-drop-to-0" hook (compare Zealot's Rage of the
+# Gods Revivification, which already intercepts allies dropping to 0).
+# Documented here so the feature is countable in features_known and surfaced
+# by the loader; no runtime hook is registered yet.
+#
+# Feature wiring status: STUB (deferred — drop-to-0 CON-save recovery).
+
+id: f_relentless_rage
+name: Relentless Rage
+source: srd_5.2.1
+granted_by:
+  class: c_barbarian
+  level: 11
+type: passive
