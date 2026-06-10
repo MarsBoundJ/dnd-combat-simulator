@@ -29,6 +29,10 @@ SCHOOLS = {
 SOURCES = {"srd_5.2.1", "phb_2024", "xge"}
 TIERS = {"S", "A", "B", "C", "D"}
 STATUSES = {"todo", "stub", "built"}
+CLASSES = {
+    "bard", "cleric", "druid", "paladin",
+    "ranger", "sorcerer", "warlock", "wizard",
+}
 
 _NAME_RE = re.compile(r"^name:\s*[\"']?(.+?)[\"']?\s*(#.*)?$")
 
@@ -68,6 +72,11 @@ def test_master_list_well_formed():
         if r["srd_name"]:
             assert r["source"] == "srd_5.2.1", (
                 f"{n}: srd_name set but source is {r['source']}")
+        # classes column: 1+ base-class tags, semicolon-separated,
+        # sorted + duplicate-free (2024 spell-header class lists).
+        tags = r["classes"].split(";")
+        assert tags and all(t in CLASSES for t in tags), (n, r["classes"])
+        assert tags == sorted(set(tags)), f"{n}: classes not sorted/unique"
 
 
 def test_status_matches_files():
