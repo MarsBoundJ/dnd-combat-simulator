@@ -1,0 +1,30 @@
+# sc_battle_master — Battle Master (Fighter subclass)
+# Source: PHB 2024
+#
+# The maneuver specialist. Marquee mechanic is Combat Superiority:
+# a pool of Superiority Dice (4d8 at L3, scaling to 6d12 by L18) fueling
+# 16 maneuvers — attack riders (save-gated debuffs + bonus damage),
+# reactions (Parry, Riposte), and support plays (Commander's Strike,
+# Rally). The maneuver list lives in f_combat_superiority.
+
+id: sc_battle_master
+name: Battle Master
+source: phb_2024
+parent_class: c_fighter
+
+archetype_tags:
+  behavior_archetype: cunning_tactician
+  role: martial_striker           # INTERNAL-EVAL-ONLY per vocabulary firewall
+  flavor_tags: [tactical, disciplined, versatile, commanding]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_combat_superiority, f_student_of_war]
+  - level: 7
+    feature_ids: [f_know_your_enemy]
+  - level: 10
+    feature_ids: [f_improved_combat_superiority]
+  - level: 15
+    feature_ids: [f_relentless]
+  - level: 18
+    feature_ids: [f_ultimate_combat_superiority]

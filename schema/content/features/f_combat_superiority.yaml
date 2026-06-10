@@ -1,0 +1,64 @@
+# f_combat_superiority — Combat Superiority (Battle Master L3)
+# Source: PHB 2024
+#
+# RAW: Learn 3 maneuvers (2 more at L7, L10, L15; can swap one on each
+# gain). Fueled by Superiority Dice: 4d8 at L3, 5 dice at L7, 6 at L15
+# (die size upgrades via Improved/Ultimate Combat Superiority). All dice
+# regained on Short or Long Rest. One maneuver per attack. Maneuver save
+# DC = 8 + STR or DEX mod (your choice) + PB.
+#
+# Maneuver list (PHB 2024) — combat-relevant modeling notes:
+#   ON-HIT RIDERS (add die to damage + save-gated effect):
+#     - Disarming Attack  : STR save or drop held object
+#     - Distracting Strike: next attack vs target by OTHER attacker has adv
+#     - Goading Attack    : WIS save or disadv on attacks vs others (1 turn)
+#     - Menacing Attack   : WIS save or Frightened until end of next turn
+#     - Pushing Attack    : STR save or pushed 15 ft (Large or smaller)
+#     - Trip Attack       : STR save or Prone (Large or smaller)
+#     - Sweeping Attack   : die damage to second adjacent target if roll hits
+#   ATTACK-ROLL MODIFIERS:
+#     - Precision Attack  : on miss, add die to attack roll (may convert)
+#     - Feinting Attack   : BA, adv on next attack vs adjacent target + die dmg
+#   REACTIONS:
+#     - Parry             : reduce melee damage by die + STR/DEX mod
+#     - Riposte           : enemy melee miss → make melee attack + die dmg
+#   SUPPORT / ECONOMY:
+#     - Commander's Strike: replace attack → ally Reaction attack + die dmg
+#     - Maneuvering Attack: on hit + die dmg, ally Reaction half-move no OA
+#     - Rally             : BA, ally gains THP = die + half Fighter level
+#     - Bait and Switch   : swap places w/ ally, die roll = AC bonus
+#     - Evasive Footwork  : BA Disengage + die roll added to AC (1 turn)
+#     - Lunging Attack    : BA Dash + die dmg on straight-line melee hit
+#   NON-COMBAT (stub-only):
+#     - Ambush (stealth/initiative), Commanding Presence (CHA checks),
+#       Tactical Assessment (INT/WIS checks)
+#
+# Engine modeling (deferred — needs work):
+#   - superiority_dice resource pool (regain on short/long rest)
+#   - on-hit rider hook: add die to damage + _forced_save → _apply_condition
+#     (Trip/Menace/Goad map to existing prone/frightened conditions)
+#   - Precision Attack rides the attack_roll_pending window (Shield-style)
+#   - Parry/Riposte ride damage_taken / attack_missed reaction triggers
+#     (Riposte mirrors f_retaliation's melee_retaliation primitive)
+#   - Martial save DC = 8 + STR/DEX + PB (same pattern as
+#     f_intimidating_presence)
+#   - v1 maneuver loadout suggestion: Precision, Riposte, Trip (highest
+#     sim impact, all map to existing primitives)
+
+id: f_combat_superiority
+name: Combat Superiority
+source: phb_2024
+granted_by:
+  subclass: sc_battle_master
+  level: 3
+type: active
+is_signature: true
+
+resource_cost:
+  type: feature_use
+
+usage:
+  uses_per: per_rest          # dice pool: 4 @ L3, 5 @ L7, 6 @ L15
+  scaling_source: "sc_battle_master.superiority_dice"
+
+effect_primitives: []

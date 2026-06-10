@@ -1,0 +1,44 @@
+# f_psionic_power — Psionic Power (Psi Warrior L3)
+# Source: PHB 2024
+#
+# RAW: Psionic Energy Dice pool — regain one on Short Rest, all on
+# Long Rest. Scaling by Fighter level:
+#   L3: 4d6   L5: 6d8   L9: 8d8   L11: 8d10   L13: 10d10   L17: 12d12
+#
+# Three powers spend from the pool:
+#   Protective Field (Reaction): when you or a creature within 30 ft
+#     takes damage, expend a die — reduce damage by roll + INT mod
+#     (min 1).
+#   Psionic Strike (rider, 1/turn): after hitting a target within 30 ft
+#     with a weapon and dealing damage, expend a die — bonus Force
+#     damage = roll + INT mod.
+#   Telekinetic Movement (Magic action): move a willing creature or
+#     Large- loose object 30 ft. 1/rest free, restore with a die.
+#
+# Engine modeling (deferred — needs psionic_energy_dice resource):
+#   - Protective Field rides the damage_taken reaction window
+#     (cutting-words-style damage reduction; ally-protect makes this
+#     the tank play)
+#   - Psionic Strike mirrors f_frenzy's once-per-turn damage rider
+#     pattern (engine/core/frenzy.py) with a resource gate
+#   - Telekinetic Movement = forced/assisted reposition, ally-only
+#   - AI spend policy needed: strike (dpr) vs field (ehp denial) — good
+#     Shapley attribution test case once wired
+
+id: f_psionic_power
+name: Psionic Power
+source: phb_2024
+granted_by:
+  subclass: sc_psi_warrior
+  level: 3
+type: compound
+is_signature: true
+
+resource_cost:
+  type: feature_use
+
+usage:
+  uses_per: per_rest
+  scaling_source: "sc_psi_warrior.psionic_energy_dice"
+
+effect_primitives: []

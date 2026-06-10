@@ -1,0 +1,23 @@
+# f_relentless — Relentless (Battle Master L15)
+# Source: PHB 2024
+#
+# RAW: Once per turn, when you use a maneuver, you can roll 1d8 and use
+# the number rolled instead of expending a Superiority Die.
+#
+# Engine modeling (deferred): once-per-turn free maneuver fuel (a d8
+# regardless of upgraded die size). Effectively raises sustained
+# maneuver throughput; wire as a free-die check in the superiority
+# spend path.
+
+id: f_relentless
+name: Relentless
+source: phb_2024
+granted_by:
+  subclass: sc_battle_master
+  level: 15
+type: passive
+
+usage:
+  uses_per: per_turn
+
+effect_primitives: []

@@ -1,0 +1,31 @@
+# sc_psi_warrior — Psi Warrior (Fighter subclass)
+# Source: PHB 2024
+#
+# The psionic Fighter. Everything runs off one resource: Psionic Energy
+# Dice (4d6 at L3, scaling to 12d12 at L17; one die back per Short
+# Rest, all on Long Rest). Three-way spend tension: Psionic Strike
+# (damage rider), Protective Field (reaction damage reduction on self
+# OR ally — a tank tool), Telekinetic Movement/Thrust (forced movement
+# control). INT is the secondary stat for all rider math.
+
+id: sc_psi_warrior
+name: Psi Warrior
+source: phb_2024
+parent_class: c_fighter
+
+archetype_tags:
+  behavior_archetype: primal_guardian
+  role: tank                      # INTERNAL-EVAL-ONLY per vocabulary firewall
+  flavor_tags: [psionic, telekinetic, protective, disciplined]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_psionic_power]
+  - level: 7
+    feature_ids: [f_telekinetic_adept]
+  - level: 10
+    feature_ids: [f_guarded_mind]
+  - level: 15
+    feature_ids: [f_bulwark_of_force]
+  - level: 18
+    feature_ids: [f_telekinetic_master]

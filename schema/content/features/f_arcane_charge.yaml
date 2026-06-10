@@ -1,0 +1,24 @@
+# f_arcane_charge — Arcane Charge (Eldritch Knight L15)
+# Source: PHB 2024
+#
+# RAW: When you use your Action Surge, you can teleport up to 30 feet
+# to an unoccupied space you can see. You can teleport before or after
+# the additional action.
+#
+# Engine modeling (deferred): teleport rider on Action Surge. Movement
+# layer supports repositioning; wire as a free 30-ft teleport (ignores
+# OAs and difficult terrain) when Action Surge fires.
+
+id: f_arcane_charge
+name: Arcane Charge
+source: phb_2024
+granted_by:
+  subclass: sc_eldritch_knight
+  level: 15
+type: triggered
+
+trigger:
+  event: action_surge_used
+  chosen_by: actor
+
+effect_primitives: []

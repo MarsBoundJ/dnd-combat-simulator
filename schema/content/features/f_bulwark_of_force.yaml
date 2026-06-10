@@ -1,0 +1,28 @@
+# f_bulwark_of_force — Bulwark of Force (Psi Warrior L15)
+# Source: PHB 2024
+#
+# RAW: Bonus Action — choose up to INT mod creatures (min 1, can
+# include self) within 30 ft. Each has Half Cover for 1 minute or until
+# you're Incapacitated. 1/Long Rest, restore with a Psionic Energy Die
+# (no action).
+#
+# Engine modeling (deferred — needs cover system): party-wide +2 AC
+# (Half Cover) for 1 minute. Cover is on the roadmap; once it exists
+# this is a BA party buff with strong defensive eHP. Until then, could
+# be approximated as a flat AC bonus effect.
+
+id: f_bulwark_of_force
+name: Bulwark of Force
+source: phb_2024
+granted_by:
+  subclass: sc_psi_warrior
+  level: 15
+type: active
+
+resource_cost:
+  type: feature_use
+
+usage:
+  uses_per: per_long_rest
+
+effect_primitives: []

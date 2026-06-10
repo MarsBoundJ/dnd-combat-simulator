@@ -1,0 +1,18 @@
+# f_student_of_war — Student of War (Battle Master L3)
+# Source: PHB 2024
+#
+# RAW: Gain proficiency with one type of Artisan's Tools of your choice,
+# and proficiency in one skill from the Fighter level-1 skill list.
+#
+# Engine modeling: non-combat (tool + skill proficiency). Stub — no
+# combat effect to wire.
+
+id: f_student_of_war
+name: Student of War
+source: phb_2024
+granted_by:
+  subclass: sc_battle_master
+  level: 3
+type: passive
+
+effect_primitives: []

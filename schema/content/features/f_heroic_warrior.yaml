@@ -1,0 +1,25 @@
+# f_heroic_warrior — Heroic Warrior (Champion L10)
+# Source: PHB 2024
+#
+# RAW: During combat, you can give yourself Heroic Inspiration whenever
+# you start your turn without it.
+#
+# Engine modeling (deferred — needs Heroic Inspiration mechanic):
+# effectively a once-per-turn reroll bank (Heroic Inspiration lets you
+# reroll a d20 test). Wire as a turn_start refresh of a heroic_
+# inspiration flag + an AI reroll policy (spend on missed attacks /
+# failed saves). Pairs with Champion's expanded crit range — rerolls
+# are extra crit-fishing dice.
+
+id: f_heroic_warrior
+name: Heroic Warrior
+source: phb_2024
+granted_by:
+  subclass: sc_champion
+  level: 10
+type: passive
+
+usage:
+  uses_per: per_turn
+
+effect_primitives: []

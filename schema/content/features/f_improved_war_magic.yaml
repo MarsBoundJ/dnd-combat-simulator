@@ -1,0 +1,22 @@
+# f_improved_war_magic — Improved War Magic (Eldritch Knight L18)
+# Source: PHB 2024
+#
+# RAW: When you take the Attack action on your turn, you can replace
+# two of the attacks with a casting of one of your level 1 or level 2
+# Wizard spells that has a casting time of an action.
+#
+# Engine modeling (deferred — BLOCKED on spell library): upgraded
+# War Magic — two attacks of the (now three-attack) Attack action can
+# become a leveled spell. Wire as an attack-substitution option once
+# leveled spells exist; with Two Extra Attacks this is
+# spell + weapon attack in one action.
+
+id: f_improved_war_magic
+name: Improved War Magic
+source: phb_2024
+granted_by:
+  subclass: sc_eldritch_knight
+  level: 18
+type: passive
+
+effect_primitives: []

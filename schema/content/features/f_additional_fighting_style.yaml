@@ -1,0 +1,18 @@
+# f_additional_fighting_style — Additional Fighting Style (Champion L7)
+# Source: PHB 2024
+#
+# RAW: You gain another Fighting Style feat of your choice.
+#
+# Engine modeling (deferred): second Fighting Style pick at build time.
+# pc_schema consumes fighting style choices; needs support for two
+# concurrent styles (e.g., Defense + Great Weapon Fighting).
+
+id: f_additional_fighting_style
+name: Additional Fighting Style
+source: phb_2024
+granted_by:
+  subclass: sc_champion
+  level: 7
+type: passive
+
+effect_primitives: []

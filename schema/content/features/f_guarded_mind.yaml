@@ -1,0 +1,22 @@
+# f_guarded_mind — Guarded Mind (Psi Warrior L10)
+# Source: PHB 2024
+#
+# RAW: Resistance to Psychic damage. If you start your turn Charmed or
+# Frightened, you can expend a Psionic Energy Die (no action) to end
+# every effect giving you those conditions.
+#
+# Engine modeling (deferred):
+#   - Psychic resistance: pc_schema build-time stamp into
+#     template.damage_resistances, keyed on f_guarded_mind in
+#     features_known — same pattern as f_elemental_affinity.
+#   - The condition-purge needs the psionic_energy_dice resource +
+#     turn_start hook; mirrors f_mindless_rage's charm/fright handling
+#     but as a paid cleanse instead of immunity.
+
+id: f_guarded_mind
+name: Guarded Mind
+source: phb_2024
+granted_by:
+  subclass: sc_psi_warrior
+  level: 10
+type: passive

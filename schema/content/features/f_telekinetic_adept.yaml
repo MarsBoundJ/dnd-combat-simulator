@@ -1,0 +1,26 @@
+# f_telekinetic_adept — Telekinetic Adept (Psi Warrior L7)
+# Source: PHB 2024
+#
+# RAW, two parts:
+#   Psi-Powered Leap (Bonus Action): Fly Speed = 2x Speed until end of
+#     turn. 1/rest free, restore with a Psionic Energy Die.
+#   Telekinetic Thrust: when you deal Psionic Strike damage, force a
+#     STR save (DC 8 + INT mod + PB); on fail, target is knocked Prone
+#     OR moved 10 ft horizontally (your choice).
+#
+# Engine modeling (deferred):
+#   - Telekinetic Thrust is the high-value part: save-gated prone /
+#     forced move riding the Psionic Strike rider. Maps to existing
+#     _forced_save → _apply_condition(prone) + forced-move primitives.
+#   - Psi-Powered Leap needs flight modeling (deferred like Dragon
+#     Wings).
+
+id: f_telekinetic_adept
+name: Telekinetic Adept
+source: phb_2024
+granted_by:
+  subclass: sc_psi_warrior
+  level: 7
+type: compound
+
+effect_primitives: []

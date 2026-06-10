@@ -1,0 +1,17 @@
+# f_improved_combat_superiority — Improved Combat Superiority (Battle Master L10)
+# Source: PHB 2024
+#
+# RAW: Your Superiority Die becomes a d10.
+#
+# Engine modeling (deferred): die-size upgrade on the superiority_dice
+# resource (d8 → d10). Wire alongside f_combat_superiority's dice pool.
+
+id: f_improved_combat_superiority
+name: Improved Combat Superiority
+source: phb_2024
+granted_by:
+  subclass: sc_battle_master
+  level: 10
+type: passive
+
+effect_primitives: []

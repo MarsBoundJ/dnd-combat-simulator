@@ -1,0 +1,28 @@
+# f_know_your_enemy — Know Your Enemy (Battle Master L7)
+# Source: PHB 2024
+#
+# RAW: As a Bonus Action, discern the Immunities, Resistances, and
+# Vulnerabilities of a creature you can see within 30 ft. 1/Long Rest;
+# restore a use by expending one Superiority Die (no action).
+#
+# Engine modeling (deferred): information-revelation. In a sim with
+# perfect information the AI already "knows" resistances, so the combat
+# value is realized implicitly. Could be modeled as flipping a
+# damage-type-knowledge flag if hidden-information targeting is ever
+# added. Stub.
+
+id: f_know_your_enemy
+name: Know Your Enemy
+source: phb_2024
+granted_by:
+  subclass: sc_battle_master
+  level: 7
+type: active
+
+resource_cost:
+  type: feature_use
+
+usage:
+  uses_per: per_long_rest
+
+effect_primitives: []

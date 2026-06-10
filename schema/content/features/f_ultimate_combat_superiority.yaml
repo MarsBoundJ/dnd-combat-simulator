@@ -1,0 +1,17 @@
+# f_ultimate_combat_superiority — Ultimate Combat Superiority (Battle Master L18)
+# Source: PHB 2024
+#
+# RAW: Your Superiority Die becomes a d12.
+#
+# Engine modeling (deferred): die-size upgrade on the superiority_dice
+# resource (d10 → d12). Wire alongside f_combat_superiority's dice pool.
+
+id: f_ultimate_combat_superiority
+name: Ultimate Combat Superiority
+source: phb_2024
+granted_by:
+  subclass: sc_battle_master
+  level: 18
+type: passive
+
+effect_primitives: []

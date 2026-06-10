@@ -1,0 +1,39 @@
+# f_eldritch_knight_spellcasting — Spellcasting (Eldritch Knight L3)
+# Source: PHB 2024
+#
+# RAW: Third-caster from the Wizard spell list, INT-based.
+#   Cantrips: 2 at L3 (+1 at Fighter L10); swap one per Fighter level.
+#   Prepared spells: 3 at L3 → 13 at L20 (table below); swap one per
+#   Fighter level. Spellcasting Focus: Arcane Focus.
+#
+# Spell slots by Fighter level (third-caster):
+#   FL  prep  L1 L2 L3 L4
+#    3    3    2  -  -  -
+#    4    4    3  -  -  -
+#    5-6  4    3  -  -  -
+#    7    5    4  2  -  -
+#    8-9  6    4  2  -  -
+#   10    7    4  3  -  -
+#   11-12 8    4  3  -  -
+#   13    9    4  3  2  -
+#   14-15 10   4  3  2  -
+#   16-18 11   4  3  3  -
+#   19   12    4  3  3  1
+#   20   13    4  3  3  1
+#
+# Engine modeling (deferred — BLOCKED on spell library): grants
+# spell_slots + prepared wizard spells at build time in pc_schema, same
+# pattern as full casters but with the third-caster slot table above.
+# Typical loadout: Shield, Absorb Elements, Magic Missile (L1);
+# Misty Step, Shadow Blade (L2).
+
+id: f_eldritch_knight_spellcasting
+name: Spellcasting
+source: phb_2024
+granted_by:
+  subclass: sc_eldritch_knight
+  level: 3
+type: passive
+is_signature: true
+
+effect_primitives: []

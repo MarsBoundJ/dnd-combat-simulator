@@ -1,0 +1,22 @@
+# f_war_bond — War Bond (Eldritch Knight L3)
+# Source: PHB 2024
+#
+# RAW: 1-hour ritual bonds a weapon (up to two bonded weapons). Can't
+# be disarmed of a bonded weapon unless Incapacitated; summon one to
+# hand as a Bonus Action (teleports from same plane).
+#
+# Engine modeling: mostly out-of-combat. Combat-relevant edges:
+#   - disarm immunity (matters once Disarming Attack / disarm effects
+#     are modeled)
+#   - BA weapon summon (matters only if weapon-drop scenarios exist)
+# Stub until disarm mechanics exist.
+
+id: f_war_bond
+name: War Bond
+source: phb_2024
+granted_by:
+  subclass: sc_eldritch_knight
+  level: 3
+type: passive
+
+effect_primitives: []

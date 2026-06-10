@@ -1,0 +1,28 @@
+# f_superior_critical — Superior Critical (Champion L15)
+# Source: PHB 2024
+#
+# RAW: Your attack rolls with weapons and Unarmed Strikes can score a
+# Critical Hit on a roll of 18-20 on the d20.
+#
+# Engine modeling: same crit_threshold_modifier primitive as
+# f_improved_critical (L3), threshold lowered to 18. Supersedes the
+# L3 threshold.
+
+id: f_superior_critical
+name: Superior Critical
+source: phb_2024
+granted_by:
+  subclass: sc_champion
+  level: 15
+type: passive
+
+effect_primitives:
+  - primitive: crit_threshold_modifier
+    params:
+      new_threshold: 18           # crit on 18-20
+
+contract:
+  reads: [combat.attack_roll]
+  writes: [combat.crit_threshold]
+  event: attack_roll_resolved
+  scope: passive

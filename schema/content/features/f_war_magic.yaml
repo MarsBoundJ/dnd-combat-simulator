@@ -1,0 +1,24 @@
+# f_war_magic — War Magic (Eldritch Knight L7)
+# Source: PHB 2024
+#
+# RAW: When you take the Attack action on your turn, you can replace
+# one of the attacks with a casting of one of your Wizard cantrips that
+# has a casting time of an action.
+#
+# Engine modeling (deferred — BLOCKED on spell library): action-economy
+# substitution. With Extra Attack (L5) this is attack + cantrip per
+# Attack action. Wire as an attack-substitution option in the Attack
+# action pipeline once cantrips exist; AI should pick cantrip when its
+# expected damage beats one weapon swing (rarely true for EK until
+# higher cantrip tiers, but matters for Booming Blade-style riders if
+# added).
+
+id: f_war_magic
+name: War Magic
+source: phb_2024
+granted_by:
+  subclass: sc_eldritch_knight
+  level: 7
+type: passive
+
+effect_primitives: []

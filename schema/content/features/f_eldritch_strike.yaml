@@ -1,0 +1,26 @@
+# f_eldritch_strike — Eldritch Strike (Eldritch Knight L10)
+# Source: PHB 2024
+#
+# RAW: When you hit a creature with an attack using a weapon, that
+# creature has Disadvantage on the next saving throw it makes against a
+# spell you cast before the end of your next turn.
+#
+# Engine modeling (deferred — needs spell library): on-weapon-hit rider
+# that applies a save_disadvantage modifier scoped to (this caster's
+# spells, next save, until end of caster's next turn). The modifier
+# side already exists — query_save_modifiers handles save_disadvantage
+# kinds and the save-DC Shapley attribution credits the debuffer — so
+# the wiring is an _apply_condition-style tag on weapon hit plus a
+# consume-on-first-save check. High sim value: this is the EK's setup
+# combo (hit, then land your own save spell).
+
+id: f_eldritch_strike
+name: Eldritch Strike
+source: phb_2024
+granted_by:
+  subclass: sc_eldritch_knight
+  level: 10
+type: passive
+is_signature: true
+
+effect_primitives: []

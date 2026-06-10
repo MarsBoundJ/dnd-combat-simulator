@@ -1,0 +1,35 @@
+# sc_eldritch_knight — Eldritch Knight (Fighter subclass)
+# Source: PHB 2024
+#
+# The Fighter gish: third-caster (Wizard list, INT) layered on full
+# martial chassis. Key combat loop: weapon attacks + defensive spells
+# (Shield, Absorb Elements) early; War Magic (L7) blends cantrips into
+# the Attack action; Eldritch Strike (L10) makes weapon hits impose
+# save disadvantage to land own spells.
+#
+# DEPENDS ON: Wizard spell list (third-caster slots L1-L4 per the
+# Eldritch Knight Spellcasting table — see f_eldritch_knight_spellcasting
+# for the full table). Spellcasting can't be wired until the spell
+# library exists.
+
+id: sc_eldritch_knight
+name: Eldritch Knight
+source: phb_2024
+parent_class: c_fighter
+
+archetype_tags:
+  behavior_archetype: cautious_defender
+  role: martial_striker           # INTERNAL-EVAL-ONLY per vocabulary firewall
+  flavor_tags: [arcane, armored, resilient, versatile]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_eldritch_knight_spellcasting, f_war_bond]
+  - level: 7
+    feature_ids: [f_war_magic]
+  - level: 10
+    feature_ids: [f_eldritch_strike]
+  - level: 15
+    feature_ids: [f_arcane_charge]
+  - level: 18
+    feature_ids: [f_improved_war_magic]
