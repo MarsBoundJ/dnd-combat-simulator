@@ -1,0 +1,25 @@
+# f_eldritch_hex — Eldritch Hex (Great Old One Patron L10)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: You always have Hex prepared. When you cast Hex and choose
+# an ability, the target also has Disadvantage on saving throws of the
+# chosen ability for the spell's duration.
+#
+# Engine modeling (HIGH wireability once Hex exists): enhanced Hex that
+# adds save-disadvantage to the ability-check-disadvantage. Choose WIS
+# to make the target fail WIS saves (synergizes with Phantasmal Force,
+# Tasha's Hideous Laughter, Confusion, etc.). Choose STR to enable
+# grapple/shove combos. The save-disadvantage is a significant debuff
+# multiplier for the party. Hex is also the carrier for Create Thrall
+# synergy at L14.
+# BLOCKED ON: spell library (Hex spell)
+
+id: f_eldritch_hex
+name: Eldritch Hex
+source: phb_2024
+granted_by:
+  subclass: sc_great_old_one_patron
+  level: 10
+type: passive
+
+effect_primitives: []

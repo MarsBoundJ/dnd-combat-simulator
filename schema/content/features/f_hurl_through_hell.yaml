@@ -1,0 +1,34 @@
+# f_hurl_through_hell — Hurl Through Hell (Fiend Patron L14)
+# Source: SRD CC v5.2.1 (PHB 2024)
+#
+# Mechanics: Once per turn when you hit with an attack roll, the target
+# makes a CHA save vs your spell save DC. On a fail: target disappears,
+# takes 8d10 Psychic damage (non-Fiends only), and has the Incapacitated
+# condition until the end of your next turn, then returns. On a success:
+# nothing extra.
+# 1/Long Rest free, then costs a Pact Magic spell slot (no action) to
+# restore.
+#
+# Engine modeling (HIGH wireability): on-hit forced CHA save → massive
+# damage + hard CC. 8d10 Psychic = 44 avg (non-Fiends). Incapacitated
+# until end of YOUR next turn ≈ target misses its entire turn. The
+# target literally disappears — can't be targeted, can't be healed,
+# can't take actions. Pattern: attack_hit → _forced_save(CHA) →
+# _damage(8d10 psychic) + _apply_condition(incapacitated, until: end_of_
+# your_next_turn) + _banish(temporary). Recharge via Pact Magic slot is
+# expensive but the effect is devastating.
+
+id: f_hurl_through_hell
+name: Hurl Through Hell
+source: srd_5.2.1
+granted_by:
+  subclass: sc_fiend_patron
+  level: 14
+type: triggered
+is_signature: true
+
+trigger:
+  event: attack_hit
+  chosen_by: actor
+
+effect_primitives: []

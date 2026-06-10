@@ -1,0 +1,37 @@
+# sc_fiend_patron — Fiend Patron (Warlock subclass)
+# Source: SRD CC v5.2.1 (PHB 2024)
+#
+# The SRD Warlock subclass — aggro-sustain pact with Lower Planes.
+# Dark One's Blessing (L3, THP on kill = CHA + Warlock level),
+# Fiend Spells (L3, fire-heavy always-prepared list), Dark One's Own
+# Luck (L6, post-roll +1d10 to check/save, CHA-mod uses/LR),
+# Fiendish Resilience (L10, choose damage resistance on Short/Long
+# Rest), Hurl Through Hell (L14, on hit: CHA save or 8d10 Psychic +
+# Incapacitated until end of your next turn).
+#
+# Sim-relevant highlights: Dark One's Blessing is HIGH wireability —
+# THP on kill triggers sustain that scales with level, fueling
+# aggressive play. Hurl Through Hell is a massive single-target nova
+# + hard CC (Incapacitated removes the target for a full round).
+# Fiendish Resilience is a versatile defensive tool the AI can adapt
+# per encounter.
+
+id: sc_fiend_patron
+name: Fiend Patron
+source: srd_5.2.1
+parent_class: c_warlock
+
+archetype_tags:
+  behavior_archetype: apex_predator
+  role: striker
+  flavor_tags: [fiendish, fire, aggressive, resilient]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_dark_ones_blessing, f_fiend_spells]
+  - level: 6
+    feature_ids: [f_dark_ones_own_luck]
+  - level: 10
+    feature_ids: [f_fiendish_resilience]
+  - level: 14
+    feature_ids: [f_hurl_through_hell]

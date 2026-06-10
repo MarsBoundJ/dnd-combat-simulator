@@ -1,0 +1,26 @@
+# f_dark_ones_own_luck — Dark One's Own Luck (Fiend Patron L6)
+# Source: SRD CC v5.2.1 (PHB 2024)
+#
+# Mechanics: When you make an ability check or saving throw, add 1d10
+# to the roll. Usable after seeing the roll but before effects resolve.
+# Max once per roll, CHA modifier uses per Long Rest (min 1).
+#
+# Engine modeling (HIGH wireability): post-roll d10 boost on ability
+# checks and saves — same conditional-use pattern as Bend Luck but
+# self-only and d10 vs d4. At +5 CHA that's 5 uses/LR. The AI should
+# use it only when the +d10 has meaningful flip probability (roll
+# within 10 of the DC). Rides the d20_rolled event with known margin.
+
+id: f_dark_ones_own_luck
+name: "Dark One's Own Luck"
+source: srd_5.2.1
+granted_by:
+  subclass: sc_fiend_patron
+  level: 6
+type: triggered
+
+trigger:
+  event: ability_check_or_save_rolled
+  chosen_by: actor
+
+effect_primitives: []

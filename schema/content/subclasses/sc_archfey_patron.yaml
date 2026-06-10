@@ -1,0 +1,37 @@
+# sc_archfey_patron — Archfey Patron (Warlock subclass)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Fey-pact Warlock built around Misty Step as a core combat verb.
+# Steps of the Fey (L3, free Misty Steps = CHA mod/LR + choice of
+# Refreshing 1d10 THP or Taunting WIS-save taunt), Misty Escape (L6,
+# Misty Step as reaction to taking damage + two new step modes),
+# Beguiling Defenses (L10, Charmed immunity + damage-halving reaction
+# with Psychic reflect), Bewitching Magic (L14, free Misty Step after
+# Enchantment/Illusion spell cast).
+#
+# Sim-relevant highlights: the Misty Step economy is the subclass
+# identity — CHA-mod free castings/LR, reaction casting on damage,
+# and free casts after Enchantment/Illusion. Each step has a rider
+# effect (THP, taunt, invisibility, or AoE psychic damage). Steps of
+# the Fey is HIGH wireability.
+# BLOCKED ON: spell library (Misty Step, archfey spell list)
+
+id: sc_archfey_patron
+name: Archfey Patron
+source: phb_2024
+parent_class: c_warlock
+
+archetype_tags:
+  behavior_archetype: opportunistic_skirmisher
+  role: skirmisher
+  flavor_tags: [fey, teleporting, trickster, enchanting]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_archfey_spells, f_steps_of_the_fey]
+  - level: 6
+    feature_ids: [f_misty_escape]
+  - level: 10
+    feature_ids: [f_beguiling_defenses]
+  - level: 14
+    feature_ids: [f_bewitching_magic]

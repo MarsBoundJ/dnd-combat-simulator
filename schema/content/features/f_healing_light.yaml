@@ -1,0 +1,27 @@
+# f_healing_light — Healing Light (Celestial Patron L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Pool of d6s equal to 1 + Warlock level. As a Bonus
+# Action, heal yourself or a creature within 60 ft — expend up to
+# CHA modifier dice (min 1) from the pool, roll them, restore that
+# many HP. Pool resets on Long Rest.
+#
+# Engine modeling (HIGH wireability): BA ranged heal with a scaling
+# dice pool (at L10 with +5 CHA: 11 d6s in pool, 5d6 max per use ≈
+# 17.5 HP per BA, at least 2 full heals per LR). Unique among
+# Warlock features — no spell slot cost, no concentration. The AI
+# decision: when to heal vs use BA for other things (Eldritch Blast
+# uses action, so BA is often free). Rides the bonus_action economy.
+#
+# Pool resource: healing_light_dice (max = 1 + warlock_level)
+
+id: f_healing_light
+name: Healing Light
+source: phb_2024
+granted_by:
+  subclass: sc_celestial_patron
+  level: 3
+type: active
+is_signature: true
+
+effect_primitives: []

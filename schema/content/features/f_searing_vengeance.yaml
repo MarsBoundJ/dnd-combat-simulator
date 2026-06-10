@@ -1,0 +1,30 @@
+# f_searing_vengeance — Searing Vengeance (Celestial Patron L14)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: When you or an ally within 60 ft is about to make a Death
+# Saving Throw, you can intervene: the creature regains HP = half its
+# HP maximum, can end the Prone condition on itself, and each creature
+# of your choice within 30 ft of them takes 2d8 + CHA modifier Radiant
+# damage and is Blinded until end of current turn. 1/Long Rest.
+#
+# Engine modeling (HIGH wireability): reaction-on-death-save → mass
+# revive + AoE damage + AoE blind. The revive to half-HP is enormous
+# swing (turns a downed ally into a functional combatant). The AoE
+# Radiant + Blinded punishes melee enemies clustering the downed
+# target. Rides the death_save_pending event. Unique in that it works
+# on allies within 60 ft, not just self.
+
+id: f_searing_vengeance
+name: Searing Vengeance
+source: phb_2024
+granted_by:
+  subclass: sc_celestial_patron
+  level: 14
+type: triggered
+is_signature: true
+
+trigger:
+  event: death_save_pending
+  chosen_by: actor
+
+effect_primitives: []

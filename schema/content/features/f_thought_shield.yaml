@@ -1,0 +1,25 @@
+# f_thought_shield — Thought Shield (Great Old One Patron L10)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Your thoughts can't be read by telepathy or other means
+# (unless you allow it). Resistance to Psychic damage. Whenever a
+# creature deals Psychic damage to you, that creature takes the same
+# amount of damage you take.
+#
+# Engine modeling (wireable): the thought-reading immunity is non-
+# combat. The Psychic resistance is a build-time stamp. The damage
+# reflect is noteworthy: whenever you take Psychic damage, the source
+# takes the SAME amount (after your resistance, so halved). This is
+# passive, no reaction required, and stacks with the subclass's
+# Psychic Spells feature (which converts enemy Psychic back). Pattern:
+# damage_taken(type: psychic) → auto_reflect(same_amount).
+
+id: f_thought_shield
+name: Thought Shield
+source: phb_2024
+granted_by:
+  subclass: sc_great_old_one_patron
+  level: 10
+type: passive
+
+effect_primitives: []

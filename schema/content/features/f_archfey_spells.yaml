@@ -1,0 +1,26 @@
+# f_archfey_spells — Archfey Spells (Archfey Patron L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Always-prepared spells by Warlock level:
+#   L3: Calm Emotions, Faerie Fire, Misty Step, Phantasmal Force, Sleep
+#   L5: Blink, Plant Growth
+#   L7: Dominate Beast, Greater Invisibility
+#   L9: Dominate Person, Seeming
+#
+# Engine modeling (deferred — BLOCKED on spell library):
+#   NEEDED (combat): Faerie Fire (AoE advantage enabler — HIGH value),
+#   Misty Step (teleport — subclass identity), Sleep (low-level nuke),
+#   Phantasmal Force (single-target illusion damage), Blink (50%
+#   defense), Greater Invisibility (sustained advantage/disadvantage),
+#   Dominate Beast/Person (action denial + ally conversion)
+#   NON-COMBAT (stub-tier): Calm Emotions, Plant Growth, Seeming
+
+id: f_archfey_spells
+name: Archfey Spells
+source: phb_2024
+granted_by:
+  subclass: sc_archfey_patron
+  level: 3
+type: passive
+
+effect_primitives: []

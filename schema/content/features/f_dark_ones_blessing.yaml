@@ -1,0 +1,25 @@
+# f_dark_ones_blessing — Dark One's Blessing (Fiend Patron L3)
+# Source: SRD CC v5.2.1 (PHB 2024)
+#
+# Mechanics: When you reduce an enemy to 0 HP, gain THP equal to CHA
+# modifier + Warlock level (min 1). Also triggers when someone else
+# reduces an enemy within 10 ft of you to 0 HP.
+#
+# Engine modeling (HIGH wireability): on-kill THP trigger. Rides the
+# creature_reduced_to_zero event (either by self or by ally within
+# 10 ft). THP = charisma_modifier + class_level. At L10 with +5 CHA
+# that's 15 THP per kill — significant sustain in multi-target fights.
+# Scales linearly with level; combat AI should prioritize finishing
+# low-HP targets to proc the THP. The "ally kills nearby" clause
+# means melee-buddy positioning matters.
+
+id: f_dark_ones_blessing
+name: "Dark One's Blessing"
+source: srd_5.2.1
+granted_by:
+  subclass: sc_fiend_patron
+  level: 3
+type: passive
+is_signature: true
+
+effect_primitives: []

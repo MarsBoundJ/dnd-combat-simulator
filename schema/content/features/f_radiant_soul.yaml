@@ -1,0 +1,26 @@
+# f_radiant_soul — Radiant Soul (Celestial Patron L6)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Resistance to Radiant damage. Once per turn, when a spell
+# you cast deals Radiant or Fire damage, add your CHA modifier to that
+# spell's damage against one target.
+#
+# Engine modeling (wireable): the resistance is a build-time stamp.
+# The +CHA to one Radiant/Fire damage target per turn follows the same
+# pattern as Elemental Affinity (Draconic Sorcerer) — a flat modifier
+# on one spell_damage_roll per turn filtered by damage type. With +5
+# CHA this is a consistent +5 DPR on spells like Sacred Flame, Guiding
+# Bolt, or Wall of Fire. Stacks with Agonizing Blast if Eldritch Blast
+# deals Radiant (via Psychic Spells-like type change — not available
+# here, but relevant for evaluating Transmuted Spell Metamagic via
+# multiclass).
+
+id: f_radiant_soul
+name: Radiant Soul
+source: phb_2024
+granted_by:
+  subclass: sc_celestial_patron
+  level: 6
+type: passive
+
+effect_primitives: []

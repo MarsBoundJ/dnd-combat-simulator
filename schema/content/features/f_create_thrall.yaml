@@ -1,0 +1,31 @@
+# f_create_thrall — Create Thrall (Great Old One Patron L14)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: When you cast Summon Aberration, you can modify it so it
+# doesn't require Concentration. If so, duration becomes 1 minute for
+# that casting. The summoned Aberration gains THP = Warlock level +
+# CHA modifier.
+#
+# In addition, the first time each turn the Aberration hits a creature
+# under your Hex, it deals extra Psychic damage = Hex's bonus damage.
+#
+# Engine modeling (MEDIUM wireability once spells exist): the no-
+# Concentration Summon Aberration is the same pattern as Dragon
+# Companion (Draconic Sorcerer L18) but at L14 — a persistent combat
+# pet that doesn't compete with concentration spells. The Hex synergy
+# adds bonus Psychic damage per hit on Hexed targets, which the AI
+# should exploit by focusing Hex targets. THP buffer makes the summon
+# more durable.
+# BLOCKED ON: spell library (Summon Aberration, Hex), companion/summon
+# actor system
+
+id: f_create_thrall
+name: Create Thrall
+source: phb_2024
+granted_by:
+  subclass: sc_great_old_one_patron
+  level: 14
+type: passive
+is_signature: true
+
+effect_primitives: []

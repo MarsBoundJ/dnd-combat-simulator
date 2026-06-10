@@ -1,0 +1,27 @@
+# f_great_old_one_spells — Great Old One Spells (Great Old One L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Always-prepared spells by Warlock level:
+#   L3: Detect Thoughts, Dissonant Whispers, Phantasmal Force,
+#       Tasha's Hideous Laughter
+#   L5: Clairvoyance, Hunger of Hadar
+#   L7: Confusion, Summon Aberration
+#   L9: Modify Memory, Telekinesis
+#
+# Engine modeling (deferred — BLOCKED on spell library):
+#   NEEDED (combat): Dissonant Whispers (forced movement + OA bait),
+#   Tasha's Hideous Laughter (single-target hard CC), Phantasmal Force
+#   (illusory damage), Hunger of Hadar (zone denial + damage), Confusion
+#   (AoE CC), Summon Aberration (summon system — also keys Create Thrall
+#   at L14), Telekinesis (forced movement + restraint)
+#   NON-COMBAT (stub-tier): Detect Thoughts, Clairvoyance, Modify Memory
+
+id: f_great_old_one_spells
+name: Great Old One Spells
+source: phb_2024
+granted_by:
+  subclass: sc_great_old_one_patron
+  level: 3
+type: passive
+
+effect_primitives: []

@@ -1,0 +1,30 @@
+# f_beguiling_defenses — Beguiling Defenses (Archfey Patron L10)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Two parts:
+#   - Passive: immune to the Charmed condition.
+#   - Reaction: immediately after a visible creature hits you with an
+#     attack roll, reduce the damage by half (round down) and force
+#     the attacker to make a WIS save vs spell DC. On failure, attacker
+#     takes Psychic damage equal to the damage YOU took (after halving).
+#     1/LR free, then costs a Pact Magic spell slot to restore.
+#
+# Engine modeling (MEDIUM wireability): the Charmed immunity is a
+# build-time stamp. The reaction is a conditional damage-halving +
+# Psychic reflect — like Uncanny Dodge but with a damage-reflect
+# kicker. The Psychic damage = halved incoming, so it's guaranteed
+# to scale with the hit. Rides the attack_hit_on_self reaction lane.
+
+id: f_beguiling_defenses
+name: Beguiling Defenses
+source: phb_2024
+granted_by:
+  subclass: sc_archfey_patron
+  level: 10
+type: triggered
+
+trigger:
+  event: attack_hit_on_self
+  chosen_by: actor
+
+effect_primitives: []

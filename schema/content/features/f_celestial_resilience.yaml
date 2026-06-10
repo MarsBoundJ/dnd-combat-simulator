@@ -1,0 +1,23 @@
+# f_celestial_resilience — Celestial Resilience (Celestial Patron L10)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Gain THP whenever you use Magical Cunning or finish a
+# Short/Long Rest. THP = Warlock level + CHA modifier. Also choose up
+# to 5 visible creatures — each gains THP = half Warlock level (round
+# down) + CHA modifier.
+#
+# Engine modeling (wireable at encounter start): party-wide THP buffer
+# applied before combat. At L10 with +5 CHA: self gets 15 THP, up to
+# 5 allies get 10 THP each = 65 total THP across the party. Resets on
+# every Short Rest. This is a significant pre-combat defensive layer.
+# Build-time stamp on pc_schema + party members.
+
+id: f_celestial_resilience
+name: Celestial Resilience
+source: phb_2024
+granted_by:
+  subclass: sc_celestial_patron
+  level: 10
+type: passive
+
+effect_primitives: []

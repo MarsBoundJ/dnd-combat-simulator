@@ -78,6 +78,15 @@ All 4 Sorcerer subclasses are complete:
 | Sorcerer | Clockwork Sorcery           |
 | Sorcerer | Wild Magic Sorcery          |
 
+All 4 Warlock subclasses are complete:
+
+| Class   | Subclass                    |
+|---------|-----------------------------|
+| Warlock | Fiend Patron                |
+| Warlock | Archfey Patron              |
+| Warlock | Celestial Patron            |
+| Warlock | Great Old One Patron        |
+
 Plus this individual subclass:
 
 | Class    | Subclass                    |

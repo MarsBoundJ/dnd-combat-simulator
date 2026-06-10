@@ -1,0 +1,38 @@
+# sc_celestial_patron — Celestial Patron (Warlock subclass)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Healer-Warlock hybrid pact with Upper Planes. Healing Light (L3,
+# BA ranged heal from a scaling d6 pool), Celestial Spells (L3,
+# includes Cure Wounds / Aid / Revivify / Summon Celestial), Radiant
+# Soul (L6, Radiant resistance + CHA mod to Radiant/Fire spell
+# damage), Celestial Resilience (L10, party-wide THP on rest),
+# Searing Vengeance (L14, rescue from death save: revive to half HP +
+# AoE 2d8+CHA Radiant + Blinded, 1/LR).
+#
+# Sim-relevant highlights: Healing Light is HIGH wireability — BA
+# ranged heal with a pool of (1 + Warlock level) d6s, max CHA-mod
+# dice per use. This is the only non-spell BA heal a Warlock gets.
+# Radiant Soul's +CHA to Radiant/Fire damage stacks with Agonizing
+# Blast (separate feature). Searing Vengeance is a dramatic combat
+# swing (ally revive + AoE + blind).
+# BLOCKED ON: spell library (celestial spell list)
+
+id: sc_celestial_patron
+name: Celestial Patron
+source: phb_2024
+parent_class: c_warlock
+
+archetype_tags:
+  behavior_archetype: cautious_defender
+  role: healer
+  flavor_tags: [celestial, radiant, healing, protective]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_celestial_spells, f_healing_light]
+  - level: 6
+    feature_ids: [f_radiant_soul]
+  - level: 10
+    feature_ids: [f_celestial_resilience]
+  - level: 14
+    feature_ids: [f_searing_vengeance]

@@ -1,0 +1,28 @@
+# f_celestial_spells — Celestial Spells (Celestial Patron L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Always-prepared spells by Warlock level:
+#   L3: Aid, Cure Wounds, Guiding Bolt, Lesser Restoration, Light,
+#       Sacred Flame
+#   L5: Daylight, Revivify
+#   L7: Guardian of Faith, Wall of Fire
+#   L9: Greater Restoration, Summon Celestial
+#
+# Engine modeling (deferred — BLOCKED on spell library):
+#   NEEDED (combat): Cure Wounds (touch heal), Guiding Bolt (ranged
+#   attack + advantage grant), Sacred Flame (DEX-save cantrip), Aid
+#   (HP-max buff), Revivify (in-combat resurrection), Guardian of
+#   Faith (zone damage), Wall of Fire (zone control + damage),
+#   Summon Celestial (summon system)
+#   NON-COMBAT (stub-tier): Light, Daylight, Lesser/Greater Restoration
+#   (situational condition removal)
+
+id: f_celestial_spells
+name: Celestial Spells
+source: phb_2024
+granted_by:
+  subclass: sc_celestial_patron
+  level: 3
+type: passive
+
+effect_primitives: []

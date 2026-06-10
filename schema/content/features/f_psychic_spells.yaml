@@ -1,0 +1,27 @@
+# f_psychic_spells — Psychic Spells (Great Old One Patron L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Two benefits:
+#   1. When you cast a Warlock spell that deals damage, you can change
+#      its damage type to Psychic.
+#   2. When you cast a Warlock Enchantment or Illusion spell, you can
+#      cast it without Verbal or Somatic components.
+#
+# Engine modeling (HIGH wireability — damage type swap): the Psychic
+# conversion is powerful because Psychic is rarely resisted by monsters
+# (far better than Fire/Lightning). Applies to Eldritch Blast via
+# Agonizing Blast, Scorching Ray, Fireball, etc. — everything becomes
+# Psychic. The component-free casting is mainly a stealth/social tool
+# but has niche combat value (casting while Silenced, for example).
+# BLOCKED ON: spell library (damage type tracking per spell)
+
+id: f_psychic_spells
+name: Psychic Spells
+source: phb_2024
+granted_by:
+  subclass: sc_great_old_one_patron
+  level: 3
+type: passive
+is_signature: true
+
+effect_primitives: []

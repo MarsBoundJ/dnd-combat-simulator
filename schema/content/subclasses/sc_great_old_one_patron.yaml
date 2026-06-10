@@ -1,0 +1,40 @@
+# sc_great_old_one_patron — Great Old One Patron (Warlock subclass)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Psionic/aberrant Warlock — mind-themed control and damage. Gets
+# THREE features at L3 (Awakened Mind, Great Old One Spells, Psychic
+# Spells) and TWO at L10 (Eldritch Hex, Thought Shield).
+#
+# Psychic Spells (L3, convert any Warlock damage spell to Psychic +
+# component-free Enchantment/Illusion), Clairvoyant Combatant (L6,
+# disadvantage on attacks against you + advantage on your attacks via
+# telepathic bond), Eldritch Hex (L10, enhanced Hex with save
+# disadvantage), Thought Shield (L10, Psychic resistance + reflect),
+# Create Thrall (L14, no-Concentration Summon Aberration + Hex synergy).
+#
+# Sim-relevant highlights: Psychic Spells is HIGH wireability — damage-
+# type swap to Psychic (rarely resisted). Clairvoyant Combatant is a
+# 1v1 advantage engine. Create Thrall gives a persistent combat pet
+# without Concentration. The Hex+Aberration synergy at L14 is a strong
+# sustained DPR combo.
+# BLOCKED ON: spell library (GOO spell list, Hex, Summon Aberration)
+
+id: sc_great_old_one_patron
+name: Great Old One Patron
+source: phb_2024
+parent_class: c_warlock
+
+archetype_tags:
+  behavior_archetype: cunning_tactician
+  role: controller
+  flavor_tags: [aberrant, psionic, psychic, eldritch]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_awakened_mind, f_great_old_one_spells, f_psychic_spells]
+  - level: 6
+    feature_ids: [f_clairvoyant_combatant]
+  - level: 10
+    feature_ids: [f_eldritch_hex, f_thought_shield]
+  - level: 14
+    feature_ids: [f_create_thrall]

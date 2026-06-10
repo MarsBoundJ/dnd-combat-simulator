@@ -1,0 +1,24 @@
+# f_awakened_mind — Awakened Mind (Great Old One Patron L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: As a Bonus Action, choose one visible creature within
+# 30 ft. Two-way telepathy while within CHA-modifier miles (min 1).
+# Lasts Warlock-level minutes; ends early if you connect to a new
+# creature.
+#
+# Engine modeling (LOW combat relevance alone): pure communication.
+# BUT it's the prerequisite for Clairvoyant Combatant (L6) — the
+# telepathic bond you create here is the one that gets the advantage/
+# disadvantage combat bonuses. The BA cost to establish the bond
+# matters for action economy timing in round 1.
+# DEPENDS ON: Clairvoyant Combatant (L6) rides this connection.
+
+id: f_awakened_mind
+name: Awakened Mind
+source: phb_2024
+granted_by:
+  subclass: sc_great_old_one_patron
+  level: 3
+type: active
+
+effect_primitives: []

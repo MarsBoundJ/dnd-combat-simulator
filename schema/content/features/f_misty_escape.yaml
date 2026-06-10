@@ -1,0 +1,31 @@
+# f_misty_escape — Misty Escape (Archfey Patron L6)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Cast Misty Step as a Reaction in response to taking
+# damage. Additionally, two new Steps of the Fey rider options:
+#   - Disappearing Step: Invisible until start of your next turn or
+#     until you attack, deal damage, or cast a spell.
+#   - Dreadful Step: creatures within 5 ft of space you LEFT or
+#     ARRIVED (your choice) make WIS save vs spell DC or take 2d10
+#     Psychic damage.
+#
+# Engine modeling (HIGH wireability): reaction teleport on damage_taken
+# is premium defense — escape melee after being hit. Disappearing Step
+# gives Invisible condition (advantage on next attack, disadvantage on
+# incoming). Dreadful Step deals 2d10 Psychic AoE (placement choice).
+# DEPENDS ON: f_steps_of_the_fey (extends rider options), spell
+# library (Misty Step), damage_taken reaction lane
+
+id: f_misty_escape
+name: Misty Escape
+source: phb_2024
+granted_by:
+  subclass: sc_archfey_patron
+  level: 6
+type: triggered
+
+trigger:
+  event: damage_taken
+  chosen_by: actor
+
+effect_primitives: []

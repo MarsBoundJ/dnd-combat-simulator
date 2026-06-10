@@ -1,0 +1,23 @@
+# f_bewitching_magic — Bewitching Magic (Archfey Patron L14)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Immediately after casting an Enchantment or Illusion spell
+# using an action and a spell slot, cast Misty Step as part of the same
+# action without expending a spell slot.
+#
+# Engine modeling (MEDIUM wireability): free repositioning after
+# casting crowd-control spells — drop a Dominate Person or Greater
+# Invisibility and immediately teleport 30 ft. No slot cost, no
+# action cost (part of the same action). The AI just needs to check
+# school tags on the spell being cast.
+# BLOCKED ON: spell library (spell school tracking, Misty Step)
+
+id: f_bewitching_magic
+name: Bewitching Magic
+source: phb_2024
+granted_by:
+  subclass: sc_archfey_patron
+  level: 14
+type: passive
+
+effect_primitives: []

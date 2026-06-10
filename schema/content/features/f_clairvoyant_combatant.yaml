@@ -1,0 +1,27 @@
+# f_clairvoyant_combatant — Clairvoyant Combatant (Great Old One L6)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: When you form a telepathic bond (via Awakened Mind), force
+# the target to make a WIS save vs your spell DC. On failure:
+#   - Target has Disadvantage on attack rolls against you
+#   - You have Advantage on attack rolls against the target
+#   Both last for the bond's duration (Warlock-level minutes).
+# 1/Short or Long Rest free, then costs a Pact Magic slot to restore.
+#
+# Engine modeling (HIGH wireability): sustained 1v1 advantage engine.
+# Costs only a BA (from Awakened Mind) to set up. On a failed save,
+# you have effective Advantage + the target has Disadvantage against
+# you for multiple minutes (= entire combat). This is stronger than
+# Greater Invisibility for a single target because it doesn't break
+# on attack and it debuffs the target's attacks against you.
+# DEPENDS ON: f_awakened_mind (telepathic bond prerequisite)
+
+id: f_clairvoyant_combatant
+name: Clairvoyant Combatant
+source: phb_2024
+granted_by:
+  subclass: sc_great_old_one_patron
+  level: 6
+type: passive
+
+effect_primitives: []

@@ -1,0 +1,29 @@
+# f_steps_of_the_fey — Steps of the Fey (Archfey Patron L3)
+# Source: PHB 2024 (non-SRD; clean-room mechanical summary)
+#
+# Mechanics: Cast Misty Step without a spell slot, CHA modifier times
+# per Long Rest (min 1). Each cast, choose one rider:
+#   - Refreshing Step: after teleporting, you or one creature within
+#     10 ft gains 1d10 THP.
+#   - Taunting Step: creatures within 5 ft of where you LEFT make a
+#     WIS save vs spell DC or have Disadvantage on attacks against
+#     creatures other than you until start of your next turn.
+#
+# Engine modeling (HIGH wireability): free Misty Steps with tactical
+# riders — the Refreshing Step is self-THP or ally-THP, while
+# Taunting Step is a taunt/sticky-tank mechanic (WIS save or forced
+# to target you). The AI choice depends on role: tankier builds taunt,
+# squishy builds refresh. Each use is a 30-ft teleport + rider.
+# BLOCKED ON: spell library (Misty Step), but the rider mechanics are
+# independent of the spell itself.
+
+id: f_steps_of_the_fey
+name: Steps of the Fey
+source: phb_2024
+granted_by:
+  subclass: sc_archfey_patron
+  level: 3
+type: active
+is_signature: true
+
+effect_primitives: []

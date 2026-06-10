@@ -1,0 +1,26 @@
+# f_fiend_spells — Fiend Spells (Fiend Patron L3)
+# Source: SRD CC v5.2.1 (PHB 2024)
+#
+# Always-prepared spells by Warlock level:
+#   L3: Burning Hands, Command, Scorching Ray, Suggestion
+#   L5: Fireball, Stinking Cloud
+#   L7: Fire Shield, Wall of Fire
+#   L9: Geas, Insect Plague
+#
+# Engine modeling (deferred — BLOCKED on spell library):
+#   NEEDED (combat): Burning Hands (cone fire), Command (action denial),
+#   Scorching Ray (multi-beam ranged attack — Agonizing Blast alt),
+#   Fireball (the AoE benchmark), Stinking Cloud (zone control),
+#   Fire Shield (damage reflect + resistance), Wall of Fire (zone),
+#   Insect Plague (concentration AoE DoT)
+#   NON-COMBAT (stub-tier): Suggestion, Geas
+
+id: f_fiend_spells
+name: Fiend Spells
+source: srd_5.2.1
+granted_by:
+  subclass: sc_fiend_patron
+  level: 3
+type: passive
+
+effect_primitives: []
