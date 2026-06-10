@@ -239,40 +239,23 @@ def defensive_ehp_healing(actor: Actor, target_ally: Actor, action: dict,
 # DPR estimation — observable proxies on a creature template
 # ============================================================================
 
-def estimate_dpr(creature: Actor) -> float:
-    """Estimate damage-per-round from a creature's actions.
+def estimate_dpr_vs_ac(creature: Actor, target_ac: int = 15) -> float:
+    """Estimate damage-per-round against a specific AC.
 
-    Skeleton: takes the most-damaging attack action's expected damage,
-    times multiattack count if the creature has a multiattack.
-
-    Returns 0.0 for creatures with no usable attack actions (pure
-    casters, controllers). Real DPR estimation against specific targets
-    is post-MVP — this is the "generic threat magnitude" stand-in used
-    when scoring defensive actions where we don't yet know who the
-    enemy will swing at.
+    Parameterized version of estimate_dpr: uses `target_ac` for hit
+    probability instead of the default AC 15. Used by combat_metrics
+    for target-aware denial credit (denial reform).
     """
     actions = (creature.template or {}).get("actions") or []
     if not actions:
         return 0.0
 
-    # Find the highest-damage single attack action's mean damage on hit
-    by_id = {a.get("id"): a for a in actions}
-    best_single = 0.0
-    for action in actions:
-        if action.get("type") != "weapon_attack":
-            continue
-        single = _approximate_damage_on_hit(action)
-        if single > best_single:
-            best_single = single
-
-    # Approximate hit-probability against a default AC15 with creature's bonus
     best_with_hit = 0.0
     for action in actions:
         if action.get("type") != "weapon_attack":
             continue
         bonus = _attack_bonus(action) or 0
-        # vs AC 15: need (15 - bonus); clamp
-        needed = 15 - bonus
+        needed = target_ac - bonus
         if needed <= 2:
             p_hit = 19 / 20
         elif needed > 20:
@@ -283,13 +266,22 @@ def estimate_dpr(creature: Actor) -> float:
         if single_value > best_with_hit:
             best_with_hit = single_value
 
-    # Multiattack: multiply the single-attack value by count
     multi_count = 1
     for action in actions:
         if action.get("type") == "multiattack":
             multi_count = max(multi_count, int(action.get("count", 1)))
 
     return best_with_hit * multi_count
+
+
+def estimate_dpr(creature: Actor) -> float:
+    """Estimate damage-per-round from a creature's actions (vs default AC 15).
+
+    Generic threat magnitude stand-in used when scoring defensive actions
+    where we don't yet know who the enemy will swing at. Delegates to
+    estimate_dpr_vs_ac with AC 15.
+    """
+    return estimate_dpr_vs_ac(creature, target_ac=15)
 
 
 def _attack_bonus(action: dict) -> int | None:

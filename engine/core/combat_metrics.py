@@ -18,8 +18,10 @@ Captured per actor (realized from the log, not projected):
   - control_ehp   : action-denial eHP — when an actor lands a control condition
                     on an enemy, credit the denied enemy's DPR × denial fraction
                     (1.0 for hard control, partial fractions for restrained/
-                    prone/etc.). v1 credits at APPLICATION (~one round denied);
-                    multi-round denial accounting is a documented follow-up.
+                    prone/etc.). v2 reform: DPR is estimated against the opposing
+                    side's average AC (not generic AC 15), and capped by the
+                    target's remaining lifetime (hp_remaining / incoming_dpr) so
+                    near-death enemies yield proportionally less denial credit.
 
 The headline diagnostic is `per_round`: total eHP the PCs deliver to enemies
 each round (damage + control) — divide the enemies' starting HP by it and you
@@ -30,7 +32,8 @@ from __future__ import annotations
 
 from engine.core.state import Actor, CombatState
 from engine.ai.defensive_ehp import (
-    estimate_dpr, HARD_CONTROL_CONDITIONS, PARTIAL_CONTROL_CONDITIONS,
+    estimate_dpr, estimate_dpr_vs_ac,
+    HARD_CONTROL_CONDITIONS, PARTIAL_CONTROL_CONDITIONS,
 )
 
 # attack_roll `result` values that count as a landed hit.
@@ -133,6 +136,20 @@ def build_contribution_ledger(state: CombatState) -> dict:
                             "enemy_damage": 0.0}
         return per_round[r]
 
+    # Precompute per-side average AC for target-aware denial DPR.
+    _side_avg_ac: dict[str, int] = {}
+    for _side in ("pc", "enemy"):
+        _sa = [a for a in actors.values()
+               if getattr(a, "side", "?") == _side]
+        if _sa:
+            _side_avg_ac[_side] = int(round(
+                sum(getattr(a, "ac", 15) for a in _sa) / len(_sa)))
+        else:
+            _side_avg_ac[_side] = 15
+
+    # Running total of cross-side damage dealt to each actor (for lifetime cap).
+    _damage_to: dict[str, float] = {}
+
     cur_round = 0
     cur_actor = None
     max_round = 0
@@ -169,6 +186,7 @@ def build_contribution_ledger(state: CombatState) -> dict:
             if side_of(aid) != side_of(tid):
                 row(aid)["damage_dealt"] += amt
                 row(tid)["damage_taken"] += amt
+                _damage_to[tid] = _damage_to.get(tid, 0.0) + amt
                 bucket = rnd(cur_round)
                 if side_of(aid) == "pc":
                     bucket["pc_damage"] += amt
@@ -208,8 +226,22 @@ def build_contribution_ledger(state: CombatState) -> dict:
             if frac <= 0 or side_of(src) == side_of(tid):
                 continue   # not control, or applied to own side
             tgt = actors.get(tid)
-            denied = estimate_dpr(tgt) if tgt else 0.0
-            credit = denied * frac
+            if tgt is None:
+                continue
+            # Reform: target-aware DPR using opposing side's average AC.
+            tgt_side = side_of(tid)
+            opp_side = "pc" if tgt_side == "enemy" else "enemy"
+            denied = estimate_dpr_vs_ac(tgt, _side_avg_ac.get(opp_side, 15))
+            # Reform: lifetime cap — reduce credit for near-death enemies.
+            total_dmg = _damage_to.get(tid, 0.0)
+            hp_max = float(getattr(tgt, "hp_max", 1) or 1)
+            hp_rem = max(1.0, hp_max - total_dmg)
+            if total_dmg > 0 and cur_round > 0:
+                incoming_dpr = total_dmg / cur_round
+                lifetime_factor = min(1.0, hp_rem / incoming_dpr)
+            else:
+                lifetime_factor = 1.0
+            credit = denied * frac * lifetime_factor
             row(src)["control_ehp"] += credit
             if side_of(src) == "pc":
                 rnd(cur_round)["pc_control"] += credit
