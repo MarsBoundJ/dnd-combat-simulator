@@ -1,0 +1,49 @@
+# f_mantle_of_inspiration — Mantle of Inspiration (College of Glamour, Bard L3)
+# Source: PHB 2024
+#
+# RAW: "As a Bonus Action, you can expend a use of Bardic Inspiration, rolling
+# a Bardic Inspiration die. When you do so, choose a number of other creatures
+# within 60 feet of yourself, up to a number equal to your Charisma modifier
+# (minimum of one creature). Each of those creatures gains a number of
+# Temporary Hit Points equal to two times the number rolled on the Bardic
+# Inspiration die, and then each can use its Reaction to move up to its Speed
+# without provoking Opportunity Attacks."
+#
+# Engine modeling: a Bonus Action gated by feature_use:
+# bardic_inspiration_uses_remaining (consumes one BI use). The
+# mantle_of_inspiration primitive (college_of_glamour.resolve_mantle_of_
+# inspiration) rolls the Bardic die and grants up to CHA-mod allies within
+# 60 ft Temp HP = 2× the roll (most-benefiting allies first — lowest Temp HP,
+# then most wounded). Party eHP buff.
+#
+# Feature wiring status: FULLY WIRED (Temp HP). The optional "each can use its
+# Reaction to move" clause is deferred (bounded positioning signal).
+
+id: f_mantle_of_inspiration
+name: Mantle of Inspiration
+source: srd_5.2.1
+granted_by:
+  subclass: sc_college_of_glamour
+  level: 3
+type: active
+
+resource_cost:
+  type: bonus_action
+
+action_template:
+  id: a_mantle_of_inspiration
+  name: Mantle of Inspiration
+  type: defensive_buff
+  slot: bonus_action
+  feature_use: bardic_inspiration_uses_remaining
+  pipeline:
+    - primitive: mantle_of_inspiration
+      params: {}
+
+contract:
+  reads: [actor.template.features_known, actor.template.bardic_die,
+           actor.abilities, actor.position,
+           actor.resources.bardic_inspiration_uses_remaining]
+  writes: [ally.temp_hp, actor.resources.bardic_inspiration_uses_remaining]
+  event: actor_turn_bonus_action
+  scope: per_use

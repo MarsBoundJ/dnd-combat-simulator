@@ -46,6 +46,7 @@ type: active
 spell:
   class: c_wizard
   level: 3
+  school: illusion
 
 description: |
   30-ft cube within 120 ft. Each creature makes a WIS save or is

@@ -33,6 +33,7 @@ type: active
 spell:
   class: c_cleric
   level: 2
+  school: enchantment
 
 description: |
   One creature within 60 ft makes a WIS save or is Paralyzed; it

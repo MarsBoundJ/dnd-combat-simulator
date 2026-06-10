@@ -110,6 +110,13 @@ def apply_short_rest(actor: Actor, state: CombatState) -> dict:
             "bardic_inspiration_uses_max")
         if bi_result is not None:
             summary["bardic_inspiration_refresh"] = bi_result
+    # Unbreakable Majesty (Glamour L14) refreshes on a Short rest too.
+    if cls == "c_bard":
+        um = _refresh_generic_uses_to_max(
+            actor, "unbreakable_majesty_uses_remaining",
+            "unbreakable_majesty_uses_max")
+        if um is not None:
+            summary["unbreakable_majesty_refresh"] = um
     # A short rest also recovers a downed (dying/stable) PC — stabilize + wake
     # so it doesn't carry the death-save clock into the next fight.
     if _recover_downed(actor, state):
@@ -383,6 +390,23 @@ def apply_long_rest(actor: Actor, state: CombatState) -> dict:
             "bardic_inspiration_uses_max")
         if bi_result is not None:
             summary["bardic_inspiration_refresh"] = bi_result
+        # Glamour: Beguiling Magic (1/long rest) + Unbreakable Majesty
+        # (1/short-or-long rest) both refresh on a Long Rest.
+        bm = _refresh_generic_uses_to_max(
+            actor, "beguiling_magic_uses_remaining",
+            "beguiling_magic_uses_max")
+        if bm is not None:
+            summary["beguiling_magic_refresh"] = bm
+        mm = _refresh_generic_uses_to_max(
+            actor, "mantle_of_majesty_uses_remaining",
+            "mantle_of_majesty_uses_max")
+        if mm is not None:
+            summary["mantle_of_majesty_refresh"] = mm
+        um = _refresh_generic_uses_to_max(
+            actor, "unbreakable_majesty_uses_remaining",
+            "unbreakable_majesty_uses_max")
+        if um is not None:
+            summary["unbreakable_majesty_refresh"] = um
 
     state.event_log.append({
         "event": "long_rest_applied",

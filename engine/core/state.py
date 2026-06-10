@@ -350,6 +350,16 @@ class Actor:
     # Lion disadvantage aura (modifiers.query_attack_modifiers), and the
     # Ram on-hit prone rider (primitives._damage).
     wild_heart_power_active: str | None = None
+    # Unbreakable Majesty (College of Glamour, Bard L14): True while the
+    # majestic presence is active. Set by the activation BA; ends if the Bard
+    # is Incapacitated. While True, the first attack to hit the Bard each turn
+    # forces the attacker's CHA save or the attack misses (primitives._attack_
+    # roll → college_of_glamour.majesty_negates_hit).
+    unbreakable_majesty_active: bool = False
+    # Mantle of Majesty (College of Glamour, Bard L6): True while the unearthly
+    # appearance is active. Set by the activation BA; while True a free Command
+    # Bonus Action is available each turn (requires_mantle_active gate).
+    mantle_of_majesty_active: bool = False
 
     # Reckless Attack state (PR #85, Barbarian L2). Activated via the
     # runner's `_maybe_activate_reckless_attack` pre-action hook (RAW:
@@ -466,6 +476,10 @@ class Actor:
         # 1d6 + half level fires on the FIRST qualifying hit of the turn.
         if hasattr(self, "_divine_fury_used_this_turn"):
             self._divine_fury_used_this_turn = False
+        # Unbreakable Majesty (Glamour L14): the hit-negation fires on the
+        # FIRST attack to hit the Bard each turn — reset the per-turn dedup.
+        if hasattr(self, "_majesty_negated_this_turn"):
+            self._majesty_negated_this_turn = False
         # Monk once-per-turn on-hit riders: Stunning Strike (Focus Point,
         # CON save → Stunned) and Open Hand Technique (Flurry → Topple,
         # DEX save → Prone). Both reset at the start of the Monk's turn.

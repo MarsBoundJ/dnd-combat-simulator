@@ -1,0 +1,44 @@
+# f_beguiling_magic — Beguiling Magic (College of Glamour, Bard L3)
+# Source: PHB 2024
+#
+# RAW: "You always have the Charm Person and Mirror Image spells prepared.
+# In addition, immediately after you cast an Enchantment or Illusion spell
+# using a spell slot, you can cause a creature you can see within 60 feet to
+# make a Wisdom saving throw against your spell save DC. On a failed save, the
+# target has the Charmed or Frightened condition (your choice) for 1 minute.
+# The target repeats the save at the end of each of its turns, ending the
+# effect on itself on a success. Once per Long Rest; restore by expending a
+# Bardic Inspiration use."
+#
+# Engine modeling: a post-cast hook in pipeline.execute. Immediately after a
+# Glamour Bard casts an Enchantment/Illusion spell with a slot (school is
+# propagated onto the cast action by pc_schema), college_of_glamour.try_
+# beguiling_magic forces a WIS save (vs the Bard spell DC) on the lowest-WIS
+# enemy within 60 ft → on fail, Charmed (1 min, repeat save end of turn).
+# 1/Long Rest via beguiling_magic_uses_remaining.
+#
+# Feature wiring status: PARTIAL.
+#   - WIRED: the post-Enchantment/Illusion WIS-save control rider.
+#   - MARKER: the always-prepared Charm Person / Mirror Image grants (those
+#     spells aren't built yet) and the BI-refund of the use (deferred).
+
+id: f_beguiling_magic
+name: Beguiling Magic
+source: srd_5.2.1
+granted_by:
+  subclass: sc_college_of_glamour
+  level: 3
+type: passive
+
+resource_cost:
+  type: none
+
+effect_primitives: []
+
+contract:
+  reads: [actor.template.features_known, actor.position,
+           actor.resources.beguiling_magic_uses_remaining, action.school]
+  writes: [target.applied_conditions,
+           actor.resources.beguiling_magic_uses_remaining]
+  event: spell_cast
+  scope: per_use
