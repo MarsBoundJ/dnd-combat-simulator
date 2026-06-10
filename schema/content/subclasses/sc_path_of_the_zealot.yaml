@@ -22,7 +22,7 @@
 
 id: sc_path_of_the_zealot
 name: Path of the Zealot
-source: srd_5.2.1
+source: phb_2024
 parent_class: c_barbarian
 
 archetype_tags:
