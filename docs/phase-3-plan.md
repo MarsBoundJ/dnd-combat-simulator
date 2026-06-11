@@ -1,6 +1,7 @@
 # Phase 3 — Wiring Features Against the Spell Library
 
-**Status:** planning complete, execution not started
+**Status:** COMPLETE (2026-06-11) — 3A/3B/3C executed; decision-layer
+follow-ups parked in `docs/deferred-combat-followups.md` (§7)
 **Prereq met:** `docs/spell-master-list.csv` now carries a DDB-authoritative
 `classes` column (base-class availability) for all 392 spells.
 **Branch:** `claude/practical-lovelace-u9bety`
@@ -215,14 +216,26 @@ needs something new" is the escalation trigger.
 
 Ordered so novel-pattern (Opus) work front-loads and unblocks the fan-out.
 
-- [ ] **3A** Base-class spell lists — one commit per class, suite green each:
-  - [ ] Cleric  [ ] Druid  [ ] Bard  [ ] Wizard  [ ] Sorcerer
-  - [ ] Warlock [ ] Paladin [ ] Ranger
-- [ ] **3B** Subclass always-prepared spells (built spells only), per subclass.
-- [ ] **3C** Subclass combat features:
-  - [ ] Opus: seed one worked example per new wiring shape encountered.
-  - [ ] Sonnet: mirror for the rest; stub exploration/social.
-- [ ] Per batch: run full suite, update master-list status, commit + push.
+- [x] **3A** Base-class spell lists — one commit per class, suite green each:
+  - [x] Cleric  [x] Druid  [x] Bard  [x] Wizard  [x] Sorcerer
+  - [x] Warlock [x] Paladin [x] Ranger
+- [x] **3B** Subclass always-prepared spells (built spells only), per subclass.
+- [x] **3C** Subclass combat features:
+  - [x] Opus: seed one worked example per new wiring shape encountered
+        (Overchannel maximize-dice + module, Elemental Affinity damage
+        rider, Wholeness of Body heal-builder extension — `860ec4c`).
+  - [x] Sonnet: mirror for the rest; stub exploration/social.
+- [x] Per batch: run full suite, update master-list status, commit + push.
+
+### Follow-ups parked for the PC decision layer
+
+Combat features whose mechanics shipped in 3C but whose *selection*
+decision (or remaining infra) is deferred are tracked in
+**`docs/deferred-combat-followups.md`** — currently Overchannel (Evoker;
+mechanics wired, AI when-to-use deferred alongside Metamagic option
+selection) and Peerless Skill (Lore Bard; deliberate stub, implementation
+path documented). Revisit when working on the PC decision layer /
+`ehp_scoring` heuristics.
 
 ### Invariants (every commit)
 1. Full suite green before push.
