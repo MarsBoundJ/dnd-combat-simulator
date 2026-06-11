@@ -1,0 +1,90 @@
+# m_modron_pentadrone — Modron Pentadrone
+# Source: 2024 Monster Manual (MM-only; not in SRD 5.2.1)
+# Triage: GREEN — Multiattack 5× Slam (Force) or 5× Electrical Discharge
+#   (Lightning ranged); Paralysis Gas (Recharge 5-6, CON DC 11, 30-ft cone →
+#   co_paralyzed). Disintegration declarative.
+
+id: m_modron_pentadrone
+name: Modron Pentadrone
+source: mm_2024
+
+size: large
+creature_type: construct
+alignment: lawful neutral
+
+combat:
+  armor_class: 16
+  hit_points: { average: 32, dice: "5d10", con_contribution: 5 }
+  speed: { walk: 40 }
+  initiative: { modifier: 2, score: 12 }
+
+abilities:
+  str: { score: 15, save: 2 }
+  dex: { score: 14, save: 2 }
+  con: { score: 12, save: 1 }
+  int: { score: 10, save: 0 }
+  wis: { score: 10, save: 0 }
+  cha: { score: 13, save: 1 }
+
+skills: { perception: 4 }
+condition_immunities: [co_charmed]
+
+senses: { passive_perception: 14, special: { truesight: 120 } }
+languages: ["Modron"]
+
+cr: { value: 2, xp: 450, proficiency_bonus: 2 }
+
+habitat: [mechanus]
+treasure: none
+
+traits:
+  - id: t_disintegration
+    name: Disintegration
+    type: trait_passive
+
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 5
+    sub_actions: ["a_slam"]
+
+  - id: a_slam
+    name: Slam
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 4, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d6", modifier: 2, type: force, average: 5 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  - id: a_electrical_discharge
+    name: Electrical Discharge
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: ranged, bonus: 4, reach_ft: 120 }
+      - primitive: damage
+        params: { dice: "1d6", modifier: 2, type: lightning, average: 5 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  - id: a_paralysis_gas
+    name: Paralysis Gas
+    type: aoe_attack
+    recharge: "5-6"
+    area: { shape: cone, length_ft: 30 }
+    pipeline:
+      - primitive: forced_save
+        params:
+          ability: constitution
+          dc: 11
+          affected: all_creatures_in_area
+          on_fail:
+            - primitive: apply_condition
+              params: { condition_id: co_paralyzed, duration: until_actor_next_turn_start }
+          on_success: []
+
+behavior_profile:
+  archetype: brute
+  presets: { retreat: never, ability_selection: default, targeting: closest_enemy, action_economy: aggressive }

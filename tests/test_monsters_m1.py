@@ -91,7 +91,7 @@ class LoadShapeTest(unittest.TestCase):
             for field in ("id", "name", "source", "size", "creature_type",
                           "combat", "abilities", "cr"):
                 self.assertIn(field, m, f"{mid} missing {field}")
-            self.assertEqual(m["source"], "srd_5.2.1", mid)
+            self.assertIn(m["source"], ("srd_5.2.1", "mm_2024", "phb_2024"), mid)
             self.assertIn("walk", m["combat"]["speed"], f"{mid} needs a walk speed")
 
     def test_action_pipelines_use_only_composable_primitives(self):

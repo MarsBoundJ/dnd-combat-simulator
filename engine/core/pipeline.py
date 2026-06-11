@@ -106,18 +106,25 @@ def generate_candidates(actor: Actor, state: CombatState,
                 if has_slot_for_action(actor, a)]
     # Filter out feature-use-gated actions whose resource is depleted.
     # Actions without a `feature_use` field pass through (not gated).
-    from engine.core.feature_uses import (
-        required_feature_use as _req_feat,
-        has_use as _has_feat,
-    )
+    # `is_action_available` also surfaces the Rage-refund path: a depleted
+    # but `rage_refund`-tagged action stays available when the actor can
+    # spend a spare Rage use to restore it (Zealous Presence / Intimidating
+    # Presence).
+    from engine.core.feature_uses import is_action_available as _feat_available
     actions = [a for a in actions
-                if _has_feat(actor, _req_feat(a))]
+                if _feat_available(actor, a)]
     # Filter out recharge-gated abilities (monster Breath Weapon, Web,
     # Boulder Toss, …) that have been used and haven't recharged yet.
     # Actions without a `recharge` field pass through unchanged.
     from engine.core.recharge import is_available as _recharge_available
     actions = [a for a in actions
                 if _recharge_available(actor, a)]
+    # Battle Magic gate (Valor Bard L14): the bonus-action weapon attack
+    # requires_battle_magic is only a candidate after a spell action completes
+    # this turn (pipeline.execute sets battle_magic_triggered on that event).
+    actions = [a for a in actions
+               if not a.get("requires_battle_magic")
+               or actor.actions_used_this_turn.get("battle_magic_triggered")]
     # Decision-efficiency fix (grind diagnosis #70): while the actor is ALREADY
     # concentrating, suppress every concentration-spell candidate. You can hold
     # only one concentration effect, so casting another either re-applies the
@@ -162,6 +169,22 @@ def generate_candidates(actor: Actor, state: CombatState,
     if actor.moved_this_turn:
         actions = [a for a in actions
                     if not a.get("requires_no_movement")]
+    # Wild Heart Eagle aspect: the a_eagle_bound BA (Dash + Disengage) is
+    # only available while the actor is raging with the Eagle aspect active.
+    # Actions tagged `requires_eagle_active` are filtered out otherwise.
+    if getattr(actor, "wild_heart_active_choice", None) != "eagle":
+        actions = [a for a in actions
+                    if not a.get("requires_eagle_active")]
+    # Actions tagged `requires_rage_active` (World Tree Travel along the Tree)
+    # are only available while the actor is raging.
+    if not getattr(actor, "rage_active", False):
+        actions = [a for a in actions
+                    if not a.get("requires_rage_active")]
+    # Mantle of Majesty (Glamour L6): the sustained free-Command BA is only
+    # available while the unearthly appearance is active.
+    if not getattr(actor, "mantle_of_majesty_active", False):
+        actions = [a for a in actions
+                    if not a.get("requires_mantle_active")]
 
     enemies = [a for a in state.encounter.actors
                if a.side != actor.side and a.is_alive()]
@@ -1220,6 +1243,15 @@ def execute(chosen: dict, state: CombatState, event_bus, primitives) -> None:
     else:
         actor.actions_used_this_turn[slot] = True   # safe to add
 
+    # Battle Magic (Valor Bard L14): after completing a spell action,
+    # unlock a bonus-action weapon attack this turn.
+    if (slot == "action"
+            and action.get("spell_slot_level") is not None
+            and not cast_was_cancelled
+            and "f_battle_magic" in (
+                actor.template.get("features_known") or [])):
+        actor.actions_used_this_turn["battle_magic_triggered"] = True
+
     # Concentration: if the action is flagged `concentration: true`,
     # the actor takes up (or replaces) their concentration slot.
     # Skipped if the spell was countered (PR #46) — RAW: the original
@@ -1239,17 +1271,26 @@ def execute(chosen: dict, state: CombatState, event_bus, primitives) -> None:
         consume_slot(actor, chosen_slot_level, state,
                        action_id=action.get("id"))
 
+    # Beguiling Magic (College of Glamour L3): immediately after the Bard
+    # casts an Enchantment or Illusion spell with a slot, force a WIS save on
+    # an enemy within 60 ft → Charmed/Frightened. No-op unless the caster has
+    # the feature and the action is a qualifying ench/illusion slot-cast.
+    if chosen_slot_level > 0 and not cast_was_cancelled:
+        from engine.core.college_of_glamour import (
+            has_beguiling_magic, try_beguiling_magic)
+        if has_beguiling_magic(actor):
+            try_beguiling_magic(actor, action, state, event_bus)
+
     # Feature-use consumption — only fires for actions with a
     # `feature_use` resource key (Second Wind, Lay on Hands, etc.).
     # Spell slots and feature uses are independent gates — an action
     # could in principle consume both, though no RAW spell does.
-    from engine.core.feature_uses import (
-        required_feature_use as _req_feat,
-        consume_use as _consume_feat,
-    )
-    feature_key = _req_feat(action)
-    if feature_key is not None:
-        _consume_feat(actor, feature_key, state, action_id=action.get("id"))
+    # `consume_use_or_rage_refund` handles the Rage-refund path: if the
+    # feature pool is empty but the action is `rage_refund`-tagged and
+    # affordable, it expends a Rage use to restore the pool before
+    # consuming. No-op for actions without a `feature_use` key.
+    from engine.core.feature_uses import consume_use_or_rage_refund
+    consume_use_or_rage_refund(actor, action, state)
 
     # Recharge consumption — a recharge-gated ability (Breath Weapon, Web,
     # …) becomes unavailable on use until it recharges on the owner's
@@ -1521,6 +1562,17 @@ def _execute_multiattack(actor, action: dict, state: CombatState,
     sub_action_ids = action.get("sub_actions", [])
     if not sub_action_ids:
         return
+
+    # Bloodied Fury (Quaggoth Thonot, MM 2024): while Bloodied (HP ≤ half
+    # max), the creature makes one extra attack as part of its Multiattack.
+    # The extra swing cycles the sub_actions list via the same modulo the
+    # main loop uses, so a single-weapon multiattack just adds one more of
+    # that weapon.
+    from engine.core import monster_traits as _mt
+    if _mt.has_trait(actor, "t_bloodied_fury") and _mt.is_bloodied(actor):
+        count += 1
+        state.event_log.append({"event": "bloodied_fury", "actor": actor.id,
+                                "extra_attacks": 1})
     sub_actions_by_id = {a.get("id"): a
                          for a in actor.template.get("actions", [])}
 
@@ -1552,11 +1604,40 @@ def _execute_multiattack(actor, action: dict, state: CombatState,
 def _evaluate_simple_condition(cond: str, state: CombatState) -> bool:
     """Trivial condition evaluator for the skeleton.
 
-    Handles a tiny vocabulary: 'combat.attack_state == hit', etc.
-    Real engine has a proper expression evaluator.
+    Handles a tiny vocabulary of atoms joined by ' AND ' / ' OR ':
+      - combat.attack_state == hit       — hit or crit landed
+      - combat.attack_state == crit      — crit landed
+      - combat.attack_had_advantage      — the attack rolled with Advantage
+      - combat.attack_had_disadvantage   — the attack rolled with Disadvantage
+
+    Compound support (PR): a damage step can gate on more than one atom, e.g.
+    `combat.attack_state == hit AND combat.attack_had_advantage` (Scout
+    Captain's advantage-only bonus damage). ' AND '/' OR ' are evaluated
+    left-to-right with AND binding tighter is NOT modeled — flat left-assoc is
+    sufficient for the single-operator clauses in content. Real engine has a
+    proper expression evaluator.
     """
+    cond = cond.strip()
+    if " AND " in cond:
+        return all(_evaluate_simple_condition(part, state)
+                   for part in cond.split(" AND "))
+    if " OR " in cond:
+        return any(_evaluate_simple_condition(part, state)
+                   for part in cond.split(" OR "))
+    return _evaluate_condition_atom(cond, state)
+
+
+def _evaluate_condition_atom(cond: str, state: CombatState) -> bool:
+    """Evaluate a single (operator-free) condition atom. Unknown atoms default
+    to True (skeleton-conservative — a damage step with an unrecognised guard
+    still fires)."""
+    if "combat.attack_state == crit" in cond:
+        return state.current_attack.get("state") == "crit"
     if "combat.attack_state == hit" in cond:
-        return state.current_attack.get("state") == "hit"
+        # A crit is also a hit (RAW: a critical hit IS a hit).
+        return state.current_attack.get("state") in ("hit", "crit")
+    if "combat.attack_had_disadvantage" in cond:
+        return state.current_attack.get("had_disadvantage", False)
     if "combat.attack_had_advantage" in cond:
         return state.current_attack.get("had_advantage", False)
     return True

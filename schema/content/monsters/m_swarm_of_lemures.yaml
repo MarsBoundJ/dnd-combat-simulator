@@ -1,0 +1,71 @@
+# m_swarm_of_lemures — Swarm of Lemures
+# Source: 2024 Monster Manual (MM-only; not in SRD 5.2.1)
+# Triage: GREEN — Multiattack 2× Vile Slime (Poison).
+#   DEFERRED: Hellish Restoration trait (slain lemures reform; no on-death
+#   spawn primitive in v1).
+
+id: m_swarm_of_lemures
+name: Swarm of Lemures
+source: mm_2024
+
+size: large
+creature_type: fiend
+alignment: lawful evil
+
+combat:
+  armor_class: 12
+  hit_points: { average: 45, dice: "6d10", con_contribution: 12 }
+  speed: { walk: 40 }
+  initiative: { modifier: -2, score: 8 }
+
+abilities:
+  str: { score: 14, save: 2 }
+  dex: { score: 7, save: -2 }
+  con: { score: 14, save: 2 }
+  int: { score: 1, save: -5 }
+  wis: { score: 12, save: 1 }
+  cha: { score: 3, save: -4 }
+
+type_tags: [swarm]
+
+damage_resistances: [bludgeoning, piercing, slashing, cold]
+damage_immunities: [fire, poison]
+condition_immunities: [co_charmed, co_exhaustion, co_frightened, co_grappled, co_paralyzed, co_petrified, co_poisoned, co_prone, co_restrained, co_stunned]
+
+senses: { passive_perception: 11, special: { darkvision: 120 } }
+languages: ["Infernal"]
+
+cr: { value: 3, xp: 700, proficiency_bonus: 2 }
+
+habitat: [nine_hells]
+treasure: none
+
+traits:
+  - id: t_hellish_restoration
+    name: Hellish Restoration
+    type: trait_passive
+  - id: t_swarm
+    name: Swarm
+    type: trait_passive
+
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 2
+    sub_actions: ["a_vile_slime"]
+
+  - id: a_vile_slime
+    name: Vile Slime
+    type: weapon_attack
+    is_signature: true
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 4, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "2d8", modifier: 2, type: poison, average: 11 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: brute
+  presets: { retreat: never, ability_selection: default, targeting: closest_enemy, action_economy: aggressive }

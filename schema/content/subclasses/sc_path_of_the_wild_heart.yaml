@@ -1,0 +1,49 @@
+# sc_path_of_the_wild_heart — Path of the Wild Heart (Barbarian subclass)
+# Source: PHB 2024 p.52 (the 2024 successor to Path of the Totem Warrior).
+#
+# A primal, animal-aspected Barbarian path. The combat-load-bearing features
+# are the rage choices: Rage of the Wilds (L3 — Bear/Eagle/Wolf) and Power
+# of the Wilds (L14 — Falcon/Lion/Ram). The remaining features are
+# exploration/ritual utility (Animal Speaker, Aspect of the Wilds, Nature
+# Speaker) with no combat signal — shipped as Stage-4 (AI DM) markers per
+# docs/deferred-noncombat-features.md.
+#
+# Note: Wild Heart is a PHB 2024 subclass, NOT in the SRD's Barbarian
+# subclass list (the SRD ships only Path of the Berserker). `source` is kept
+# as the repo's single ruleset id for loader consistency.
+#
+# Feature wiring status:
+#   - f_animal_speaker (L3)       → MARKER (Stage 4) — ritual utility spells
+#   - f_rage_of_the_wilds (L3)    → FULLY WIRED — Bear (broad resistance) /
+#                                    Eagle (Dash+Disengage on rage entry AND
+#                                    a per-turn a_eagle_bound BA) / Wolf
+#                                    (ally-advantage aura). See
+#                                    engine/core/wild_heart.py.
+#   - f_aspect_of_the_wilds (L6)  → MARKER (Stage 4) — exploration senses +
+#                                    climb/swim movement
+#   - f_nature_speaker (L10)      → MARKER (Stage 4) — Commune with Nature
+#                                    ritual
+#   - f_power_of_the_wilds (L14)  → FULLY WIRED — Falcon (fly while
+#                                    unarmored) / Lion (enemy-disadvantage
+#                                    aura) / Ram (on-hit prone). See
+#                                    engine/core/wild_heart.py.
+
+id: sc_path_of_the_wild_heart
+name: Path of the Wild Heart
+source: srd_5.2.1
+parent_class: c_barbarian
+
+archetype_tags:
+  behavior_archetype: primal_guardian
+  role: striker                 # INTERNAL-EVAL-ONLY per vocabulary firewall
+  flavor_tags: [primal, animal, wild, totemic, resilient]
+
+features_by_level:
+  - level: 3
+    feature_ids: [f_animal_speaker, f_rage_of_the_wilds]
+  - level: 6
+    feature_ids: [f_aspect_of_the_wilds]
+  - level: 10
+    feature_ids: [f_nature_speaker]
+  - level: 14
+    feature_ids: [f_power_of_the_wilds]

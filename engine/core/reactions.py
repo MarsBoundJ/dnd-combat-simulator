@@ -648,4 +648,32 @@ def _reaction_condition_satisfied(cond: str | None, reactor: Actor,
         if not can_actor_see(reactor, caster, state):
             return False
         return True
+    if cond == "revivification_would_save":
+        # Revivification (Zealot L14 Rage of the Gods): "When a creature
+        # within 30 feet of you would drop to 0 Hit Points, you can take a
+        # Reaction to expend a Rage use to set that creature's HP to your
+        # Barbarian level." The target is in event_data["target"].
+        target = event_data.get("target")
+        if target is None:
+            return False
+        from engine.core.rage_of_the_gods import revivification_eligible_reactor
+        return revivification_eligible_reactor(reactor, target, state)
+    if cond == "branches_of_the_tree_would_pull":
+        # Branches of the Tree (World Tree L6): a creature the raging
+        # barbarian can see starts its turn within 30 ft. The mover is in
+        # event_data["mover"] (also mirrored to ["target"] so the reaction
+        # pipeline operates on it).
+        mover = event_data.get("mover") or event_data.get("target")
+        if mover is None:
+            return False
+        from engine.core.world_tree import branches_eligible_reactor
+        return branches_eligible_reactor(reactor, mover, state)
+    if cond == "inspiring_movement_trigger":
+        # Inspiring Movement (College of Dance L6): an enemy the Dance Bard
+        # can see ends its turn within 5 ft. Mover is in event_data["mover"].
+        mover = event_data.get("mover") or event_data.get("target")
+        if mover is None:
+            return False
+        from engine.core.college_of_dance import inspiring_movement_eligible
+        return inspiring_movement_eligible(reactor, mover, state)
     return False

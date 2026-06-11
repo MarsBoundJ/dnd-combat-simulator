@@ -27,3 +27,7 @@ archetype_tags:
 features_by_level:
   - level: 3
     feature_ids: [f_bonus_proficiencies, f_cutting_words]
+  - level: 6
+    feature_ids: [f_magical_discoveries]
+  - level: 14
+    feature_ids: [f_peerless_skill]

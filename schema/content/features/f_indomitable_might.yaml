@@ -1,0 +1,21 @@
+# f_indomitable_might — Indomitable Might (Barbarian L18)
+# Source: SRD CC v5.2.1 / PHB 2024
+#
+# RAW: "If your total for a Strength check or Strength saving throw is less
+# than your Strength score, you can use that score in place of the total."
+#
+# Engine modeling: STUB (deferred). A floor on Strength checks and STR saving
+# throws (treat any total below the STR score as the STR score). Ability checks
+# are outside the combat pipeline; the STR-save floor would ride the saving-
+# throw substrate. Documented here so the feature is countable in
+# features_known and surfaced by the loader; no runtime hook is registered yet.
+#
+# Feature wiring status: STUB (deferred — STR check/save floor).
+
+id: f_indomitable_might
+name: Indomitable Might
+source: srd_5.2.1
+granted_by:
+  class: c_barbarian
+  level: 18
+type: passive

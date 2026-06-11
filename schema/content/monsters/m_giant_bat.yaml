@@ -1,0 +1,53 @@
+# m_giant_bat — Giant Bat
+# Source: SRD CC v5.2.1
+# Triage: GREEN — single Bite. Fly via walk stand-in.
+
+id: m_giant_bat
+name: Giant Bat
+source: srd_5.2.1
+
+size: large
+creature_type: beast
+alignment: unaligned
+
+combat:
+  armor_class: 13
+  hit_points: { average: 22, dice: "4d10", con_contribution: 0 }
+  speed: { walk: 10, fly: 60 }
+  initiative: { modifier: 3, score: 13 }
+
+abilities:
+  str: { score: 15, save: 2 }
+  dex: { score: 16, save: 3 }
+  con: { score: 11, save: 0 }
+  int: { score: 2, save: -4 }
+  wis: { score: 12, save: 1 }
+  cha: { score: 6, save: -2 }
+
+skills: {}
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: []
+condition_immunities: []
+
+senses: { passive_perception: 11, special: { blindsight: 120 } }
+languages: []
+
+cr: { value: 0.25, xp: 50, proficiency_bonus: 2 }
+
+traits: []
+
+actions:
+  - id: a_bite
+    name: Bite
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 5, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d6", modifier: 3, type: piercing, average: 6 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: mindless_aggressor
+  presets: { retreat: cowardly, ability_selection: default, targeting: closest_enemy, action_economy: casual }

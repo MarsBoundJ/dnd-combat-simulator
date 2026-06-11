@@ -1,0 +1,84 @@
+# m_displacer_beast — Displacer Beast
+# Source: 2024 Monster Manual (MM-only; not in SRD 5.2.1)
+# Triage: GREEN — Multiattack [Rend, Tentacle]; Rend applies co_prone on hit.
+#   DEFERRED — NEW PRIMITIVES NEEDED:
+#     * t_displacement: passive trait that injects "disadvantage_for_attacker"
+#       into query_attack_modifiers when this creature is the target. Wire-up
+#       point: add a check in engine/core/modifiers.py query_attack_modifiers
+#       (like the Lion/Wolf hardcoded blocks) for target templates with a trait
+#       id == "t_displacement" (and not co_incapacitated).
+#     * t_avoidance: passive trait that scales save results to 0-damage on
+#       success / half-damage on fail (like f_evasion in evasion.py but for
+#       ANY save ability, triggered by trait id "t_avoidance").
+
+id: m_displacer_beast
+name: Displacer Beast
+source: mm_2024
+
+size: large
+creature_type: monstrosity
+alignment: lawful evil
+
+combat:
+  armor_class: 13
+  hit_points: { average: 76, dice: "9d10", con_contribution: 27 }
+  speed: { walk: 40 }
+  initiative: { modifier: 4, score: 14 }
+
+abilities:
+  str: { score: 18, save: 4 }
+  dex: { score: 15, save: 2 }
+  con: { score: 16, save: 3 }
+  int: { score: 6, save: -2 }
+  wis: { score: 12, save: 1 }
+  cha: { score: 8, save: -1 }
+
+senses: { passive_perception: 11, special: { darkvision: 60 } }
+
+cr: { value: 3, xp: 700, proficiency_bonus: 2 }
+
+habitat: [forest]
+treasure: none
+
+traits:
+  - id: t_displacement
+    name: Displacement
+    type: trait_passive
+  - id: t_avoidance
+    name: Avoidance
+    type: trait_passive
+
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 2
+    sub_actions: ["a_rend", "a_tentacle"]
+
+  - id: a_rend
+    name: Rend
+    type: weapon_attack
+    is_signature: true
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 6, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d10", modifier: 4, type: slashing, average: 9 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: apply_condition
+        params: { condition_id: co_prone, duration: until_removed }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  - id: a_tentacle
+    name: Tentacle
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 6, reach_ft: 10 }
+      - primitive: damage
+        params: { dice: "2d6", modifier: 4, type: piercing, average: 11 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: skirmisher
+  presets: { retreat: cowardly, ability_selection: default, targeting: weakest_target, action_economy: aggressive }

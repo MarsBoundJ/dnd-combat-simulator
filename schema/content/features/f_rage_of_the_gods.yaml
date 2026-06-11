@@ -1,11 +1,10 @@
-# f_rage_of_the_gods — Rage of the Gods (Path of the Zealot, Barbarian
-# L14)
+# f_rage_of_the_gods — Rage of the Gods (Path of the Zealot, Barbarian L14)
 # Source: SRD CC v5.2.1 / PHB 2024 p.53
 #
 # RAW: "When you activate your Rage, you can assume the form of a divine
-# warrior. This form lasts for 1 minute or until you drop to 0 Hit
-# Points. Once you use this feature, you can't do so again until you
-# finish a Long Rest. While in this form, you gain:
+# warrior. This form lasts for 1 minute or until you drop to 0 Hit Points.
+# Once you use this feature, you can't do so again until you finish a Long
+# Rest. While in this form, you gain:
 #   Flight. You have a Fly Speed equal to your Speed and can hover.
 #   Resistance. You have Resistance to Necrotic, Psychic, and Radiant.
 #   Revivification. When a creature within 30 feet of you would drop to
@@ -13,19 +12,22 @@
 #     to instead change the target's Hit Points to a number equal to
 #     your Barbarian level."
 #
-# Engine modeling: a multi-part Rage-activated form (1/Long Rest):
-#   - Fly Speed = Speed + hover (reuse the PC Fly speed/altitude layer).
-#   - Resistance to Necrotic/Psychic/Radiant (damage_resistance_grant).
-#   - Revivification: a "would drop to 0 HP" reaction that spends a Rage
-#     charge to set the target's HP to the Barbarian level.
+# Engine modeling: 1/long rest (rage_of_the_gods_uses_remaining / _max).
+#   - Flight: try_activate_rage_of_the_gods (called from enter_rage) sets
+#     actor.speed["fly"] = actor.speed["walk"]. Cleared in end_rage via
+#     deactivate_rage_of_the_gods.
+#   - Resistance: applies_resistance (rage_of_the_gods.py) checked in
+#     primitives._damage for Necrotic, Psychic, Radiant. Active while
+#     actor.rage_of_the_gods_active is True.
+#   - Revivification: creature_would_drop_to_zero trigger fires in
+#     primitives._damage at the 0-HP check; condition
+#     revivification_would_save in reactions.py gates it; the
+#     revivification_save primitive executes it (spends Rage use, sets HP
+#     to Barbarian level). actor.rage_of_the_gods_active required.
 #
-# **Wiring status: marker (DEFERRED).** The form bundles three systems.
-# Flight + resistance reuse existing layers; the Revivification reaction
-# needs a NEW trigger ("creature would drop to 0 HP") distinct from the
-# damage_taken dispatcher just added — it intercepts BEFORE HP hits 0,
-# more like a death-prevention hook. Shipped as a marker; the highest-
-# value next step (revivification) is the follow-on. Rare in sims (L14,
-# 1/rest), so low calibration impact.
+# Feature wiring status: WIRED (Flight + N/P/R Resistance + Revivification
+#   reaction fully implemented). 1/long-rest resource seeded by
+#   pc_schema.derive_pc_resources; restored by apply_long_rest.
 
 id: f_rage_of_the_gods
 name: Rage of the Gods
@@ -35,11 +37,22 @@ granted_by:
   level: 14
 type: active
 
-effect_primitives: []
+action_template:
+  id: a_revivification
+  name: Revivification
+  type: heal
+  slot: reaction
+  trigger: creature_would_drop_to_zero
+  condition: revivification_would_save
+  pipeline:
+    - primitive: revivification_save
+      params: {}
 
 contract:
   reads: [actor.template.features_known, actor.rage_active,
+           actor.resources.rage_of_the_gods_uses_remaining,
            actor.template.levels.barbarian]
-  writes: [actor.fly_speed, actor.damage_resistances, ally.hp_current]
+  writes: [actor.speed, actor.rage_of_the_gods_active, ally.hp_current,
+           actor.resources.rage_uses_remaining]
   event: rage_activated
   scope: per_long_rest

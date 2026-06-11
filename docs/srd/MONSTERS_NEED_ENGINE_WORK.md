@@ -181,7 +181,10 @@ v2).**
   **Sphinx of Lore / Valor / Wonder** (CR 11 / 17 / 10), **Couatl**
   (CR 4), **Lamia** (CR 4), **Sea Hag / Green Hag** innate (CR 2 / 3),
   **Satyr** (innate), **Salamander**-tier innate casters.
-- **Giant Owl** (CR 1/4, rating 2) — innate Spellcasting. Full defer.
+- **Giant Owl** (CR 1/4, rating 2) — **BUILT (batch A)** without its innate
+  Spellcasting (Detect Evil and Good / Detect Magic at-will, Clairvoyance
+  1/Day — all non-combat utility); Talons + Flyby are the complete combat
+  core. Only the utility-spell rider remains deferred here.
 ## Regeneration / recurring self-heal
 **✅ SYSTEM BUILT (engine.core.regeneration).** Stat-block
 `regeneration: { amount: N, suppressed_by: [acid, fire],

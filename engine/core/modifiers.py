@@ -181,6 +181,36 @@ def query_attack_modifiers(
         result.sources.append(src)
         result.contributions.append(
             {"kind": "advantage", "value": 0, "source": src})
+    # Rage of the Wilds — Wolf aspect (Wild Heart L3): an ally of a raging
+    # Wolf barbarian has Advantage attacking any enemy within 5 ft of that
+    # barbarian. Identity-state read off the encounter (same pattern as
+    # Reckless Attack above).
+    from engine.core import wild_heart as _wh
+    if _wh.wolf_advantage_applies(attacker, target, state):
+        result.has_advantage = True
+        result.sources.append({
+            "type": "rage_of_the_wilds_wolf",
+            "arm": "ally_advantage_near_wolf",
+        })
+    # Power of the Wilds — Lion aspect (Wild Heart L14): an enemy within 5 ft
+    # of a raging Lion has Disadvantage attacking anyone but the Lion (or
+    # another active-Lion barbarian). The disadvantage twin of the Wolf aura.
+    if _wh.lion_disadvantage_applies(attacker, target, state):
+        result.has_disadvantage = True
+        result.sources.append({
+            "type": "power_of_the_wilds_lion",
+            "arm": "enemy_disadvantage_near_lion",
+        })
+    # Displacement (Displacer Beast, MM 2024): attack rolls against the
+    # creature have Disadvantage unless it is Incapacitated. Identity-state
+    # read off the target template (mirrors the Lion disadvantage aura).
+    from engine.core import monster_traits as _mt
+    if _mt.imposes_attack_disadvantage(target):
+        result.has_disadvantage = True
+        result.sources.append({
+            "type": "displacement",
+            "source_creature_id": target.id,
+        })
     return result
 
 
@@ -521,6 +551,13 @@ def _lifetime_matches(lifetime: Any, trigger_events: set[str]) -> bool:
             # when the ally next swings.
             "per_owner_attack": {"owner_made_attack"},
             "until_actor_next_turn_start": {"turn_start"},
+            # Expires at the END of the owner's next turn (the modifier twin
+            # of the `until_actor_next_turn_start` CONDITION expiry handled in
+            # the runner's turn-end block). Used by Fear of Fire (Yeti): fire
+            # damage imposes attack Disadvantage "until the end of its next
+            # turn" — the buff must survive turn-start so the creature attacks
+            # at Disadvantage on that turn, then clear at turn-end.
+            "until_end_of_actor_next_turn": {"turn_end"},
             # PR #92: expires when the modifier's SOURCE CASTER (not
             # the owner) starts their next turn. Used by Help to
             # enforce RAW timing: "advantage on next attack made

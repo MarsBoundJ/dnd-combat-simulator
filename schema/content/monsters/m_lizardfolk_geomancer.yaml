@@ -1,0 +1,80 @@
+# m_lizardfolk_geomancer — Lizardfolk Geomancer
+# Source: 2024 Monster Manual (MM-only; not in SRD 5.2.1)
+# Triage: GREEN — Multiattack 2× Earth Burst (Bludgeoning melee/ranged); Hail of
+#   Stone (Recharge 5-6, CON DC 12, 20-ft cylinder → Bludgeoning + co_prone, half
+#   on success).
+#   DEFERRED: spellcasting (Meld into Stone, Spike Growth, etc.; not in library).
+
+id: m_lizardfolk_geomancer
+name: Lizardfolk Geomancer
+source: mm_2024
+
+size: medium
+creature_type: elemental
+alignment: neutral
+
+combat:
+  armor_class: 13
+  hit_points: { average: 33, dice: "6d8", con_contribution: 6 }
+  speed: { walk: 30, burrow: 20, swim: 30 }
+  initiative: { modifier: 0, score: 10 }
+
+abilities:
+  str: { score: 15, save: 2 }
+  dex: { score: 10, save: 0 }
+  con: { score: 13, save: 1 }
+  int: { score: 10, save: 0 }
+  wis: { score: 15, save: 2 }
+  cha: { score: 8, save: -1 }
+
+skills: { nature: 2, perception: 4, stealth: 4 }
+
+senses: { passive_perception: 14 }
+languages: ["Draconic", "Primordial (Terran)"]
+
+cr: { value: 2, xp: 450, proficiency_bonus: 2 }
+
+habitat: [forest, swamp]
+treasure: individual
+
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 2
+    sub_actions: ["a_earth_burst"]
+
+  - id: a_earth_burst
+    name: Earth Burst
+    type: weapon_attack
+    is_signature: true
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 4, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "2d6", modifier: 2, type: bludgeoning, average: 9 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  - id: a_hail_of_stone
+    name: Hail of Stone
+    type: aoe_attack
+    recharge: "5-6"
+    area: { shape: cylinder, radius_ft: 20, height_ft: 40 }
+    pipeline:
+      - primitive: forced_save
+        params:
+          ability: constitution
+          dc: 12
+          affected: all_creatures_in_area
+          on_fail:
+            - primitive: damage
+              params: { dice: "6d4", modifier: 0, type: bludgeoning, average: 15 }
+            - primitive: apply_condition
+              params: { condition_id: co_prone, duration: until_removed }
+          on_success:
+            - primitive: damage
+              params: { dice: "6d4", modifier: 0, type: bludgeoning, average: 15, multiplier: 0.5 }
+
+behavior_profile:
+  archetype: artillery
+  presets: { retreat: cowardly, ability_selection: default, targeting: closest_enemy, action_economy: casual }

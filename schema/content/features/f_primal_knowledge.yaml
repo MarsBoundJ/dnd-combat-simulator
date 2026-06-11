@@ -1,0 +1,23 @@
+# f_primal_knowledge — Primal Knowledge (Barbarian L3)
+# Source: SRD CC v5.2.1 / PHB 2024
+#
+# RAW: "You gain proficiency in another skill of your choice from the
+# Barbarian skill list. In addition, while your Rage is active, you can make
+# certain ability checks (Acrobatics, Intimidation, Perception, Stealth, or
+# Survival) as Strength checks even if they normally use a different ability."
+#
+# Engine modeling: MARKER (build-config / out-of-combat). The extra skill
+# proficiency is a character-build concern (pc_spec skill_proficiencies), and
+# the Rage-time "use Strength for these skills" clause governs ability checks,
+# which are not part of the combat pipeline. No combat-eHP effect.
+#
+# Feature wiring status: MARKER (build-config; skill proficiency + ability
+# checks, outside the combat pipeline).
+
+id: f_primal_knowledge
+name: Primal Knowledge
+source: srd_5.2.1
+granted_by:
+  class: c_barbarian
+  level: 3
+type: passive

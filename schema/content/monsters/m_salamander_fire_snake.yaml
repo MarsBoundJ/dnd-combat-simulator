@@ -1,0 +1,69 @@
+# m_salamander_fire_snake — Salamander Fire Snake
+# Source: 2024 Monster Manual (MM-only; not in SRD 5.2.1)
+# Triage: GREEN — Bite (Piercing + Fire dual); Fire Body aura (5 ft, DEX DC 11
+#   → 1d6 Fire).
+#   Vulnerability: cold. Immunity: fire.
+
+id: m_salamander_fire_snake
+name: Salamander Fire Snake
+source: mm_2024
+
+size: medium
+creature_type: elemental
+alignment: neutral evil
+
+combat:
+  armor_class: 14
+  hit_points: { average: 27, dice: "6d8", con_contribution: 0 }
+  speed: { walk: 30, climb: 30 }
+  initiative: { modifier: 2, score: 12 }
+
+abilities:
+  str: { score: 14, save: 2 }
+  dex: { score: 14, save: 2 }
+  con: { score: 10, save: 0 }
+  int: { score: 8, save: -1 }
+  wis: { score: 10, save: 0 }
+  cha: { score: 8, save: -1 }
+
+damage_vulnerabilities: [cold]
+damage_immunities: [fire]
+
+senses: { passive_perception: 10, special: { darkvision: 60 } }
+languages: ["Ignan"]
+
+cr: { value: 1, xp: 200, proficiency_bonus: 2 }
+
+habitat: [elemental_fire, underdark]
+treasure: armaments
+
+auras:
+  - id: aura_fire_body
+    name: Fire Body
+    range_ft: 5
+    save: { ability: dexterity, dc: 11 }
+    on_fail:
+      - primitive: damage
+        params: { dice: "1d6", modifier: 0, type: fire, average: 3 }
+    on_success: []
+    affected: enemies
+    immune_on_success: false
+
+actions:
+  - id: a_bite
+    name: Bite
+    type: weapon_attack
+    is_signature: true
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 4, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d8", modifier: 2, type: piercing, average: 6 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: damage
+        params: { dice: "1d6", modifier: 0, type: fire, average: 3 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: skirmisher
+  presets: { retreat: cowardly, ability_selection: default, targeting: closest_enemy, action_economy: casual }

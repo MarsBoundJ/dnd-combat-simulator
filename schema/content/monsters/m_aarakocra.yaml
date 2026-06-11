@@ -1,0 +1,67 @@
+# m_aarakocra — Aarakocra Skirmisher
+# Source: 2024 Monster Manual (MM-only; not in SRD 5.2.1)
+# Triage: GREEN — Talons (base 1d4+2 Slashing) + Wind Javelin (Piercing + Thunder).
+#   DEFERRED: Dive-bomb Talons variant (3d4+2 after 30+ ft straight move).
+#   Note: 2024 MM reclassifies Aarakocra as Elemental (Plane of Air connection).
+
+id: m_aarakocra
+name: Aarakocra Skirmisher
+source: mm_2024
+
+size: medium
+creature_type: elemental
+alignment: neutral
+
+combat:
+  armor_class: 12
+  hit_points: { average: 11, dice: "2d8", con_contribution: 2 }
+  speed: { walk: 20, fly: 50 }
+  initiative: { modifier: 2, score: 12 }
+
+abilities:
+  str: { score: 10, save: 0 }
+  dex: { score: 14, save: 2 }
+  con: { score: 12, save: 1 }
+  int: { score: 11, save: 0 }
+  wis: { score: 12, save: 1 }
+  cha: { score: 11, save: 0 }
+
+skills: { perception: 5 }
+
+senses: { passive_perception: 15 }
+languages: ["Aarakocra", "Primordial (Auran)"]
+
+cr: { value: 0.25, xp: 50, proficiency_bonus: 2 }
+
+habitat: [mountain, elemental_air]
+
+traits: []
+
+actions:
+  - id: a_talons
+    name: Talons
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 4, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d4", modifier: 2, type: slashing, average: 4 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  - id: a_wind_javelin
+    name: Wind Javelin
+    type: weapon_attack
+    is_signature: true
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 4, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d6", modifier: 2, type: piercing, average: 5 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: damage
+        params: { dice: "1d4", modifier: 0, type: thunder, average: 2 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: skirmisher
+  presets: { retreat: cowardly, ability_selection: default, targeting: closest_enemy, action_economy: casual }

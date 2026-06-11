@@ -42,6 +42,7 @@ type: active
 spell:
   class: c_wizard
   level: 2
+  school: enchantment
 
 description: |
   One creature within 30 ft makes a WIS save or is Charmed (won't harm

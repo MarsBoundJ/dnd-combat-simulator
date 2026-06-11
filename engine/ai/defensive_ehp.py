@@ -475,6 +475,30 @@ def defensive_ehp_defensive_buff(actor: Actor, target_ally: Actor,
     if _pipeline_has_primitive(action, "dash"):
         return _score_dash(actor, state)
 
+    # Wild Heart Eagle Bound (L3 BA): Dash + Disengage together. Value =
+    # the Dash closing-distance value plus a small Disengage bump when an
+    # enemy is adjacent (escaping an out-of-position swarm without an OA).
+    if _pipeline_has_primitive(action, "eagle_bound"):
+        return _score_eagle_bound(actor, state)
+
+    # Mantle of Inspiration (Glamour L3): Temp HP = 2× avg Bardic die to up
+    # to CHA-mod allies within 60 ft. Value = total Temp HP granted (a direct
+    # eHP buffer for the party).
+    if _pipeline_has_primitive(action, "mantle_of_inspiration"):
+        return _score_mantle_of_inspiration(actor, state)
+
+    # Unbreakable Majesty (Glamour L14): negate the first hit each turn (CHA
+    # save or miss). Value ≈ damage prevented = worst enemy's per-attack
+    # damage × P(save fails) × buff rounds. A strong self-defense.
+    if _pipeline_has_primitive(action, "unbreakable_majesty_activate"):
+        return _score_unbreakable_majesty(actor, state)
+
+    # World Tree Travel along the Tree (L14 BA): a 60-ft teleport-to-engage.
+    # Value = closing distance to an out-of-reach enemy (an instant Dash with
+    # a longer range that ignores terrain/OAs).
+    if _pipeline_has_primitive(action, "travel_teleport"):
+        return _score_travel_teleport(actor, state)
+
     # PR #80: Steady Aim (Rogue L3 BA) — advantage on next attack.
     # Standard buff scorer wouldn't pick it up (no
     # attack/save_modifier in the pipeline; uses a custom primitive).
@@ -656,7 +680,124 @@ def _score_rage_entry(actor: Actor, state: CombatState) -> float:
     worst_dpr = max((estimate_dpr(e) for e in enemies), default=0.0)
     defensive_value = 0.5 * worst_dpr * EXPECTED_BUFF_ROUNDS
 
-    return offensive_value + defensive_value
+    # World Tree — Vitality of the Tree: Vitality Surge grants Temp HP =
+    # Barbarian level (a flat eHP buffer applied the moment you Rage), and
+    # Life-Giving Force adds ~3.5 × bonus Temp HP/round to a nearby ally.
+    # Both make a World Tree barbarian's Rage worth more than a vanilla one.
+    vitality_value = 0.0
+    from engine.core.world_tree import has_vitality_of_the_tree
+    if has_vitality_of_the_tree(actor):
+        levels = (actor.template or {}).get("levels") or {}
+        barb_level = int(levels.get("barbarian", 1))
+        vitality_value += float(barb_level)
+        from engine.core.geometry import distance_ft
+        ally_near = any(
+            a.id != actor.id and a.side == actor.side and a.is_alive()
+            and distance_ft(actor.position, a.position) <= 10
+            for a in state.encounter.actors)
+        if ally_near:
+            vitality_value += 3.5 * float(bonus) * EXPECTED_BUFF_ROUNDS
+
+    return offensive_value + defensive_value + vitality_value
+
+
+def _score_travel_teleport(actor: Actor, state: CombatState) -> float:
+    """Estimate eHP value of the World Tree Travel along the Tree BA (L14):
+    a 60-ft teleport-to-engage.
+
+    Value mirrors Dash (closing distance to reach an enemy a turn earlier),
+    but the teleport closes up to 60 ft instantly and ignores terrain/OAs —
+    so it's worth the most when the nearest enemy is beyond walking reach
+    this turn but inside the 60-ft teleport. Near-zero when an enemy is
+    already in melee (teleport buys nothing). Capped, like Dash, so it stays
+    a tie-breaker rather than dominating real offense."""
+    from engine.core.geometry import distance_ft
+    enemies = [a for a in state.encounter.actors
+                if a.side != actor.side and a.is_alive()]
+    if not enemies:
+        return 0.0
+    nearest_ft = min(distance_ft(actor.position, e.position) for e in enemies)
+    if nearest_ft <= 5:
+        return 0.0   # already in melee
+    walk = int((actor.speed or {}).get("walk", 30))
+    # If the actor could already reach melee by walking, the teleport only
+    # saves the move (small value); if the enemy is beyond a walk but within
+    # the 60-ft teleport, it unlocks an attack this turn (full value).
+    if nearest_ft <= walk + 5:
+        return 1.0   # walking would have reached too — minor convenience
+    if nearest_ft <= 60 + 5:
+        return 5.0   # teleport reaches an otherwise-unreachable enemy
+    return 1.5       # closes a big gap but still can't engage this turn
+
+
+def _score_unbreakable_majesty(actor: Actor, state: CombatState) -> float:
+    """eHP value of Unbreakable Majesty (Glamour L14): the first attack to hit
+    the Bard each turn forces the attacker's CHA save (vs the Bard spell DC)
+    or misses. Value ≈ the worst enemy's per-attack damage × P(its CHA save
+    fails) × EXPECTED_BUFF_ROUNDS — the recurring damage prevented."""
+    if getattr(actor, "unbreakable_majesty_active", False):
+        return 0.0   # already active — don't re-activate
+    enemies = [a for a in state.encounter.actors
+                if a.side != actor.side and a.is_alive()]
+    if not enemies:
+        return 0.0
+    from engine.core.state import ability_modifier
+    cha = (actor.abilities.get("cha") or {}).get("score", 10)
+    pb = int((actor.template.get("cr") or {}).get("proficiency_bonus", 2))
+    dc = 8 + ability_modifier(cha) + pb
+    best = 0.0
+    for e in enemies:
+        cha_save = int((e.abilities.get("cha") or {}).get("save", 0))
+        # P(save fails) = P(d20 + save < dc)
+        p_fail = max(0.05, min(0.95, (dc - 1 - cha_save) / 20.0))
+        dmg = estimate_per_attack_damage(e)
+        best = max(best, dmg * p_fail)
+    return best * EXPECTED_BUFF_ROUNDS
+
+
+def _score_mantle_of_inspiration(actor: Actor, state: CombatState) -> float:
+    """eHP value of Mantle of Inspiration (Glamour L3): Temp HP = 2× the
+    average Bardic die to up to CHA-mod allies within 60 ft. Value is the
+    total Temp HP granted, counting only living allies who don't already hold
+    at least that much Temp HP (Temp HP doesn't stack)."""
+    from engine.core.bardic_inspiration import die_max
+    from engine.core.geometry import distance_ft
+    from engine.core.state import ability_modifier
+    die = str((actor.template or {}).get("bardic_die", "d6"))
+    per_ally = 2.0 * (die_max(die) + 1) / 2.0   # 2× average die roll
+    cha_mod = ability_modifier((actor.abilities.get("cha") or {}).get("score", 10))
+    max_targets = max(1, cha_mod)
+    allies = [a for a in state.encounter.actors
+                if a.id != actor.id and a.side == actor.side and a.is_alive()
+                and distance_ft(actor.position, a.position) <= 60
+                and a.temp_hp < per_ally]
+    if not allies:
+        return 0.0
+    return per_ally * min(len(allies), max_targets)
+
+
+def _score_eagle_bound(actor: Actor, state: CombatState) -> float:
+    """Estimate eHP value of the Wild Heart Eagle Bound BA (Dash +
+    Disengage together, L3).
+
+    Combines the two effects:
+      - Dash value (closing distance to an out-of-reach enemy) via the
+        shared `_score_dash`.
+      - A small Disengage bump (~0.5 eHP) when an enemy is adjacent — the
+        raging barbarian can reposition out of a swarm without provoking
+        an Opportunity Attack.
+
+    The bonus-action `tactical_bonus` gate still rolls for whether to fire;
+    at low score it usually won't (a raging barbarian normally prefers to
+    stand and swing), which is the right default for a melee striker."""
+    from engine.core.geometry import distance_ft
+    dash_value = _score_dash(actor, state)
+    adjacent_enemy = any(
+        e.side != actor.side and e.is_alive()
+        and distance_ft(actor.position, e.position) <= 5
+        for e in state.encounter.actors)
+    disengage_value = 0.5 if adjacent_enemy else 0.0
+    return dash_value + disengage_value
 
 
 def _score_dash(actor: Actor, state: CombatState) -> float:

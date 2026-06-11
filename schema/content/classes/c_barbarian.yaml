@@ -36,17 +36,19 @@
 #   - f_fast_movement (L5) → +10 ft walk speed while not in Heavy armor
 #     (build-time speed bump in pc_schema).
 #
-# Marker class features (RAW listed; engine work deferred per a follow-on):
+# Marker/stub class features (RAW listed; each has a documented stub feature
+# file, runtime wiring deferred per a follow-on):
 #   - f_danger_sense (L2), f_primal_knowledge (L3),
 #     f_feral_instinct + f_instinctive_pounce (L7), f_brutal_strike (L9),
-#     f_relentless_rage (L11), f_improved_brutal_strike (L13/L17),
-#     f_persistent_rage (L15), f_indomitable_might (L18),
-#     f_primal_champion (L20).
+#     f_relentless_rage (L11), f_improved_brutal_strike (L13) +
+#     f_improved_brutal_strike_2 (L17), f_persistent_rage (L15),
+#     f_indomitable_might (L18), f_primal_champion (L20).
 #   - grant_asi_or_feat (L4/8/12/16), grant_epic_boon (L19),
 #     grant_subclass (L3) — char-build grant markers, no content file.
 #
-# Subclass paths: Path of the Berserker is wired (sc_path_of_the_
-# berserker); Wild Heart / World Tree / Zealot are follow-ons.
+# Subclass paths: all four are present and wired — Berserker
+# (sc_path_of_the_berserker), Wild Heart (sc_path_of_the_wild_heart),
+# World Tree (sc_path_of_the_world_tree), Zealot (sc_path_of_the_zealot).
 
 id: c_barbarian
 name: Barbarian

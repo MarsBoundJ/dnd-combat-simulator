@@ -1,0 +1,60 @@
+# m_githyanki_warrior — Githyanki Warrior
+# Source: 2024 Monster Manual (MM-only; not in SRD 5.2.1)
+# Triage: GREEN — Multiattack 2× Psi Blade (Slashing + Psychic dual).
+#   DEFERRED: spellcasting (Nondetection self-only); Misty Step bonus action
+#   (teleport; no teleport primitive in v1).
+
+id: m_githyanki_warrior
+name: Githyanki Warrior
+source: mm_2024
+
+size: medium
+creature_type: aberration
+alignment: lawful evil
+
+combat:
+  armor_class: 17
+  hit_points: { average: 49, dice: "9d8", con_contribution: 9 }
+  speed: { walk: 30 }
+  initiative: { modifier: 4, score: 14 }
+
+abilities:
+  str: { score: 15, save: 2 }
+  dex: { score: 14, save: 2 }
+  con: { score: 12, save: 3 }
+  int: { score: 13, save: 3 }
+  wis: { score: 13, save: 3 }
+  cha: { score: 10, save: 0 }
+
+senses: { passive_perception: 11 }
+languages: ["Common", "Gith"]
+
+cr: { value: 3, xp: 700, proficiency_bonus: 2 }
+
+habitat: [astral_plane]
+treasure: armaments
+
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 2
+    sub_actions: ["a_psi_blade"]
+
+  - id: a_psi_blade
+    name: Psi Blade
+    type: weapon_attack
+    is_signature: true
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 4, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "2d6", modifier: 2, type: slashing, average: 9 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: damage
+        params: { dice: "2d6", modifier: 0, type: psychic, average: 7 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: skirmisher
+  presets: { retreat: cowardly, ability_selection: default, targeting: weakest_target, action_economy: aggressive }

@@ -1,0 +1,42 @@
+# f_countercharm — Countercharm (Bard L7)
+# Source: SRD CC v5.2.1 / PHB 2024
+#
+# RAW: "You can use musical notes or words of power to disrupt mind-
+# influencing effects. If you or a creature within 30 feet of you fails a
+# saving throw against an effect that applies the Charmed or Frightened
+# condition, you can take a Reaction to cause the save to be rerolled, and
+# the new roll has Advantage."
+#
+# Engine modeling: an inline save-reroll hook (same shape as the Zealot's
+# Fanatical Focus) in primitives._forced_save. After a creature fails a
+# forced save whose on_fail would apply Charmed/Frightened, a Bard with this
+# feature — the failing creature itself or an ally within 30 ft — spends its
+# Reaction (engine.core.countercharm) to reroll the save with Advantage.
+# Fires before Legendary Resistance.
+#
+# Feature wiring status: FULLY WIRED.
+#
+# v1 scope: "a creature within 30 feet" is restricted to the Bard's own side
+# (you wouldn't free an enemy from a charm/fright your party applied). The
+# reroll fires automatically when eligible (the "use it if it helps" reaction
+# policy shared with other reactions).
+
+id: f_countercharm
+name: Countercharm
+source: srd_5.2.1
+granted_by:
+  class: c_bard
+  level: 7
+type: active
+
+resource_cost:
+  type: reaction
+
+effect_primitives: []
+
+contract:
+  reads: [actor.template.features_known, actor.position,
+           combat.save_outcome, forced_save.on_fail]
+  writes: [combat.save_result, actor.actions_used_this_turn.reaction]
+  event: save_failed
+  scope: per_use

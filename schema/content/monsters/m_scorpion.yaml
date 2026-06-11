@@ -1,0 +1,56 @@
+# m_scorpion — Scorpion
+# Source: SRD CC v5.2.1
+# Triage: GREEN — single flat Sting + poison damage.
+
+id: m_scorpion
+name: Scorpion
+source: srd_5.2.1
+
+size: tiny
+creature_type: beast
+alignment: unaligned
+
+combat:
+  armor_class: 11
+  hit_points: { average: 1, dice: "1d4", con_contribution: -1 }
+  speed: { walk: 10 }
+  initiative: { modifier: 0, score: 10 }
+
+abilities:
+  str: { score: 2, save: -4 }
+  dex: { score: 11, save: 0 }
+  con: { score: 8, save: -1 }
+  int: { score: 1, save: -5 }
+  wis: { score: 8, save: -1 }
+  cha: { score: 2, save: -4 }
+
+skills: {}
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: []
+condition_immunities: []
+
+senses: { passive_perception: 9, special: { blindsight: 10 } }
+languages: []
+
+cr: { value: 0, xp: 10, proficiency_bonus: 2 }
+
+traits: []
+
+actions:
+  - id: a_sting
+    name: Sting
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 2, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "", modifier: 1, type: piercing, average: 1 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: damage
+        params: { dice: "1d6", modifier: 0, type: poison, average: 3 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: mindless_aggressor
+  presets: { retreat: cowardly, ability_selection: default, targeting: closest_enemy, action_economy: casual }

@@ -11,9 +11,10 @@ This module owns:
     _attack_roll, modeled on engine.core.racial_traits.lucky_d20 (a free,
     held-resource post-roll modification — not a reaction).
 
-RAW scope note (v1): the holder's add is modeled on ATTACK ROLLS — the
-most frequent combat d20 Test. RAW Bardic Inspiration also applies to
-saving throws and ability checks; those are documented follow-ons.
+RAW scope: the holder's add is modeled on the two combat d20 Tests —
+ATTACK ROLLS (maybe_add_to_attack, hooked in _attack_roll) and SAVING
+THROWS (maybe_add_to_save, hooked in _forced_save). Ability checks (the
+third d20-Test kind) are exercised outside combat and are a follow-on.
 
 Cutting Words (College of Lore) is the inverse — the Bard spends a use
 to SUBTRACT a die from an enemy's roll — and lives in the
@@ -36,15 +37,21 @@ def die_max(die: str) -> int:
 
 
 def register_inspiration_die(target: Actor, die: str, source_id: str,
-                               state: CombatState) -> None:
+                               state: CombatState,
+                               combat_inspiration: bool = False) -> None:
     """Attach a held Bardic Inspiration die marker to `target` (an ally).
 
     A creature can hold only one Bardic Inspiration die at a time (RAW),
-    so registering replaces any existing marker."""
+    so registering replaces any existing marker.
+
+    `combat_inspiration=True` tags the die for College of Valor's Combat
+    Inspiration feature — the holder can spend it for AC defense (when hit)
+    or damage offense (after hitting), in addition to the base attack-roll add.
+    """
     clear_inspiration_die(target)
     target.active_modifiers.append({
         "primitive": INSPIRATION_DIE_PRIMITIVE,
-        "params": {"die": die},
+        "params": {"die": die, "combat_inspiration": combat_inspiration},
         # RAW: usable within the next hour. The sim has no 1-hour timer;
         # until_short_rest is the closest existing lifetime bucket.
         "lifetime": "until_short_rest",
@@ -77,25 +84,21 @@ def clear_inspiration_die(actor: Actor) -> None:
     ]
 
 
-def maybe_add_to_attack(actor: Actor, total: int, effective_ac: int,
-                         is_crit: bool, state: CombatState,
-                         rng: random.Random) -> int:
-    """Post-roll self-add for an attacker holding a Bardic Inspiration
-    die. If the attack would MISS but adding the die could turn it into
-    a hit, spend the die (one-shot) and add the roll. Returns the
-    (possibly increased) total.
-
-    No-ops when: the attack already hits/crits (no need), the actor
-    holds no die, or the die could not close the gap even on a max roll
-    (RAW optimization — the holder adds only when it can matter, and
-    saves the die otherwise)."""
-    if is_crit or total >= effective_ac:
+def _spend_die_to_beat(actor: Actor, total: int, threshold: int,
+                         state: CombatState, rng: random.Random,
+                         context: dict) -> int:
+    """Shared core for the post-roll self-add. If `total` is below
+    `threshold` but the held Bardic Inspiration die could close the gap,
+    spend it (one-shot) and return the boosted total; otherwise return
+    `total` unchanged (the holder adds only when it can matter and keeps
+    the die otherwise — RAW optimization)."""
+    if total >= threshold:
         return total
     marker = find_inspiration_die(actor)
     if marker is None:
         return total
     die = (marker.get("params") or {}).get("die", "d6")
-    if total + die_max(die) < effective_ac:
+    if total + die_max(die) < threshold:
         return total  # can't help even on a max roll — keep the die
     roll = rng.randint(1, die_max(die))
     new_total = total + roll
@@ -104,6 +107,28 @@ def maybe_add_to_attack(actor: Actor, total: int, effective_ac: int,
         "event": "bardic_inspiration_added",
         "actor": actor.id, "die": die, "roll": roll,
         "old_total": total, "new_total": new_total,
-        "effective_ac": effective_ac,
+        **context,
     })
     return new_total
+
+
+def maybe_add_to_attack(actor: Actor, total: int, effective_ac: int,
+                         is_crit: bool, state: CombatState,
+                         rng: random.Random) -> int:
+    """Post-roll self-add for an attacker holding a Bardic Inspiration die.
+    If the attack would MISS but the die could turn it into a hit, spend it
+    and add the roll. No-op on a crit (already the best outcome)."""
+    if is_crit:
+        return total
+    return _spend_die_to_beat(actor, total, effective_ac, state, rng,
+                                {"effective_ac": effective_ac, "kind": "attack"})
+
+
+def maybe_add_to_save(actor: Actor, total: int, dc: int,
+                        state: CombatState, rng: random.Random) -> int:
+    """Post-roll self-add for a creature holding a Bardic Inspiration die
+    making a saving throw. If the save would FAIL but the die could turn it
+    into a success (total + die >= DC), spend it and add the roll. Returns
+    the (possibly increased) total. The caller re-derives the outcome."""
+    return _spend_die_to_beat(actor, total, dc, state, rng,
+                                {"dc": dc, "kind": "save"})

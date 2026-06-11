@@ -401,6 +401,23 @@ def is_self_targeted_defensive_buff(action: dict) -> bool:
         # targeted — affects only the actor's own movement budget.
         if prim == "dash":
             return True
+        # Wild Heart Eagle Bound — self-targeted Dash + Disengage grant.
+        if prim == "eagle_bound":
+            return True
+        # World Tree Travel along the Tree — self-targeted teleport.
+        if prim == "travel_teleport":
+            return True
+        # Glamour Mantle of Inspiration — fans Temp HP out to chosen allies
+        # internally, so it emits ONE candidate (not one-per-ally).
+        if prim == "mantle_of_inspiration":
+            return True
+        # Glamour Unbreakable Majesty — self-targeted presence activation.
+        if prim == "unbreakable_majesty_activate":
+            return True
+        # Glamour Mantle of Majesty — self-initiated (picks its own Command
+        # target internally), so it emits ONE candidate.
+        if prim in ("mantle_of_majesty_activate", "mantle_of_majesty_command"):
+            return True
         # PR #80: Steady Aim — self-targeted advantage on next
         # attack + speed 0. Same self-targeted pattern.
         if prim == "steady_aim":

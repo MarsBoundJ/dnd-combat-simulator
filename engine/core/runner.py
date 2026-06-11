@@ -74,12 +74,41 @@ class EncounterRunner:
         rolls: list[tuple[int, int, str]] = []  # (init_roll, dex_mod_tiebreak, actor_id)
         for a in self.encounter.actors:
             init_mod = a.template.get("combat", {}).get("initiative", {}).get("modifier", 0)
+            # Jack of All Trades (Bard L2): add half Proficiency Bonus (round
+            # down) to initiative — a DEX ability check the Bard isn't
+            # proficient in. No-op for everyone else.
+            features = a.template.get("features_known") or []
+            if "f_jack_of_all_trades" in features:
+                pb = int((a.template.get("cr") or {}).get(
+                    "proficiency_bonus", 2))
+                init_mod += pb // 2
             dex_mod = a.abilities.get("dex", {}).get("save", 0)
             d20 = self.rng.randint(1, 20)
             d20, _rerolled = lucky_d20(self.rng, d20, a)
             roll = d20 + init_mod
             a.initiative = roll
             rolls.append((roll, dex_mod, a.id))
+            # Superior Inspiration (Bard L18): when you roll Initiative,
+            # regain expended Bardic Inspiration uses until you have two (if
+            # you have fewer).
+            if "f_superior_inspiration" in features:
+                cur = int(a.resources.get(
+                    "bardic_inspiration_uses_remaining", 0))
+                if cur < 2:
+                    a.resources["bardic_inspiration_uses_remaining"] = 2
+                    state.event_log.append({
+                        "event": "superior_inspiration",
+                        "actor": a.id, "restored_to": 2})
+        # Tandem Footwork (College of Dance L6): a Dance Bard may expend a
+        # Bardic Inspiration use at initiative to roll its Bardic die and add
+        # the result to its own + nearby allies' initiative. Applied after the
+        # base rolls (it bumps a.initiative directly); the sort below reads
+        # the updated values.
+        from engine.core.college_of_dance import apply_tandem_footwork
+        apply_tandem_footwork(self.encounter.actors, self.rng, state)
+        rolls = [(a.initiative,
+                  a.abilities.get("dex", {}).get("save", 0), a.id)
+                 for a in self.encounter.actors]
         rolls.sort(key=lambda x: (-x[0], -x[1]))
         state.turn_order = [r[2] for r in rolls]
         state.event_log.append({"event": "initiative_rolled",
@@ -199,6 +228,14 @@ class EncounterRunner:
         self.event_bus.emit("turn_start", {"actor": actor, "round": state.round})
         state.event_log.append({"event": "turn_start", "actor": actor.id, "round": state.round})
 
+        # Unbreakable Majesty (Glamour L14): the hit-negation is "first hit on
+        # a turn", so its per-turn dedup resets at the start of EVERY turn (not
+        # just the Bard's own) — once per attacker's turn the presence can
+        # negate a hit. Cleared here for all Bards holding the presence.
+        for _a in state.encounter.actors:
+            if getattr(_a, "unbreakable_majesty_active", False):
+                _a._majesty_negated_this_turn = False
+
         # Recharge abilities (monster Breath Weapon / Web / Boulder Toss).
         # At the start of the creature's turn, roll a d6 for each spent
         # die-based recharge ability; one whose roll lands in range becomes
@@ -207,6 +244,23 @@ class EncounterRunner:
         # chosen below. See engine/core/recharge.py.
         from engine.core import recharge as _recharge
         _recharge.roll_recharges_at_turn_start(actor, state, self.rng)
+
+        # Vitality of the Tree — Life-Giving Force (World Tree L3): at the
+        # start of a raging World Tree barbarian's turn, grant an ally within
+        # 10 ft Temp HP (Nd6, N = Rage Damage bonus). No-op for everyone else.
+        from engine.core import world_tree as _world_tree
+        _world_tree.resolve_life_giving_force(actor, state, self.rng)
+
+        # Branches of the Tree (World Tree L6): first restore any walk Speed
+        # that Branches reduced to 0 on this actor last turn, then let raging
+        # World Tree barbarians react to this creature starting its turn
+        # within 30 ft (STR save or teleport-pull adjacent + Speed 0). The
+        # condition filters to enemies of each reactor, so allies'/own turn-
+        # starts are no-ops.
+        _world_tree.restore_branches_speed(actor, state)
+        from engine.core.reactions import resolve_reaction_triggers as _rtrig
+        _rtrig("creature_turn_start", {"mover": actor, "target": actor},
+                state, self.event_bus)
 
         # Legendary Actions: a legendary creature regains all its uses at
         # the start of its turn. (Spent between other creatures' turns via
@@ -271,6 +325,40 @@ class EncounterRunner:
         self.event_bus.emit("turn_end", {"actor": actor, "round": state.round})
         state.event_log.append({"event": "turn_end", "actor": actor.id,
                                 "hp_remaining": actor.hp_current})
+
+        # Expire "lose one turn" conditions at the END of the turn they were
+        # meant to deny. A condition applied with `duration:
+        # until_actor_next_turn_start` (Command/Halt, ghoul & ghast paralysis,
+        # several dragon abilities) lasts THROUGH the affected creature's next
+        # turn — which the incapacitation gate above just skipped — and then
+        # ends here. This is the condition-system twin of the modifier lifetime
+        # of the same name; without it, with turn-denial now enforced, those
+        # one-turn effects would never expire (permanent removal).
+        from engine.primitives import remove_condition as _remove_cond
+        _expiring = [c for c in actor.applied_conditions
+                     if c.get("duration") == "until_actor_next_turn_start"]
+        for _c in _expiring:
+            _remove_cond(actor, _c.get("condition_id"),
+                          _c.get("source_id"))
+            state.event_log.append({
+                "event": "condition_expired_end_of_turn",
+                "actor": actor.id, "condition": _c.get("condition_id")})
+
+        # Expire turn-end modifier lifetimes ("until_end_of_actor_next_turn",
+        # e.g. Yeti Fear of Fire). The modifier twin of the condition expiry
+        # above — it survives the owner's turn-start (so the turn's attacks
+        # carry the debuff) and clears here at turn-end.
+        modifiers.expire_modifiers(actor, {"turn_end"})
+
+        # Inspiring Movement (College of Dance L6): a Dance Bard may react to
+        # an enemy ENDING its turn within 5 ft. Dispatched here at turn-end
+        # (the twin of the turn-start trigger used by World Tree Branches).
+        # The condition filters to enemies of each reactor, so allies'/own
+        # turn-ends are no-ops.
+        if actor.is_alive():
+            from engine.core.reactions import resolve_reaction_triggers as _rt
+            _rt("creature_turn_end", {"mover": actor, "target": actor},
+                state, self.event_bus)
 
         # Swallow regurgitate: if `actor` is swallowed and dealt enough
         # damage to its swallower this turn, the swallower saves or expels
@@ -973,7 +1061,23 @@ class EncounterRunner:
         action — the runner suppresses double-moves via
         `actor.moved_this_turn` and only re-runs the main slot.
         """
-        # Step 0: resolve effective profile
+        # Step 0: incapacitation gate. A creature with an incapacitating
+        # condition (Incapacitated / Stunned / Paralyzed / Unconscious /
+        # Petrified, incl. Hold Person's paralysis and Command's Halt) takes
+        # NO action, Bonus Action, or movement on its turn — the turn is
+        # skipped here. Turn-start effects (regeneration, recurring damage,
+        # death saves) and turn-end effects (the recurring save that breaks
+        # Hold Person, rage end-check) still run in `tick()`, which brackets
+        # this call. The eHP scoring already values these conditions as
+        # turn-denial; this makes the mechanic match.
+        from engine.core.concentration import has_incapacitating_condition
+        if has_incapacitating_condition(actor):
+            state.event_log.append({
+                "event": "turn_skipped_incapacitated",
+                "actor": actor.id, "round": state.round})
+            return
+
+        # Step 0b: resolve effective profile
         profile = pipeline.resolve_effective_profile(actor, state)
         # Step 1: retreat trigger — DMG p48 algorithm; if triggered, the
         # actor flees this turn and the rest of the pipeline is skipped.

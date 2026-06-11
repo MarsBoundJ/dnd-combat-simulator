@@ -160,6 +160,19 @@
       "required": ["amount"]
     },
 
+    "habitat": {
+      "description": "Terrain/environment tags where this creature is typically encountered (e.g. forest, underdark, coastal, mechanus).",
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "treasure": {
+      "description": "Treasure category carried or guarded: none, any, armaments, arcana, relics, individual, hoard. A single string or a list when the creature lists multiple categories.",
+      "oneOf": [
+        { "type": "string" },
+        { "type": "array", "items": { "type": "string" } }
+      ]
+    },
+
     "behavior_profile": {
       "description": "Inline BehaviorProfile per pillars-reconciliation.md §3. See that document for the full schema.",
       "type": "object",

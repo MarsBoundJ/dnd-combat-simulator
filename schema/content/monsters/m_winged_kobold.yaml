@@ -1,0 +1,69 @@
+# m_winged_kobold — Winged Kobold
+# Source: 2024 Monster Manual (MM-only; not in SRD 5.2.1)
+# Triage: GREEN — Dragon-Tooth Blade + Chromatic Spittle (ranged; damage type
+#   chosen by the kobold, modeled as fire). Pack Tactics / Sunlight Sensitivity
+#   declarative.
+
+id: m_winged_kobold
+name: Winged Kobold
+source: mm_2024
+
+size: small
+creature_type: dragon
+alignment: neutral
+
+combat:
+  armor_class: 15
+  hit_points: { average: 10, dice: "4d6", con_contribution: -4 }
+  speed: { walk: 30, fly: 30 }
+  initiative: { modifier: 3, score: 13 }
+
+abilities:
+  str: { score: 7, save: -2 }
+  dex: { score: 16, save: 3 }
+  con: { score: 9, save: -1 }
+  int: { score: 8, save: -1 }
+  wis: { score: 7, save: -2 }
+  cha: { score: 8, save: -1 }
+
+senses: { passive_perception: 8, special: { darkvision: 60 } }
+languages: ["Common", "Draconic"]
+
+cr: { value: 0.25, xp: 50, proficiency_bonus: 2 }
+
+habitat: [arctic, coastal, desert, forest, hill, mountain, swamp, underdark, urban]
+treasure: armaments
+
+traits:
+  - id: t_pack_tactics
+    name: Pack Tactics
+    type: trait_passive
+  - id: t_sunlight_sensitivity
+    name: Sunlight Sensitivity
+    type: trait_passive
+
+actions:
+  - id: a_dragon_tooth_blade
+    name: Dragon-Tooth Blade
+    type: weapon_attack
+    is_signature: true
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 5, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d6", modifier: 3, type: piercing, average: 6 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  - id: a_chromatic_spittle
+    name: Chromatic Spittle
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: ranged, bonus: 5, reach_ft: 30 }
+      - primitive: damage
+        params: { dice: "1d6", modifier: 3, type: fire, average: 6 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: skirmisher
+  presets: { retreat: cowardly, ability_selection: default, targeting: weakest_target, action_economy: casual }

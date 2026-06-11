@@ -1,0 +1,66 @@
+# f_rage_of_the_wilds — Rage of the Wilds (Path of the Wild Heart,
+# Barbarian L3)
+# Source: PHB 2024 p.52 (Path of the Wild Heart). NOTE: Wild Heart is a
+# PHB 2024 subclass, not in the SRD's Barbarian subclass list (the SRD
+# ships only Path of the Berserker). `source` kept as the repo's single
+# ruleset id for loader consistency.
+#
+# RAW: "Your Rage taps into the primal power of animals. Whenever you
+# activate your Rage, you gain one of the following options of your choice.
+#   Bear.  While your Rage is active, you have Resistance to every damage
+#          type except Force, Necrotic, Psychic, and Radiant.
+#   Eagle. When you activate your Rage, you can take the Disengage and Dash
+#          actions as part of that Bonus Action. Until your Rage ends, you
+#          can take a Bonus Action on each of your turns to take both of
+#          those actions.
+#   Wolf.  While your Rage is active, your allies have Advantage on attack
+#          rolls against any enemy of yours within 5 feet of you."
+#
+# Engine modeling: a build-time animal pick (template.wild_heart_rage_
+# choice, default 'bear') activated on rage entry via
+# engine.core.wild_heart.activate_rage_of_the_wilds (the same enter_rage
+# hook as Rage of the Gods). The active choice lives on
+# actor.wild_heart_active_choice while raging; cleared on rage end.
+#   - Bear:  applies_bear_resistance() halves all damage except F/N/P/R in
+#            primitives._damage (broader than base Rage B/P/S; no double-
+#            halve).
+#   - Eagle: rage-entry grant sets disengaging + dashed_this_turn (Dash +
+#            Disengage fold into the Rage Bonus Action); the per-later-turn
+#            Bonus Action (a_eagle_bound, the eagle_bound primitive) repeats
+#            it each turn of the Rage, gated on `requires_eagle_active`.
+#   - Wolf:  wolf_advantage_applies() grants the Wolf's allies Advantage on
+#            attacks against any enemy within 5 ft of the Wolf
+#            (modifiers.query_attack_modifiers identity-state read).
+#
+# Feature wiring status: FULLY WIRED (all three combat-relevant aspects).
+
+id: f_rage_of_the_wilds
+name: Rage of the Wilds
+source: srd_5.2.1
+granted_by:
+  subclass: sc_path_of_the_wild_heart
+  level: 3
+type: passive
+
+resource_cost:
+  type: none
+
+effect_primitives: []
+
+contract:
+  reads: [actor.template.features_known, actor.template.wild_heart_rage_choice,
+           actor.rage_active, actor.wild_heart_active_choice]
+  writes: [actor.wild_heart_active_choice, combat.damage_resistance,
+           combat.attack_advantage]
+  event: rage_activated
+  scope: passive
+
+# Design note (NOT a gap):
+#   - Mid-combat aspect re-selection: RAW chooses the aspect each time you
+#     Rage. The sim uses a FIXED build-time pick (wild_heart_rage_choice,
+#     default Bear) — the correct model for build-analysis / Treantmonk-style
+#     DPR-eHP scoring, where you evaluate one optimized build per run (and can
+#     re-run with a different pick). A mid-combat AI aspect-selector that
+#     re-chooses per Rage based on the battlefield is an AI-lane feature
+#     shared with Rage of the Gods; deliberately out of scope for the combat
+#     sim, not a missing piece of this feature.

@@ -1,0 +1,45 @@
+# f_battering_roots — Battering Roots (Path of the World Tree, Barbarian L10)
+# Source: PHB 2024 p.53
+#
+# RAW: "During your turn, your reach is 10 feet greater with any Melee weapon
+# that has the Heavy or Versatile property, as tendrils of the World Tree
+# extend from you. When you hit with such a weapon on your turn, you can
+# activate the Push or Topple mastery property in addition to a different
+# mastery property you're using with that weapon."
+#
+# Engine modeling (engine/core/world_tree.py):
+#   - Reach +10 ft: extend_battering_roots_reach bakes +10 into qualifying
+#     weapon actions at build time (Heavy/Versatile MELEE; flagged
+#     `battering_roots: True` in the attack_roll params). NOT rage-gated.
+#   - Topple rider: try_apply_battering_roots applies Topple (CON save →
+#     Prone) on a qualifying on-turn hit, even without the mastery. v1 picks
+#     Topple (best control for a melee build); Push is the documented
+#     alternative. Fires from primitives._damage's on-hit melee block.
+#
+# Feature wiring status: FULLY WIRED.
+#
+# v1 simplifications:
+#   - Reach is baked statically, so it also applies to off-turn Opportunity
+#     Attacks (RAW limits it to "during your turn"). The Topple rider IS
+#     correctly on-turn-gated; only the reach over-reaches off-turn. Minor.
+#   - Push vs Topple choice: v1 always uses Topple. A build-time / AI choice
+#     of Push (forced movement) is a follow-on.
+
+id: f_battering_roots
+name: Battering Roots
+source: srd_5.2.1
+granted_by:
+  subclass: sc_path_of_the_world_tree
+  level: 10
+type: passive
+
+resource_cost:
+  type: none
+
+effect_primitives: []
+
+contract:
+  reads: [actor.template.features_known]
+  writes: [combat.attack_reach, combat.condition_applied, target.position]
+  event: weapon_hit
+  scope: passive

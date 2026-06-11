@@ -9,7 +9,7 @@
     "source": {
       "description": "Attribution source for the entity. SRD = CC-BY-4.0 content. Non-SRD = clean-room reimplementation per docs/architecture/schema-design.md §1.",
       "type": "string",
-      "enum": ["srd_5.2.1", "phb_2024", "user_authored", "homebrew"],
+      "enum": ["srd_5.2.1", "phb_2024", "mm_2024", "user_authored", "homebrew"],
       "default": "srd_5.2.1"
     },
 

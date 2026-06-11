@@ -5,6 +5,78 @@ Add a new entry at the top for each session that produces a non-obvious decision
 
 ---
 
+## Session: 2026-06-09 — Zealot upper markers, Wild Heart, World Tree, Rage-refund
+
+**Participants:** Phil, Claude (Opus 4.8) — engine lane.
+
+Finished **Path of the Zealot** (Fanatical Focus L6, Zealous Presence L10,
+Rage of the Gods L14), built a **generic Rage-use refund** mechanism shared
+by Zealous Presence + Intimidating Presence, and wired the **combat** half
+of **Path of the Wild Heart**: Rage of the Wilds L3 (Bear/Eagle/Wolf) and
+Power of the Wilds L14 (Falcon/Lion/Ram). The non-combat Wild Heart features
+(Animal Speaker, Aspect of the Wilds, Nature Speaker) are Stage-4 markers.
+Then built **Path of the World Tree** end to end (all four features —
+combat-relevant throughout): Vitality of the Tree L3 (rage-scoped Temp HP for
+self + party), Branches of the Tree L6 (reaction teleport-pull + Speed 0),
+Battering Roots L10 (+10 reach with Heavy/Versatile + Topple rider, NOT
+rage-gated), Travel along the Tree L14 (BA 60-ft teleport-to-engage). With
+this, **all four 2024 Barbarian subclasses are wired** (Berserker, Zealot,
+Wild Heart, World Tree).
+
+### World Tree patterns worth remembering
+- Rage-scoped Temp HP (Vitality of the Tree): granted via the enter_rage hook
+  + a runner turn-start hook (Life-Giving Force), marked `_world_tree_temp_hp`
+  on recipients and cleared on end_rage ("vanish when Rage ends").
+- New `creature_turn_start` reaction trigger (dispatched by the runner at
+  every creature's turn start) powers Branches of the Tree — the first
+  reaction keyed on turn-start rather than an attack/damage event. Speed-0 is
+  modeled as walk→0 for the turn, restored at the mover's next turn start.
+- `requires_rage_active` candidate gate (mirrors Wild Heart's
+  `requires_eagle_active`) gates the Travel-along-the-Tree BA teleport.
+- Battering Roots reach: baked statically into qualifying weapon actions in
+  pc_schema once features_known is final (shared dicts → Extra Attack
+  inherits it); minor off-turn OA over-reach documented.
+
+### Headline decision (Phil): non-combat features → Stage 4 (AI DM)
+
+Policy: when wiring a subclass/class, **full-wire the combat-relevant
+choices** and **record every non-combat feature** (ritual utility,
+exploration movement/senses, social) as a **Stage-4 (AI DM) marker** — data-
+layer YAML present, no engine wiring — in
+**`docs/deferred-noncombat-features.md`** (the durable tracking doc; read it
+before deciding whether a feature is "done"). Combat sim only models what
+moves a sim signal (DPR/eHP/control/action-economy/positioning).
+
+Wild Heart Stage-4 markers recorded: Animal Speaker (L3), Aspect of the
+Wilds (L6), Nature Speaker (L10). **Power of the Wilds (L14) is pending RAW
+confirmation** before wiring (Falcon/Lion/Ram — verify options).
+
+### Rage choice pattern (reusable)
+
+Both Wild Heart rage features are **build-time picks** stamped on the
+template (`wild_heart_rage_choice` default Bear, `wild_heart_power_choice`
+default Ram), activated on the `enter_rage` hook (same as Rage of the Gods)
+and cleared on rage end. The two are independent (a L14 barbarian holds one
+of each: `actor.wild_heart_active_choice` + `actor.wild_heart_power_active`).
+
+L3 Rage of the Wilds: Bear = broad resistance (all except F/N/P/R, no
+double-halve with base Rage BPS); Wolf = ally-advantage aura via an
+identity-state read in `query_attack_modifiers` (mirrors Reckless Attack);
+Eagle = rage-entry Dash+Disengage grant PLUS a per-later-turn `a_eagle_bound`
+BA (the `eagle_bound` primitive, gated on `requires_eagle_active` — modeled
+on Cunning Action). Mid-combat aspect re-selection is a deliberate non-goal:
+the sim uses a fixed build-time pick (correct for build-analysis scoring),
+documented as a design note, not a gap.
+
+L14 Power of the Wilds: Falcon = fly-while-unarmored (new
+`template.wears_armor` flag, stamped for all PCs); Lion = the disadvantage
+twin of the Wolf aura (enemies within 5 ft have Disadvantage vs non-Lion
+targets); Ram = on-hit Prone on Large-or-smaller (no save), an on-hit rider
+in `_damage` next to the monk strikes. Reusable rage-choice pattern now
+proven across Rage of the Gods + both Wild Heart features.
+
+---
+
 ## Session: 2026-06-03 — positional-barrier substrate (Wall of Force) + Polymorph; Wizard spell list (BC)
 
 **Participants:** Phil, Claude (Opus 4.8, 1M ctx) — desktop/engine lane; "BC" (browser Claude) — content lane.

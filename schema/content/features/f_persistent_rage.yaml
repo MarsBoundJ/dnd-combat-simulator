@@ -1,0 +1,25 @@
+# f_persistent_rage — Persistent Rage (Barbarian L15)
+# Source: SRD CC v5.2.1 / PHB 2024
+#
+# RAW: "When you roll Initiative, you can regain all expended uses of Rage
+# (once per Long Rest). In addition, your Rage now lasts for 10 minutes
+# without you needing to do anything to extend it from round to round; it ends
+# early only if you have the Unconscious condition or don Heavy armor."
+#
+# Engine modeling: STUB (deferred). Two effects: an initiative-time Rage-use
+# refresh (compare Superior Inspiration / Persistent-resource refreshes), and
+# the removal of Rage's per-round extension requirement. Within a single
+# bounded combat encounter the auto-extend clause is largely a no-op (a raging
+# Barbarian attacks every turn, which already extends Rage), so the combat
+# value is minimal. Documented here so the feature is countable in
+# features_known and surfaced by the loader; no runtime hook is registered yet.
+#
+# Feature wiring status: STUB (deferred — initiative Rage refresh + auto-extend).
+
+id: f_persistent_rage
+name: Persistent Rage
+source: srd_5.2.1
+granted_by:
+  class: c_barbarian
+  level: 15
+type: passive

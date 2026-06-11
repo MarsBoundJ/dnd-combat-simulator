@@ -290,6 +290,11 @@ def _attack_roll(params: dict, state: CombatState, bus: EventBus) -> dict:
     from engine.core import bardic_inspiration as _bardic
     total = _bardic.maybe_add_to_attack(
         actor, total, effective_ac, is_crit, state, rng)
+    # Combat Inspiration Defense (Valor Bard): target may spend their tagged
+    # BI die to raise their AC against this attack (may turn hit into miss).
+    from engine.core.college_of_valor import maybe_defend_with_combat_inspiration
+    effective_ac = maybe_defend_with_combat_inspiration(
+        target, total, effective_ac, is_crit, state, rng)
     is_hit = is_crit or (total >= effective_ac)
     # Metamagic Seeking Spell: if a spell attack misses, reroll the d20
     # once and use the new roll (set on the action by the metamagic
@@ -310,6 +315,16 @@ def _attack_roll(params: dict, state: CombatState, bus: EventBus) -> dict:
     if is_hit and crit_mods.force_crit_if_hit:
         is_crit = True
     attack_state = "crit" if is_crit else ("hit" if is_hit else "miss")
+
+    # Unbreakable Majesty (Glamour L14): the first attack to hit the Bard
+    # each turn forces the attacker's CHA save vs the Bard's spell DC, or the
+    # attack misses instead. No-op unless the majestic presence is active.
+    if attack_state in ("hit", "crit"):
+        from engine.core.college_of_glamour import majesty_negates_hit
+        if majesty_negates_hit(target, actor, state, rng):
+            attack_state = "miss"
+            is_hit = False
+            is_crit = False
 
     state.current_attack["state"] = attack_state
     state.current_attack["d20"] = d20
@@ -547,6 +562,21 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
                 actor, target, state, attack_params, rng)
             _monk.try_apply_open_hand(
                 actor, target, state, attack_params, rng)
+            # Ram (Wild Heart L14, Power of the Wilds): melee hit while
+            # raging with Ram active knocks a Large-or-smaller target Prone
+            # (no save). Idempotent on already-prone targets.
+            from engine.core import wild_heart as _wh
+            _wh.try_apply_ram(actor, target, state, attack_params)
+            # Battering Roots (World Tree L10): on-turn hit with a Heavy/
+            # Versatile melee weapon applies Topple (CON save → Prone).
+            from engine.core import world_tree as _wt
+            _wt.try_apply_battering_roots(actor, target, state, attack_params)
+        # Combat Inspiration Offense (Valor Bard): if the attacker holds a
+        # Combat-Inspiration-tagged BI die, spend it for bonus damage.
+        from engine.core.college_of_valor import (
+            maybe_add_combat_inspiration_to_damage)
+        total += maybe_add_combat_inspiration_to_damage(
+            actor, True, state, rng)
 
     # Resistance / vulnerability / immunity (template-level)
     template = target.template or {}
@@ -565,6 +595,27 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
     # when the template already halved.
     if _rage.applies_rage_bps_resistance(target, dmg_type):
         already_resisted = dmg_type in (template.get("damage_resistances") or [])
+        if not already_resisted:
+            total = total // 2
+
+    # Rage of the Gods (Zealot L14): Necrotic, Psychic, Radiant resistance
+    # while the divine form is active. Checked after template-level
+    # resistances (same "don't double-halve" discipline as rage BPS).
+    from engine.core.rage_of_the_gods import applies_resistance as _rotg_resist
+    if _rotg_resist(target, dmg_type):
+        already_resisted = (dmg_type in (template.get("damage_resistances") or [])
+                             or _rage.applies_rage_bps_resistance(target, dmg_type))
+        if not already_resisted:
+            total = total // 2
+
+    # Rage of the Wilds — Bear aspect (Wild Heart L3): Resistance to every
+    # damage type except Force / Necrotic / Psychic / Radiant. Broader than
+    # the base Rage B/P/S resistance, so skip if the type was already
+    # halved by the template OR base Rage BPS (RAW: resistances don't stack).
+    from engine.core.wild_heart import applies_bear_resistance as _bear_resist
+    if _bear_resist(target, dmg_type):
+        already_resisted = (dmg_type in (template.get("damage_resistances") or [])
+                             or _rage.applies_rage_bps_resistance(target, dmg_type))
         if not already_resisted:
             total = total // 2
 
@@ -723,6 +774,32 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
             _damage_event["attribution"] = _attr
     state.event_log.append(_damage_event)
 
+    # Fear of Fire (Yeti, MM 2024): if the creature takes fire damage, it has
+    # Disadvantage on attack rolls until the end of its next turn. Registers a
+    # self-disadvantage attack_modifier on the target with a turn-end lifetime
+    # (cleared by the runner's turn-end expire pass). Refreshed-not-stacked:
+    # a second fire hit while the buff is live is a no-op (one disadvantage
+    # is enough; net_advantage doesn't double-count).
+    if total > 0 and dmg_type == "fire":
+        from engine.core.monster_traits import has_trait
+        if has_trait(target, "t_fear_of_fire"):
+            already = any(
+                m.get("primitive") == "attack_modifier"
+                and (m.get("source") or {}).get("id") == "t_fear_of_fire"
+                for m in target.active_modifiers)
+            if not already:
+                target.active_modifiers.append({
+                    "primitive": "attack_modifier",
+                    "params": {"when": "attacker_is_self",
+                                "modifier": "disadvantage_for_self"},
+                    "lifetime": "until_end_of_actor_next_turn",
+                    "source": {"type": "trait", "id": "t_fear_of_fire",
+                                "source_creature_id": target.id},
+                    "owner_id": target.id,
+                })
+                state.event_log.append({"event": "fear_of_fire_triggered",
+                                        "actor": target.id})
+
     # Break-on-damage control (RAW): any damage ends a break_on_damage
     # condition FOR THE DAMAGED CREATURE (Hypnotic Pattern's charm, Sleep).
     # The spell continues for OTHER affected creatures — we only scrub this
@@ -745,6 +822,17 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
     if total > 0 and target.concentration_on is not None:
         from engine.core.concentration import attempt_concentration_save
         attempt_concentration_save(target, total, state, rng)
+
+    if target.hp_current == 0:
+        # Revivification (Zealot L14 Rage of the Gods): a raging Zealot
+        # within 30 ft may use a reaction + Rage use to save the target
+        # before death processing. Fires BEFORE forms/death/dying so HP
+        # can be restored in time.
+        from engine.core.reactions import resolve_reaction_triggers as _rtrig
+        _rtrig("creature_would_drop_to_zero", {
+            "target": target,
+            "target_id": target.id,
+        }, state, bus)
 
     if target.hp_current == 0:
         # Form system: a transformed creature dropping to 0 in its form
@@ -1379,6 +1467,37 @@ def _forced_save(params: dict, state: CombatState, bus: EventBus) -> dict:
                       + cover_save_bonus)
             outcome = "success" if total >= dc else "fail"
 
+        # Bardic Inspiration: a creature holding a BI die may add it to a
+        # failed save to turn it into a success — the same held-resource
+        # self-add modeled on attack rolls. Only on a real roll (auto_fail
+        # overrides have total None). Fires before the reroll features +
+        # Legendary Resistance (cheapest self-resource first).
+        if outcome == "fail" and total is not None:
+            from engine.core.bardic_inspiration import maybe_add_to_save
+            bi_total = maybe_add_to_save(target, total, dc, state, rng)
+            if bi_total != total:
+                total = bi_total
+                outcome = "success" if total >= dc else "fail"
+
+        # Fanatical Focus (Zealot L6): once per Rage, reroll a failed save
+        # with +rage_damage_bonus. Fires before Legendary Resistance so the
+        # Zealot gets their reroll first (then LR may still flip it back).
+        if outcome == "fail":
+            from engine.core.fanatical_focus import try_fanatical_focus_reroll
+            ff_d20, ff_total, ff_outcome = try_fanatical_focus_reroll(
+                target, ability, dc, rng, state)
+            if ff_d20 is not None:
+                d20, total, outcome = ff_d20, ff_total, ff_outcome
+        # Countercharm (Bard L7): if the save would apply Charmed/Frightened
+        # and the creature (or an ally within 30 ft) is a Bard with a
+        # Reaction, reroll with Advantage. Also before Legendary Resistance.
+        if outcome == "fail":
+            from engine.core.countercharm import try_countercharm_reroll
+            cc_d20, cc_total, cc_outcome = try_countercharm_reroll(
+                target, ability, dc, params, rng, state)
+            if cc_d20 is not None:
+                d20, total, outcome = cc_d20, cc_total, cc_outcome
+
         # Legendary Resistance: a legendary creature that just failed a
         # save may spend a per-day charge to succeed instead. Applies to
         # every fail path above (rolled OR auto_fail override). The natural
@@ -1422,7 +1541,28 @@ def _forced_save(params: dict, state: CombatState, bus: EventBus) -> dict:
             state.current_attack["save_attribution_ctx"] = _save_attr_ctx
         try:
             # Invoke on_fail or on_success sub-primitives (if specified inline)
-            if outcome == "fail":
+            # Evasion (Rogue/Monk L7, Dance Leading Evasion L14): on a DEX
+            # save-for-half effect, a creature with Evasion takes 0 on success
+            # and half on fail. select_evasion_subs returns the damage-scaled
+            # sub list when it applies; otherwise we use the normal branch.
+            from engine.core.evasion import (select_evasion_subs,
+                                              select_avoidance_subs)
+            ev_subs = select_evasion_subs(target, ability, outcome, params,
+                                            state)
+            ev_event = "evasion"
+            if ev_subs is None:
+                # Avoidance (Displacer Beast, MM 2024): Evasion for ANY save
+                # ability, gated on the t_avoidance trait rather than DEX.
+                ev_subs = select_avoidance_subs(target, ability, outcome,
+                                                  params, state)
+                ev_event = "avoidance"
+            if ev_subs is not None:
+                state.event_log.append({
+                    "event": ev_event, "target": target.id,
+                    "outcome": outcome})
+                for sub in ev_subs:
+                    _invoke_subprimitive(sub, state, bus)
+            elif outcome == "fail":
                 for sub in params.get("on_fail") or []:
                     _invoke_subprimitive(sub, state, bus)
             else:
@@ -2336,6 +2476,206 @@ def _warrior_of_the_gods(params: dict, state: CombatState,
     })
 
 
+def _zealous_presence(params: dict, state: CombatState,
+                        bus: EventBus) -> None:
+    """Zealous Presence (Path of the Zealot, Barbarian L10+).
+
+    RAW: "As a Bonus Action, unleash a battle cry infused with divine
+    energy. Up to ten other creatures of your choice within 60 feet gain
+    Advantage on attack rolls and saving throws until the start of your
+    next turn. Once you use this feature, you can't use it again until you
+    finish a Long Rest unless you expend a use of your Rage (no action
+    required) to restore it."
+
+    v1: fans out advantage on attacks (attack_modifier, attacker_is_self)
+    and saves (save_modifier, advantage) to up to 10 allies within 60 ft.
+    Modifiers use `until_source_caster_next_turn` lifetime — scrubbed by
+    modifiers.scrub_source_caster_turn_start_modifiers at the Zealot's
+    next turn-start (already called by the runner at every turn-start).
+
+    Resource consumption is handled by the `feature_use` gate at the
+    pipeline level (the action declares `feature_use:
+    zealous_presence_uses_remaining` + `rage_refund: true`), so this
+    primitive does NOT decrement the pool — it only applies the buff. The
+    candidate gate guarantees a charge (or an affordable Rage refund) is
+    available before this runs.
+    """
+    from engine.core.geometry import distance_ft
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        return
+
+    source = {
+        "type": "action_buff",
+        "action_id": "a_zealous_presence",
+        "caster_id": actor.id,
+    }
+    allies_buffed = []
+    count = 0
+    for candidate in state.encounter.actors:
+        if count >= 10:
+            break
+        if candidate.id == actor.id:
+            continue
+        if candidate.side != actor.side:
+            continue
+        if not candidate.is_alive():
+            continue
+        if distance_ft(actor.position, candidate.position) > 60:
+            continue
+        # Attack advantage: fires when THIS ally is the attacker
+        candidate.active_modifiers.append({
+            "primitive": "attack_modifier",
+            "params": {"when": "attacker_is_self", "modifier": "advantage_for_self"},
+            "lifetime": "until_source_caster_next_turn",
+            "source": source,
+            "applied_at_round": state.round,
+            "owner_id": candidate.id,
+        })
+        # Save advantage: fires when THIS ally makes any save
+        candidate.active_modifiers.append({
+            "primitive": "save_modifier",
+            "params": {"modifier": "advantage"},
+            "lifetime": "until_source_caster_next_turn",
+            "source": source,
+            "applied_at_round": state.round,
+            "owner_id": candidate.id,
+        })
+        allies_buffed.append(candidate.id)
+        count += 1
+
+    state.event_log.append({
+        "event": "zealous_presence",
+        "actor": actor.id,
+        "allies_buffed": allies_buffed,
+    })
+
+
+def _mantle_of_inspiration(params: dict, state: CombatState,
+                             bus: EventBus) -> None:
+    """Mantle of Inspiration (College of Glamour L3). The Bardic Inspiration
+    use is consumed by the action's feature_use gate; this rolls the Bardic
+    die and grants up to CHA-mod allies within 60 ft Temp HP = 2× the roll."""
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        return
+    from engine.core.college_of_glamour import resolve_mantle_of_inspiration
+    resolve_mantle_of_inspiration(actor, state, _get_rng(state, bus))
+
+
+def _mantle_of_majesty_activate(params: dict, state: CombatState,
+                                  bus: EventBus) -> None:
+    """Mantle of Majesty (Glamour L6) activation BA: assume the unearthly
+    appearance + cast Command free. The use is consumed by the feature_use
+    gate."""
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        return
+    from engine.core.college_of_glamour import activate_mantle_of_majesty
+    activate_mantle_of_majesty(actor, state, bus)
+
+
+def _mantle_of_majesty_command(params: dict, state: CombatState,
+                                 bus: EventBus) -> None:
+    """Mantle of Majesty sustained BA: while the appearance is active, cast
+    Command free each turn."""
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        return
+    from engine.core.college_of_glamour import cast_mantle_command
+    cast_mantle_command(actor, state, bus)
+
+
+def _unbreakable_majesty_activate(params: dict, state: CombatState,
+                                    bus: EventBus) -> None:
+    """Assume the Unbreakable Majesty presence (Glamour L14 BA). The use is
+    consumed by the action's feature_use gate; this sets the active flag."""
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        return
+    from engine.core.college_of_glamour import activate_unbreakable_majesty
+    activate_unbreakable_majesty(actor, state)
+
+
+def _eagle_bound(params: dict, state: CombatState, bus: EventBus) -> None:
+    """Eagle Bound (Wild Heart L3, Rage of the Wilds — Eagle aspect).
+
+    The per-later-turn Bonus Action: while raging with Eagle active, take
+    the Dash AND Disengage actions together (RAW: "you can take a Bonus
+    Action on each of your turns to take both of those actions"). Sets the
+    same Dash + Disengage flags as the rage-entry grant via
+    wild_heart.apply_eagle_bound. Self-targeted (no params)."""
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        raise ValueError("eagle_bound requires a current actor")
+    from engine.core.wild_heart import apply_eagle_bound
+    apply_eagle_bound(actor)
+    state.event_log.append({
+        "event": "eagle_bound",
+        "actor": actor.id,
+        "doubled_speed_ft": int((actor.speed or {}).get("walk", 30)) * 2,
+    })
+
+
+def _travel_teleport(params: dict, state: CombatState, bus: EventBus) -> None:
+    """Travel along the Tree (World Tree L14) Bonus-Action teleport: reposition
+    the barbarian up to 60 ft toward the nearest enemy, landing adjacent.
+    Self-targeted (no params)."""
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        raise ValueError("travel_teleport requires a current actor")
+    from engine.core.world_tree import execute_travel_teleport
+    execute_travel_teleport(actor, state)
+
+
+def _inspiring_movement(params: dict, state: CombatState,
+                          bus: EventBus) -> None:
+    """Inspiring Movement (College of Dance L6) reaction payload. The Dance
+    Bard (state.current_attack.actor) repositions away from the triggering
+    enemy (state.current_attack.target), and one nearby ally repositions too.
+    The BI use + reaction are consumed by the reaction gate."""
+    reactor = (state.current_attack or {}).get("actor")
+    mover = (state.current_attack or {}).get("target")
+    if reactor is None or mover is None:
+        return
+    from engine.core.college_of_dance import execute_inspiring_movement
+    execute_inspiring_movement(reactor, mover, state, bus)
+
+
+def _branches_pull(params: dict, state: CombatState, bus: EventBus) -> None:
+    """Branches of the Tree (World Tree L6) reaction payload.
+
+    Resolves the STR save and, on a failure, teleports the mover adjacent to
+    the barbarian and reduces its Speed to 0 for the turn. The reactor (the
+    barbarian) is state.current_attack.actor; the mover is
+    state.current_attack.target (set by the reaction dispatch)."""
+    reactor = (state.current_attack or {}).get("actor")
+    mover = (state.current_attack or {}).get("target")
+    if reactor is None or mover is None:
+        return
+    from engine.core.world_tree import execute_branches_pull
+    execute_branches_pull(reactor, mover, state)
+
+
+def _revivification_save(params: dict, state: CombatState,
+                          bus: EventBus) -> None:
+    """Revivification (Rage of the Gods reaction, Zealot L14+).
+
+    Executes when the `creature_would_drop_to_zero` trigger fires and the
+    reactor passes the `revivification_would_save` condition. Spends one
+    Rage use and sets the target's HP to the Zealot's Barbarian level.
+
+    state.current_attack["actor"] = the Zealot (reactor)
+    state.current_attack["target"] = the creature about to drop to 0
+    """
+    reactor = (state.current_attack or {}).get("actor")
+    target = (state.current_attack or {}).get("target")
+    if reactor is None or target is None:
+        return
+    from engine.core.rage_of_the_gods import execute_revivification
+    execute_revivification(reactor, target, state)
+
+
 def _steady_aim(params: dict, state: CombatState, bus: EventBus) -> None:
     """Steady Aim primitive (PR #80, Rogue L3+).
 
@@ -3026,7 +3366,15 @@ def _grant_bardic_inspiration(params: dict, state: CombatState,
         raise ValueError("grant_bardic_inspiration needs an actor + target")
     die = str((actor.template or {}).get("bardic_die", "d6"))
     from engine.core.bardic_inspiration import register_inspiration_die
-    register_inspiration_die(target, die, actor.id, state)
+    # College of Valor: tag the die so Defense + Offense hooks activate.
+    combat_insp = "f_combat_inspiration" in (
+        (actor.template or {}).get("features_known") or [])
+    register_inspiration_die(target, die, actor.id, state,
+                             combat_inspiration=combat_insp)
+    # Agile Strikes (College of Dance L3): expending a Bardic Inspiration use
+    # lets a Dance Bard make one Unarmed Strike as part of this Bonus Action.
+    from engine.core.college_of_dance import try_agile_strike
+    try_agile_strike(actor, state, bus)
 
 
 def _cutting_words_resolve(params: dict, state: CombatState,
@@ -3379,6 +3727,16 @@ def _populate_handler_table() -> None:
         "steady_aim": _steady_aim,
         "lay_on_hands": _lay_on_hands,
         "warrior_of_the_gods": _warrior_of_the_gods,
+        "zealous_presence": _zealous_presence,
+        "eagle_bound": _eagle_bound,
+        "mantle_of_inspiration": _mantle_of_inspiration,
+        "mantle_of_majesty_activate": _mantle_of_majesty_activate,
+        "mantle_of_majesty_command": _mantle_of_majesty_command,
+        "unbreakable_majesty_activate": _unbreakable_majesty_activate,
+        "inspiring_movement": _inspiring_movement,
+        "branches_pull": _branches_pull,
+        "travel_teleport": _travel_teleport,
+        "revivification_save": _revivification_save,
         "ready_action": _ready_action,
         "melee_retaliation": _melee_retaliation,
         "recurring_damage": _recurring_damage,
@@ -3452,6 +3810,40 @@ def _all_primitives() -> list[Primitive]:
         # Warrior of the Gods (Zealot L3) — BA self-heal from a d12 dice
         # pool. Must stay in sync with _populate_handler_table.
         Primitive("warrior_of_the_gods", _warrior_of_the_gods,
+                    implemented=True),
+        # Zealous Presence (Zealot L10) — BA that grants Advantage on
+        # attacks + saves to up to 10 allies within 60 ft until the
+        # Zealot's next turn. Must stay in sync with _populate_handler_table.
+        Primitive("zealous_presence", _zealous_presence, implemented=True),
+        # Eagle Bound (Wild Heart L3, Eagle aspect) — per-later-turn Bonus
+        # Action: Dash + Disengage together while raging with Eagle active.
+        Primitive("eagle_bound", _eagle_bound, implemented=True),
+        # Mantle of Inspiration (Glamour L3) — BA: expend BI, grant up to
+        # CHA-mod allies within 60 ft Temp HP = 2× the Bardic die roll.
+        Primitive("mantle_of_inspiration", _mantle_of_inspiration,
+                    implemented=True),
+        # Mantle of Majesty (Glamour L6) — BA: cast Command free (activate
+        # 1/long rest; sustained free Command each turn while active).
+        Primitive("mantle_of_majesty_activate", _mantle_of_majesty_activate,
+                    implemented=True),
+        Primitive("mantle_of_majesty_command", _mantle_of_majesty_command,
+                    implemented=True),
+        # Unbreakable Majesty (Glamour L14) — BA: assume the majestic
+        # presence (first hit each turn forces a CHA save or misses).
+        Primitive("unbreakable_majesty_activate",
+                    _unbreakable_majesty_activate, implemented=True),
+        # Inspiring Movement (College of Dance L6) — reaction at an enemy's
+        # turn end within 5 ft: reposition the Bard + an ally (no OAs).
+        Primitive("inspiring_movement", _inspiring_movement, implemented=True),
+        # Branches of the Tree (World Tree L6) — reaction at a creature's
+        # turn start: STR save or teleport-pull adjacent + Speed 0.
+        Primitive("branches_pull", _branches_pull, implemented=True),
+        # Travel along the Tree (World Tree L14) — BA 60-ft teleport-to-engage
+        # while raging.
+        Primitive("travel_teleport", _travel_teleport, implemented=True),
+        # Revivification (Zealot L14, Rage of the Gods reaction) — spends a
+        # Rage use to restore a would-be-downed ally to Barbarian level HP.
+        Primitive("revivification_save", _revivification_save,
                     implemented=True),
         # PR #86 — Ready Action (records a readied sub-action + trigger
         # onto the actor; fires when the trigger matches before the

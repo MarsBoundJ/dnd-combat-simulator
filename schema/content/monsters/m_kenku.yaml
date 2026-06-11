@@ -1,0 +1,64 @@
+# m_kenku — Kenku
+# Source: 2024 Monster Manual (MM-only; not in SRD 5.2.1)
+# Triage: GREEN — Shadow Blade (melee/ranged Necrotic).
+#   DEFERRED: Mimicry (declarative), Eldritch Lantern bonus action (casts Faerie
+#   Fire, Recharge 4-6) — Faerie Fire not yet in spell library.
+
+id: m_kenku
+name: Kenku
+source: mm_2024
+
+size: medium
+creature_type: monstrosity
+alignment: neutral
+
+combat:
+  armor_class: 13
+  hit_points: { average: 13, dice: "3d8", con_contribution: 0 }
+  speed: { walk: 30 }
+  initiative: { modifier: 3, score: 13 }
+
+abilities:
+  str: { score: 10, save: 0 }
+  dex: { score: 16, save: 3 }
+  con: { score: 10, save: 0 }
+  int: { score: 11, save: 0 }
+  wis: { score: 10, save: 0 }
+  cha: { score: 10, save: 0 }
+
+skills: { deception: 4, perception: 2, stealth: 5 }
+
+senses: { passive_perception: 12, special: { darkvision: 60 } }
+languages: ["Common", "Primordial (Auran)"]
+
+cr: { value: 0.25, xp: 50, proficiency_bonus: 2 }
+
+habitat: [forest, shadowfell, urban]
+treasure: implements
+
+traits:
+  - id: t_mimicry
+    name: Mimicry
+    type: trait_passive
+
+actions:
+  - id: a_shadow_blade
+    name: Shadow Blade
+    type: weapon_attack
+    is_signature: true
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 5, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d6", modifier: 3, type: necrotic, average: 6 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+bonus_actions:
+  - id: ba_eldritch_lantern
+    name: Eldritch Lantern
+    type: trait_passive
+    recharge: "4-6"
+
+behavior_profile:
+  archetype: skirmisher
+  presets: { retreat: cowardly, ability_selection: default, targeting: weakest_target, action_economy: casual }

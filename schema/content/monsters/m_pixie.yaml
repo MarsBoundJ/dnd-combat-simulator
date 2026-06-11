@@ -1,0 +1,62 @@
+# m_pixie — Pixie
+# Source: 2024 Monster Manual (MM-only; not in SRD 5.2.1)
+# Triage: GREEN — Faerie Dust (melee/ranged Radiant + Charmed/Poisoned choice;
+#   modeled as Charmed). Magic Resistance declarative.
+#   DEFERRED: Spellcasting (Dancing Lights, Druidcraft, Invisibility at-will;
+#   Detect Thoughts, Fly, Sleep 1/Day) — utility, not yet in spell library.
+
+id: m_pixie
+name: Pixie
+source: mm_2024
+
+size: tiny
+creature_type: fey
+alignment: neutral good
+
+combat:
+  armor_class: 15
+  hit_points: { average: 9, dice: "6d4", con_contribution: -6 }
+  speed: { walk: 10, fly: 30 }
+  initiative: { modifier: 5, score: 15 }
+
+abilities:
+  str: { score: 2, save: -4 }
+  dex: { score: 20, save: 5 }
+  con: { score: 8, save: -1 }
+  int: { score: 10, save: 0 }
+  wis: { score: 14, save: 2 }
+  cha: { score: 15, save: 2 }
+
+skills: { perception: 4, stealth: 7 }
+
+senses: { passive_perception: 14 }
+languages: ["Sylvan"]
+
+cr: { value: 0.25, xp: 50, proficiency_bonus: 2 }
+
+habitat: [forest, feywild]
+treasure: arcana
+
+traits:
+  - id: t_magic_resistance
+    name: Magic Resistance
+    type: trait_passive
+
+actions:
+  - id: a_faerie_dust
+    name: Faerie Dust
+    type: weapon_attack
+    is_signature: true
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 4, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "", modifier: 1, type: radiant, average: 1 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: apply_condition
+        params: { condition_id: co_charmed, duration: until_actor_next_turn_start }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: skirmisher
+  presets: { retreat: cowardly, ability_selection: default, targeting: closest_enemy, action_economy: casual }

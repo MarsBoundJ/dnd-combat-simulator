@@ -1,0 +1,68 @@
+# m_manes_vaporspawn — Manes Vaporspawn
+# Source: 2024 Monster Manual (MM-only; not in SRD 5.2.1)
+# Triage: GREEN — Claw (Slashing + Necrotic dual); Sickening Vapors aura
+#   (5 ft, CON DC 12 → co_incapacitated, immune_on_success).
+
+id: m_manes_vaporspawn
+name: Manes Vaporspawn
+source: mm_2024
+
+size: small
+creature_type: fiend
+alignment: chaotic evil
+
+combat:
+  armor_class: 13
+  hit_points: { average: 19, dice: "3d8", con_contribution: 6 }
+  speed: { walk: 30, fly: 30 }
+  initiative: { modifier: 2, score: 12 }
+
+abilities:
+  str: { score: 14, save: 2 }
+  dex: { score: 14, save: 2 }
+  con: { score: 15, save: 2 }
+  int: { score: 5, save: -3 }
+  wis: { score: 8, save: -1 }
+  cha: { score: 3, save: -4 }
+
+damage_resistances: [cold, fire, lightning, bludgeoning, piercing, slashing]
+damage_immunities: [poison]
+condition_immunities: [co_charmed, co_frightened, co_poisoned]
+
+senses: { passive_perception: 9, special: { darkvision: 60 } }
+
+cr: { value: 1, xp: 200, proficiency_bonus: 2 }
+
+habitat: [abyss]
+treasure: none
+
+auras:
+  - id: aura_sickening_vapors
+    name: Sickening Vapors
+    range_ft: 5
+    save: { ability: constitution, dc: 12 }
+    on_fail:
+      - primitive: apply_condition
+        params: { condition_id: co_incapacitated, duration: until_actor_next_turn_start }
+    on_success: []
+    affected: enemies
+    immune_on_success: true
+
+actions:
+  - id: a_claw
+    name: Claw
+    type: weapon_attack
+    is_signature: true
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 4, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d6", modifier: 2, type: slashing, average: 5 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: damage
+        params: { dice: "2d4", modifier: 0, type: necrotic, average: 5 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: brute
+  presets: { retreat: never, ability_selection: default, targeting: closest_enemy, action_economy: aggressive }

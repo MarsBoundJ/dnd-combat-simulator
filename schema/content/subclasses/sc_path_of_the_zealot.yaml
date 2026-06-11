@@ -13,12 +13,17 @@
 # Feature wiring status:
 #   - f_divine_fury (L3)         → FULLY WIRED (engine/core/divine_fury.py
 #                                   damage rider; see f_divine_fury.yaml)
-#   - f_warrior_of_the_gods (L3) → WIRED: BA d12 dice-pool self-heal
+#   - f_warrior_of_the_gods (L3) → FULLY WIRED: BA d12 dice-pool self-heal
 #                                   (4/5/6/7 by level; see its yaml)
-#   - f_fanatical_focus (L6)     → marker; save-reroll hook deferred
-#   - f_zealous_presence (L10)   → marker; party advantage-buff deferred
-#   - f_rage_of_the_gods (L14)   → marker; fly + resistances +
-#                                   revivification reaction deferred
+#   - f_fanatical_focus (L6)     → FULLY WIRED: passive once-per-Rage
+#                                   save-reroll with +rage_damage_bonus
+#                                   (fanatical_focus.py hook in _forced_save)
+#   - f_zealous_presence (L10)   → FULLY WIRED: BA advantage on attacks +
+#                                   saves for up to 10 allies within 60 ft
+#                                   (zealous_presence primitive; 1/long rest)
+#   - f_rage_of_the_gods (L14)   → WIRED: fly speed + N/P/R resistance +
+#                                   Revivification reaction (1/long rest;
+#                                   rage-use refund deferred)
 
 id: sc_path_of_the_zealot
 name: Path of the Zealot

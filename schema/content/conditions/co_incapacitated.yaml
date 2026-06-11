@@ -1,5 +1,13 @@
 # co_incapacitated — Incapacitated condition
 # Source: SRD CC v5.2.1 p184
+#
+# Enforcement: the `inactive` effect (cannot_take action/bonus_action/
+# reaction) is enforced by the runner's incapacitation gate — a creature
+# with any incapacitating condition (this, or Stunned/Paralyzed/Unconscious/
+# Petrified which inherit it) has its turn SKIPPED in
+# EncounterRunner._run_actor_turn. "Lose one turn" applications (duration:
+# until_actor_next_turn_start — Command, ghoul/ghast, dragons) then expire at
+# the end of the denied turn. See engine/core/runner.py.
 
 id: co_incapacitated
 name: Incapacitated

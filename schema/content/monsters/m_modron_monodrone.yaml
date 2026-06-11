@@ -1,0 +1,66 @@
+# m_modron_monodrone — Modron Monodrone
+# Source: 2024 Monster Manual (MM-only; not in SRD 5.2.1)
+# Triage: GREEN — Gear (melee Force) + Gear Flinger (ranged Force).
+#   DEFERRED: Disintegration on death (flavor; no death-trigger primitive in v1).
+
+id: m_modron_monodrone
+name: Modron Monodrone
+source: mm_2024
+
+size: medium
+creature_type: construct
+alignment: lawful neutral
+
+combat:
+  armor_class: 15
+  hit_points: { average: 5, dice: "1d8", con_contribution: 1 }
+  speed: { walk: 30, fly: 30 }
+  initiative: { modifier: 2, score: 12 }
+
+abilities:
+  str: { score: 10, save: 0 }
+  dex: { score: 14, save: 2 }
+  con: { score: 12, save: 1 }
+  int: { score: 4, save: -3 }
+  wis: { score: 10, save: 0 }
+  cha: { score: 5, save: -3 }
+
+condition_immunities: [co_charmed]
+
+senses: { passive_perception: 10, special: { truesight: 120 } }
+languages: ["Modron"]
+
+cr: { value: 0.125, xp: 25, proficiency_bonus: 2 }
+
+habitat: [mechanus]
+treasure: none
+
+traits:
+  - id: t_disintegration
+    name: Disintegration
+    type: trait_passive
+
+actions:
+  - id: a_gear
+    name: Gear
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 4, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d8", modifier: 2, type: force, average: 6 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  - id: a_gear_flinger
+    name: Gear Flinger
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: ranged, bonus: 4, reach_ft: 120 }
+      - primitive: damage
+        params: { dice: "1d8", modifier: 2, type: force, average: 6 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: soldier
+  presets: { retreat: never, ability_selection: default, targeting: closest_enemy, action_economy: casual }

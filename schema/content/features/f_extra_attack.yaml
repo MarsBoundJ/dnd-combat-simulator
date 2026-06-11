@@ -1,0 +1,28 @@
+# f_extra_attack — Extra Attack (Fighter L5, Barbarian L5, Valor Bard L6, …)
+# Source: SRD CC v5.2.1 / PHB 2024
+#
+# RAW: "You can attack twice instead of once whenever you take the Attack
+# action on your turn."
+#
+# Engine modeling: FULLY WIRED. _extra_attack_count() in pc_schema reads
+# this feature id (and f_two_extra_attacks / f_three_extra_attacks for
+# Fighter progression) and builds a multiattack action (a_extra_attack)
+# with the appropriate count (2/3/4). The multiattack action targets one
+# enemy per sub-attack, re-picking after each swing.
+
+id: f_extra_attack
+name: Extra Attack
+source: srd_5.2.1
+granted_by:
+  class: multiple
+  level: 5
+type: passive
+
+description: |
+  You can attack twice instead of once whenever you take the Attack action.
+
+contract:
+  reads: [actor.template.features_known]
+  writes: []
+  event: passive
+  scope: passive
