@@ -356,6 +356,32 @@ gated here (most also have Spellcasting/Legendary):
   Golem** (CR 9 / 10), **Chuul** (CR 4), **Salamander** (CR 5, Fire
   aura), **Azer Sentinel** (CR 2, heated body), **Xorn** (CR 5),
   **Cloaker** (CR 8), **Barbed Devil** (CR 5).
+## Conditional on-hit / damage guards (BUILT)
+**✅ SYSTEM BUILT (pipeline `_evaluate_condition_atom`).** New `when.condition`
+atoms let a pipeline step fire conditionally without a bespoke primitive:
+- **`combat.target_size <op> <size>`** — compare the target's size category
+  (tiny/small/medium/large/huge/gargantuan) by rank with `<= >= == < >`.
+  Used by **Lizardfolk Sovereign** Earthen Maul (Prone only vs Medium-or-
+  smaller). Pairs with the usual `combat.attack_state == hit` via `AND`.
+- **`combat.attacker_bloodied` / `combat.attacker_not_bloodied`** — gate a
+  damage step on the attacker's Bloodied state (reads
+  `monster_traits.is_bloodied`). Used by **Swarm of Dretches** Rend (3d6+2
+  full / 3d4+2 while Bloodied — two damage steps, mutually-exclusive guards).
+  Reusable for any "weakens as it dies" swarm.
+
+Still simplified: the *creature-type* exclusion on some on-hit riders
+(e.g. Lizardfolk Bite's "not a Construct or Undead") is not yet a guard
+atom — those riders currently fire on every hit.
+
+## Temp HP from damage dealt (BUILT)
+**✅ SYSTEM BUILT (`temp_hp_grant` extended).** The grant primitive now
+accepts `target: self` and `amount_source: last_damage_dealt` (reads the
+preceding damage step's post-resistance total off
+`state.current_attack.last_damage_amount`, recorded by `_damage`). Used by
+**Lizardfolk Sovereign** Bite ("gains Temp HP equal to the damage dealt").
+Max-semantics (RAW: temp HP doesn't stack) come for free from the existing
+grant path.
+
 ## Notes on approximations (BUILT, not deferred)
 These are built with a documented simplification rather than deferred:
 - **Non-walk movement** (fly/swim/burrow): built using `walk` speed as

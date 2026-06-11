@@ -731,6 +731,13 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
     state.event_log.append({"event": "damage_dealt", "actor": actor.id,
                             "target": target.id, "amount": total, "type": dmg_type,
                             "target_hp_remaining": target.hp_current})
+    # Record the post-resistance damage dealt by THIS step so a following
+    # pipeline step can reference it (Lizardfolk Sovereign Bite grants Temp
+    # HP "equal to the damage dealt" via temp_hp_grant amount_source:
+    # last_damage_dealt). Single-step attacks set it to that step's total;
+    # for a multi-step attack it reflects the most recent damage step.
+    if state.current_attack is not None:
+        state.current_attack["last_damage_amount"] = total
 
     # Fear of Fire (Yeti, MM 2024): if the creature takes fire damage, it has
     # Disadvantage on attack rolls until the end of its next turn. Registers a
@@ -1570,12 +1577,17 @@ def _temp_hp_grant(params: dict, state: CombatState,
 
     Params:
       - target: 'self' | 'ally' | 'current_target' (default
-        'current_target' — caller sets state.current_attack.target)
+        'current_target' — caller sets state.current_attack.target).
+        'self' grants to the acting creature (Lizardfolk Sovereign
+        Bite heals itself, not the bitten target).
       - amount (int, optional): flat temp HP to grant (base value)
       - amount_source (str, optional): one of
         'caster_spellcasting_modifier' | 'caster_cha_mod' |
-        'caster_wis_mod' — computed at invoke time from the caster.
-        Mutually exclusive with `amount` (amount wins if both set).
+        'caster_wis_mod' | 'last_damage_dealt' — computed at invoke
+        time. 'last_damage_dealt' reads the post-resistance damage of
+        the preceding damage step (Lizardfolk Sovereign Bite: Temp HP
+        "equal to the damage dealt"). Mutually exclusive with `amount`
+        (amount wins if both set).
       - amount_per_slot_above_base (int, optional, PR #96): per-
         upcast-level bonus. When set + spell cast at slot N above
         base level B, adds `(N - B) × this_value` to the grant.
@@ -1585,11 +1597,16 @@ def _temp_hp_grant(params: dict, state: CombatState,
 
     Logs `temp_hp_granted` with target / amount / final_temp_hp.
     """
-    target = state.current_attack.get("target") or state.current_actor()
+    if params.get("target") == "self":
+        target = state.current_attack.get("actor") or state.current_actor()
+    else:
+        target = state.current_attack.get("target") or state.current_actor()
     if target is None:
         raise ValueError("temp_hp_grant requires a current target")
     if "amount" in params:
         amount = int(params["amount"])
+    elif params.get("amount_source") == "last_damage_dealt":
+        amount = int((state.current_attack or {}).get("last_damage_amount", 0))
     else:
         amount = _resolve_temp_hp_amount(
             params.get("amount_source", "caster_spellcasting_modifier"),

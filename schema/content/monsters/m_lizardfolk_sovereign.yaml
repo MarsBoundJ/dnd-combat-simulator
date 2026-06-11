@@ -1,10 +1,12 @@
 # m_lizardfolk_sovereign — Lizardfolk Sovereign
 # Source: 2024 Monster Manual (MM-only; not in SRD 5.2.1)
-# Triage: GREEN — Multiattack 1× Bite + 1× Earthen Maul; Earthen Maul applies
-#   Prone on hit (size-conditional "Medium or smaller" simplified to
-#   unconditional — size-check primitive deferred).
-#   DEFERRED: Bite temp HP gain (Temporary HP equal to damage dealt, if target
-#   not Construct/Undead) — no temp-HP-from-damage primitive in v1.
+# Triage: GREEN — Multiattack 1× Bite + 1× Earthen Maul.
+#   Bite grants the Sovereign Temp HP equal to the damage dealt (temp_hp_grant
+#   target: self, amount_source: last_damage_dealt). RAW excludes Construct/
+#   Undead targets; that target-type gate is simplified to always-on (the
+#   creature-type guard is a minor follow-up, not modeled here).
+#   Earthen Maul applies Prone on hit only vs Medium-or-smaller targets
+#   (when: combat.target_size <= medium).
 #   DEFERRED: Charge bonus action (move toward enemy) — no bonus-action
 #   movement primitive in v1.
 
@@ -59,6 +61,9 @@ actions:
       - primitive: damage
         params: { dice: "1d10", modifier: 3, type: piercing, average: 8 }
         when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: temp_hp_grant
+        params: { target: self, amount_source: last_damage_dealt }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
 
   - id: a_earthen_maul
     name: Earthen Maul
@@ -71,7 +76,7 @@ actions:
         when: { event: damage_roll, condition: "combat.attack_state == hit" }
       - primitive: apply_condition
         params: { condition_id: co_prone, duration: until_removed }
-        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+        when: { event: damage_roll, condition: "combat.attack_state == hit AND combat.target_size <= medium" }
 
 behavior_profile:
   archetype: brute

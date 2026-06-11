@@ -368,5 +368,248 @@ class CritDamageRegressionTest(unittest.TestCase):
         self.assertTrue(seen_crit, "no crit sampled — test inconclusive")
 
 
+class TempHpFromDamageTest(unittest.TestCase):
+    """Lizardfolk Sovereign Bite → Temp HP (to self) equal to the damage dealt
+    (temp_hp_grant target: self, amount_source: last_damage_dealt)."""
+
+    def setUp(self):
+        primitives_module.set_rng(random.Random(4))
+
+    def test_bite_grants_self_temp_hp_equal_to_damage(self):
+        for seed in range(30):
+            primitives_module.set_rng(random.Random(seed))
+            liz = _actor_from("m_lizardfolk_sovereign")
+            pc = _dummy(ac=1, hp=500)
+            st = _state([liz, pc])
+            _run(liz, _action("m_lizardfolk_sovereign", "a_bite"), pc, st)
+            dmg = [e for e in st.event_log if e.get("event") == "damage_dealt"]
+            if dmg:
+                dealt = dmg[-1]["amount"]
+                self.assertEqual(liz.temp_hp, dealt)
+                self.assertGreater(liz.temp_hp, 0)
+                return
+        self.fail("no bite hit in 30 seeds")
+
+    def test_no_temp_hp_on_miss(self):
+        liz = _actor_from("m_lizardfolk_sovereign")
+        pc = _dummy(ac=99, hp=500)   # unhittable
+        st = _state([liz, pc])
+        _run(liz, _action("m_lizardfolk_sovereign", "a_bite"), pc, st)
+        self.assertEqual(liz.temp_hp, 0)
+
+    def test_temp_hp_takes_greater_not_sum(self):
+        # Two bites: temp HP uses max-semantics (RAW: doesn't stack).
+        liz = _actor_from("m_lizardfolk_sovereign")
+        pc = _dummy(ac=1, hp=500)
+        st = _state([liz, pc])
+        primitives_module.set_rng(random.Random(11))
+        _run(liz, _action("m_lizardfolk_sovereign", "a_bite"), pc, st)
+        first = liz.temp_hp
+        _run(liz, _action("m_lizardfolk_sovereign", "a_bite"), pc, st)
+        # After the second bite, temp HP is the GREATER of the two grants,
+        # never their sum.
+        dmg = [e["amount"] for e in st.event_log
+               if e.get("event") == "damage_dealt"]
+        self.assertEqual(liz.temp_hp, max(dmg))
+        self.assertLess(liz.temp_hp, sum(dmg))
+
+
+class TargetSizeConditionTest(unittest.TestCase):
+    """Lizardfolk Sovereign Earthen Maul → Prone only vs Medium-or-smaller
+    targets (when: combat.target_size <= medium)."""
+
+    def setUp(self):
+        primitives_module.set_rng(random.Random(5))
+
+    def _maul(self, target_size):
+        for seed in range(40):
+            primitives_module.set_rng(random.Random(seed))
+            liz = _actor_from("m_lizardfolk_sovereign")
+            pc = _dummy(ac=1, hp=500)
+            pc.size = target_size
+            st = _state([liz, pc])
+            _run(liz, _action("m_lizardfolk_sovereign", "a_earthen_maul"),
+                 pc, st)
+            if any(e.get("event") == "damage_dealt" for e in st.event_log):
+                return pc, st
+        self.fail("no maul hit in 40 seeds")
+
+    def test_medium_target_knocked_prone(self):
+        pc, _ = self._maul("medium")
+        self.assertIn("co_prone",
+                      [c["condition_id"] for c in pc.applied_conditions])
+
+    def test_small_target_knocked_prone(self):
+        pc, _ = self._maul("small")
+        self.assertIn("co_prone",
+                      [c["condition_id"] for c in pc.applied_conditions])
+
+    def test_large_target_not_knocked_prone(self):
+        pc, _ = self._maul("large")
+        self.assertNotIn("co_prone",
+                         [c["condition_id"] for c in pc.applied_conditions])
+
+    def test_huge_target_not_knocked_prone(self):
+        pc, _ = self._maul("huge")
+        self.assertNotIn("co_prone",
+                         [c["condition_id"] for c in pc.applied_conditions])
+
+    # Direct atom evaluation (deterministic).
+    def _st_with_target_size(self, size):
+        st = CombatState(encounter=Encounter(id="t", actors=[]))
+        tgt = _dummy()
+        tgt.size = size
+        st.current_attack = {"state": "hit", "target": tgt}
+        return st
+
+    def test_atom_medium_le_medium(self):
+        self.assertTrue(_evaluate_simple_condition(
+            "combat.target_size <= medium", self._st_with_target_size("medium")))
+
+    def test_atom_large_not_le_medium(self):
+        self.assertFalse(_evaluate_simple_condition(
+            "combat.target_size <= medium", self._st_with_target_size("large")))
+
+    def test_atom_tiny_le_medium(self):
+        self.assertTrue(_evaluate_simple_condition(
+            "combat.target_size <= medium", self._st_with_target_size("tiny")))
+
+
+class BloodiedConditionalDamageTest(unittest.TestCase):
+    """Swarm of Dretches Rend → 3d6+2 at full strength, 3d4+2 while Bloodied
+    (combat.attacker_not_bloodied / combat.attacker_bloodied guards)."""
+
+    def setUp(self):
+        primitives_module.set_rng(random.Random(7))
+
+    def test_healthy_swarm_uses_full_dice(self):
+        # Full-strength Rend is 3d6+2 (non-crit max 20). A NON-CRIT hit above
+        # 14 can only come from the 3d6 step (3d4+2 non-crit caps at 14),
+        # proving the full-damage branch fires while not Bloodied.
+        saw_above_14 = False
+        for seed in range(80):
+            primitives_module.set_rng(random.Random(seed))
+            swarm = _actor_from("m_swarm_of_dretches")  # full HP, not bloodied
+            self.assertFalse(is_bloodied(swarm))
+            pc = _dummy(ac=1, hp=2000)
+            st = _state([swarm, pc])
+            _run(swarm, _action("m_swarm_of_dretches", "a_rend"), pc, st)
+            dmg = [e for e in st.event_log if e.get("event") == "damage_dealt"]
+            if dmg:
+                # exactly ONE damage step fires per Rend (never both branches)
+                self.assertEqual(len(dmg), 1)
+                if (st.current_attack.get("state") == "hit"
+                        and dmg[0]["amount"] > 14):
+                    saw_above_14 = True
+        self.assertTrue(saw_above_14,
+                        "full-strength Rend never exceeded the bloodied cap")
+
+    def test_bloodied_swarm_uses_reduced_dice(self):
+        # Reduced Rend is 3d4+2: non-crit max 14, crit (dice doubled → 6d4+2)
+        # max 26. While Bloodied no NON-CRIT hit may exceed 14.
+        for seed in range(80):
+            primitives_module.set_rng(random.Random(seed))
+            swarm = _actor_from("m_swarm_of_dretches", hp=10)  # ≤ half of 45
+            self.assertTrue(is_bloodied(swarm))
+            pc = _dummy(ac=1, hp=2000)
+            st = _state([swarm, pc])
+            _run(swarm, _action("m_swarm_of_dretches", "a_rend"), pc, st)
+            dmg = [e for e in st.event_log if e.get("event") == "damage_dealt"]
+            if dmg:
+                self.assertEqual(len(dmg), 1)
+                cap = 26 if st.current_attack.get("state") == "crit" else 14
+                self.assertLessEqual(dmg[0]["amount"], cap)
+
+    # Direct atom evaluation (deterministic).
+    def _st_with_attacker(self, actor):
+        st = CombatState(encounter=Encounter(id="t", actors=[]))
+        st.current_attack = {"state": "hit", "actor": actor}
+        return st
+
+    def test_atom_attacker_bloodied(self):
+        swarm = _actor_from("m_swarm_of_dretches", hp=10)
+        st = self._st_with_attacker(swarm)
+        self.assertTrue(_evaluate_simple_condition(
+            "combat.attacker_bloodied", st))
+        self.assertFalse(_evaluate_simple_condition(
+            "combat.attacker_not_bloodied", st))
+
+    def test_atom_attacker_not_bloodied(self):
+        swarm = _actor_from("m_swarm_of_dretches")  # full HP
+        st = self._st_with_attacker(swarm)
+        self.assertFalse(_evaluate_simple_condition(
+            "combat.attacker_bloodied", st))
+        self.assertTrue(_evaluate_simple_condition(
+            "combat.attacker_not_bloodied", st))
+
+
+class ShadowBreathRechargeTest(unittest.TestCase):
+    """Juvenile Shadow Dragon Shadow Breath → Recharge 5–6 aoe_attack (cone).
+    Exercises the existing recharge gate + AoE cone targeting."""
+
+    def setUp(self):
+        primitives_module.set_rng(random.Random(9))
+
+    def _breath(self, dragon, target, st):
+        from engine.core.geometry import unit_direction
+        action = _action("m_juvenile_shadow_dragon", "a_shadow_breath")
+        chosen = {"kind": "aoe_attack", "action": action, "target": target,
+                  "actor": dragon, "origin_point": dragon.position,
+                  "direction": unit_direction(dragon.position, target.position)}
+        pipeline.execute(chosen, st, EventBus(),
+                         PrimitiveRegistry.with_defaults())
+        return st
+
+    def test_breath_is_aoe_with_recharge(self):
+        action = _action("m_juvenile_shadow_dragon", "a_shadow_breath")
+        self.assertEqual(action["type"], "aoe_attack")
+        self.assertEqual(action["recharge"], "5-6")
+        self.assertEqual(action["area"]["shape"], "cone")
+
+    def test_breath_marks_spent_after_use(self):
+        dragon = _actor_from("m_juvenile_shadow_dragon", position=(0, 0))
+        pc = _dummy(ac=5, hp=200, position=(1, 0))
+        st = _state([dragon, pc])
+        self._breath(dragon, pc, st)
+        # After use it is spent until a turn-start recharge roll succeeds.
+        from engine.core import recharge
+        action = _action("m_juvenile_shadow_dragon", "a_shadow_breath")
+        self.assertIn("a_shadow_breath", dragon.recharge_spent)
+        self.assertFalse(recharge.is_available(dragon, action))
+
+    def test_breath_recharges_on_high_roll(self):
+        from engine.core import recharge
+        dragon = _actor_from("m_juvenile_shadow_dragon")
+        dragon.recharge_spent.add("a_shadow_breath")
+        st = _state([dragon])
+
+        class _R:   # forces a 6 → within 5-6 → recharges
+            def randint(self, a, b):
+                return 6
+        recharge.roll_recharges_at_turn_start(dragon, st, _R())
+        self.assertNotIn("a_shadow_breath", dragon.recharge_spent)
+
+    def test_breath_stays_spent_on_low_roll(self):
+        from engine.core import recharge
+        dragon = _actor_from("m_juvenile_shadow_dragon")
+        dragon.recharge_spent.add("a_shadow_breath")
+        st = _state([dragon])
+
+        class _R:   # forces a 4 → outside 5-6 → stays spent
+            def randint(self, a, b):
+                return 4
+        recharge.roll_recharges_at_turn_start(dragon, st, _R())
+        self.assertIn("a_shadow_breath", dragon.recharge_spent)
+
+    def test_breath_deals_necrotic_in_cone(self):
+        dragon = _actor_from("m_juvenile_shadow_dragon", position=(0, 0))
+        pc = _dummy(ac=5, hp=200, position=(1, 0))
+        st = _state([dragon, pc])
+        self._breath(dragon, pc, st)
+        dmg = [e for e in st.event_log if e.get("event") == "damage_dealt"]
+        self.assertTrue(dmg)
+        self.assertTrue(all(e["type"] == "necrotic" for e in dmg))
+
+
 if __name__ == "__main__":
     unittest.main()

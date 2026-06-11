@@ -78,7 +78,10 @@ def _action(mid, action_id):
 
 
 _ALLOWED_PRIMITIVES = {"attack_roll", "damage", "forced_save", "apply_condition",
-                        "forced_movement", "recurring_save"}
+                        "forced_movement", "recurring_save",
+                        # Lizardfolk Sovereign Bite: self Temp HP = damage dealt
+                        # (target: self, amount_source: last_damage_dealt).
+                        "temp_hp_grant"}
 
 
 class LoadShapeTest(unittest.TestCase):

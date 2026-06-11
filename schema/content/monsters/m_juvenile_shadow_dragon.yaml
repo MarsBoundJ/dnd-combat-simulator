@@ -1,11 +1,11 @@
 # m_juvenile_shadow_dragon — Juvenile Shadow Dragon
 # Source: 2024 Monster Manual (MM-only; not in SRD 5.2.1)
 # Triage: GREEN — Multiattack 2× Rend (Slashing + Necrotic dual); Shadow
-#   Breath modeled as single-target DEX save (5d6 Necrotic, half on success).
+#   Breath modeled as a Recharge 5–6 aoe_attack (30-ft cone, DEX DC 13 →
+#   5d6 Necrotic, half on success).
 #   DEFERRED: Living Shadow (resistance to non-Force/Psychic/Radiant damage
 #   while in Dim Light or Darkness) — no conditional light-level resistance
 #   primitive in v1.
-#   DEFERRED: Recharge (5–6) on Shadow Breath — no recharge primitive in v1.
 #   DEFERRED: Shadow Breath "rise as Shadow" (Humanoid at 0 HP spawns Shadow)
 #   — no on-death spawn primitive in v1.
 #   DEFERRED: Sunlight Sensitivity / Shadow Stealth — no environmental
@@ -76,13 +76,15 @@ actions:
 
   - id: a_shadow_breath
     name: Shadow Breath
-    type: save_effect
+    type: aoe_attack
+    recharge: "5-6"
+    area: { shape: cone, length_ft: 30 }
     pipeline:
       - primitive: forced_save
         params:
           ability: dexterity
           dc: 13
-          affected: current_target
+          affected: all_creatures_in_area
           on_fail:
             - primitive: damage
               params: { dice: "5d6", modifier: 0, type: necrotic, average: 17 }

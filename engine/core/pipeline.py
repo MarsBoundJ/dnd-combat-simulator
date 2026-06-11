@@ -18,6 +18,9 @@ in incrementally.
 """
 from __future__ import annotations
 
+import operator
+import re
+
 from engine.core.state import Actor, CombatState
 
 
@@ -1545,13 +1548,57 @@ def _evaluate_condition_atom(cond: str, state: CombatState) -> bool:
     """Evaluate a single (operator-free) condition atom. Unknown atoms default
     to True (skeleton-conservative — a damage step with an unrecognised guard
     still fires)."""
+    ca = state.current_attack or {}
     if "combat.attack_state == crit" in cond:
-        return state.current_attack.get("state") == "crit"
+        return ca.get("state") == "crit"
     if "combat.attack_state == hit" in cond:
         # A crit is also a hit (RAW: a critical hit IS a hit).
-        return state.current_attack.get("state") in ("hit", "crit")
+        return ca.get("state") in ("hit", "crit")
     if "combat.attack_had_disadvantage" in cond:
-        return state.current_attack.get("had_disadvantage", False)
+        return ca.get("had_disadvantage", False)
     if "combat.attack_had_advantage" in cond:
-        return state.current_attack.get("had_advantage", False)
+        return ca.get("had_advantage", False)
+    # Bloodied state of the ATTACKER (Swarm of Dretches: Rend deals reduced
+    # damage while the swarm is Bloodied). Match the NOT form first — its
+    # string contains "...not_bloodied", so a bare "bloodied" substring test
+    # would mis-fire on it.
+    if "combat.attacker_not_bloodied" in cond:
+        from engine.core import monster_traits as _mt
+        actor = ca.get("actor")
+        return not (actor is not None and _mt.is_bloodied(actor))
+    if "combat.attacker_bloodied" in cond:
+        from engine.core import monster_traits as _mt
+        actor = ca.get("actor")
+        return actor is not None and _mt.is_bloodied(actor)
+    # Target SIZE comparison (Lizardfolk Sovereign Earthen Maul: Prone only
+    # if the target is "Medium or smaller" → combat.target_size <= medium).
+    if "combat.target_size" in cond:
+        return _evaluate_target_size(cond, ca.get("target"))
     return True
+
+
+# Creature size rank order (RAW 2024 size categories), smallest → largest.
+_SIZE_ORDER = {"tiny": 0, "small": 1, "medium": 2,
+               "large": 3, "huge": 4, "gargantuan": 5}
+_SIZE_OPS = {"<=": operator.le, ">=": operator.ge, "==": operator.eq,
+             "<": operator.lt, ">": operator.gt}
+
+
+def _evaluate_target_size(cond: str, target) -> bool:
+    """Evaluate a `combat.target_size <op> <size>` atom against `target`.
+
+    `<op>` is one of <= >= == < > and `<size>` a named category
+    (tiny/small/medium/large/huge/gargantuan). Comparison is by rank, so
+    `combat.target_size <= medium` is True for Tiny/Small/Medium targets.
+    A missing target or unparseable atom defaults to True (conservative —
+    the gated step still fires)."""
+    if target is None:
+        return True
+    m = re.search(r"combat\.target_size\s*(<=|>=|==|<|>)\s*(\w+)", cond)
+    if not m:
+        return True
+    op, name = m.group(1), m.group(2).lower()
+    if name not in _SIZE_ORDER:
+        return True
+    target_rank = _SIZE_ORDER.get(getattr(target, "size", "medium"), 2)
+    return _SIZE_OPS[op](target_rank, _SIZE_ORDER[name])
