@@ -36,7 +36,7 @@ source: srd_5.2.1
 parent_class: c_bard
 
 archetype_tags:
-  behavior_archetype: nimble_skirmisher
+  behavior_archetype: opportunistic_skirmisher
   role: skirmisher                # INTERNAL-EVAL-ONLY per vocabulary firewall
   flavor_tags: [graceful, agile, cosmic, dancing]
 

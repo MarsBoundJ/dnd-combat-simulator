@@ -34,7 +34,7 @@ source: srd_5.2.1
 parent_class: c_bard
 
 archetype_tags:
-  behavior_archetype: beguiling_enchanter
+  behavior_archetype: cunning_tactician
   role: controller                # INTERNAL-EVAL-ONLY per vocabulary firewall
   flavor_tags: [fey, beguiling, majestic, charming, glamorous]
 

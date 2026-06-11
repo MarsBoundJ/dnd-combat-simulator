@@ -140,14 +140,22 @@ def validate_subclass(sc_path: Path) -> list[str]:
             errors.append(f"level {level}: feature '{fid}' has invalid type '{feat_type}'")
 
         granted = feat.get("granted_by", {})
-        if granted.get("subclass") != sc_id:
-            errors.append(
-                f"level {level}: feature '{fid}' granted_by.subclass = "
-                f"'{granted.get('subclass')}', expected '{sc_id}'")
-        if granted.get("level") != level:
-            errors.append(
-                f"level {level}: feature '{fid}' granted_by.level = "
-                f"{granted.get('level')}, expected {level}")
+        # Shared features (e.g. f_extra_attack) are deliberately reused by
+        # multiple classes/subclasses and declare `granted_by.class` instead
+        # of a single subclass+level. Exempt them from the subclass/level
+        # match — a subclass legitimately grants such a feature at its own
+        # level (College of Valor grants the shared Extra Attack at L6).
+        if "class" in granted:
+            pass
+        else:
+            if granted.get("subclass") != sc_id:
+                errors.append(
+                    f"level {level}: feature '{fid}' granted_by.subclass = "
+                    f"'{granted.get('subclass')}', expected '{sc_id}'")
+            if granted.get("level") != level:
+                errors.append(
+                    f"level {level}: feature '{fid}' granted_by.level = "
+                    f"{granted.get('level')}, expected {level}")
 
         for req in ("name", "source"):
             if not feat.get(req):

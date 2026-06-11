@@ -35,8 +35,8 @@ source: srd_5.2.1
 parent_class: c_barbarian
 
 archetype_tags:
-  behavior_archetype: cosmic_guardian
-  role: defender                # INTERNAL-EVAL-ONLY per vocabulary firewall
+  behavior_archetype: primal_guardian
+  role: tank                    # INTERNAL-EVAL-ONLY per vocabulary firewall
   flavor_tags: [cosmic, vitality, planar, protective, dimensional]
 
 features_by_level:

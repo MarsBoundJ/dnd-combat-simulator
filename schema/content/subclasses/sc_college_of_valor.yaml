@@ -27,7 +27,7 @@ source: srd_5.2.1
 parent_class: c_bard
 
 archetype_tags:
-  behavior_archetype: melee_skirmisher
+  behavior_archetype: pack_alpha
   role: skirmisher
   flavor_tags: [valor, martial, storyteller, inspiring]
 
