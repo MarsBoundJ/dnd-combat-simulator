@@ -1,0 +1,86 @@
+# m_yuan_ti_malison_3 — Yuan-ti Malison (Type 3: Human upper body, snake lower body)
+# Source: 2024 Monster Manual (MM-only; not in SRD 5.2.1)
+# Triage: GREEN — Multiattack 2× Poison Burst (Poison ranged); Constrict save_effect.
+#   DEFERRED: spellcasting (Suggestion); Magic Resistance modeled declaratively.
+
+id: m_yuan_ti_malison_3
+name: Yuan-ti Malison (Type 3)
+source: mm_2024
+
+size: medium
+creature_type: monstrosity
+alignment: neutral evil
+
+combat:
+  armor_class: 12
+  hit_points: { average: 66, dice: "12d8", con_contribution: 12 }
+  speed: { walk: 30, climb: 30 }
+  initiative: { modifier: 2, score: 12 }
+
+abilities:
+  str: { score: 16, save: 3 }
+  dex: { score: 14, save: 2 }
+  con: { score: 13, save: 1 }
+  int: { score: 14, save: 2 }
+  wis: { score: 16, save: 3 }
+  cha: { score: 12, save: 1 }
+
+skills: { stealth: 4 }
+
+damage_immunities: [poison]
+condition_immunities: [co_poisoned]
+
+senses: { passive_perception: 13, special: { darkvision: 60 } }
+languages: ["Abyssal", "Common", "Draconic"]
+
+cr: { value: 3, xp: 700, proficiency_bonus: 2 }
+
+habitat: [desert, forest, swamp, urban]
+treasure: relics
+
+traits:
+  - id: t_magic_resistance
+    name: Magic Resistance
+    type: trait_passive
+
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 2
+    sub_actions: ["a_poison_burst"]
+
+  - id: a_poison_burst
+    name: Poison Burst
+    type: weapon_attack
+    is_signature: true
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: ranged, bonus: 5, reach_ft: 120 }
+      - primitive: damage
+        params: { dice: "2d8", modifier: 3, type: poison, average: 12 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  - id: a_constrict
+    name: Constrict
+    type: save_effect
+    pipeline:
+      - primitive: forced_save
+        params:
+          ability: strength
+          dc: 13
+          affected: current_target
+          on_fail:
+            - primitive: damage
+              params: { dice: "4d8", modifier: 3, type: bludgeoning, average: 21 }
+            - primitive: apply_condition
+              params: { condition_id: co_grappled, duration: until_removed }
+            - primitive: apply_condition
+              params: { condition_id: co_restrained, duration: until_removed }
+          on_success:
+            - primitive: damage
+              params: { dice: "4d8", modifier: 3, type: bludgeoning, average: 21 }
+
+behavior_profile:
+  archetype: skirmisher
+  presets: { retreat: cowardly, ability_selection: default, targeting: weakest_target, action_economy: aggressive }
