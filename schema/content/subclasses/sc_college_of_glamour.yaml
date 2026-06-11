@@ -14,8 +14,12 @@
 # Feature wiring status:
 #   - f_beguiling_magic (L3)     → PARTIAL — the post-Enchantment/Illusion
 #                                   WIS-save control rider is wired; the
-#                                   always-prepared Charm Person / Mirror
-#                                   Image grants are markers (spells not built).
+#                                   always-prepared Charm Person grant is wired
+#                                   (f_charm_person, built in 3A); Mirror Image
+#                                   deferred (not built).
+#   Phase 3B always-prepared list (L3 subclass grant):
+#     f_charm_person (t1) — WIRED below
+#     deferred (not built): Mirror Image (t2)
 #   - f_mantle_of_inspiration(L3)→ FULLY WIRED — BA: expend BI, grant up to
 #                                   CHA-mod allies within 60 ft Temp HP = 2×
 #                                   the Bardic die roll. See college_of_glamour.
@@ -40,7 +44,7 @@ archetype_tags:
 
 features_by_level:
   - level: 3
-    feature_ids: [f_beguiling_magic, f_mantle_of_inspiration]
+    feature_ids: [f_beguiling_magic, f_charm_person, f_mantle_of_inspiration]
   - level: 6
     feature_ids: [f_mantle_of_majesty]
   - level: 14

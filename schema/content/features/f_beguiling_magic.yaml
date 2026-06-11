@@ -19,8 +19,8 @@
 #
 # Feature wiring status: PARTIAL.
 #   - WIRED: the post-Enchantment/Illusion WIS-save control rider.
-#   - MARKER: the always-prepared Charm Person / Mirror Image grants (those
-#     spells aren't built yet) and the BI-refund of the use (deferred).
+#   - WIRED (via sc_college_of_glamour L3): f_charm_person always-prepared grant.
+#   - MARKER: Mirror Image always-prepared grant (not built); BI-refund deferred.
 
 id: f_beguiling_magic
 name: Beguiling Magic
