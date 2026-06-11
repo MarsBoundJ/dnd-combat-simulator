@@ -17,6 +17,12 @@ Template of record: `schema/content/monsters/m_goblin_warrior.yaml`.
   CC-BY and machine-ingestable from the open doc (see `docs/data-sources.md`).
 - Re-express mechanics in structured YAML; `source: srd_5.2.1`. Never
   paste flavor/prose text.
+- **Monsters NOT in the SRD** (Monster Manual 2024 only, user-supplied
+  stat blocks): same rules, but `source: mm_2024` and a header note
+  "NOT in SRD 5.2.1 — mechanics-only clean-room re-expression". These
+  won't appear in `srd_monsters_priority.csv`; that's expected.
+  Mechanics only — flavor prose, habitat/treasure tables, and lore
+  never enter the repo. (First batch: M10, the CR 4 sweep.)
 
 ## Work order
 

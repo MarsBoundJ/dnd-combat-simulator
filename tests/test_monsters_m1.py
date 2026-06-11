@@ -93,8 +93,11 @@ class LoadShapeTest(unittest.TestCase):
                 self.assertIn(field, m, f"{mid} missing {field}")
             # SRD monsters are srd_5.2.1; summon-spell stat blocks for
             # PHB-only spells (Bestial Spirit, Celestial Spirit) are
-            # our own re-expression -> user_authored.
-            self.assertIn(m["source"], ("srd_5.2.1", "user_authored"), mid)
+            # our own re-expression -> user_authored; non-SRD Monster
+            # Manual stat blocks (batch M10+) are mm_2024 (mechanics-only
+            # re-expression — see MONSTER_BUILD_GUIDE.md provenance).
+            self.assertIn(m["source"],
+                          ("srd_5.2.1", "user_authored", "mm_2024"), mid)
             self.assertIn("walk", m["combat"]["speed"], f"{mid} needs a walk speed")
 
     def test_action_pipelines_use_only_composable_primitives(self):

@@ -1,0 +1,77 @@
+# m_aarakocra_aeromancer — Aarakocra Aeromancer
+# Source: Monster Manual (2024) — NOT in SRD 5.2.1. Mechanics-only
+# clean-room re-expression (no flavor prose) per schema-design.md §1.
+# Triage: GREEN for core kit — Multiattack of Wind Staff, plus
+# Spellcasting `casts:` actions for Gust of Wind (At-Will) and Lightning
+# Bolt (1/Day), both built spells at WIS DC 13.
+# Approximations / DEFERRED (see MONSTERS_NEED_ENGINE_WORK.md):
+#   - RAW Multiattack is "two Wind Staff attacks AND can cast Gust of
+#     Wind" — the multiattack+cast composite isn't an established shape;
+#     Gust of Wind is modeled as a separate at-will action (action-economy
+#     under-representation, same call as the M8 dragons' "replace one
+#     attack with Spellcasting"). Logged → Monster Spellcasting bucket.
+#   - Wind Staff is "Melee or Ranged" (reach 5 / range 120) with identical
+#     damage; modeled as the ranged form only (no melee/ranged penalty
+#     exists in-engine, so this is lossless).
+#   - Speed: RAW walk 20 / Fly 50 — fly speed used as the walk stand-in
+#     (primary locomotion; the allowed flyer approximation).
+#   - Reaction Feather Fall (1/Day): falling trigger is out of sim scope
+#     AND there is no monster reactive-cast path (Reaction bucket).
+#   - At-will utility cantrips Elementalism / Mage Hand / Message:
+#     non-combat, omitted.
+id: m_aarakocra_aeromancer
+name: Aarakocra Aeromancer
+source: mm_2024
+size: medium
+creature_type: elemental
+alignment: neutral
+combat:
+  armor_class: 16
+  hit_points: { average: 66, dice: "12d8", con_contribution: 12 }
+  speed: { walk: 50, fly: 50 }
+  initiative: { modifier: 3, score: 13 }
+abilities:
+  str: { score: 10, save: 0 }
+  dex: { score: 16, save: 5 }
+  con: { score: 12, save: 1 }
+  int: { score: 13, save: 1 }
+  wis: { score: 17, save: 5 }
+  cha: { score: 12, save: 1 }
+skills: { arcana: 3, nature: 5, perception: 7 }
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: []
+condition_immunities: []
+senses: { passive_perception: 17 }
+languages: [aarakocra, primordial]
+cr: { value: 4, xp: 1100, proficiency_bonus: 2 }
+spellcasting: { ability: wisdom, save_dc: 13 }
+traits: []
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 2
+    sub_actions: [a_wind_staff]
+  - id: a_wind_staff
+    name: Wind Staff
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: ranged, bonus: 5, range_ft: 120 }
+      - primitive: damage
+        params: { dice: "1d8", modifier: 3, type: bludgeoning, average: 7 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: damage
+        params: { dice: "2d10", modifier: 0, type: lightning, average: 11 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+  - id: a_cast_gust_of_wind
+    name: Gust of Wind
+    casts: f_gust_of_wind
+  - id: a_cast_lightning_bolt
+    name: Lightning Bolt
+    casts: f_lightning_bolt
+    recharge: "daily:1"
+behavior_profile:
+  archetype: cowardly_skirmisher
+  presets: { retreat: cowardly, ability_selection: default, targeting: weakest_target, action_economy: skilled }

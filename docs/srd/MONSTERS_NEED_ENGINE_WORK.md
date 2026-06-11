@@ -182,6 +182,19 @@ v2).**
   (CR 4), **Lamia** (CR 4), **Sea Hag / Green Hag** innate (CR 2 / 3),
   **Satyr** (innate), **Salamander**-tier innate casters.
 - **Giant Owl** (CR 1/4, rating 2) — innate Spellcasting. Full defer.
+- **Multiattack + cast composite** (batch M10, also the M8 dragons'
+  "replace one attack with Spellcasting"): 2024 stat blocks routinely
+  fold a cast into Multiattack — **Aarakocra Aeromancer** (CR 4, MM 2024)
+  "two Wind Staff attacks AND can cast Gust of Wind"; **Bullywug Bog
+  Sage** (CR 4, MM 2024) "can replace any attack with Ray of Sickness";
+  **Bone Naga** (CR 4, MM 2024) "can replace any attack with Serpentine
+  Gaze" (modeled as round-robin, not a choice). Both casters are BUILT
+  with the cast as a separate top-level action (action-economy
+  under-representation). Likely fix: allow `sub_actions` to reference a
+  `casts`-expanded action id — `_execute_multiattack` already looks
+  sub-actions up by id in the expanded template, so this may only need
+  verification + a test (Opus call: it composes the multiattack loop
+  with the spellcasting expansion, two systems with no joint coverage).
 ## Regeneration / recurring self-heal
 **✅ SYSTEM BUILT (engine.core.regeneration).** Stat-block
 `regeneration: { amount: N, suppressed_by: [acid, fire],
@@ -246,6 +259,34 @@ without the rider** (its base damage is the core):
   a -1d4/-1d6 damage-roll penalty). **Built without this secondary
   breath** (a damage-roll/ability-check debuff has no primitive); the Fire
   Breath + Rend (+ the Adult's legendary kit) are the core.
+
+## HP-threshold instant-drop (power-word shape)
+A save/effect that checks the target's CURRENT HP against a threshold
+and drops it to 0 outright when at-or-under (otherwise a normal damage
+fallback). No primitive exists — needs something like
+`hp_threshold_drop { threshold: N, otherwise: [damage steps] }` inside a
+forced_save `on_fail`. Same shape as the Power Word Kill / Power Word
+Stun spell family, so building it serves the spell library too.
+**Opus-owned: new primitive.**
+- **Banshee** (CR 4, MM 2024, batch M10) — Deathly Wail (1/Day):
+  CON save DC 13, 30-ft emanation; on a fail a target at ≤25 HP drops
+  to 0, else takes 3d6 Psychic. **Built with the 3d6 Psychic fail-damage
+  only** (the wail under-represents its execute potential). Also
+  unmodeled: the sunlight precondition and Construct/Undead + hearing
+  exclusions (no creature-type/sense filters on AoE saves).
+
+## Per-encounter save-immunity on targeted saves
+"Success: the target is immune to this creature's X for 24 hours." The
+aura-trait resolver already supports exactly this (`immune_on_success`
+in engine.core.aura_traits / runner), but targeted `forced_save` actions
+have no equivalent — a passed save grants nothing, so the monster can
+re-attempt every round (overstates the ability). Fix shape: an
+`immune_on_success: true` param on forced_save that stamps a
+per-(source, action) immunity set the save resolver checks.
+**Opus-owned: touches the forced_save hot path.**
+- **Banshee** (CR 4, MM 2024, batch M10) — Horrify (part of its
+  Multiattack): WIS DC 13 → Frightened; success → 24h immunity.
+  **Built without the immunity.**
 
 ## Form change
 2024 SRD trait name is **"Shape-Shift"** (not "Change Shape").
@@ -313,6 +354,10 @@ attack redirection). No general monster-reaction declaration path yet.
   release ink + swim away). **Built without this reaction** (Tentacles
   is the core). No full monster defers at rating 1 — the trivial-critter
   tail is entirely GREEN.
+- **Aarakocra Aeromancer** (CR 4, MM 2024, batch M10) — Feather Fall
+  (1/Day) reactive cast. **Built without it**: falling isn't modeled in
+  the sim, AND there's no monster reactive-cast path (same gap as the
+  Mage/Archmage Protective Magic above).
 
 ## Aura traits
 **✅ SYSTEM BUILT (engine.core.aura_traits).** Always-on emanations: a

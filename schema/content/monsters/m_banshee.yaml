@@ -1,0 +1,100 @@
+# m_banshee — Banshee
+# Source: Monster Manual (2024) — NOT in SRD 5.2.1. Mechanics-only
+# clean-room re-expression (no flavor prose) per schema-design.md §1.
+# Triage: GREEN for core kit — Multiattack of two Corrupting Touch + one
+# Horrify (the save_effect-in-multiattack shape, Giant Constrictor Snake
+# precedent), and Deathly Wail as a daily:1 30-ft-emanation CON save.
+# Approximations / DEFERRED (see MONSTERS_NEED_ENGINE_WORK.md):
+#   - Horrify's "Success: immune to this banshee's Horrify for 24 hours"
+#     is NOT modeled — `immune_on_success` exists only on the aura-trait
+#     resolver, not on targeted forced_save actions. Logged as a primitive
+#     gap (slightly OVERSTATES Horrify on save-passing targets).
+#   - Deathly Wail's "≤25 HP → drops to 0 HP" instant-down rider is NOT
+#     modeled (no HP-threshold-drop primitive — power-word-kill shape);
+#     built as the 3d6 Psychic fail-damage only. Logged as a primitive
+#     gap. The sunlight precondition and the Construct/Undead + hearing
+#     exclusions are also unmodeled (emanation hits all non-self
+#     creatures; allies included, which is RAW for non-Undead allies).
+#   - Incorporeal Movement (move through creatures/objects, 1d10 Force if
+#     ending inside one): no movement-through-occupied-space hook; omitted.
+#   - Detect Life: out-of-combat sense, omitted.
+#   - Speed: RAW walk 5 / Fly 40 (hover) — fly speed used as the walk
+#     stand-in (primary locomotion; the allowed flyer approximation).
+id: m_banshee
+name: Banshee
+source: mm_2024
+size: medium
+creature_type: undead
+alignment: chaotic_evil
+combat:
+  armor_class: 12
+  hit_points: { average: 54, dice: "12d8", con_contribution: 0 }
+  speed: { walk: 40, fly: 40 }
+  initiative: { modifier: 2, score: 12 }
+abilities:
+  str: { score: 1, save: -5 }
+  dex: { score: 14, save: 2 }
+  con: { score: 10, save: 0 }
+  int: { score: 12, save: 1 }
+  wis: { score: 11, save: 2 }
+  cha: { score: 17, save: 3 }
+skills: {}
+damage_resistances: [acid, bludgeoning, fire, lightning, piercing, slashing, thunder]
+damage_vulnerabilities: []
+damage_immunities: [cold, necrotic, poison]
+condition_immunities: [co_charmed, co_exhaustion, co_frightened, co_grappled,
+                        co_paralyzed, co_petrified, co_poisoned, co_prone,
+                        co_restrained]
+senses: { passive_perception: 10, special: { darkvision: 60 } }
+languages: [common, elvish]
+cr: { value: 4, xp: 1100, proficiency_bonus: 2 }
+traits: []
+actions:
+  # RAW: two Corrupting Touch attacks + one use of Horrify. Round-robin
+  # over [touch, horrify, touch] at count 3 yields exactly that mix.
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 3
+    sub_actions: [a_corrupting_touch, a_horrify, a_corrupting_touch]
+  - id: a_corrupting_touch
+    name: Corrupting Touch
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 5, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d8", modifier: 3, type: necrotic, average: 7 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+  - id: a_horrify
+    name: Horrify
+    type: save_effect
+    range_ft: 60
+    pipeline:
+      - primitive: forced_save
+        params:
+          ability: wisdom
+          dc: 13
+          affected: current_target
+          on_fail:
+            - primitive: apply_condition
+              params: { condition_id: co_frightened, duration: until_actor_next_turn_start }
+          on_success: []
+  - id: a_deathly_wail
+    name: Deathly Wail
+    type: aoe_attack
+    recharge: "daily:1"
+    area: { shape: emanation, size_ft: 30 }
+    pipeline:
+      - primitive: forced_save
+        params:
+          ability: constitution
+          dc: 13
+          affected: all_creatures_in_area
+          on_fail:
+            - primitive: damage
+              params: { dice: "3d6", modifier: 0, type: psychic, average: 10 }
+          on_success: []
+behavior_profile:
+  archetype: apex_predator
+  presets: { retreat: ftd, ability_selection: default, targeting: weakest_target, action_economy: casual }
