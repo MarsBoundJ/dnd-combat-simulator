@@ -1,0 +1,73 @@
+# m_shadow_demon — Shadow Demon
+# Source: 2024 Monster Manual (MM-only; not in SRD 5.2.1)
+# Triage: GREEN — Single Umbral Claw attack (+5, 3d8+3 Psychic).
+#   DEFERRED: Light Sensitivity / Shadow Stealth — no environmental
+#   light-level primitive in v1.
+#   DEFERRED: Incorporeal Movement (move through objects) — no incorporeal
+#   movement primitive in v1.
+#   DEFERRED: Demonic Restoration (revives in Abyss when killed outside it)
+#   — no on-death revival primitive in v1.
+
+id: m_shadow_demon
+name: Shadow Demon
+source: mm_2024
+
+size: medium
+creature_type: fiend
+alignment: chaotic evil
+
+combat:
+  armor_class: 14
+  hit_points: { average: 66, dice: "12d8", con_contribution: 12 }
+  speed: { walk: 30, fly: 30 }
+  initiative: { modifier: 3, score: 13 }
+
+abilities:
+  str: { score: 1,  save: -5 }
+  dex: { score: 17, save: 5 }
+  con: { score: 12, save: 1 }
+  int: { score: 14, save: 2 }
+  wis: { score: 13, save: 1 }
+  cha: { score: 14, save: 4 }
+
+skills: { stealth: 7 }
+
+damage_vulnerabilities: [radiant]
+damage_resistances: [acid, bludgeoning, cold, fire, lightning, piercing, slashing, thunder]
+damage_immunities: [necrotic, poison]
+condition_immunities: [co_exhaustion, co_grappled, co_paralyzed, co_petrified, co_poisoned, co_prone, co_restrained]
+
+senses: { passive_perception: 11, special: { darkvision: 120 } }
+languages: ["Abyssal"]
+
+cr: { value: 4, xp: 1100, proficiency_bonus: 2 }
+
+habitat: [planar_abyss]
+treasure: none
+
+traits:
+  - id: t_light_sensitivity
+    name: Light Sensitivity
+    type: trait_passive
+  - id: t_incorporeal_movement
+    name: Incorporeal Movement
+    type: trait_passive
+  - id: t_demonic_restoration
+    name: Demonic Restoration
+    type: trait_passive
+
+actions:
+  - id: a_umbral_claw
+    name: Umbral Claw
+    type: weapon_attack
+    is_signature: true
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 5, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "3d8", modifier: 3, type: psychic, average: 16 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: ambusher
+  presets: { retreat: cowardly, ability_selection: default, targeting: weakest_target, action_economy: aggressive }

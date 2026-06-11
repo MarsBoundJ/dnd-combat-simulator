@@ -1,0 +1,77 @@
+# m_flameskull — Flameskull
+# Source: 2024 Monster Manual (MM-only; not in SRD 5.2.1)
+# Triage: GREEN — Multiattack 2× Fire Ray (+5, melee or ranged 60 ft, 3d6+3 Fire).
+#   Modeled as ranged; melee reach option noted.
+#   DEFERRED: Spellcasting (Mage Hand At Will, Magic Missile 2/Day level 2,
+#   Fireball 1/Day) — no spell/limited-use action primitive in v1.
+#   DEFERRED: Undead Restoration (1-hour on-death revival) — no on-death
+#   revival primitive in v1.
+#   Magic Resistance modeled declaratively (t_magic_resistance).
+
+id: m_flameskull
+name: Flameskull
+source: mm_2024
+
+size: tiny
+creature_type: undead
+alignment: neutral evil
+
+combat:
+  armor_class: 13
+  hit_points: { average: 40, dice: "9d4", con_contribution: 18 }
+  speed: { walk: 5, fly: 40 }
+  initiative: { modifier: 3, score: 13 }
+
+abilities:
+  str: { score: 1,  save: -5 }
+  dex: { score: 17, save: 3 }
+  con: { score: 14, save: 2 }
+  int: { score: 16, save: 3 }
+  wis: { score: 10, save: 0 }
+  cha: { score: 11, save: 0 }
+
+skills: { arcana: 5, perception: 2 }
+
+damage_immunities: [fire, necrotic, poison]
+condition_immunities: [co_charmed, co_exhaustion, co_frightened, co_paralyzed, co_poisoned, co_prone]
+
+senses: { passive_perception: 12, special: { darkvision: 60 } }
+languages: ["Common"]
+
+cr: { value: 4, xp: 1100, proficiency_bonus: 2 }
+
+habitat: [underdark]
+treasure: arcana
+
+traits:
+  - id: t_magic_resistance
+    name: Magic Resistance
+    type: trait_passive
+  - id: t_illumination
+    name: Illumination
+    type: trait_passive
+  - id: t_undead_restoration
+    name: Undead Restoration
+    type: trait_passive
+
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 2
+    sub_actions: ["a_fire_ray"]
+
+  - id: a_fire_ray
+    name: Fire Ray
+    type: weapon_attack
+    is_signature: true
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: ranged, bonus: 5, reach_ft: 60 }
+      - primitive: damage
+        params: { dice: "3d6", modifier: 3, type: fire, average: 13 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: artillery
+  presets: { retreat: cowardly, ability_selection: default, targeting: weakest_target, action_economy: aggressive }

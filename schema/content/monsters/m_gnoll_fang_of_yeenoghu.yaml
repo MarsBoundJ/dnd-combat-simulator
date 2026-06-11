@@ -1,0 +1,74 @@
+# m_gnoll_fang_of_yeenoghu — Gnoll Fang of Yeenoghu
+# Source: 2024 Monster Manual (MM-only; not in SRD 5.2.1)
+# Triage: GREEN — Multiattack 1× Bite + 2× Bone Flail; Bite applies Poisoned
+#   until start of gnoll's next turn (until_actor_next_turn_start).
+#   DEFERRED: Rampage bonus action (triggered after damaging a Bloodied
+#   creature — no conditional bonus-action-trigger primitive in v1).
+
+id: m_gnoll_fang_of_yeenoghu
+name: Gnoll Fang of Yeenoghu
+source: mm_2024
+
+size: medium
+creature_type: fiend
+alignment: chaotic evil
+
+combat:
+  armor_class: 14
+  hit_points: { average: 71, dice: "11d8", con_contribution: 22 }
+  speed: { walk: 30 }
+  initiative: { modifier: 4, score: 14 }
+
+abilities:
+  str: { score: 17, save: 3 }
+  dex: { score: 15, save: 2 }
+  con: { score: 15, save: 4 }
+  int: { score: 10, save: 0 }
+  wis: { score: 11, save: 2 }
+  cha: { score: 13, save: 3 }
+
+senses: { passive_perception: 10, special: { darkvision: 60 } }
+languages: ["Abyssal", "Gnoll"]
+
+cr: { value: 4, xp: 1100, proficiency_bonus: 2 }
+
+habitat: [desert, forest, grassland, hill]
+treasure: [armaments, individual]
+
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 3
+    sub_actions: ["a_bite", "a_bone_flail", "a_bone_flail"]
+
+  - id: a_bite
+    name: Bite
+    type: weapon_attack
+    is_signature: true
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 5, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d6", modifier: 3, type: piercing, average: 6 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: damage
+        params: { dice: "2d6", modifier: 0, type: poison, average: 7 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: apply_condition
+        params: { condition_id: co_poisoned, duration: until_actor_next_turn_start }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  - id: a_bone_flail
+    name: Bone Flail
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 5, reach_ft: 10 }
+      - primitive: damage
+        params: { dice: "1d8", modifier: 3, type: piercing, average: 7 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: brute
+  presets: { retreat: never, ability_selection: default, targeting: closest_enemy, action_economy: aggressive }

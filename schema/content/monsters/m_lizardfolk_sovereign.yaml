@@ -1,0 +1,78 @@
+# m_lizardfolk_sovereign — Lizardfolk Sovereign
+# Source: 2024 Monster Manual (MM-only; not in SRD 5.2.1)
+# Triage: GREEN — Multiattack 1× Bite + 1× Earthen Maul; Earthen Maul applies
+#   Prone on hit (size-conditional "Medium or smaller" simplified to
+#   unconditional — size-check primitive deferred).
+#   DEFERRED: Bite temp HP gain (Temporary HP equal to damage dealt, if target
+#   not Construct/Undead) — no temp-HP-from-damage primitive in v1.
+#   DEFERRED: Charge bonus action (move toward enemy) — no bonus-action
+#   movement primitive in v1.
+
+id: m_lizardfolk_sovereign
+name: Lizardfolk Sovereign
+source: mm_2024
+
+size: medium
+creature_type: elemental
+alignment: neutral
+
+combat:
+  armor_class: 15
+  hit_points: { average: 78, dice: "12d8", con_contribution: 24 }
+  speed: { walk: 30, burrow: 20, swim: 30 }
+  initiative: { modifier: 1, score: 11 }
+
+abilities:
+  str: { score: 17, save: 3 }
+  dex: { score: 12, save: 1 }
+  con: { score: 15, save: 4 }
+  int: { score: 11, save: 0 }
+  wis: { score: 11, save: 2 }
+  cha: { score: 15, save: 2 }
+
+skills: { perception: 4, stealth: 5 }
+
+condition_immunities: [co_frightened]
+
+senses: { passive_perception: 14, special: { darkvision: 60 } }
+languages: ["Draconic", "Primordial"]
+
+cr: { value: 4, xp: 1100, proficiency_bonus: 2 }
+
+habitat: [forest, swamp]
+treasure: individual
+
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 2
+    sub_actions: ["a_bite", "a_earthen_maul"]
+
+  - id: a_bite
+    name: Bite
+    type: weapon_attack
+    is_signature: true
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 5, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d10", modifier: 3, type: piercing, average: 8 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  - id: a_earthen_maul
+    name: Earthen Maul
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 5, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "2d6", modifier: 3, type: bludgeoning, average: 10 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: apply_condition
+        params: { condition_id: co_prone, duration: until_removed }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: brute
+  presets: { retreat: never, ability_selection: default, targeting: closest_enemy, action_economy: aggressive }
