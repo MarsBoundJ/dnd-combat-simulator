@@ -278,14 +278,21 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
     #   - Elemental Affinity: Resistance to the chosen draconic type
     #     (pc_spec.draconic_element, default fire).
     draconic_resistances: list[str] = []
+    elemental_affinity: dict | None = None
     if "f_draconic_resilience" in features_known:
         hp += level
         if not armor_spec:
             ac = (10 + ability_modifier(ability_scores["dex"]["score"])
                    + ability_modifier(ability_scores["cha"]["score"]))
     if "f_elemental_affinity" in features_known:
-        draconic_resistances.append(
-            str(pc_spec.get("draconic_element", "fire")).lower())
+        element = str(pc_spec.get("draconic_element", "fire")).lower()
+        draconic_resistances.append(element)
+        # Read by engine.core.draconic_sorcery.elemental_affinity_bonus
+        # from _damage: +CHA mod to one matching-type damage roll per cast.
+        elemental_affinity = {
+            "element": element,
+            "cha_mod": ability_modifier(ability_scores["cha"]["score"]),
+        }
 
     # Monk Unarmored Defense: base AC = 10 + DEX + WIS while wearing no
     # armor (build-time, like Draconic Resilience but WIS not CHA).
@@ -402,6 +409,9 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
         "damage_resistances": (
             (list(race_def.get("damage_resistances") or [])
               if race_def else []) + draconic_resistances),
+        # Draconic Sorcery Elemental Affinity (L6): {element, cha_mod} or
+        # absent. Read by engine.core.draconic_sorcery from _damage.
+        "elemental_affinity": elemental_affinity,
         "race": race_id,    # telemetry only — runtime code uses
                               # template.racial_traits, not the id
         # Chosen subclass id (or None). Telemetry + reception-join key;
@@ -674,6 +684,24 @@ def derive_pc_resources(pc_spec: dict, content_registry: Any) -> dict:
         if fp > 0:
             resources["focus_points_remaining"] = fp
             resources["focus_points_max"] = fp
+
+    # ---- Wholeness of Body (Warrior of the Open Hand, Monk L6) ----
+    # Self-heal usable WIS-mod (min 1) times per Long Rest, gated by the
+    # a_wholeness_of_body feature_use. Refreshed in rest.apply_long_rest.
+    if "f_wholeness_of_body" in features_known:
+        wis_score = _resolve_ability_scores(
+            pc_spec.get("ability_scores") or {})["wis"]["score"]
+        uses = max(1, ability_modifier(wis_score))
+        resources["wholeness_of_body_uses_remaining"] = uses
+        resources["wholeness_of_body_uses_max"] = uses
+
+    # ---- Overchannel (Evoker, Wizard L14) ----
+    # A per-Long-Rest counter (NOT a depleting pool): the first maximize
+    # is free, each reuse before a Long Rest costs escalating necrotic
+    # self-damage. engine.core.overchannel reads/increments this; it
+    # resets to 0 in rest.apply_long_rest.
+    if "f_overchannel" in features_known:
+        resources["overchannel_uses_this_rest"] = 0
 
     # ---- Lay on Hands (Paladin L1+) — PR #83 ----
     # Pool = 5 × paladin_level HP. Refreshes on long rest. The
@@ -1689,18 +1717,28 @@ def _build_leveled_spell_attack_action(action_id: str, name: str, *,
 def _build_heal_action(action_id: str, name: str, level: int,
                          ability_scores: dict, class_id: str, *,
                          slot: str, slot_level: int, range_ft: int,
-                         dice: str, max_targets: int = 1) -> dict:
+                         dice: str, max_targets: int = 1,
+                         target: str = "current_target",
+                         feature_use: str | None = None) -> dict:
     """Generic heal action: `<dice>` + the caster's spellcasting-ability
     modifier (floored at 0). Subsumes Cure Wounds / Healing Word / the
     mass heals — they differ only in id/name/slot/slot_level/range/dice/
     max_targets, all of which are parameters here. max_targets > 1 routes
     through the candidate generator's multi-target (Aid-shape) grouping.
 
+    `target` overrides the heal target spec (e.g. "self" for a self-heal
+    like Wholeness of Body). `feature_use` gates + decrements a limited-
+    use resource (Wholeness of Body's WIS-mod uses) instead of a spell
+    slot; the dice sentinel "martial_arts" resolves to the Monk's
+    level-scaled Martial Arts die.
+
     Deferred (matching the per-spell builders it replaces): upcast
     scaling on the healing dice — base cast only in v1."""
     abbr = _SPELL_ABILITY_BY_CLASS.get(class_id, "wis")
     score = (ability_scores.get(abbr) or {}).get("score", 10)
     mod = max(0, ability_modifier(score))
+    resolved_dice = (_monk_martial_arts_die(level)
+                       if dice == "martial_arts" else dice)
     action = {
         "id": action_id,
         "name": name,
@@ -1710,10 +1748,12 @@ def _build_heal_action(action_id: str, name: str, level: int,
         "range_ft": range_ft,
         "pipeline": [
             {"primitive": "heal",
-              "params": {"target": "current_target",
-                          "dice": dice, "modifier": mod}},
+              "params": {"target": target,
+                          "dice": resolved_dice, "modifier": mod}},
         ],
     }
+    if feature_use:
+        action["feature_use"] = feature_use
     if max_targets and int(max_targets) > 1:
         action["max_targets"] = int(max_targets)
     return action
@@ -1791,7 +1831,9 @@ def _dispatch_pc_builder(feature_def: dict, level: int,
             aid, name, level, ability_scores, class_id,
             slot=p.get("slot", "action"), slot_level=int(p["slot_level"]),
             range_ft=int(p["range_ft"]), dice=p["dice"],
-            max_targets=int(p.get("max_targets", 1)))
+            max_targets=int(p.get("max_targets", 1)),
+            target=p.get("target", "current_target"),
+            feature_use=p.get("feature_use"))
     raise ValueError(f"unknown pc_builder kind: {kind!r}")
 
 

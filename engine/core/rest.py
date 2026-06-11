@@ -350,6 +350,21 @@ def apply_long_rest(actor: Actor, state: CombatState) -> dict:
         ar_result = _refresh_arcane_recovery(actor)
         if ar_result is not None:
             summary["arcane_recovery_refresh"] = ar_result
+        # Overchannel (Evoker L14): the per-rest maximize counter resets
+        # to 0 — the next maximize is free again. No-op for non-Evokers.
+        if "overchannel_uses_this_rest" in actor.resources:
+            if actor.resources["overchannel_uses_this_rest"] != 0:
+                summary["overchannel_reset"] = (
+                    actor.resources["overchannel_uses_this_rest"])
+            actor.resources["overchannel_uses_this_rest"] = 0
+    if cls == "c_monk":
+        # Wholeness of Body (Open Hand L6): WIS-mod self-heal uses fully
+        # refresh on a Long Rest. No-op for Monks without the feature.
+        wob_result = _refresh_generic_uses_to_max(
+            actor, "wholeness_of_body_uses_remaining",
+            "wholeness_of_body_uses_max")
+        if wob_result is not None:
+            summary["wholeness_of_body_refresh"] = wob_result
     if cls == "c_barbarian":
         # PR #71: Rage uses fully refresh on long rest. The level-
         # table max is stamped onto resources as `rage_uses_max` by

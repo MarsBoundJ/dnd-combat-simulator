@@ -119,6 +119,18 @@ def _roll_dice_empowered(expr: str, floor: int, reroll_n: int,
     return sum(rolls)
 
 
+def _roll_dice_maximized(expr: str) -> int:
+    """Every die in `expr` deals its maximum value: NdM → N*M (Evoker
+    Overchannel, "deal maximum damage with that spell"). Deterministic —
+    takes no rng. Raises on a malformed expression (caller guards on
+    `dice` truthiness, mirroring _roll_dice_expr)."""
+    m = _DICE_PATTERN.fullmatch(expr.strip())
+    if not m:
+        raise ValueError(f"Invalid dice expression: {expr!r}")
+    count, sides = int(m.group(1)), int(m.group(2))
+    return count * sides
+
+
 # ============================================================================
 # IMPLEMENTED — Attack pipeline (v0 + v1 modifier consultation)
 # ============================================================================
@@ -390,10 +402,21 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
     # caster CHA mod), set on the damage step's params by the metamagic
     # transform. 0 → normal roll.
     empowered_n = int(params.get("empowered_reroll", 0) or 0)
+    # Evoker Overchannel: maximize this spell's damage dice. Set on each
+    # damage step's params by engine.core.overchannel.apply_overchannel.
+    # Takes precedence over the empowered reroll (a maximized die can't be
+    # improved). Upcast extra dice are not maximized in v1 (the base +
+    # crit dice dominate; documented limitation in overchannel.py).
+    maximize = bool(params.get("maximize_dice", False))
     if dice:
-        rolled = _roll_dice_empowered(dice, floor, empowered_n, rng)
-        if is_crit:
-            rolled += _roll_dice_empowered(dice, floor, empowered_n, rng)
+        if maximize:
+            rolled = _roll_dice_maximized(dice)
+            if is_crit:
+                rolled += _roll_dice_maximized(dice)
+        else:
+            rolled = _roll_dice_empowered(dice, floor, empowered_n, rng)
+            if is_crit:
+                rolled += _roll_dice_empowered(dice, floor, empowered_n, rng)
     else:
         rolled = 0
 
@@ -447,6 +470,14 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
             actor, attack_params, state)
         if weapon_bonus:
             total += weapon_bonus
+
+    # Elemental Affinity (Draconic Sorcery L6): +CHA mod to ONE damage
+    # roll of a spell whose damage type matches the sorcerer's chosen
+    # draconic element. Once per cast — the helper dedups via a flag on
+    # state.current_attack so multi-target / multi-step spells add it a
+    # single time (RAW: "one damage roll"). Adds 0 for everyone else.
+    from engine.core import draconic_sorcery as _drac
+    total += _drac.elemental_affinity_bonus(actor, dmg_type, state)
 
     # PR #72: Sneak Attack rider. Fires on hit/crit only (this
     # branch only runs when the `when: combat.attack_state == hit`

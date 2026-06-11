@@ -5,11 +5,21 @@
 # spell that deals that type, you can add your CHA modifier to one
 # damage roll of that spell.
 #
-# Engine modeling: pc_schema stamps the chosen type
-# (pc_spec.draconic_element, default fire) into template.damage_
-# resistances. The "+CHA mod to one damage roll" rider is deferred
-# (needs a caster-side typed-damage bonus hook); the resistance is the
-# v1 effect.
+# Engine modeling (both halves now WIRED):
+#   - Resistance: pc_schema stamps the chosen type
+#     (pc_spec.draconic_element, default fire) into
+#     template.damage_resistances at build time.
+#   - +CHA rider: pc_schema stamps template.elemental_affinity =
+#     {element, cha_mod}; engine.core.draconic_sorcery.elemental_
+#     affinity_bonus (called from the `damage` primitive) adds the CHA
+#     modifier to the first matching-type damage roll of each cast. The
+#     "one damage roll" clause is honored by a once-per-cast dedup flag
+#     on state.current_attack, so a multi-target / save-for-half spell
+#     adds the bonus a single time. See tests/test_elemental_affinity.py.
+#
+# It is a strictly-beneficial passive (no decision, no cost), so the
+# rider fires automatically whenever a Draconic Sorcerer deals matching-
+# type spell damage.
 #
 # source: srd_5.2.1
 
@@ -20,3 +30,11 @@ granted_by:
   subclass: sc_draconic_sorcery
   level: 6
 type: passive
+
+effect_primitives: []
+
+contract:
+  reads: [actor.template.elemental_affinity, action.damage_type]
+  writes: [combat.pending_damage]
+  event: damage_roll
+  scope: per_cast
