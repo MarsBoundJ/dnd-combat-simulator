@@ -54,8 +54,10 @@ spellcasting:
 level_table:
   - level: 1
     proficiency_bonus: 2
-    features: [f_produce_flame, f_starry_wisp, f_cure_wounds,
-                f_faerie_fire, f_entangle, f_fog_cloud]
+    features: [f_charm_person, f_cure_wounds, f_entangle, f_faerie_fire,
+                f_fog_cloud, f_healing_word, f_poison_spray, f_produce_flame,
+                f_protection_from_evil_and_good, f_starry_wisp, f_thorn_whip,
+                f_thunderclap, f_thunderwave]
     class_resources:
       spell_slots: { 1: 2 }
   - level: 2
@@ -66,7 +68,8 @@ level_table:
       wild_shape_uses: 2
   - level: 3
     proficiency_bonus: 2
-    features: [grant_subclass, f_moonbeam, f_flaming_sphere]
+    features: [grant_subclass, f_aid, f_flaming_sphere, f_gust_of_wind,
+                f_hold_person, f_moonbeam, f_summon_beast]
     class_resources:
       spell_slots: { 1: 4, 2: 2 }
       wild_shape_uses: 2
@@ -78,7 +81,8 @@ level_table:
       wild_shape_uses: 2
   - level: 5
     proficiency_bonus: 3
-    features: [f_call_lightning, f_sleet_storm]
+    features: [f_call_lightning, f_elemental_weapon, f_sleet_storm,
+                f_summon_fey]
     class_resources:
       spell_slots: { 1: 4, 2: 3, 3: 2 }
       wild_shape_uses: 2
@@ -90,7 +94,9 @@ level_table:
       wild_shape_uses: 3
   - level: 7
     proficiency_bonus: 3
-    features: [f_ice_storm]
+    features: [f_blight, f_charm_monster, f_confusion, f_dominate_beast,
+                f_fount_of_moonlight, f_grasping_vine, f_ice_storm,
+                f_polymorph, f_summon_elemental]
     class_resources:
       spell_slots: { 1: 4, 2: 3, 3: 3, 4: 1 }
       wild_shape_uses: 3
@@ -102,7 +108,7 @@ level_table:
       wild_shape_uses: 3
   - level: 9
     proficiency_bonus: 4
-    features: []
+    features: [f_cone_of_cold, f_contagion, f_insect_plague, f_mass_cure_wounds]
     class_resources:
       spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 1 }
       wild_shape_uses: 3
@@ -114,7 +120,7 @@ level_table:
       wild_shape_uses: 3
   - level: 11
     proficiency_bonus: 4
-    features: [f_sunbeam]
+    features: [f_flesh_to_stone, f_heal, f_sunbeam, f_wall_of_thorns]
     class_resources:
       spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1 }
       wild_shape_uses: 3
@@ -126,7 +132,7 @@ level_table:
       wild_shape_uses: 3
   - level: 13
     proficiency_bonus: 5
-    features: []
+    features: [f_fire_storm]
     class_resources:
       spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1, 7: 1 }
       wild_shape_uses: 3
@@ -138,7 +144,7 @@ level_table:
       wild_shape_uses: 3
   - level: 15
     proficiency_bonus: 5
-    features: []
+    features: [f_befuddlement, f_incendiary_cloud, f_sunburst]
     class_resources:
       spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1, 7: 1, 8: 1 }
       wild_shape_uses: 3
