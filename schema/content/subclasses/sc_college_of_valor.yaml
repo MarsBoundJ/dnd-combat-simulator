@@ -23,7 +23,7 @@
 
 id: sc_college_of_valor
 name: College of Valor
-source: srd_5.2.1
+source: phb_2024
 parent_class: c_bard
 
 archetype_tags:

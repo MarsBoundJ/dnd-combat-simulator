@@ -28,7 +28,7 @@
 
 id: f_travel_along_the_tree
 name: Travel along the Tree
-source: srd_5.2.1
+source: phb_2024
 granted_by:
   subclass: sc_path_of_the_world_tree
   level: 14

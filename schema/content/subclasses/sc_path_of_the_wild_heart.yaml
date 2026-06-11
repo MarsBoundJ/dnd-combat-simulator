@@ -9,8 +9,8 @@
 # docs/deferred-noncombat-features.md.
 #
 # Note: Wild Heart is a PHB 2024 subclass, NOT in the SRD's Barbarian
-# subclass list (the SRD ships only Path of the Berserker). `source` is kept
-# as the repo's single ruleset id for loader consistency.
+# subclass list (the SRD ships only Path of the Berserker). `source` is
+# phb_2024 — a clean-room mechanical summary, not CC-BY SRD content.
 #
 # Feature wiring status:
 #   - f_animal_speaker (L3)       → MARKER (Stage 4) — ritual utility spells
@@ -30,7 +30,7 @@
 
 id: sc_path_of_the_wild_heart
 name: Path of the Wild Heart
-source: srd_5.2.1
+source: phb_2024
 parent_class: c_barbarian
 
 archetype_tags:

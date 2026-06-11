@@ -8,8 +8,8 @@
 # improved Evasion (L14).
 #
 # Note: College of Dance is a PHB 2024 subclass, NOT in the SRD's Bard
-# subclass list (the SRD ships only College of Lore). `source` kept as the
-# repo's single ruleset id for loader consistency.
+# subclass list (the SRD ships only College of Lore). `source` is
+# phb_2024 — a clean-room mechanical summary, not CC-BY SRD content.
 #
 # Feature wiring status:
 #   - f_dazzling_footwork (L3)    → FULLY WIRED — Unarmored Defense
@@ -32,7 +32,7 @@
 
 id: sc_college_of_dance
 name: College of Dance
-source: srd_5.2.1
+source: phb_2024
 parent_class: c_bard
 
 archetype_tags:

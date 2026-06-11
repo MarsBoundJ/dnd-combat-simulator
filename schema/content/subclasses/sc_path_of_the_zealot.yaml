@@ -7,8 +7,8 @@
 # puts Zealot builds high on Treantmonk's 2024 martial rankings.
 #
 # Note: Zealot is a PHB 2024 subclass (NOT in the SRD's subclass list —
-# the SRD ships only Path of the Berserker for Barbarian). Sourced from
-# the PHB; `source` is kept as the repo's single ruleset id.
+# the SRD ships only Path of the Berserker for Barbarian). `source` is
+# phb_2024 — a clean-room mechanical summary, not CC-BY SRD content.
 #
 # Feature wiring status:
 #   - f_divine_fury (L3)         → FULLY WIRED (engine/core/divine_fury.py

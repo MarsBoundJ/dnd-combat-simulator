@@ -28,7 +28,7 @@
 
 id: f_combat_inspiration
 name: Combat Inspiration
-source: srd_5.2.1
+source: phb_2024
 granted_by:
   subclass: sc_college_of_valor
   level: 3
