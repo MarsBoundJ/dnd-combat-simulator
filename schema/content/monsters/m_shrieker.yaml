@@ -1,0 +1,47 @@
+# m_shrieker — Shrieker Fungus
+# Source: SRD CC v5.2.1
+# Triage: No combat actions — purely a dungeon hazard/alarm.
+#   DEFERRED: Shriek reaction (environmental alert, no damage, not a combat primitive).
+#   The creature takes no offensive action on its turn.
+
+id: m_shrieker
+name: Shrieker Fungus
+source: srd_5.2.1
+
+size: medium
+creature_type: plant
+alignment: unaligned
+
+combat:
+  armor_class: 5
+  hit_points: { average: 13, dice: "3d8", con_contribution: 0 }
+  speed: { walk: 5 }
+  initiative: { modifier: -5, score: 5 }
+
+abilities:
+  str: { score: 1, save: -5 }
+  dex: { score: 1, save: -5 }
+  con: { score: 10, save: 0 }
+  int: { score: 1, save: -5 }
+  wis: { score: 3, save: -4 }
+  cha: { score: 1, save: -5 }
+
+condition_immunities: [co_blinded, co_charmed, co_deafened, co_frightened]
+
+senses: { passive_perception: 6, special: { blindsight: 30 } }
+languages: []
+
+cr: { value: 0, xp: 10, proficiency_bonus: 2 }
+
+habitat: [underdark]
+treasure: none
+
+traits: []
+
+actions: []
+
+reactions: []
+
+behavior_profile:
+  archetype: mindless_aggressor
+  presets: { retreat: never, ability_selection: default, targeting: closest_enemy, action_economy: casual }

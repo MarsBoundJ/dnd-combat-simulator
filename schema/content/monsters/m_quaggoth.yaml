@@ -1,0 +1,66 @@
+# m_quaggoth — Quaggoth
+# Source: 2024 Monster Manual (MM-only; not in SRD 5.2.1)
+# Triage: GREEN — Multiattack 2× Claw (Slashing).
+#   DEFERRED: Bloodied Fury (advantage while Bloodied) and Claw's bloodied damage
+#   upgrade (no bloodied state in v1; base damage modeled).
+
+id: m_quaggoth
+name: Quaggoth
+source: mm_2024
+
+size: medium
+creature_type: monstrosity
+alignment: chaotic neutral
+
+combat:
+  armor_class: 13
+  hit_points: { average: 45, dice: "6d8", con_contribution: 18 }
+  speed: { walk: 30, climb: 30 }
+  initiative: { modifier: 1, score: 11 }
+
+abilities:
+  str: { score: 17, save: 3 }
+  dex: { score: 12, save: 1 }
+  con: { score: 16, save: 3 }
+  int: { score: 6, save: -2 }
+  wis: { score: 12, save: 1 }
+  cha: { score: 7, save: -2 }
+
+skills: { athletics: 5 }
+damage_immunities: [poison]
+condition_immunities: [co_poisoned]
+
+senses: { passive_perception: 11, special: { darkvision: 120 } }
+languages: ["Undercommon"]
+
+cr: { value: 2, xp: 450, proficiency_bonus: 2 }
+
+habitat: [underdark]
+treasure: none
+
+traits:
+  - id: t_bloodied_fury
+    name: Bloodied Fury
+    type: trait_passive
+
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 2
+    sub_actions: ["a_claw"]
+
+  - id: a_claw
+    name: Claw
+    type: weapon_attack
+    is_signature: true
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 5, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d6", modifier: 3, type: slashing, average: 6 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: brute
+  presets: { retreat: never, ability_selection: default, targeting: closest_enemy, action_economy: aggressive }

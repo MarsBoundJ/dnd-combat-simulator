@@ -1,0 +1,59 @@
+# m_water_weird — Water Weird
+# Source: 2024 Monster Manual (MM-only; not in SRD 5.2.1)
+# Triage: GREEN — Surge (+5, reach 10, 3d6+3 Cold + co_grappled + co_restrained).
+#   DEFERRED: Invisible in Water trait (no lighting/transparency primitive in v1).
+
+id: m_water_weird
+name: Water Weird
+source: mm_2024
+
+size: large
+creature_type: elemental
+alignment: neutral
+
+combat:
+  armor_class: 13
+  hit_points: { average: 65, dice: "10d10", con_contribution: 10 }
+  speed: { walk: 5, swim: 60 }
+  initiative: { modifier: 3, score: 13 }
+
+abilities:
+  str: { score: 17, save: 3 }
+  dex: { score: 16, save: 3 }
+  con: { score: 13, save: 1 }
+  int: { score: 11, save: 0 }
+  wis: { score: 10, save: 0 }
+  cha: { score: 10, save: 0 }
+
+damage_resistances: [fire]
+condition_immunities: [co_exhaustion, co_grappled, co_paralyzed, co_petrified, co_poisoned, co_prone, co_restrained, co_unconscious]
+
+senses: { passive_perception: 10, special: { blindsight: 30 } }
+languages: ["Aquan"]
+
+cr: { value: 3, xp: 700, proficiency_bonus: 2 }
+
+habitat: [underdark, urban]
+treasure: any
+
+actions:
+  - id: a_surge
+    name: Surge
+    type: weapon_attack
+    is_signature: true
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 5, reach_ft: 10 }
+      - primitive: damage
+        params: { dice: "3d6", modifier: 3, type: cold, average: 13 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: apply_condition
+        params: { condition_id: co_grappled, duration: until_removed }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: apply_condition
+        params: { condition_id: co_restrained, duration: until_removed }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: brute
+  presets: { retreat: never, ability_selection: default, targeting: closest_enemy, action_economy: aggressive }

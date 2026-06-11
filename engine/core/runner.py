@@ -344,6 +344,12 @@ class EncounterRunner:
                 "event": "condition_expired_end_of_turn",
                 "actor": actor.id, "condition": _c.get("condition_id")})
 
+        # Expire turn-end modifier lifetimes ("until_end_of_actor_next_turn",
+        # e.g. Yeti Fear of Fire). The modifier twin of the condition expiry
+        # above — it survives the owner's turn-start (so the turn's attacks
+        # carry the debuff) and clears here at turn-end.
+        modifiers.expire_modifiers(actor, {"turn_end"})
+
         # Inspiring Movement (College of Dance L6): a Dance Bard may react to
         # an enemy ENDING its turn within 5 ft. Dispatched here at turn-end
         # (the twin of the turn-start trigger used by World Tree Branches).

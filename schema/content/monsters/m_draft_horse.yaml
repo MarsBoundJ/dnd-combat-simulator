@@ -1,0 +1,53 @@
+# m_draft_horse — Draft Horse
+# Source: SRD CC v5.2.1
+# Triage: GREEN — single Hooves.
+
+id: m_draft_horse
+name: Draft Horse
+source: srd_5.2.1
+
+size: large
+creature_type: beast
+alignment: unaligned
+
+combat:
+  armor_class: 10
+  hit_points: { average: 15, dice: "2d10", con_contribution: 4 }
+  speed: { walk: 40 }
+  initiative: { modifier: 0, score: 10 }
+
+abilities:
+  str: { score: 18, save: 4 }
+  dex: { score: 10, save: 0 }
+  con: { score: 15, save: 2 }
+  int: { score: 2, save: -4 }
+  wis: { score: 11, save: 0 }
+  cha: { score: 7, save: -2 }
+
+skills: {}
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: []
+condition_immunities: []
+
+senses: { passive_perception: 10 }
+languages: []
+
+cr: { value: 0.25, xp: 50, proficiency_bonus: 2 }
+
+traits: []
+
+actions:
+  - id: a_hooves
+    name: Hooves
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 6, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d4", modifier: 4, type: bludgeoning, average: 6 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: mindless_aggressor
+  presets: { retreat: cowardly, ability_selection: default, targeting: closest_enemy, action_economy: casual }

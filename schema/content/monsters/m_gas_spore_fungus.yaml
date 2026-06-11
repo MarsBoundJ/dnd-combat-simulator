@@ -1,0 +1,59 @@
+# m_gas_spore_fungus — Gas Spore Fungus
+# Source: 2024 Monster Manual (MM-only; not in SRD 5.2.1)
+# Triage: GREEN — Tendril (Poison damage + co_poisoned on hit).
+#   DEFERRED: Death Burst (on-death 20-ft spore cloud; no on-death AoE in v1).
+
+id: m_gas_spore_fungus
+name: Gas Spore Fungus
+source: mm_2024
+
+size: large
+creature_type: plant
+alignment: unaligned
+
+combat:
+  armor_class: 8
+  hit_points: { average: 13, dice: "9d10", con_contribution: -36 }
+  speed: { walk: 0, fly: 10 }
+  initiative: { modifier: -5, score: 5 }
+
+abilities:
+  str: { score: 5, save: -3 }
+  dex: { score: 1, save: -5 }
+  con: { score: 3, save: -4 }
+  int: { score: 1, save: -5 }
+  wis: { score: 1, save: -5 }
+  cha: { score: 1, save: -5 }
+
+damage_immunities: [poison]
+condition_immunities: [co_blinded, co_charmed, co_deafened, co_exhaustion, co_frightened, co_poisoned, co_prone]
+
+senses: { passive_perception: 5, special: { blindsight: 30 } }
+
+cr: { value: 0.5, xp: 100, proficiency_bonus: 2 }
+
+habitat: [underdark]
+treasure: none
+
+traits:
+  - id: t_death_burst
+    name: Death Burst
+    type: trait_passive
+
+actions:
+  - id: a_tendril
+    name: Tendril
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 0, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d6", modifier: 0, type: poison, average: 3 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: apply_condition
+        params: { condition_id: co_poisoned, duration: until_actor_next_turn_start }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: brute
+  presets: { retreat: never, ability_selection: default, targeting: closest_enemy, action_economy: casual }

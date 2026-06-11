@@ -1,0 +1,59 @@
+# m_goblin_hexer — Goblin Hexer
+# Source: 2024 Monster Manual (MM-only; not in SRD 5.2.1)
+# Triage: GREEN — Multiattack 2× Hex Stick (Psychic, melee or ranged).
+#   DEFERRED: spellcasting (Blindness/Deafness, Faerie Fire, Grease); Jinx
+#   reaction (requires reaction-trigger primitive).
+
+id: m_goblin_hexer
+name: Goblin Hexer
+source: mm_2024
+
+size: small
+creature_type: fey
+alignment: chaotic neutral
+
+combat:
+  armor_class: 13
+  hit_points: { average: 45, dice: "10d6", con_contribution: 10 }
+  speed: { walk: 30 }
+  initiative: { modifier: 3, score: 13 }
+
+abilities:
+  str: { score: 8, save: -1 }
+  dex: { score: 16, save: 3 }
+  con: { score: 12, save: 1 }
+  int: { score: 16, save: 3 }
+  wis: { score: 10, save: 0 }
+  cha: { score: 10, save: 0 }
+
+skills: { sleight_of_hand: 5, stealth: 7 }
+
+senses: { passive_perception: 10, special: { darkvision: 60 } }
+languages: ["Common", "Goblin"]
+
+cr: { value: 3, xp: 700, proficiency_bonus: 2 }
+
+habitat: [forest, grassland, hill, acheron, feywild, underdark]
+treasure: [implements, individual]
+
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 2
+    sub_actions: ["a_hex_stick"]
+
+  - id: a_hex_stick
+    name: Hex Stick
+    type: weapon_attack
+    is_signature: true
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: ranged, bonus: 5, reach_ft: 60 }
+      - primitive: damage
+        params: { dice: "2d8", modifier: 3, type: psychic, average: 12 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: artillery
+  presets: { retreat: cowardly, ability_selection: default, targeting: weakest_target, action_economy: casual }

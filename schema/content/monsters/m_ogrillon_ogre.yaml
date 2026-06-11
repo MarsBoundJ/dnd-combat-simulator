@@ -1,0 +1,59 @@
+# m_ogrillon_ogre — Ogrillon Ogre
+# Source: 2024 Monster Manual (MM-only; not in SRD 5.2.1)
+# Triage: GREEN — Battleaxe (Slashing melee); Javelin (Piercing ranged).
+
+id: m_ogrillon_ogre
+name: Ogrillon Ogre
+source: mm_2024
+
+size: large
+creature_type: giant
+alignment: chaotic evil
+
+combat:
+  armor_class: 12
+  hit_points: { average: 52, dice: "7d10", con_contribution: 14 }
+  speed: { walk: 40 }
+  initiative: { modifier: 0, score: 10 }
+
+abilities:
+  str: { score: 16, save: 3 }
+  dex: { score: 10, save: 0 }
+  con: { score: 14, save: 2 }
+  int: { score: 7, save: -2 }
+  wis: { score: 9, save: -1 }
+  cha: { score: 7, save: -2 }
+
+senses: { passive_perception: 9, special: { darkvision: 60 } }
+languages: ["Common", "Giant"]
+
+cr: { value: 1, xp: 200, proficiency_bonus: 2 }
+
+habitat: [arctic, desert, forest, grassland, hill, mountain, swamp, underdark]
+treasure: armaments
+
+actions:
+  - id: a_battleaxe
+    name: Battleaxe
+    type: weapon_attack
+    is_signature: true
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 5, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d8", modifier: 3, type: slashing, average: 7 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  - id: a_javelin
+    name: Javelin
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: ranged, bonus: 5, reach_ft: 30 }
+      - primitive: damage
+        params: { dice: "1d6", modifier: 3, type: piercing, average: 6 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: brute
+  presets: { retreat: never, ability_selection: default, targeting: closest_enemy, action_economy: aggressive }

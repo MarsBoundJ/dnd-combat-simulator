@@ -1,0 +1,77 @@
+# m_scout_captain — Scout Captain
+# Source: 2024 Monster Manual (MM-only; not in SRD 5.2.1)
+# Triage: GREEN — Multiattack 2× [Shortsword or Longbow] (Piercing). Each
+#   attack deals +3d6 piercing when the roll had Advantage (gated on
+#   "hit AND attack_had_advantage").
+#   DEFERRED: Aim bonus action (grants Advantage — no self-advantage-grant
+#   primitive in v1); Uncanny Dodge reaction (no reaction-trigger primitive).
+
+id: m_scout_captain
+name: Scout Captain
+source: mm_2024
+
+size: medium
+creature_type: humanoid
+alignment: any alignment
+
+combat:
+  armor_class: 15
+  hit_points: { average: 66, dice: "12d8", con_contribution: 12 }
+  speed: { walk: 30, climb: 30 }
+  initiative: { modifier: 5, score: 15 }
+
+abilities:
+  str: { score: 11, save: 0 }
+  dex: { score: 16, save: 5 }
+  con: { score: 12, save: 1 }
+  int: { score: 14, save: 4 }
+  wis: { score: 15, save: 2 }
+  cha: { score: 11, save: 0 }
+
+skills: { perception: 6, stealth: 7, survival: 6 }
+
+senses: { passive_perception: 16 }
+languages: ["Common"]
+
+cr: { value: 3, xp: 700, proficiency_bonus: 2 }
+
+habitat: [any]
+treasure: [implements, individual]
+
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 2
+    sub_actions: ["a_shortsword"]
+
+  - id: a_shortsword
+    name: Shortsword
+    type: weapon_attack
+    is_signature: true
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 5, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d6", modifier: 3, type: piercing, average: 6 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: damage
+        params: { dice: "3d6", modifier: 0, type: piercing, average: 10 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit AND combat.attack_had_advantage" }
+
+  - id: a_longbow
+    name: Longbow
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: ranged, bonus: 5, reach_ft: 150 }
+      - primitive: damage
+        params: { dice: "1d8", modifier: 3, type: piercing, average: 7 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: damage
+        params: { dice: "3d6", modifier: 0, type: piercing, average: 10 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit AND combat.attack_had_advantage" }
+
+behavior_profile:
+  archetype: skirmisher
+  presets: { retreat: cowardly, ability_selection: default, targeting: weakest_target, action_economy: aggressive }

@@ -96,10 +96,38 @@ def select_evasion_subs(target: Actor, ability: str, outcome: str,
         return None
     if not has_evasion(target, state):
         return None
+    return _half_save_subs(outcome, params)
+
+
+def has_avoidance(actor: Actor) -> bool:
+    """True if `actor` benefits from the Avoidance trait (Displacer Beast,
+    MM 2024) — Evasion for ANY save ability. Suppressed while Incapacitated,
+    mirroring base Evasion (RAW Avoidance has no incapacitation clause, but we
+    apply the same suppression for consistency with the Evasion substrate)."""
+    from engine.core.monster_traits import has_trait
+    if _is_incapacitated(actor):
+        return False
+    return has_trait(actor, "t_avoidance")
+
+
+def select_avoidance_subs(target: Actor, ability: str, outcome: str,
+                            params: dict, state: CombatState | None) -> list | None:
+    """Avoidance twin of select_evasion_subs. Same "save for half" → 0/half
+    transform, but for ANY saving throw ability (not just DEX), gated on the
+    t_avoidance trait. Returns the damage-scaled sub list or None."""
+    if not has_avoidance(target):
+        return None
+    return _half_save_subs(outcome, params)
+
+
+def _half_save_subs(outcome: str, params: dict) -> list | None:
+    """Shared Evasion/Avoidance transform: only a "save for half" effect
+    (on_fail AND on_success both deal damage) qualifies. success → 0 damage,
+    fail → half damage. None when the effect isn't save-for-half."""
     on_success = params.get("on_success") or []
     on_fail = params.get("on_fail") or []
     if not (_list_has_damage(on_success) and _list_has_damage(on_fail)):
-        return None   # not a "half damage" effect — Evasion doesn't apply
+        return None   # not a "half damage" effect — doesn't apply
     if outcome == "success":
         return _scale_damage(on_success, 0.0)   # take no damage
     return _scale_damage(on_fail, 0.5)           # fail → take half

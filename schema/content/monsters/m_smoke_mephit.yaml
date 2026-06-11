@@ -1,0 +1,74 @@
+# m_smoke_mephit — Smoke Mephit
+# Source: 2024 Monster Manual (MM-only; not in SRD 5.2.1)
+# Triage: GREEN — Claw + Cinder Breath (Recharge 6, DEX save → Blinded).
+#   DEFERRED: Death Burst (death-triggered 5-ft emanation; no on-death AoE
+#   primitive in v1).
+
+id: m_smoke_mephit
+name: Smoke Mephit
+source: mm_2024
+
+size: small
+creature_type: elemental
+alignment: neutral evil
+
+combat:
+  armor_class: 12
+  hit_points: { average: 13, dice: "3d6", con_contribution: 3 }
+  speed: { walk: 30, fly: 30 }
+  initiative: { modifier: 2, score: 12 }
+
+abilities:
+  str: { score: 6, save: -2 }
+  dex: { score: 14, save: 2 }
+  con: { score: 12, save: 1 }
+  int: { score: 10, save: 0 }
+  wis: { score: 10, save: 0 }
+  cha: { score: 11, save: 0 }
+
+skills: { perception: 2, stealth: 4 }
+damage_immunities: [fire, poison]
+condition_immunities: [co_exhaustion, co_poisoned]
+
+senses: { passive_perception: 12, special: { darkvision: 60 } }
+languages: ["Primordial (Auran, Ignan)"]
+
+cr: { value: 0.25, xp: 50, proficiency_bonus: 2 }
+
+habitat: [elemental_planes]
+treasure: none
+
+traits:
+  - id: t_death_burst
+    name: Death Burst
+    type: trait_passive
+
+actions:
+  - id: a_claw
+    name: Claw
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 4, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d4", modifier: 2, type: slashing, average: 4 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  - id: a_cinder_breath
+    name: Cinder Breath
+    type: save_effect
+    recharge: "6-6"
+    pipeline:
+      - primitive: forced_save
+        params:
+          ability: dexterity
+          dc: 11
+          affected: current_target
+          on_fail:
+            - primitive: apply_condition
+              params: { condition_id: co_blinded, duration: until_actor_next_turn_start }
+          on_success: []
+
+behavior_profile:
+  archetype: skirmisher
+  presets: { retreat: cowardly, ability_selection: default, targeting: closest_enemy, action_economy: casual }

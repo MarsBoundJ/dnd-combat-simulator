@@ -1,0 +1,57 @@
+# m_twig_blight — Twig Blight
+# Source: 2024 Monster Manual (MM-only; not in SRD 5.2.1)
+# Triage: GREEN — single Claw. Pack Tactics declarative (not enforced).
+
+id: m_twig_blight
+name: Twig Blight
+source: mm_2024
+
+size: small
+creature_type: plant
+alignment: neutral evil
+
+combat:
+  armor_class: 14
+  hit_points: { average: 7, dice: "2d6", con_contribution: 0 }
+  speed: { walk: 20 }
+  initiative: { modifier: 2, score: 12 }
+
+abilities:
+  str: { score: 6, save: -2 }
+  dex: { score: 14, save: 2 }
+  con: { score: 11, save: 0 }
+  int: { score: 4, save: -3 }
+  wis: { score: 8, save: -1 }
+  cha: { score: 3, save: -4 }
+
+skills: { stealth: 4 }
+damage_vulnerabilities: [fire]
+condition_immunities: [co_deafened]
+
+senses: { passive_perception: 9, special: { blindsight: 60 } }
+languages: []
+
+cr: { value: 0.125, xp: 25, proficiency_bonus: 2 }
+
+habitat: [forest]
+treasure: none
+
+traits:
+  - id: t_pack_tactics
+    name: Pack Tactics
+    type: trait_passive
+
+actions:
+  - id: a_claw
+    name: Claw
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 4, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d4", modifier: 2, type: slashing, average: 4 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: pack_hunter
+  presets: { retreat: never, ability_selection: default, targeting: closest_enemy, action_economy: casual }

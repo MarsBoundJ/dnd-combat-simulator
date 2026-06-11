@@ -1,0 +1,56 @@
+# m_animated_broom — Animated Broom
+# Source: 2024 Monster Manual (MM-only; not in SRD 5.2.1)
+# Triage: GREEN — single Slam. Flyby declarative (no OA on fly-out).
+
+id: m_animated_broom
+name: Animated Broom
+source: mm_2024
+
+size: small
+creature_type: construct
+alignment: unaligned
+
+combat:
+  armor_class: 15
+  hit_points: { average: 14, dice: "4d6", con_contribution: 0 }
+  speed: { walk: 5, fly: 50, hover: true }
+  initiative: { modifier: 5, score: 15 }
+
+abilities:
+  str: { score: 10, save: 0 }
+  dex: { score: 17, save: 3 }
+  con: { score: 10, save: 0 }
+  int: { score: 1, save: -5 }
+  wis: { score: 5, save: -3 }
+  cha: { score: 1, save: -5 }
+
+damage_immunities: [poison, psychic]
+condition_immunities: [co_charmed, co_deafened, co_exhaustion, co_frightened, co_paralyzed, co_petrified, co_poisoned]
+
+senses: { passive_perception: 7, special: { blindsight: 60 } }
+languages: []
+
+cr: { value: 0.25, xp: 50, proficiency_bonus: 2 }
+
+habitat: [urban]
+treasure: none
+
+traits:
+  - id: t_flyby
+    name: Flyby
+    type: trait_passive
+
+actions:
+  - id: a_slam
+    name: Slam
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 5, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d4", modifier: 3, type: bludgeoning, average: 5 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: skirmisher
+  presets: { retreat: never, ability_selection: default, targeting: closest_enemy, action_economy: casual }
