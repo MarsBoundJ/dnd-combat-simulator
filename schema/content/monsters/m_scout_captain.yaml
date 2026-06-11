@@ -1,9 +1,10 @@
 # m_scout_captain — Scout Captain
 # Source: 2024 Monster Manual (MM-only; not in SRD 5.2.1)
-# Triage: GREEN — Multiattack 2× [Shortsword or Longbow] (Piercing).
-#   DEFERRED: advantage-bonus damage (+3d6) requires AND-condition support
-#   (hit AND advantage) not yet in engine; Aim bonus action; Uncanny Dodge
-#   reaction (no reaction-trigger primitive in v1).
+# Triage: GREEN — Multiattack 2× [Shortsword or Longbow] (Piercing). Each
+#   attack deals +3d6 piercing when the roll had Advantage (gated on
+#   "hit AND attack_had_advantage").
+#   DEFERRED: Aim bonus action (grants Advantage — no self-advantage-grant
+#   primitive in v1); Uncanny Dodge reaction (no reaction-trigger primitive).
 
 id: m_scout_captain
 name: Scout Captain
@@ -54,6 +55,9 @@ actions:
       - primitive: damage
         params: { dice: "1d6", modifier: 3, type: piercing, average: 6 }
         when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: damage
+        params: { dice: "3d6", modifier: 0, type: piercing, average: 10 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit AND combat.attack_had_advantage" }
 
   - id: a_longbow
     name: Longbow
@@ -64,6 +68,9 @@ actions:
       - primitive: damage
         params: { dice: "1d8", modifier: 3, type: piercing, average: 7 }
         when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: damage
+        params: { dice: "3d6", modifier: 0, type: piercing, average: 10 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit AND combat.attack_had_advantage" }
 
 behavior_profile:
   archetype: skirmisher
