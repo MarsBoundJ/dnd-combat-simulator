@@ -1476,6 +1476,17 @@ def _execute_multiattack(actor, action: dict, state: CombatState,
     sub_action_ids = action.get("sub_actions", [])
     if not sub_action_ids:
         return
+
+    # Bloodied Fury (Quaggoth Thonot, MM 2024): while Bloodied (HP ≤ half
+    # max), the creature makes one extra attack as part of its Multiattack.
+    # The extra swing cycles the sub_actions list via the same modulo the
+    # main loop uses, so a single-weapon multiattack just adds one more of
+    # that weapon.
+    from engine.core import monster_traits as _mt
+    if _mt.has_trait(actor, "t_bloodied_fury") and _mt.is_bloodied(actor):
+        count += 1
+        state.event_log.append({"event": "bloodied_fury", "actor": actor.id,
+                                "extra_attacks": 1})
     sub_actions_by_id = {a.get("id"): a
                          for a in actor.template.get("actions", [])}
 
@@ -1507,11 +1518,40 @@ def _execute_multiattack(actor, action: dict, state: CombatState,
 def _evaluate_simple_condition(cond: str, state: CombatState) -> bool:
     """Trivial condition evaluator for the skeleton.
 
-    Handles a tiny vocabulary: 'combat.attack_state == hit', etc.
-    Real engine has a proper expression evaluator.
+    Handles a tiny vocabulary of atoms joined by ' AND ' / ' OR ':
+      - combat.attack_state == hit       — hit or crit landed
+      - combat.attack_state == crit      — crit landed
+      - combat.attack_had_advantage      — the attack rolled with Advantage
+      - combat.attack_had_disadvantage   — the attack rolled with Disadvantage
+
+    Compound support (PR): a damage step can gate on more than one atom, e.g.
+    `combat.attack_state == hit AND combat.attack_had_advantage` (Scout
+    Captain's advantage-only bonus damage). ' AND '/' OR ' are evaluated
+    left-to-right with AND binding tighter is NOT modeled — flat left-assoc is
+    sufficient for the single-operator clauses in content. Real engine has a
+    proper expression evaluator.
     """
+    cond = cond.strip()
+    if " AND " in cond:
+        return all(_evaluate_simple_condition(part, state)
+                   for part in cond.split(" AND "))
+    if " OR " in cond:
+        return any(_evaluate_simple_condition(part, state)
+                   for part in cond.split(" OR "))
+    return _evaluate_condition_atom(cond, state)
+
+
+def _evaluate_condition_atom(cond: str, state: CombatState) -> bool:
+    """Evaluate a single (operator-free) condition atom. Unknown atoms default
+    to True (skeleton-conservative — a damage step with an unrecognised guard
+    still fires)."""
+    if "combat.attack_state == crit" in cond:
+        return state.current_attack.get("state") == "crit"
     if "combat.attack_state == hit" in cond:
-        return state.current_attack.get("state") == "hit"
+        # A crit is also a hit (RAW: a critical hit IS a hit).
+        return state.current_attack.get("state") in ("hit", "crit")
+    if "combat.attack_had_disadvantage" in cond:
+        return state.current_attack.get("had_disadvantage", False)
     if "combat.attack_had_advantage" in cond:
         return state.current_attack.get("had_advantage", False)
     return True

@@ -1,0 +1,58 @@
+# m_hook_horror — Hook Horror
+# Source: 2024 Monster Manual (MM-only; not in SRD 5.2.1)
+# Triage: GREEN — Multiattack 2× Hook (Piercing).
+#   DEFERRED: forced 5-ft movement rider on Hook hit (no push primitive in v1).
+
+id: m_hook_horror
+name: Hook Horror
+source: mm_2024
+
+size: large
+creature_type: monstrosity
+alignment: neutral
+
+combat:
+  armor_class: 15
+  hit_points: { average: 75, dice: "10d10", con_contribution: 20 }
+  speed: { walk: 30, climb: 30 }
+  initiative: { modifier: 0, score: 10 }
+
+abilities:
+  str: { score: 18, save: 4 }
+  dex: { score: 10, save: 0 }
+  con: { score: 15, save: 4 }
+  int: { score: 6, save: -2 }
+  wis: { score: 12, save: 1 }
+  cha: { score: 7, save: -2 }
+
+skills: { perception: 5 }
+
+senses: { passive_perception: 15, special: { blindsight: 60, darkvision: 120 } }
+languages: ["Hook Horror"]
+
+cr: { value: 3, xp: 700, proficiency_bonus: 2 }
+
+habitat: [underdark]
+treasure: none
+
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 2
+    sub_actions: ["a_hook"]
+
+  - id: a_hook
+    name: Hook
+    type: weapon_attack
+    is_signature: true
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 6, reach_ft: 10 }
+      - primitive: damage
+        params: { dice: "2d6", modifier: 4, type: piercing, average: 11 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: brute
+  presets: { retreat: never, ability_selection: default, targeting: closest_enemy, action_economy: aggressive }

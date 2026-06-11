@@ -1,0 +1,71 @@
+# m_kuo_toa_monitor — Kuo-toa Monitor
+# Source: 2024 Monster Manual (MM-only; not in SRD 5.2.1)
+# Triage: GREEN — Multiattack 2× Bone Whip (Slashing + Lightning dual).
+#   DEFERRED: opportunity-attack denial rider on Bone Whip hit (no OA-deny
+#   primitive in v1); Amphibious trait (declarative); Sunlight Sensitivity
+#   (disadvantage in sunlight; no lighting primitive in v1).
+
+id: m_kuo_toa_monitor
+name: Kuo-toa Monitor
+source: mm_2024
+
+size: medium
+creature_type: aberration
+alignment: neutral evil
+
+combat:
+  armor_class: 13
+  hit_points: { average: 65, dice: "10d8", con_contribution: 20 }
+  speed: { walk: 30, swim: 30 }
+  initiative: { modifier: 0, score: 10 }
+
+abilities:
+  str: { score: 16, save: 3 }
+  dex: { score: 10, save: 0 }
+  con: { score: 14, save: 4 }
+  int: { score: 12, save: 1 }
+  wis: { score: 14, save: 4 }
+  cha: { score: 11, save: 0 }
+
+skills: { perception: 6, religion: 3 }
+
+senses: { passive_perception: 16, special: { truesight: 30, darkvision: 120 } }
+languages: ["Undercommon"]
+
+cr: { value: 3, xp: 700, proficiency_bonus: 2 }
+
+habitat: [coastal, underdark]
+treasure: relics
+
+traits:
+  - id: t_amphibious
+    name: Amphibious
+    type: trait_passive
+  - id: t_sunlight_sensitivity
+    name: Sunlight Sensitivity
+    type: trait_passive
+
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 2
+    sub_actions: ["a_bone_whip"]
+
+  - id: a_bone_whip
+    name: Bone Whip
+    type: weapon_attack
+    is_signature: true
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 5, reach_ft: 10 }
+      - primitive: damage
+        params: { dice: "1d6", modifier: 3, type: slashing, average: 6 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+      - primitive: damage
+        params: { dice: "2d6", modifier: 0, type: lightning, average: 7 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: brute
+  presets: { retreat: never, ability_selection: default, targeting: closest_enemy, action_economy: aggressive }

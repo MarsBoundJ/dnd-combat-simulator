@@ -1,0 +1,80 @@
+# m_flumph — Flumph
+# Source: 2024 Monster Manual (MM-only; not in SRD 5.2.1)
+# Triage: GREEN — Tentacle (acid) + Stench Spray (1/Day, DEX save → Poisoned).
+#   DEFERRED: Advanced Telepathy, Prone Deficiency, Telepathic Shroud (all non-combat).
+#   Stench Spray secondary aura (other creatures near the coated target) deferred.
+
+id: m_flumph
+name: Flumph
+source: mm_2024
+
+size: small
+creature_type: aberration
+alignment: lawful good
+
+combat:
+  armor_class: 12
+  hit_points: { average: 7, dice: "2d6", con_contribution: 0 }
+  speed: { walk: 5, fly: 30, hover: true }
+  initiative: { modifier: 2, score: 12 }
+
+abilities:
+  str: { score: 6, save: -2 }
+  dex: { score: 15, save: 2 }
+  con: { score: 10, save: 0 }
+  int: { score: 14, save: 2 }
+  wis: { score: 14, save: 2 }
+  cha: { score: 11, save: 0 }
+
+skills: { arcana: 4, history: 4, religion: 4 }
+damage_vulnerabilities: [psychic]
+
+senses: { passive_perception: 12, special: { darkvision: 60 } }
+languages: []
+
+cr: { value: 0.125, xp: 25, proficiency_bonus: 2 }
+
+habitat: [underdark]
+treasure: arcana
+
+traits:
+  - id: t_advanced_telepathy
+    name: Advanced Telepathy
+    type: trait_passive
+  - id: t_prone_deficiency
+    name: Prone Deficiency
+    type: trait_passive
+  - id: t_telepathic_shroud
+    name: Telepathic Shroud
+    type: trait_passive
+
+actions:
+  - id: a_tentacle
+    name: Tentacle
+    type: weapon_attack
+    is_signature: true
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 4, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d4", modifier: 2, type: acid, average: 4 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  - id: a_stench_spray
+    name: Stench Spray
+    type: save_effect
+    recharge: "daily:1"
+    pipeline:
+      - primitive: forced_save
+        params:
+          ability: dexterity
+          dc: 10
+          affected: current_target
+          on_fail:
+            - primitive: apply_condition
+              params: { condition_id: co_poisoned, duration: until_removed }
+          on_success: []
+
+behavior_profile:
+  archetype: lurker
+  presets: { retreat: cowardly, ability_selection: default, targeting: closest_enemy, action_economy: casual }

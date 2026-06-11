@@ -831,6 +831,32 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
                             "target": target.id, "amount": total, "type": dmg_type,
                             "target_hp_remaining": target.hp_current})
 
+    # Fear of Fire (Yeti, MM 2024): if the creature takes fire damage, it has
+    # Disadvantage on attack rolls until the end of its next turn. Registers a
+    # self-disadvantage attack_modifier on the target with a turn-end lifetime
+    # (cleared by the runner's turn-end expire pass). Refreshed-not-stacked:
+    # a second fire hit while the buff is live is a no-op (one disadvantage
+    # is enough; net_advantage doesn't double-count).
+    if total > 0 and dmg_type == "fire":
+        from engine.core.monster_traits import has_trait
+        if has_trait(target, "t_fear_of_fire"):
+            already = any(
+                m.get("primitive") == "attack_modifier"
+                and (m.get("source") or {}).get("id") == "t_fear_of_fire"
+                for m in target.active_modifiers)
+            if not already:
+                target.active_modifiers.append({
+                    "primitive": "attack_modifier",
+                    "params": {"when": "attacker_is_self",
+                                "modifier": "disadvantage_for_self"},
+                    "lifetime": "until_end_of_actor_next_turn",
+                    "source": {"type": "trait", "id": "t_fear_of_fire",
+                                "source_creature_id": target.id},
+                    "owner_id": target.id,
+                })
+                state.event_log.append({"event": "fear_of_fire_triggered",
+                                        "actor": target.id})
+
     # Break-on-damage control (RAW): any damage ends a break_on_damage
     # condition FOR THE DAMAGED CREATURE (Hypnotic Pattern's charm, Sleep).
     # The spell continues for OTHER affected creatures — we only scrub this
@@ -1613,12 +1639,20 @@ def _forced_save(params: dict, state: CombatState, bus: EventBus) -> dict:
             # save-for-half effect, a creature with Evasion takes 0 on success
             # and half on fail. select_evasion_subs returns the damage-scaled
             # sub list when it applies; otherwise we use the normal branch.
-            from engine.core.evasion import select_evasion_subs
+            from engine.core.evasion import (select_evasion_subs,
+                                              select_avoidance_subs)
             ev_subs = select_evasion_subs(target, ability, outcome, params,
                                             state)
+            ev_event = "evasion"
+            if ev_subs is None:
+                # Avoidance (Displacer Beast, MM 2024): Evasion for ANY save
+                # ability, gated on the t_avoidance trait rather than DEX.
+                ev_subs = select_avoidance_subs(target, ability, outcome,
+                                                  params, state)
+                ev_event = "avoidance"
             if ev_subs is not None:
                 state.event_log.append({
-                    "event": "evasion", "target": target.id,
+                    "event": ev_event, "target": target.id,
                     "outcome": outcome})
                 for sub in ev_subs:
                     _invoke_subprimitive(sub, state, bus)
