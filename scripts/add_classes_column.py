@@ -424,15 +424,11 @@ C = {
     "Wish": "sorcerer;wizard",
 }
 
-# Rows where the assignment relies on a 2024 class-list CHANGE that
-# hasn't been verified against DDB yet — flagged for manual spot-check.
-# (12 originally-flagged rows were DDB-verified 2026-06-11; two of those
-# were corrected: Blindness/Deafness kept Cleric, Conjure Woodland
-# Beings kept Ranger.)
-VERIFY = {
-    "Antipathy/Sympathy",       # Bard added in 2024?
-    "Prismatic Wall",           # Bard added in 2024?
-}
+# Rows where the assignment relied on a 2024 class-list change — all
+# DDB-verified 2026-06-11. Two of the original 14 were corrected:
+# Blindness/Deafness kept Cleric; Conjure Woodland Beings kept Ranger.
+# The full class column is now DDB-authoritative; nothing left to flag.
+VERIFY: set[str] = set()
 
 with open(MASTER, newline="") as f:
     rows = list(csv.DictReader(f))
