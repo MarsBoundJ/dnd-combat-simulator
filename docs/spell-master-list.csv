@@ -42,7 +42,7 @@ Bless,,1,Enchantment,cleric;paladin,srd_5.2.1,S,built,f_bless.yaml,
 Burning Hands,,1,Evocation,sorcerer;wizard,srd_5.2.1,B,built,f_burning_hands.yaml,
 Charm Person,,1,Enchantment,bard;druid;sorcerer;warlock;wizard,srd_5.2.1,B,built,f_charm_person.yaml,
 Chromatic Orb,,1,Evocation,sorcerer;wizard,srd_5.2.1,B,built,f_chromatic_orb.yaml,
-Color Spray,,1,Illusion,bard;sorcerer;wizard,srd_5.2.1,C,built,f_color_spray.yaml,classes: verify
+Color Spray,,1,Illusion,bard;sorcerer;wizard,srd_5.2.1,C,built,f_color_spray.yaml,
 Command,,1,Enchantment,bard;cleric;paladin,srd_5.2.1,B,built,f_command.yaml,
 Compelled Duel,,1,Enchantment,paladin,phb_2024,C,built,f_compelled_duel.yaml,
 Comprehend Languages,,1,Divination,bard;sorcerer;warlock;wizard,srd_5.2.1,D,todo,,
@@ -56,7 +56,7 @@ Dissonant Whispers,,1,Enchantment,bard,srd_5.2.1,A,built,f_dissonant_whispers.ya
 Divine Favor,,1,Transmutation,paladin,srd_5.2.1,C,built,f_divine_favor.yaml,
 Divine Smite,,1,Evocation,paladin,srd_5.2.1,A,built,f_divine_smite.yaml,
 Ensnaring Strike,,1,Conjuration,ranger,srd_5.2.1,B,built,f_ensnaring_strike.yaml,
-Entangle,,1,Conjuration,druid;ranger,srd_5.2.1,C,built,f_entangle.yaml,classes: verify
+Entangle,,1,Conjuration,druid;ranger,srd_5.2.1,C,built,f_entangle.yaml,
 Expeditious Retreat,,1,Transmutation,sorcerer;warlock;wizard,srd_5.2.1,C,todo,,
 Faerie Fire,,1,Evocation,bard;druid,srd_5.2.1,S,built,f_faerie_fire.yaml,
 False Life,,1,Necromancy,sorcerer;wizard,srd_5.2.1,C,built,f_false_life.yaml,
@@ -105,7 +105,7 @@ Arcane Vigor,,2,Abjuration,sorcerer;wizard,phb_2024,C,built,f_arcane_vigor.yaml,
 Augury,,2,Divination,cleric;druid;wizard,srd_5.2.1,D,todo,,
 Barkskin,,2,Transmutation,druid;ranger,srd_5.2.1,C,todo,,
 Beast Sense,,2,Divination,druid;ranger,phb_2024,D,stub,f_beast_sense.yaml,non-combat; deliberately unmodeled
-Blindness/Deafness,,2,Transmutation,bard;sorcerer;wizard,srd_5.2.1,C,built,f_blindness_deafness.yaml,classes: verify
+Blindness/Deafness,,2,Transmutation,bard;cleric;sorcerer;wizard,srd_5.2.1,C,built,f_blindness_deafness.yaml,
 Blur,,2,Illusion,sorcerer;wizard,srd_5.2.1,C,built,f_blur.yaml,
 Calm Emotions,,2,Enchantment,bard;cleric,srd_5.2.1,B,todo,,
 Cloud of Daggers,,2,Conjuration,bard;sorcerer;warlock;wizard,phb_2024,C,built,f_cloud_of_daggers.yaml,
@@ -191,7 +191,7 @@ Lightning Bolt,,3,Evocation,sorcerer;wizard,srd_5.2.1,S,built,f_lightning_bolt.y
 Magic Circle,,3,Abjuration,cleric;paladin;warlock;wizard,srd_5.2.1,C,todo,,
 Major Image,,3,Illusion,bard;sorcerer;warlock;wizard,srd_5.2.1,D,todo,,
 Mass Healing Word,,3,Abjuration,bard;cleric,srd_5.2.1,A,built,f_mass_healing_word.yaml,
-Meld into Stone,,3,Transmutation,cleric;druid;ranger,srd_5.2.1,D,todo,,classes: verify
+Meld into Stone,,3,Transmutation,cleric;druid;ranger,srd_5.2.1,D,todo,,
 Nondetection,,3,Abjuration,bard;ranger;wizard,srd_5.2.1,B,todo,,
 Phantom Steed,,3,Illusion,wizard,srd_5.2.1,C,todo,,
 Plant Growth,,3,Transmutation,bard;druid;ranger,srd_5.2.1,B,todo,,
@@ -221,12 +221,12 @@ Charm Monster,,4,Enchantment,bard;druid;sorcerer;warlock;wizard,srd_5.2.1,B,buil
 Compulsion,,4,Enchantment,bard,srd_5.2.1,B,todo,,
 Confusion,,4,Enchantment,bard;druid;sorcerer;wizard,srd_5.2.1,B,built,f_confusion.yaml,
 Conjure Minor Elementals,,4,Conjuration,druid;wizard,srd_5.2.1,C,todo,,
-Conjure Woodland Beings,,4,Conjuration,druid,srd_5.2.1,C,todo,,classes: verify
+Conjure Woodland Beings,,4,Conjuration,druid;ranger,srd_5.2.1,C,todo,,
 Control Water,,4,Transmutation,cleric;druid;wizard,srd_5.2.1,B,todo,,
 Death Ward,,4,Abjuration,cleric;paladin,srd_5.2.1,C,todo,,
 Dimension Door,,4,Conjuration,bard;sorcerer;warlock;wizard,srd_5.2.1,S,todo,,
-Divination,,4,Divination,cleric;druid;wizard,srd_5.2.1,D,todo,,classes: verify
-Dominate Beast,,4,Enchantment,druid;ranger;sorcerer,srd_5.2.1,B,built,f_dominate_beast.yaml,classes: verify
+Divination,,4,Divination,cleric;druid;wizard,srd_5.2.1,D,todo,,
+Dominate Beast,,4,Enchantment,druid;ranger;sorcerer,srd_5.2.1,B,built,f_dominate_beast.yaml,
 Evard's Black Tentacles,Black Tentacles,4,Conjuration,wizard,srd_5.2.1,B,todo,,renamed in SRD
 Fabricate,,4,Transmutation,wizard,srd_5.2.1,D,todo,,
 Fire Shield,,4,Evocation,druid;sorcerer;wizard,srd_5.2.1,B,todo,,
@@ -268,7 +268,7 @@ Conjure Elemental,,5,Conjuration,druid;wizard,srd_5.2.1,B,todo,,
 Conjure Volley,,5,Conjuration,ranger,phb_2024,C,built,f_conjure_volley.yaml,40-ft-radius DEX save 8d8 force enemies_in_area at 150 ft
 Contact Other Plane,,5,Divination,warlock;wizard,srd_5.2.1,D,todo,,
 Contagion,,5,Necromancy,cleric;druid,srd_5.2.1,C,built,f_contagion.yaml,
-Creation,,5,Illusion,sorcerer;wizard,srd_5.2.1,D,todo,,classes: verify
+Creation,,5,Illusion,sorcerer;wizard,srd_5.2.1,D,todo,,
 Destructive Wave,,5,Evocation,paladin,phb_2024,C,built,f_destructive_wave.yaml,30-ft emanation CON save 5d6 thunder + 5d6 radiant + prone; enemies_in_area
 Dispel Evil and Good,,5,Abjuration,cleric;paladin,srd_5.2.1,C,todo,,
 Dominate Person,,5,Enchantment,bard;sorcerer;wizard,srd_5.2.1,B,built,f_dominate_person.yaml,
@@ -282,7 +282,7 @@ Insect Plague,,5,Conjuration,cleric;druid;sorcerer,srd_5.2.1,B,built,f_insect_pl
 Jallarzi's Storm of Radiance,,5,Evocation,warlock;wizard,phb_2024,C,built,f_jallarzis_storm_of_radiance.yaml,persistent_aura zone; CON 4d10 per turn-start in area; blind/deafen deferred
 Legend Lore,,5,Divination,bard;cleric;wizard,srd_5.2.1,B,todo,,
 Mass Cure Wounds,,5,Abjuration,bard;cleric;druid,srd_5.2.1,B,built,f_mass_cure_wounds.yaml,
-Mislead,,5,Illusion,bard;warlock;wizard,srd_5.2.1,B,todo,,classes: verify
+Mislead,,5,Illusion,bard;warlock;wizard,srd_5.2.1,B,todo,,
 Modify Memory,,5,Enchantment,bard;wizard,srd_5.2.1,B,todo,,
 Passwall,,5,Transmutation,wizard,srd_5.2.1,D,todo,,
 Planar Binding,,5,Abjuration,bard;cleric;druid;warlock;wizard,srd_5.2.1,D,todo,,
@@ -313,7 +313,7 @@ Disintegrate,,6,Transmutation,sorcerer;wizard,srd_5.2.1,C,built,f_disintegrate.y
 Drawmij's Instant Summons,Instant Summons,6,Conjuration,wizard,srd_5.2.1,D,todo,,renamed in SRD
 Eyebite,,6,Necromancy,bard;sorcerer;warlock;wizard,srd_5.2.1,C,built,f_eyebite.yaml,
 Find the Path,,6,Divination,bard;cleric;druid,srd_5.2.1,D,todo,,
-Flesh to Stone,,6,Transmutation,druid;sorcerer;wizard,srd_5.2.1,C,built,f_flesh_to_stone.yaml,classes: verify
+Flesh to Stone,,6,Transmutation,druid;sorcerer;wizard,srd_5.2.1,C,built,f_flesh_to_stone.yaml,
 Forbiddance,,6,Abjuration,cleric,srd_5.2.1,C,todo,,
 Globe of Invulnerability,,6,Abjuration,sorcerer;wizard,srd_5.2.1,C,todo,,
 Guards and Wards,,6,Abjuration,bard;wizard,srd_5.2.1,D,todo,,
@@ -328,7 +328,7 @@ Otto's Irresistible Dance,Irresistible Dance,6,Enchantment,bard;wizard,srd_5.2.1
 Planar Ally,,6,Conjuration,cleric,srd_5.2.1,D,todo,,
 Programmed Illusion,,6,Illusion,bard;wizard,srd_5.2.1,D,todo,,
 Summon Fiend,,6,Conjuration,warlock;wizard,phb_2024,C,built,f_summon_fiend.yaml,
-Sunbeam,,6,Evocation,cleric;druid;sorcerer;wizard,srd_5.2.1,C,built,f_sunbeam.yaml,classes: verify
+Sunbeam,,6,Evocation,cleric;druid;sorcerer;wizard,srd_5.2.1,C,built,f_sunbeam.yaml,
 Tasha's Bubbling Cauldron,,6,Conjuration,warlock;wizard,phb_2024,D,built,f_tashas_bubbling_cauldron.yaml,
 Transport via Plants,,6,Conjuration,druid,srd_5.2.1,D,todo,,
 True Seeing,,6,Divination,bard;cleric;sorcerer;warlock;wizard,srd_5.2.1,D,todo,,
@@ -348,7 +348,7 @@ Mordenkainen's Magnificent Mansion,Magnificent Mansion,7,Conjuration,bard;wizard
 Mordenkainen's Sword,Arcane Sword,7,Evocation,bard;wizard,srd_5.2.1,C,todo,,renamed in SRD
 Plane Shift,,7,Conjuration,cleric;druid;sorcerer;warlock;wizard,srd_5.2.1,C,todo,,
 Power Word Fortify,,7,Enchantment,bard;cleric,phb_2024,C,built,f_power_word_fortify.yaml,
-Prismatic Spray,,7,Evocation,bard;sorcerer;wizard,srd_5.2.1,C,todo,,classes: verify
+Prismatic Spray,,7,Evocation,bard;sorcerer;wizard,srd_5.2.1,C,todo,,
 Project Image,,7,Illusion,bard;wizard,srd_5.2.1,D,todo,,
 Regenerate,,7,Transmutation,bard;cleric;druid,srd_5.2.1,C,todo,,
 Resurrection,,7,Necromancy,bard;cleric,srd_5.2.1,D,todo,,

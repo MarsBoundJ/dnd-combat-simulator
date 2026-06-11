@@ -129,7 +129,7 @@ C = {
     "Augury": "cleric;druid;wizard",
     "Barkskin": "druid;ranger",
     "Beast Sense": "druid;ranger",
-    "Blindness/Deafness": "bard;sorcerer;wizard",
+    "Blindness/Deafness": "bard;cleric;sorcerer;wizard",
     "Blur": "sorcerer;wizard",
     "Calm Emotions": "bard;cleric",
     "Cloud of Daggers": "bard;sorcerer;warlock;wizard",
@@ -247,7 +247,7 @@ C = {
     "Compulsion": "bard",
     "Confusion": "bard;druid;sorcerer;wizard",
     "Conjure Minor Elementals": "druid;wizard",
-    "Conjure Woodland Beings": "druid",
+    "Conjure Woodland Beings": "druid;ranger",
     "Control Water": "cleric;druid;wizard",
     "Death Ward": "cleric;paladin",
     "Dimension Door": "bard;sorcerer;warlock;wizard",
@@ -424,21 +424,12 @@ C = {
     "Wish": "sorcerer;wizard",
 }
 
-# PHB-only rows where the assignment relies on a 2024 class-list CHANGE
-# I'm less than fully certain about — flagged for manual spot-check.
+# Rows where the assignment relies on a 2024 class-list CHANGE that
+# hasn't been verified against DDB yet — flagged for manual spot-check.
+# (12 originally-flagged rows were DDB-verified 2026-06-11; two of those
+# were corrected: Blindness/Deafness kept Cleric, Conjure Woodland
+# Beings kept Ranger.)
 VERIFY = {
-    "Color Spray",              # Bard added in 2024?
-    "Entangle",                 # Ranger added in 2024?
-    "Blindness/Deafness",       # Cleric dropped in 2024?
-    "Meld into Stone",          # Ranger added in 2024?
-    "Conjure Woodland Beings",  # Ranger dropped in 2024?
-    "Divination",               # Druid + Wizard added in 2024?
-    "Dominate Beast",           # Ranger added in 2024?
-    "Creation",                 # Bard added in 2024? (kept off)
-    "Mislead",                  # Warlock added in 2024?
-    "Flesh to Stone",           # Warlock dropped; Druid/Sorcerer added?
-    "Sunbeam",                  # Cleric added in 2024?
-    "Prismatic Spray",          # Bard added in 2024?
     "Antipathy/Sympathy",       # Bard added in 2024?
     "Prismatic Wall",           # Bard added in 2024?
 }
