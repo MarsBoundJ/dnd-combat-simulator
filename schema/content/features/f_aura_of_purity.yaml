@@ -1,0 +1,57 @@
+# f_aura_of_purity — Aura of Purity (4th-level Abjuration, PHB 2024 —
+# NOT in SRD 5.2.1)
+#
+# RAW summary (own words, from owned PHB 2024): Action, V, Self (30-ft
+# Emanation), Concentration up to 10 minutes. An aura radiates from you
+# in a 30-foot Emanation. While in it, you and your allies have
+# Resistance to Poison damage and Advantage on saving throws to avoid or
+# end effects that include the Blinded, Charmed, Deafened, Frightened,
+# Paralyzed, Poisoned, or Stunned condition. Classes: Cleric, Paladin.
+#
+# Engine modeling: `aura_of_purity_aura` cast-time fan-out (mirror of
+# Crusader's Mantle) applies two modifier entries to the caster + every
+# living ally within 30 ft at the moment of casting:
+#   1. damage_resistance {type: poison} — halves poison damage via the
+#      active_modifiers resistance gate in _damage.
+#   2. condition_save_advantage {conditions: [...]} — marker for future
+#      save-modifier enforcement (not yet wired into the save roll; the
+#      entry acts as a flag for tests and future scoring).
+# Both entries are source-tagged so end_concentration removes them from
+# all affected actors at once.
+#
+# Deferred RAW bits:
+#   - Dynamic membership (allies entering/leaving the emanation).
+#   - condition_save_advantage actually granting Advantage on the save
+#     rolls (requires save modifier wiring to the listed conditions).
+# Available for: Cleric, Paladin (primary: c_paladin)
+
+id: f_aura_of_purity
+name: Aura of Purity
+source: user_authored
+granted_by:
+  class: c_paladin
+  level: 13             # Half-caster: 4th-level slots at L13
+type: active
+spell:
+  class: c_paladin
+  level: 4
+
+description: |
+  30-ft emanation for concentration duration (10 min). You and allies
+  in the aura have Resistance to Poison damage and Advantage on saving
+  throws against Blinded, Charmed, Deafened, Frightened, Paralyzed,
+  Poisoned, and Stunned conditions. (Dynamic range + save-adv wiring
+  deferred — cast-time snapshot.)
+
+action_template:
+  id: a_aura_of_purity
+  name: Aura of Purity
+  type: defensive_buff
+  spell_slot_level: 4
+  concentration: true
+  named_effect: aura_of_purity
+  range_ft: 0
+  pipeline:
+    - primitive: aura_of_purity_aura
+      params:
+        radius_ft: 30

@@ -14,12 +14,35 @@
 # the d20 — re-evaluating the hit. The "not expended on a failure" clause means
 # the use is refunded if the boosted roll still misses.
 #
-# Feature wiring status: STUB (deferred). The combat path it would ride is the
-# attack-roll-pending reaction hook in engine/primitives._attack_roll (the same
-# substrate Combat Inspiration Defense and Cutting Words already use), plus a
-# refund-on-still-fail of the Bardic Inspiration use. Documented here so the
-# feature is countable in features_known and surfaced by the loader; no runtime
-# hook is registered yet.
+# Feature wiring status: STUB (deliberate deferral — Opus call, Phase 3C).
+#
+# Rationale: RAW applies to "an ability check OR an attack roll." In a
+# combat sim the ability-check half is out of scope (the established
+# "exploration/social unmodeled" convention), leaving only the
+# attack-roll sliver — marginal for a Lore Bard, who rarely makes attack
+# rolls. Against that thin combat value, the feature needs genuinely-new
+# infrastructure: an OUTCOME-DEPENDENT refund (the Bardic Inspiration use
+# is restored only if the boosted roll STILL misses). That differs in
+# kind from every existing refund (Rage refund is pre-execution, at the
+# candidate gate; this is post-resolution). New hot-path infra in
+# _attack_roll for a marginal-value feature is a poor risk/reward trade,
+# so it stays a documented stub.
+#
+# Implementation path (when prioritized):
+#   1. engine/core/bardic_inspiration.py — a maybe_add_to_attack variant
+#      that spends bardic_inspiration_uses_remaining directly (Peerless
+#      uses the Bard's OWN pool, not a held inspiration-die marker) and
+#      records a "peerless_skill_die_spent" flag on state.current_attack.
+#   2. engine/primitives.py _attack_roll — call it on the Bard's own
+#      would-be miss (reuse the existing post-reaction self-add hook, the
+#      maybe_add_to_attack call site), then at attack-state finalization
+#      (where state becomes "miss") refund the use if the boosted roll
+#      still missed.
+#   3. This YAML — add the reaction action_template (trigger
+#      attack_roll_pending / feature_use bardic_inspiration_uses_remaining)
+#      once the refund path exists.
+# Documented here so the feature is countable in features_known and
+# surfaced by the loader; no runtime hook is registered yet.
 
 id: f_peerless_skill
 name: Peerless Skill

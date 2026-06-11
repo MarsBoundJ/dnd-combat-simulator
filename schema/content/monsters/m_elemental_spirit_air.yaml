@@ -1,0 +1,72 @@
+# m_elemental_spirit_air — the Elemental Spirit (Air form) summoned by
+# Summon Elemental (f_summon_elemental), PHB 2024 — NOT in SRD 5.2.1.
+#
+# v1 models the AIR form as the load-bearing pick: fly 40 hover lets the
+# spirit flank optimally, and the Lightning Slam is the cleanest single-
+# damage-type model. Earth / Fire / Water forms deferred.
+#
+# v1 modeled at the BASE 4th-level form:
+#   AC 11 + 4 = 15;  HP 50 + 10*(4-4) = 50;  Fly 40 (hover);
+#   Multiattack = floor(4/2) = 2;
+#   Slam 1d10 + 4 + spell level (4) = 1d10 + 8 lightning, reach 5 ft.
+#   Resistances: Lightning, Thunder.
+# Upcast (AC/HP/attack count/damage) deferred with the static block.
+# Slam to-hit is the caster's spell attack modifier (overridden at summon
+# time; +6 is a fallback).
+#
+# Amorphous Form (squeeze through 1-inch gaps) deferred as a movement /
+# geometry engine item.
+
+id: m_elemental_spirit_air
+name: Elemental Spirit (Air)
+source: user_authored
+
+size: medium
+creature_type: elemental
+alignment: neutral
+
+combat:
+  armor_class: 15              # 11 + spell level (4)
+  hit_points: { average: 50, dice: "0d0", con_contribution: 0 }
+  speed: { walk: 0, fly: 40, hover: true }
+  initiative: { modifier: 2, score: 12 }
+
+abilities:
+  str: { score: 18, save: 4 }
+  dex: { score: 15, save: 2 }
+  con: { score: 17, save: 3 }
+  int: { score: 4, save: -3 }
+  wis: { score: 10, save: 0 }
+  cha: { score: 16, save: 3 }
+
+skills: {}
+damage_resistances: [lightning, thunder]
+damage_vulnerabilities: []
+damage_immunities: [poison]
+condition_immunities: [co_exhaustion, co_paralyzed, co_petrified, co_poisoned]
+
+senses: { passive_perception: 10, special: { darkvision: 60 } }
+languages: []
+
+cr: { value: 0, xp: 0, proficiency_bonus: 3 }
+
+multiattack:
+  count: 2
+  action_id: a_air_slam
+
+actions:
+  - id: a_air_slam
+    name: Slam
+    type: weapon_attack
+    # Melee, reach 5 ft. Bonus overridden by attack_bonus_from at
+    # summon time. 1d10 + 4 + spell level (4) = 1d10 + 8 lightning.
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 6, range_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d10", modifier: 8, type: lightning, average: 14 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: apex_predator
+  presets: { retreat: never, ability_selection: default, targeting: nearest_enemy, action_economy: signature }

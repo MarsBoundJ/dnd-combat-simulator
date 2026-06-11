@@ -1,9 +1,10 @@
 """Wrathful Smite tests.
 
 RAW (PHB 2024, 1st-level Paladin spell):
-  BA cast, concentration up to 1 minute. Next melee weapon hit deals
-  +1d6 necrotic (+1d6 per slot above 1st, doubled on crit). Target
-  makes WIS save or is Frightened until the spell ends.
+  BA cast (after a melee hit), 1 minute, NOT concentration (2024).
+  The hit deals +1d6 necrotic (+1d6 per slot above 1st, doubled on
+  crit); target makes a WIS save or is Frightened until the spell
+  ends, re-saving at the end of each of its turns.
 
 Layers:
   1. f_wrathful_smite YAML loads with correct shape
@@ -111,7 +112,8 @@ class ContentTest(unittest.TestCase):
         tmpl = feature["action_template"]
         self.assertEqual(tmpl["spell_slot_level"], 1)
         self.assertEqual(tmpl["slot"], "bonus_action")
-        self.assertTrue(tmpl["concentration"])
+        # 2024: NOT concentration (end-of-turn re-save instead)
+        self.assertNotIn("concentration", tmpl)
         self.assertEqual(tmpl["named_effect"], "wrathful_smite")
         self.assertEqual(tmpl["pipeline"][0]["primitive"],
                             "wrathful_smite_arm")

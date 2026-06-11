@@ -278,14 +278,21 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
     #   - Elemental Affinity: Resistance to the chosen draconic type
     #     (pc_spec.draconic_element, default fire).
     draconic_resistances: list[str] = []
+    elemental_affinity: dict | None = None
     if "f_draconic_resilience" in features_known:
         hp += level
         if not armor_spec:
             ac = (10 + ability_modifier(ability_scores["dex"]["score"])
                    + ability_modifier(ability_scores["cha"]["score"]))
     if "f_elemental_affinity" in features_known:
-        draconic_resistances.append(
-            str(pc_spec.get("draconic_element", "fire")).lower())
+        element = str(pc_spec.get("draconic_element", "fire")).lower()
+        draconic_resistances.append(element)
+        # Read by engine.core.draconic_sorcery.elemental_affinity_bonus
+        # from _damage: +CHA mod to one matching-type damage roll per cast.
+        elemental_affinity = {
+            "element": element,
+            "cha_mod": ability_modifier(ability_scores["cha"]["score"]),
+        }
 
     # Monk Unarmored Defense: base AC = 10 + DEX + WIS while wearing no
     # armor (build-time, like Draconic Resilience but WIS not CHA).
@@ -402,6 +409,9 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
         "damage_resistances": (
             (list(race_def.get("damage_resistances") or [])
               if race_def else []) + draconic_resistances),
+        # Draconic Sorcery Elemental Affinity (L6): {element, cha_mod} or
+        # absent. Read by engine.core.draconic_sorcery from _damage.
+        "elemental_affinity": elemental_affinity,
         "race": race_id,    # telemetry only — runtime code uses
                               # template.racial_traits, not the id
         # Chosen subclass id (or None). Telemetry + reception-join key;
@@ -674,6 +684,24 @@ def derive_pc_resources(pc_spec: dict, content_registry: Any) -> dict:
         if fp > 0:
             resources["focus_points_remaining"] = fp
             resources["focus_points_max"] = fp
+
+    # ---- Wholeness of Body (Warrior of the Open Hand, Monk L6) ----
+    # Self-heal usable WIS-mod (min 1) times per Long Rest, gated by the
+    # a_wholeness_of_body feature_use. Refreshed in rest.apply_long_rest.
+    if "f_wholeness_of_body" in features_known:
+        wis_score = _resolve_ability_scores(
+            pc_spec.get("ability_scores") or {})["wis"]["score"]
+        uses = max(1, ability_modifier(wis_score))
+        resources["wholeness_of_body_uses_remaining"] = uses
+        resources["wholeness_of_body_uses_max"] = uses
+
+    # ---- Overchannel (Evoker, Wizard L14) ----
+    # A per-Long-Rest counter (NOT a depleting pool): the first maximize
+    # is free, each reuse before a Long Rest costs escalating necrotic
+    # self-damage. engine.core.overchannel reads/increments this; it
+    # resets to 0 in rest.apply_long_rest.
+    if "f_overchannel" in features_known:
+        resources["overchannel_uses_this_rest"] = 0
 
     # ---- Lay on Hands (Paladin L1+) — PR #83 ----
     # Pool = 5 × paladin_level HP. Refreshes on long rest. The
@@ -1485,6 +1513,50 @@ def _build_save_cantrip_action(action_id: str, name: str, level: int, *,
     }
 
 
+def _build_aoe_save_cantrip_action(action_id: str, name: str, level: int, *,
+                                      save_ability: str, damage_type: str,
+                                      die: int, emanation_ft: int,
+                                      affected: str) -> dict:
+    """Self-emanation save-for-damage cantrip (Thunderclap / Word of
+    Radiance). Same Nd<die> character-level scaling as
+    _build_save_cantrip_action, but the save hits every creature in a
+    small Emanation around the caster: type aoe_attack with an
+    emanation area whose range_ft 0 makes the positioner's only origin
+    candidate the caster's own square (and the 2024 Emanation rule
+    excludes the caster from its own area). `affected` distinguishes
+    true friendly fire (Thunderclap: all_creatures_in_area) from
+    "each creature of your choice" (Word of Radiance: enemies_in_area).
+    No half on success."""
+    n = _cantrip_dice_count(level)
+    return {
+        "id": action_id,
+        "name": name,
+        "type": "aoe_attack",
+        "slot": "action",
+        "spell_slot_level": 0,            # cantrip — consumes no slot
+        "save_ability": save_ability,
+        "save_dc_source": "caster_spell_save_dc",
+        "half_on_success": False,
+        "range_ft": emanation_ft,
+        "area": {"shape": "emanation", "size_ft": emanation_ft,
+                  "range_ft": 0, "origin": "caster"},
+        "pipeline": [
+            {"primitive": "forced_save",
+              "params": {
+                  "ability": save_ability,
+                  "dc_source": "caster_spell_save_dc",
+                  "affected": affected,
+                  "on_fail": [
+                      {"primitive": "damage",
+                        "params": {"dice": f"{n}d{die}", "modifier": 0,
+                                     "type": damage_type}},
+                  ],
+                  "on_success": [],
+              }},
+        ],
+    }
+
+
 def _build_sacred_flame_action(level: int) -> dict:
     """Sacred Flame (PR #115): 60 ft, DEX save or Nd8 radiant. Ignores
     cover RAW — cover modeling on save_attack is deferred (v1 treats it
@@ -1596,14 +1668,21 @@ def _build_leveled_spell_attack_action(action_id: str, name: str, *,
                                           proficiency_bonus: int, class_id: str,
                                           damage_dice: str, damage_type: str,
                                           ray_count: int = 1,
-                                          upcast_dice: str | None = None) -> dict:
+                                          upcast_dice: str | None = None,
+                                          concentration: bool = False,
+                                          extra_pipeline: list | None = None,
+                                          ) -> dict:
     """Generic leveled ranged-spell-attack action (Guiding Bolt,
     Chromatic Orb, Scorching Ray). Attack bonus = spell mod + PB, baked
     at PC-build time because the attack_roll primitive takes a fixed
     bonus. `ray_count` > 1 emits that many (attack_roll, damage-on-hit)
     pairs in one action (Scorching Ray's three rays focus-fired in v1).
     `upcast_dice` (single-ray only) attaches a per-slot-level scaling
-    block; multi-ray upcast adds RAYS not dice (RAW), so it's left off."""
+    block; multi-ray upcast adds RAYS not dice (RAW), so it's left off.
+    `extra_pipeline` steps (single-ray only) are appended after the
+    attack/damage pair and run UNCONDITIONALLY — Witch Bolt's channel
+    registration ("even if the first attack missed", PHB 2024).
+    `concentration` marks the action for the concentration tracker."""
     attack_bonus, abbr = _spell_attack_bonus(
         ability_scores, proficiency_bonus, class_id)
     pipeline: list[dict] = []
@@ -1617,6 +1696,8 @@ def _build_leveled_spell_attack_action(action_id: str, name: str, *,
               "params": {"dice": damage_dice, "modifier": 0,
                           "type": damage_type},
               "when": {"condition": "combat.attack_state == hit"}})
+    if extra_pipeline and ray_count == 1:
+        pipeline.extend(extra_pipeline)
     action = {
         "id": action_id,
         "name": name,
@@ -1625,6 +1706,8 @@ def _build_leveled_spell_attack_action(action_id: str, name: str, *,
         "spell_slot_level": slot_level,
         "pipeline": pipeline,
     }
+    if concentration:
+        action["concentration"] = True
     if upcast_dice and ray_count == 1:
         action["upcast_scaling"] = {"extra_dice_per_level": upcast_dice,
                                       "damage_type": damage_type}
@@ -1634,18 +1717,28 @@ def _build_leveled_spell_attack_action(action_id: str, name: str, *,
 def _build_heal_action(action_id: str, name: str, level: int,
                          ability_scores: dict, class_id: str, *,
                          slot: str, slot_level: int, range_ft: int,
-                         dice: str, max_targets: int = 1) -> dict:
+                         dice: str, max_targets: int = 1,
+                         target: str = "current_target",
+                         feature_use: str | None = None) -> dict:
     """Generic heal action: `<dice>` + the caster's spellcasting-ability
     modifier (floored at 0). Subsumes Cure Wounds / Healing Word / the
     mass heals — they differ only in id/name/slot/slot_level/range/dice/
     max_targets, all of which are parameters here. max_targets > 1 routes
     through the candidate generator's multi-target (Aid-shape) grouping.
 
+    `target` overrides the heal target spec (e.g. "self" for a self-heal
+    like Wholeness of Body). `feature_use` gates + decrements a limited-
+    use resource (Wholeness of Body's WIS-mod uses) instead of a spell
+    slot; the dice sentinel "martial_arts" resolves to the Monk's
+    level-scaled Martial Arts die.
+
     Deferred (matching the per-spell builders it replaces): upcast
     scaling on the healing dice — base cast only in v1."""
     abbr = _SPELL_ABILITY_BY_CLASS.get(class_id, "wis")
     score = (ability_scores.get(abbr) or {}).get("score", 10)
     mod = max(0, ability_modifier(score))
+    resolved_dice = (_monk_martial_arts_die(level)
+                       if dice == "martial_arts" else dice)
     action = {
         "id": action_id,
         "name": name,
@@ -1655,10 +1748,12 @@ def _build_heal_action(action_id: str, name: str, level: int,
         "range_ft": range_ft,
         "pipeline": [
             {"primitive": "heal",
-              "params": {"target": "current_target",
-                          "dice": dice, "modifier": mod}},
+              "params": {"target": target,
+                          "dice": resolved_dice, "modifier": mod}},
         ],
     }
+    if feature_use:
+        action["feature_use"] = feature_use
     if max_targets and int(max_targets) > 1:
         action["max_targets"] = int(max_targets)
     return action
@@ -1676,17 +1771,21 @@ def _dispatch_pc_builder(feature_def: dict, level: int,
 
     pc_builder shape:
         pc_builder:
-          kind: attack_cantrip | save_cantrip | spell_attack | heal
+          kind: attack_cantrip | save_cantrip | aoe_save_cantrip |
+                spell_attack | heal
           action_id: a_<spell>
           name: <Spell Name>
           params: { ...kind-specific... }
 
     Kind-specific params:
-      attack_cantrip: damage_type, die, range_ft
-      save_cantrip:   save_ability, damage_type, die, range_ft
-      spell_attack:   slot_level, range_ft, damage_dice, damage_type,
-                      [ray_count], [upcast_dice]
-      heal:           slot, slot_level, range_ft, dice, [max_targets]
+      attack_cantrip:   damage_type, die, range_ft, [attack_kind]
+      save_cantrip:     save_ability, damage_type, die, range_ft
+      aoe_save_cantrip: save_ability, damage_type, die, [emanation_ft],
+                        [affected]
+      spell_attack:     slot_level, range_ft, damage_dice, damage_type,
+                        [ray_count], [upcast_dice], [concentration],
+                        [extra_pipeline]
+      heal:             slot, slot_level, range_ft, dice, [max_targets]
 
     Returns the built action dict, or None if the feature has no
     pc_builder block. Raises ValueError on an unknown kind."""
@@ -1711,6 +1810,12 @@ def _dispatch_pc_builder(feature_def: dict, level: int,
             aid, name, level, save_ability=p["save_ability"],
             damage_type=p["damage_type"], die=int(p["die"]),
             range_ft=int(p["range_ft"]))
+    if kind == "aoe_save_cantrip":
+        return _build_aoe_save_cantrip_action(
+            aid, name, level, save_ability=p["save_ability"],
+            damage_type=p["damage_type"], die=int(p["die"]),
+            emanation_ft=int(p.get("emanation_ft", 5)),
+            affected=p.get("affected", "all_creatures_in_area"))
     if kind == "spell_attack":
         return _build_leveled_spell_attack_action(
             aid, name, slot_level=int(p["slot_level"]),
@@ -1718,13 +1823,17 @@ def _dispatch_pc_builder(feature_def: dict, level: int,
             proficiency_bonus=proficiency_bonus, class_id=class_id,
             damage_dice=p["damage_dice"], damage_type=p["damage_type"],
             ray_count=int(p.get("ray_count", 1)),
-            upcast_dice=p.get("upcast_dice"))
+            upcast_dice=p.get("upcast_dice"),
+            concentration=bool(p.get("concentration", False)),
+            extra_pipeline=p.get("extra_pipeline"))
     if kind == "heal":
         return _build_heal_action(
             aid, name, level, ability_scores, class_id,
             slot=p.get("slot", "action"), slot_level=int(p["slot_level"]),
             range_ft=int(p["range_ft"]), dice=p["dice"],
-            max_targets=int(p.get("max_targets", 1)))
+            max_targets=int(p.get("max_targets", 1)),
+            target=p.get("target", "current_target"),
+            feature_use=p.get("feature_use"))
     raise ValueError(f"unknown pc_builder kind: {kind!r}")
 
 

@@ -1,0 +1,81 @@
+# m_fiendish_spirit_devil — Fiendish Spirit (Devil variant) summoned by
+# Summon Fiend (f_summon_fiend), PHB 2024 — NOT in SRD 5.2.1.
+#
+# v1 modeled at the BASE 6th-level slot (the load-bearing case):
+#   AC 18 (12 + 6);  HP 40;  Multiattack = floor(6/2) = 3;
+#   Fiery Strike: 2d6 + 9 fire (modifier = 3 + spell level 6).
+#   Spell attack proxy +9 (L11 wizard, INT 20, PB +4).
+#
+# Deferred:
+#   - Devil's Sight: magical darkness doesn't impede darkvision.
+#   - Magic Resistance: advantage on saves vs spells (trait_passive, no
+#     mechanical hook yet — present as lore annotation).
+#   - Upcast scaling (AC/HP/attacks/damage per slot level).
+#   - Demon and Yugoloth variants.
+#   - Death Throes (Demon only): explodes on death.
+
+id: m_fiendish_spirit_devil
+name: Fiendish Spirit (Devil)
+source: user_authored
+
+size: large
+creature_type: fiend
+alignment: neutral
+
+combat:
+  armor_class: 18              # 12 + spell level (6)
+  hit_points: { average: 40, dice: "0d0", con_contribution: 0 }
+  speed: { walk: 0, fly: 60 }
+  initiative: { modifier: 3, score: 16 }
+
+abilities:
+  str: { score: 13, save: 1 }
+  dex: { score: 16, save: 3 }
+  con: { score: 15, save: 2 }
+  int: { score: 10, save: 0 }
+  wis: { score: 10, save: 0 }
+  cha: { score: 16, save: 3 }
+
+skills: {}
+damage_resistances: [fire]
+damage_vulnerabilities: []
+damage_immunities: [poison]
+condition_immunities: [co_poisoned]
+
+senses: { passive_perception: 10, special: { darkvision: 60 } }
+languages: [abyssal, infernal]
+
+cr: { value: 6, xp: 0, proficiency_bonus: 4 }
+
+traits:
+  - id: t_magic_resistance
+    name: Magic Resistance
+    type: trait_passive    # advantage on saves vs spells — deferred wiring
+  - id: t_devils_sight
+    name: Devil's Sight
+    type: trait_passive    # magical darkness doesn't impede darkvision — deferred
+
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 3                   # floor(spell level 6 / 2) = 3
+    sub_actions: [a_fiery_strike]
+
+  - id: a_fiery_strike
+    name: Fiery Strike
+    type: weapon_attack
+    # Melee or ranged spell attack, reach 5 ft or range 150 ft.
+    # Bonus is a static proxy for the caster's spell attack modifier
+    # (overridden by attack_bonus_from at summon time).
+    # Damage: 2d6 + 3 + spell level (6) = 2d6 + 9 fire.
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: ranged, bonus: 9, range_ft: 150 }
+      - primitive: damage
+        params: { dice: "2d6", modifier: 9, type: fire, average: 16 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: apex_predator
+  presets: { retreat: never, ability_selection: default, targeting: highest_hp_target, action_economy: signature }

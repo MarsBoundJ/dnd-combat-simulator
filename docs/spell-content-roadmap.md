@@ -4,6 +4,67 @@ Planning doc for expanding the sim's spell coverage. Created 2026-05-30
 (Phil + Claude). Sourcing/authoring posture lives in `data-sources.md`;
 follow it for every spell added.
 
+## THE MASTER LIST (added 2026-06-10 — start here)
+
+**`docs/spell-master-list.csv`** is now the single spell inventory:
+every spell in PHB 2024 ∪ SRD 5.2.1, one row each, plus the one
+already-built out-of-scope extra (Sickening Radiance — XGE).
+`tests/test_spell_master_list.py` enforces it: a new spell YAML
+cannot land without its master-list row being updated, and no row can
+claim a file that doesn't exist. Nothing falls between the cracks.
+
+Columns:
+- **name** — PHB 2024 canonical name.
+- **srd_name** — set only where SRD 5.2.1 stripped the proper name
+  (17 spells: Evard's Black Tentacles → Black Tentacles, Leomund's
+  Tiny Hut → Tiny Hut, Bigby's Hand → Arcane Hand, Mordenkainen's
+  Sword → Arcane Sword, Nystul's Magic Aura → Arcanist's Magic Aura,
+  etc.). **Every overlap spell is an SRD spell** — the CC-BY text is
+  usable verbatim under the generic name; only the proper name itself
+  is the PHB-flavored part.
+- **source** — `srd_5.2.1` (339 spells; CC-BY, text may be ingested
+  verbatim from `docs/srd/SRD_CC_v5.2.1.pdf`) or `phb_2024` (52
+  spells; mechanics-only, own-words re-expression per
+  `data-sources.md` — same posture as the PHB subclasses).
+- **tier** — build priority (Phil's Phase-2 scheme): **S** combat
+  staples (30), **A** class-defining: attack cantrips, smites,
+  signature spells (40), **B** subclass always-prepared lists (~80),
+  **C** remaining combat spells (~150), **D** utility/non-combat —
+  defer indefinitely (~90). Draft-assigned by Claude 2026-06-10;
+  adjust freely, the test doesn't care about tier.
+- **status** — `todo` / `stub` (file exists, spec-only or partial) /
+  `built` (file + tests, usable in the sim). Fidelity deferrals of
+  built spells stay documented in the YAML header comments, as today.
+- **files** — `;`-separated content files implementing the spell.
+
+State at creation: **128 built / 264 todo**. S-tier gaps (the
+highest-leverage five): **Misty Step, Dispel Magic, Haste, Dimension
+Door, Greater Invisibility.**
+
+### Verification — DONE (2026-06-10)
+- SRD side: all 339 rows (name/level/school) machine-extracted from
+  the SRD 5.2.1 PDF in `docs/srd/` (CC-BY, so extraction is clean).
+- PHB side: Phil pasted his full 391-spell PHB 2024 list and it was
+  diffed against the master list — **all 391 present, zero
+  level/school mismatches.** The initially unaccounted 52nd PHB-only
+  spell was **Synaptic Static** (an XGE spell reprinted in PHB 2024 —
+  already built as `f_synaptic_static.yaml`; its source tag was
+  corrected from `xge` to `phb_2024`). 339 SRD + 52 PHB-only = 391. ✓
+
+### Corrections to the rest of this doc (SRD 5.2.1 verified 2026-06-10)
+The "verify SRD 5.2.1 coverage" quick-win has now been run. It moves
+several spells this doc treats as non-SRD INTO the free pile:
+- **True Strike, Wall of Stone, Conjure Woodland Beings, Nystul's
+  Magic Aura** (as "Arcanist's Magic Aura") are all in SRD 5.2.1 —
+  they were also missing from the two priority CSVs in `docs/srd/`,
+  which the master list supersedes as inventory.
+- **Branding Smite no longer exists in 2024** — it's **Shining Smite**,
+  which is SRD. **Feeblemind** is now **Befuddlement** — SRD, already
+  built. The "True Strike decision" is resolved: 2024 attack-cantrip
+  redesign, SRD text.
+- The true PHB-only (non-SRD) set is **52 spells** (9 already built,
+  counting Synaptic Static), not the 38/34 counted below.
+
 ## What Phil actually directed (2026-05-30)
 
 - **Add the 38 PHB non-SRD spells** he listed (PHB owned → clean

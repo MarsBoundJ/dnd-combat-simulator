@@ -308,6 +308,11 @@ class EncounterRunner:
         if actor.is_alive():
             self._resolve_recurring_temp_hp(actor, state)
 
+        # Aura of Vitality-shape ticks: SOURCE-keyed heals fire at the
+        # CASTER's turn-start, healing the most wounded ally in range.
+        if actor.is_alive():
+            self._resolve_recurring_heals(actor, state)
+
         # Run the 8-step decision pipeline
         if actor.is_alive():
             self._run_actor_turn(actor, state)
@@ -846,10 +851,62 @@ class EncounterRunner:
                         aura.setdefault("_immune_ids", set()).add(actor.id)
             finally:
                 state.current_attack = saved_attack
+            # Charge-limited auras (Cordon of Arrows): each firing
+            # consumes one charge regardless of the save outcome (the
+            # arrow is destroyed either way); the aura ends when the
+            # last charge is spent.
+            if aura.get("remaining_triggers") is not None:
+                aura["remaining_triggers"] -= 1
+                if aura["remaining_triggers"] <= 0:
+                    state.persistent_auras = [
+                        a for a in state.persistent_auras if a is not aura]
+                    state.event_log.append({
+                        "event": "persistent_aura_depleted",
+                        "action": aura["action_id"],
+                    })
             # If the actor died from the aura, stop processing further
             # auras on them this turn (defensive).
             if not actor.is_alive():
                 break
+
+    def _resolve_recurring_heals(self, actor: Actor,
+                                     state: CombatState) -> None:
+        """Fire source-keyed heal ticks at the CASTER's turn-start
+        (Aura of Vitality). Each entry heals the most wounded living
+        same-side creature (caster included) within `radius_ft` of
+        the caster for `dice` HP. Skips the tick when nobody in range
+        is missing HP (the choice is the caster's, so no heal is
+        wasted)."""
+        if not state.recurring_heals:
+            return
+        from engine.core.geometry import distance_ft
+        from engine.primitives import _roll_dice_expr, get_rng
+        for entry in list(state.recurring_heals):
+            if entry.get("source_id") != actor.id:
+                continue
+            if entry.get("trigger_event") != "source_turn_start":
+                continue
+            radius = int(entry.get("radius_ft", 30))
+            wounded = [
+                a for a in state.encounter.actors
+                if a.side == actor.side and a.is_alive()
+                and a.hp_current < a.hp_max
+                and distance_ft(actor.position, a.position) <= radius
+            ]
+            if not wounded:
+                continue
+            target = max(wounded,
+                          key=lambda a: a.hp_max - a.hp_current)
+            healed = _roll_dice_expr(entry.get("dice", "2d6"), get_rng())
+            target.hp_current = min(target.hp_max,
+                                       target.hp_current + healed)
+            state.event_log.append({
+                "event": "recurring_heal_tick",
+                "source": actor.id,
+                "target": target.id,
+                "amount": healed,
+                "action": entry.get("source_action_id"),
+            })
 
     def _resolve_recurring_damage(self, actor: Actor,
                                       state: CombatState) -> None:

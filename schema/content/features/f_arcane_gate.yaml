@@ -1,0 +1,47 @@
+# f_arcane_gate — Arcane Gate (6th-level Conjuration, PHB 2024 —
+# also in SRD 5.2.1 as Arcane Gate)
+#
+# RAW summary (own words, from owned PHB 2024): Action, V/S, 500 ft,
+# Concentration up to 10 minutes. Create two linked circular portals —
+# one within 500 ft, one within 10 ft of you. Anything entering the open
+# side of one portal exits from the open side of the other. As a BA you
+# can flip which side is open. Portals are two-dimensional rings filled
+# with mist (blocks sight). No damage, no saving throw.
+# Classes: Sorcerer, Warlock, Wizard.
+#
+# Engine modeling: stub. The dual-portal teleportation system requires a
+# persistent geometry object with two linked entry/exit points and
+# movement interception — no existing primitive covers this. V1 records
+# the spell in the registry (concentration marker) and defers the
+# portal mechanics.
+#
+# Deferred RAW bits:
+#   - The two-portal placement, entry/exit teleportation, sight-blocking
+#     mist, and BA facing flip.
+# Available for: Sorcerer (c_sorcerer L11), Warlock (c_warlock L11),
+#                Wizard (c_wizard L11)
+
+id: f_arcane_gate
+name: Arcane Gate
+source: user_authored
+granted_by:
+  class: c_wizard
+  level: 11             # Full caster: 6th-level slots at L11
+type: active
+spell:
+  class: c_wizard
+  level: 6
+
+description: |
+  Two linked teleportation portals (Concentration, 10 min). Anything
+  entering one portal's open side exits the other's. BA to flip facing.
+  Portal teleportation mechanics deferred in v1.
+
+action_template:
+  id: a_arcane_gate
+  name: Arcane Gate
+  type: defensive_buff
+  spell_slot_level: 6
+  concentration: true
+  named_effect: arcane_gate
+  pipeline: []

@@ -1,0 +1,38 @@
+# f_beast_sense — Beast Sense (2nd-level Divination, PHB 2024 — NOT
+# in SRD 5.2.1)
+#
+# RAW summary (own words, from owned PHB 2024): Action (Ritual), S,
+# Touch, Concentration up to 1 hour. Touch a willing Beast and
+# perceive through its senses (including its special senses) for the
+# duration. Classes: Druid, Ranger.
+#
+# STUB — deliberately not modeled (master-list tier D). A pure
+# scouting/perception spell: the sim has no remote-sensing or
+# exploration layer, and inside combat the spell does nothing (using
+# it costs your own perception while active). Same never-modeled
+# bucket as Friends / Feign Death / Telepathy
+# (docs/spell-content-roadmap.md "non-combat" set). The stub exists
+# so the spell is loadable/inventoried; no action_template or
+# pc_builder on purpose.
+
+id: f_beast_sense
+name: Beast Sense
+source: user_authored
+granted_by:
+  class: c_ranger
+  level: 5                 # Rangers gain 2nd-level slots at L5
+type: passive
+spell:
+  class: c_ranger
+  level: 2
+
+description: |
+  2nd level (STUB — non-combat). Perceive through a touched willing
+  Beast's senses for up to an hour. Pure scouting utility with no
+  combat-sim effect; deliberately left unmodeled.
+
+contract:
+  reads: []
+  writes: []
+  event: passive
+  scope: noncombat_stub

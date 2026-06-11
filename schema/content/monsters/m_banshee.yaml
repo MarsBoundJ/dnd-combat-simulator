@@ -1,0 +1,112 @@
+# m_banshee — Banshee
+# Source: Monster Manual (2024) — NOT in SRD 5.2.1. Mechanics-only
+# clean-room re-expression (no flavor prose) per schema-design.md §1.
+# Triage: GREEN — Multiattack of two Corrupting Touch + one Horrify (the
+# save_effect-in-multiattack shape, Giant Constrictor Snake precedent),
+# and Deathly Wail as a daily:1 30-ft-emanation CON save. Both formerly-
+# deferred abilities are now fully wired against new engine primitives:
+#   - Horrify uses forced_save `immune_on_success: true` — RAW "Success:
+#     immune to this banshee's Horrify for 24 hours" -> per-encounter
+#     immunity (a target that saves once can't be re-Frightened by this
+#     banshee this fight).
+#   - Deathly Wail's on_fail uses the `hp_threshold_drop` primitive
+#     (threshold 25 -> drop to 0, else 3d6 psychic) — the power-word-shape
+#     execute, bypassing resistance + temp HP.
+# Remaining DEFERRED (see MONSTERS_NEED_ENGINE_WORK.md):
+#   - Deathly Wail's sunlight precondition and Construct/Undead + hearing
+#     exclusions are unmodeled (emanation hits all non-self creatures;
+#     allies included, which is RAW for non-Undead allies).
+#   - Incorporeal Movement (move through creatures/objects, 1d10 Force if
+#     ending inside one): no movement-through-occupied-space hook; omitted.
+#   - Detect Life: out-of-combat sense, omitted.
+#   - Speed: RAW walk 5 / Fly 40 (hover) — fly speed used as the walk
+#     stand-in (primary locomotion; the allowed flyer approximation).
+id: m_banshee
+name: Banshee
+source: mm_2024
+size: medium
+creature_type: undead
+alignment: chaotic_evil
+combat:
+  armor_class: 12
+  hit_points: { average: 54, dice: "12d8", con_contribution: 0 }
+  speed: { walk: 40, fly: 40 }
+  initiative: { modifier: 2, score: 12 }
+abilities:
+  str: { score: 1, save: -5 }
+  dex: { score: 14, save: 2 }
+  con: { score: 10, save: 0 }
+  int: { score: 12, save: 1 }
+  wis: { score: 11, save: 2 }
+  cha: { score: 17, save: 3 }
+skills: {}
+damage_resistances: [acid, bludgeoning, fire, lightning, piercing, slashing, thunder]
+damage_vulnerabilities: []
+damage_immunities: [cold, necrotic, poison]
+condition_immunities: [co_charmed, co_exhaustion, co_frightened, co_grappled,
+                        co_paralyzed, co_petrified, co_poisoned, co_prone,
+                        co_restrained]
+senses: { passive_perception: 10, special: { darkvision: 60 } }
+languages: [common, elvish]
+cr: { value: 4, xp: 1100, proficiency_bonus: 2 }
+traits: []
+actions:
+  # RAW: two Corrupting Touch attacks + one use of Horrify. Round-robin
+  # over [touch, horrify, touch] at count 3 yields exactly that mix.
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 3
+    sub_actions: [a_corrupting_touch, a_horrify, a_corrupting_touch]
+  - id: a_corrupting_touch
+    name: Corrupting Touch
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 5, reach_ft: 5 }
+      - primitive: damage
+        params: { dice: "1d8", modifier: 3, type: necrotic, average: 7 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+  - id: a_horrify
+    name: Horrify
+    type: save_effect
+    range_ft: 60
+    pipeline:
+      - primitive: forced_save
+        params:
+          ability: wisdom
+          dc: 13
+          affected: current_target
+          # RAW: on a success the target is immune to THIS banshee's Horrify
+          # for 24 hours -> per-encounter immunity (immune_on_success).
+          immune_on_success: true
+          immunity_key: horrify
+          on_fail:
+            - primitive: apply_condition
+              params: { condition_id: co_frightened, duration: until_actor_next_turn_start }
+          on_success: []
+  - id: a_deathly_wail
+    name: Deathly Wail
+    type: aoe_attack
+    recharge: "daily:1"
+    area: { shape: emanation, size_ft: 30 }
+    pipeline:
+      - primitive: forced_save
+        params:
+          ability: constitution
+          dc: 13
+          affected: all_creatures_in_area
+          # RAW: on a failed save, a target at <=25 HP drops straight to 0;
+          # otherwise it takes 3d6 psychic. hp_threshold_drop models the
+          # power-word-shape execute (bypasses resistance + temp HP).
+          on_fail:
+            - primitive: hp_threshold_drop
+              params:
+                threshold: 25
+                otherwise:
+                  - primitive: damage
+                    params: { dice: "3d6", modifier: 0, type: psychic, average: 10 }
+          on_success: []
+behavior_profile:
+  archetype: apex_predator
+  presets: { retreat: ftd, ability_selection: default, targeting: weakest_target, action_economy: casual }

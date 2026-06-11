@@ -119,6 +119,18 @@ def _roll_dice_empowered(expr: str, floor: int, reroll_n: int,
     return sum(rolls)
 
 
+def _roll_dice_maximized(expr: str) -> int:
+    """Every die in `expr` deals its maximum value: NdM → N*M (Evoker
+    Overchannel, "deal maximum damage with that spell"). Deterministic —
+    takes no rng. Raises on a malformed expression (caller guards on
+    `dice` truthiness, mirroring _roll_dice_expr)."""
+    m = _DICE_PATTERN.fullmatch(expr.strip())
+    if not m:
+        raise ValueError(f"Invalid dice expression: {expr!r}")
+    count, sides = int(m.group(1)), int(m.group(2))
+    return count * sides
+
+
 # ============================================================================
 # IMPLEMENTED — Attack pipeline (v0 + v1 modifier consultation)
 # ============================================================================
@@ -390,10 +402,21 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
     # caster CHA mod), set on the damage step's params by the metamagic
     # transform. 0 → normal roll.
     empowered_n = int(params.get("empowered_reroll", 0) or 0)
+    # Evoker Overchannel: maximize this spell's damage dice. Set on each
+    # damage step's params by engine.core.overchannel.apply_overchannel.
+    # Takes precedence over the empowered reroll (a maximized die can't be
+    # improved). Upcast extra dice are not maximized in v1 (the base +
+    # crit dice dominate; documented limitation in overchannel.py).
+    maximize = bool(params.get("maximize_dice", False))
     if dice:
-        rolled = _roll_dice_empowered(dice, floor, empowered_n, rng)
-        if is_crit:
-            rolled += _roll_dice_empowered(dice, floor, empowered_n, rng)
+        if maximize:
+            rolled = _roll_dice_maximized(dice)
+            if is_crit:
+                rolled += _roll_dice_maximized(dice)
+        else:
+            rolled = _roll_dice_empowered(dice, floor, empowered_n, rng)
+            if is_crit:
+                rolled += _roll_dice_empowered(dice, floor, empowered_n, rng)
     else:
         rolled = 0
 
@@ -447,6 +470,14 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
             actor, attack_params, state)
         if weapon_bonus:
             total += weapon_bonus
+
+    # Elemental Affinity (Draconic Sorcery L6): +CHA mod to ONE damage
+    # roll of a spell whose damage type matches the sorcerer's chosen
+    # draconic element. Once per cast — the helper dedups via a flag on
+    # state.current_attack so multi-target / multi-step spells add it a
+    # single time (RAW: "one damage roll"). Adds 0 for everyone else.
+    from engine.core import draconic_sorcery as _drac
+    total += _drac.elemental_affinity_bonus(actor, dmg_type, state)
 
     # PR #72: Sneak Attack rider. Fires on hit/crit only (this
     # branch only runs when the `when: combat.attack_state == hit`
@@ -530,7 +561,8 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
                 is_crit=(sa_state == "crit"))
             total += bs_damage
         # Wrathful Smite rider (Paladin, 1st-level). Melee-only;
-        # 1d6 necrotic bonus (+1d6/upcast), WIS save -> co_frightened.
+        # 1d6 necrotic bonus (+1d6/upcast), WIS save -> co_frightened
+        # (+ end-of-turn re-save; non-concentration per PHB 2024).
         if is_weapon_attack and (attack_params or {}).get(
                 "kind", "melee") == "melee":
             from engine.core import wrathful_smite as _ws
@@ -538,6 +570,56 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
                 actor, target, state, attack_params, rng,
                 is_crit=(sa_state == "crit"))
             total += ws_damage
+        # Thunderous Smite rider (Paladin, 1st-level). Melee-only;
+        # 2d6 thunder bonus (+1d6/upcast), STR save -> 10-ft push
+        # + co_prone.
+        if is_weapon_attack and (attack_params or {}).get(
+                "kind", "melee") == "melee":
+            from engine.core import thunderous_smite as _ts
+            ts_damage = _ts.try_apply_thunderous_smite_followup(
+                actor, target, state, attack_params, rng,
+                is_crit=(sa_state == "crit"))
+            total += ts_damage
+        # Staggering Smite rider (Paladin, 4th-level). Melee-only;
+        # 4d6 psychic bonus (+1d6/upcast), WIS save -> co_stunned.
+        if is_weapon_attack and (attack_params or {}).get(
+                "kind", "melee") == "melee":
+            from engine.core import staggering_smite as _stg
+            stg_damage = _stg.try_apply_staggering_smite_followup(
+                actor, target, state, attack_params, rng,
+                is_crit=(sa_state == "crit"))
+            total += stg_damage
+        # Banishing Smite rider (Paladin, 5th-level). Melee-only;
+        # 5d10 force bonus; if the hit leaves the target at <=50 HP,
+        # CHA save -> banished (co_incapacitated + escape re-save).
+        if is_weapon_attack and (attack_params or {}).get(
+                "kind", "melee") == "melee":
+            from engine.core import banishing_smite as _ban
+            ban_damage = _ban.try_apply_banishing_smite_followup(
+                actor, target, state, attack_params, rng,
+                is_crit=(sa_state == "crit"))
+            total += ban_damage
+        # Hail of Thorns rider (Ranger, 1st-level). RANGED-only; thorn
+        # burst around the struck target — target + creatures within
+        # 5 ft make a DEX save, Nd10 piercing / half (separate
+        # save-based damage, never folded into the attack total).
+        if is_weapon_attack and (attack_params or {}).get(
+                "kind", "melee") == "ranged":
+            from engine.core import hail_of_thorns as _ht
+            _ht.try_apply_hail_of_thorns_followup(
+                actor, target, state, attack_params, rng,
+                is_crit=(sa_state == "crit"))
+        # Lightning Arrow rider (Ranger, 3rd-level). RANGED-only;
+        # Nd8 lightning folded into the hit (v1: on top of the weapon
+        # damage RAW replaces — documented overvalue) + 10-ft DEX-save
+        # burst around the target.
+        if is_weapon_attack and (attack_params or {}).get(
+                "kind", "melee") == "ranged":
+            from engine.core import lightning_arrow as _la
+            la_damage = _la.try_apply_lightning_arrow_followup(
+                actor, target, state, attack_params, rng,
+                is_crit=(sa_state == "crit"))
+            total += la_damage
         # Monk on-hit strike riders (Stunning Strike + Open Hand Topple).
         # Melee-only, once per turn each; no bonus damage (control only).
         if is_weapon_attack and (attack_params or {}).get(
@@ -603,6 +685,23 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
                              or _rage.applies_rage_bps_resistance(target, dmg_type))
         if not already_resisted:
             total = total // 2
+
+    # Spell-granted resistance from active_modifiers (Aura of Purity,
+    # Fount of Moonlight, etc.). RAW: resistances don't stack, so skip
+    # if template-level or any feature-level resistance already halved.
+    _already_halved = (
+        dmg_type in (template.get("damage_immunities") or [])
+        or dmg_type in (template.get("damage_resistances") or [])
+        or _rage.applies_rage_bps_resistance(target, dmg_type)
+        or _rotg_resist(target, dmg_type)
+        or _bear_resist(target, dmg_type)
+    )
+    if not _already_halved:
+        for _mod in target.active_modifiers:
+            if (_mod.get("primitive") == "damage_resistance"
+                    and (_mod.get("params") or {}).get("type") == dmg_type):
+                total = total // 2
+                break
 
     # Apply multiplier (after resistance per 5e ordering: resistance halves
     # the post-multiplier? Or multiplier-then-resistance? Per RAW saves halve
@@ -782,61 +881,8 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
         attempt_concentration_save(target, total, state, rng)
 
     if target.hp_current == 0:
-        # Revivification (Zealot L14 Rage of the Gods): a raging Zealot
-        # within 30 ft may use a reaction + Rage use to save the target
-        # before death processing. Fires BEFORE forms/death/dying so HP
-        # can be restored in time.
-        from engine.core.reactions import resolve_reaction_triggers as _rtrig
-        _rtrig("creature_would_drop_to_zero", {
-            "target": target,
-            "target_id": target.id,
-        }, state, bus)
-
-    if target.hp_current == 0:
-        # Form system: a transformed creature dropping to 0 in its form
-        # REVERTS instead of dying (Wild Shape: back to the druid;
-        # Polymorph: back to true form with overflow carried). revert_form
-        # restores true-form HP and only marks death if the overflow
-        # itself zeroes the true form.
-        from engine.core import forms
-        from engine.core import regeneration as _regeneration
-        if forms.is_transformed(target):
-            forms.revert_form(target, state, reason="hp_zero",
-                                overflow=_form_overflow)
-        elif _regeneration.revives_from_zero(target):
-            # Troll rule: 0 HP is NOT death. The creature is downed and
-            # regenerates back at its next turn start — unless it took
-            # acid/fire (regen_suppressed), in which case the turn-start
-            # resolution kills it. Leave is_dead False here.
-            state.event_log.append({
-                "event": "downed_pending_regeneration", "actor": target.id,
-            })
-        else:
-            from engine.core import death_saves as _ds
-            # Massive damage (RAW): leftover after dropping to 0 >= HP max =
-            # instant death, even for a death-save creature.
-            _massive = _ds.is_massive_damage(_form_overflow, target.hp_max)
-            _is_crit = bool((state.current_attack or {}).get("is_crit"))
-            if _ds.uses_death_saves(target) and not _massive:
-                # PCs fall UNCONSCIOUS and roll death saves instead of dying.
-                if target.is_dying:
-                    # Already down — another hit is an auto death-save failure
-                    # (two on a crit); may finish them off.
-                    _ds.damage_while_dying(target, state, is_crit=_is_crit)
-                else:
-                    _ds.enter_dying(target, state)
-            else:
-                target.is_dead = True
-                # Death ends any concentration the deceased was maintaining
-                if target.concentration_on is not None:
-                    from engine.core.concentration import end_concentration
-                    end_concentration(target, state, reason="caster_died")
-                # A dying swallower frees whatever it had swallowed.
-                from engine.core import swallow as _swallow
-                _swallow.release_victims_of(target, state,
-                                              reason="swallower_died")
-        bus.emit("creature_dropped", {"creature": target})
-        state.event_log.append({"event": "creature_dropped", "creature": target.id})
+        _resolve_zero_hp(target, state, bus, form_overflow=_form_overflow,
+                         is_crit=bool((state.current_attack or {}).get("is_crit")))
     elif target.is_bloodied():
         bus.emit("creature_bloodied", {"creature": target})
 
@@ -874,6 +920,118 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
         _ra.on_ally_takes_damage(target, total, state, bus)
 
     return {"amount": total, "target_hp": target.hp_current}
+
+
+def _resolve_zero_hp(target: Actor, state: CombatState, bus: EventBus, *,
+                     form_overflow: int, is_crit: bool) -> None:
+    """Shared 0-HP processing for any path that brings a creature to 0 HP
+    (the `_damage` primitive and the `hp_threshold_drop` power-word effect).
+
+    Runs the revivification reaction first (a Zealot L14 may restore HP and
+    cancel the drop), then — if still at 0 — the form-revert / regeneration-
+    down / death-saves / death branch, and finally the `creature_dropped`
+    event. `form_overflow` is the leftover damage past 0 HP (0 for a direct
+    drop), feeding the RAW massive-damage instant-death check; `is_crit`
+    drives the extra death-save failure on a downed creature."""
+    # Revivification (Zealot L14 Rage of the Gods): a raging Zealot within
+    # 30 ft may use a reaction + Rage use to save the target before death
+    # processing. Fires BEFORE forms/death/dying so HP can be restored in
+    # time — a non-zero HP afterward cancels the rest.
+    from engine.core.reactions import resolve_reaction_triggers as _rtrig
+    _rtrig("creature_would_drop_to_zero", {
+        "target": target,
+        "target_id": target.id,
+    }, state, bus)
+    if target.hp_current != 0:
+        return
+
+    # Form system: a transformed creature dropping to 0 in its form
+    # REVERTS instead of dying (Wild Shape: back to the druid;
+    # Polymorph: back to true form with overflow carried). revert_form
+    # restores true-form HP and only marks death if the overflow
+    # itself zeroes the true form.
+    from engine.core import forms
+    from engine.core import regeneration as _regeneration
+    if forms.is_transformed(target):
+        forms.revert_form(target, state, reason="hp_zero",
+                            overflow=form_overflow)
+    elif _regeneration.revives_from_zero(target):
+        # Troll rule: 0 HP is NOT death. The creature is downed and
+        # regenerates back at its next turn start — unless it took
+        # acid/fire (regen_suppressed), in which case the turn-start
+        # resolution kills it. Leave is_dead False here.
+        state.event_log.append({
+            "event": "downed_pending_regeneration", "actor": target.id,
+        })
+    else:
+        from engine.core import death_saves as _ds
+        # Massive damage (RAW): leftover after dropping to 0 >= HP max =
+        # instant death, even for a death-save creature.
+        _massive = _ds.is_massive_damage(form_overflow, target.hp_max)
+        if _ds.uses_death_saves(target) and not _massive:
+            # PCs fall UNCONSCIOUS and roll death saves instead of dying.
+            if target.is_dying:
+                # Already down — another hit is an auto death-save failure
+                # (two on a crit); may finish them off.
+                _ds.damage_while_dying(target, state, is_crit=is_crit)
+            else:
+                _ds.enter_dying(target, state)
+        else:
+            target.is_dead = True
+            # Death ends any concentration the deceased was maintaining
+            if target.concentration_on is not None:
+                from engine.core.concentration import end_concentration
+                end_concentration(target, state, reason="caster_died")
+            # A dying swallower frees whatever it had swallowed.
+            from engine.core import swallow as _swallow
+            _swallow.release_victims_of(target, state,
+                                          reason="swallower_died")
+    bus.emit("creature_dropped", {"creature": target})
+    state.event_log.append({"event": "creature_dropped", "creature": target.id})
+
+
+def _hp_threshold_drop(params: dict, state: CombatState, bus: EventBus) -> dict:
+    """Power-word-shape effect: if the current target is at or below
+    `threshold` Hit Points, it drops straight to 0 HP; otherwise the
+    `otherwise` fallback sub-primitives run (typically a partial-damage step).
+
+    The drop is a direct HP reduction, NOT damage — it bypasses
+    resistance/immunity and temp HP, carries no overflow (so a dropped PC
+    enters the dying state rather than suffering massive-damage instant
+    death — the RAW outcome of "drops to 0 Hit Points"), and routes the
+    0-HP handling through the same `_resolve_zero_hp` path the damage
+    primitive uses (revivification reaction, form revert, regeneration-down,
+    death saves, the creature_dropped event).
+
+    Params:
+      threshold: int — at-or-below this current-HP value, drop to 0.
+      otherwise: list of effect-primitives run when the target is ABOVE the
+        threshold (e.g. the partial-damage fallback).
+
+    First consumer: Banshee Deathly Wail (<=25 HP -> 0, else 3d6 psychic);
+    the Power Word Kill / Stun family can reuse the same shape."""
+    target: Actor = state.current_attack.get("target")
+    actor = state.current_attack.get("actor")
+    if target is None:
+        return {"dropped": False}
+    # Already down (e.g. an AoE that dropped this creature on an earlier
+    # step) — nothing to do; don't run the fallback either.
+    if target.hp_current <= 0:
+        return {"dropped": False, "hp": target.hp_current}
+    threshold = int(params.get("threshold", 0))
+    if target.hp_current > threshold:
+        # Above the line — run the fallback (the spell's partial effect).
+        for sub in params.get("otherwise") or []:
+            _invoke_subprimitive(sub, state, bus)
+        return {"dropped": False, "hp": target.hp_current}
+    # At/under the threshold: straight to 0.
+    target.hp_current = 0
+    state.event_log.append({
+        "event": "hp_threshold_drop", "target": target.id,
+        "threshold": threshold,
+        "source": actor.id if actor is not None else None})
+    _resolve_zero_hp(target, state, bus, form_overflow=0, is_crit=False)
+    return {"dropped": True, "hp": 0}
 
 
 def _apply_condition(params: dict, state: CombatState, bus: EventBus) -> None:
@@ -1308,9 +1466,34 @@ def _forced_save(params: dict, state: CombatState, bus: EventBus) -> dict:
     heightened_applied = False
     mm_caster = (state.current_attack or {}).get("actor")
 
+    # Per-encounter save immunity ("Success: immune to this creature's X for
+    # 24 hours" — Banshee Horrify). When `immune_on_success` is set, a target
+    # that already succeeded against this (source, key) pair this encounter
+    # auto-succeeds with NO effect; a fresh success records the immunity.
+    # `immunity_key` lets one source's multiple such abilities stay distinct;
+    # it defaults to the action id.
+    immune_on_success = bool(params.get("immune_on_success"))
+    immunity_key = params.get("immunity_key") or (
+        (state.current_attack or {}).get("action") or {}).get("id")
+    immune_source_id = mm_caster.id if mm_caster is not None else None
+
     targets = _resolve_save_targets(params, state)
     rolls = []
     for target in targets:
+        # Already immune to this effect from this source (a prior success)
+        # — auto-succeed, run no on_fail/on_success, move on.
+        if (immune_on_success and immune_source_id is not None
+                and (immune_source_id, immunity_key) in target.save_immunities):
+            rolls.append({"target_id": target.id, "outcome": "success",
+                           "d20": None, "total": None, "dc": dc,
+                           "ability": ability, "immune": True})
+            state.current_save = {"target": target, "outcome": "success",
+                                   "ability": ability, "dc": dc}
+            state.event_log.append({
+                "event": "forced_save", "target": target.id,
+                "ability": ability, "dc": dc, "d20": None, "total": None,
+                "outcome": "success", "save_immune": True})
+            continue
         # Careful Spell: a chosen caster-ally automatically succeeds and
         # takes no damage (skip rolling + skip on_success/on_fail).
         if (careful_allies and mm_caster is not None
@@ -1437,6 +1620,12 @@ def _forced_save(params: dict, state: CombatState, bus: EventBus) -> dict:
         state.event_log.append({"event": "forced_save", "target": target.id,
                                 "ability": ability, "dc": dc,
                                 "d20": d20, "total": total, "outcome": outcome})
+
+        # Per-encounter immunity: a fresh success against an immune_on_success
+        # effect locks this (source, key) out for the rest of the fight.
+        if (immune_on_success and outcome == "success"
+                and immune_source_id is not None):
+            target.save_immunities.add((immune_source_id, immunity_key))
 
         # Swap state.current_attack.target to THIS iteration's target so
         # sub-primitives (damage, apply_condition) deal with the right
@@ -1839,6 +2028,37 @@ def _recurring_temp_hp(params: dict, state: CombatState,
     state.recurring_temp_hp.append(entry)
 
 
+def _recurring_heal(params: dict, state: CombatState,
+                       bus: EventBus) -> None:
+    """Register a SOURCE-keyed per-turn heal (Aura of Vitality).
+
+    Unlike recurring_temp_hp (target-keyed, fires at the target's
+    turn), the entry fires at the CASTER's turn-start and heals one
+    ally — the most wounded living same-side creature (caster
+    included) within `radius_ft` of the caster — for `dice` HP
+    (resolved by runner._resolve_recurring_heals). The "choose one
+    creature in the aura" decision is thus the obvious greedy pick.
+
+    Params:
+      - dice (str, default '2d6'): heal dice per tick
+      - radius_ft (int, default 30): emanation radius around the caster
+
+    Source ids stamped from state.current_attack so end_concentration
+    can match-and-scrub when the spell drops.
+    """
+    actor = state.current_attack.get("actor") or state.current_actor()
+    action = state.current_attack.get("action") or {}
+    entry = {
+        "source_id": actor.id if actor else None,
+        "source_action_id": action.get("id"),
+        "dice": params.get("dice", "2d6"),
+        "radius_ft": int(params.get("radius_ft", 30)),
+        "trigger_event": "source_turn_start",
+        "applied_at_round": state.round,
+    }
+    state.recurring_heals.append(entry)
+
+
 def _recurring_damage(params: dict, state: CombatState,
                          bus: EventBus) -> None:
     """Register a per-turn damage tick on the current target (PR #89).
@@ -2015,6 +2235,18 @@ def _persistent_aura(params: dict, state: CombatState, bus: EventBus) -> None:
         "spell_slot_level": int(action.get("spell_slot_level", 0)),
         "upcast_scaling": dict(action.get("upcast_scaling") or {}) or None,
     }
+    # Charge-limited auras (Cordon of Arrows: 4 planted arrows, each
+    # destroyed after one shot; +2 per slot above base). `charges`
+    # sets remaining_triggers; the runner decrements per firing and
+    # removes the aura at 0. Absent → unlimited (normal auras).
+    if params.get("charges") is not None:
+        charges = int(params["charges"])
+        per_slot = int(params.get("charges_per_slot_above_base", 0))
+        if per_slot:
+            base = int(action.get("spell_slot_level", 0))
+            chosen = entry["chosen_slot_level"] or base
+            charges += per_slot * max(0, chosen - base)
+        entry["remaining_triggers"] = charges
     # PR #60 + PR #68: `creates_zone` param — persistent_auras that
     # ALSO declare an environment zone. The zone is stamped with
     # caster_id + action_id so concentration end can scrub it
@@ -2378,6 +2610,257 @@ def _warrior_of_the_gods(params: dict, state: CombatState,
         "amount": healed,
         "dice_remaining": dice - spend,
     })
+
+
+def _crusaders_mantle_aura(params: dict, state: CombatState,
+                              bus: EventBus) -> None:
+    """Crusader's Mantle — offensive ally aura (the roadmap's
+    "offensive ally aura" sub-shape, v1).
+
+    RAW (PHB 2024): a 30-ft Emanation for the concentration duration;
+    the caster and allies in it deal an extra 1d4 radiant damage on
+    weapon/Unarmed hits.
+
+    v1: cast-time snapshot — apply a weapon_damage_bonus modifier
+    (+2 flat, the Bless/Divine Favor 1d4 convention) to the caster
+    and every living ally within `radius_ft`. Source-tagged with the
+    action + caster so end_concentration scrubs all copies. Dynamic
+    membership (allies entering/leaving the emanation mid-fight) is
+    deferred — same snapshot approximation as Zealous Presence.
+
+    Params:
+      - value (int, default 2): flat damage bonus per weapon hit
+      - radius_ft (int, default 30)
+    """
+    from engine.core.geometry import distance_ft
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        return
+    action = (state.current_attack or {}).get("action") or {}
+    radius = int(params.get("radius_ft", 30))
+    value = int(params.get("value", 2))
+    source = {
+        "type": "action_buff",
+        "action_id": action.get("id", "a_crusaders_mantle"),
+        "caster_id": actor.id,
+        "named_effect": action.get("named_effect"),
+    }
+    buffed = []
+    for candidate in state.encounter.actors:
+        if candidate.side != actor.side or not candidate.is_alive():
+            continue
+        if distance_ft(actor.position, candidate.position) > radius:
+            continue
+        candidate.active_modifiers.append({
+            "primitive": "weapon_damage_bonus",
+            "params": {"value": value, "when": "weapon_attack"},
+            "lifetime": "until_short_rest",
+            "source": source,
+            "applied_at_round": state.round,
+            "owner_id": candidate.id,
+        })
+        buffed.append(candidate.id)
+    state.event_log.append({
+        "event": "crusaders_mantle_applied",
+        "caster": actor.id,
+        "allies": buffed,
+        "value": value,
+    })
+
+
+def _aura_of_purity_aura(params: dict, state: CombatState,
+                           bus: EventBus) -> None:
+    """Aura of Purity — defensive ally aura (Paladin, 4th-level).
+
+    RAW (PHB 2024): a 30-ft Emanation for the concentration duration;
+    the caster and allies in it have Resistance to Poison damage and
+    Advantage on saves vs Blinded/Charmed/Deafened/Frightened/
+    Paralyzed/Poisoned/Stunned.
+
+    v1: cast-time snapshot (same discipline as Crusader's Mantle) —
+    apply two source-tagged modifier entries to the caster and every
+    living ally within `radius_ft`:
+      1. damage_resistance {type: poison} — consumed by _damage's
+         active_modifiers resistance gate.
+      2. condition_save_advantage {conditions: [...]} — marker for
+         future save-roll wiring; the entry is present and scrubbed
+         but not yet evaluated by the save roll.
+    Both entries are tagged with the action + caster so
+    end_concentration removes all copies at once.
+
+    Params:
+      - radius_ft (int, default 30)
+    """
+    from engine.core.geometry import distance_ft
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        return
+    action = (state.current_attack or {}).get("action") or {}
+    radius = int(params.get("radius_ft", 30))
+    source = {
+        "type": "action_buff",
+        "action_id": action.get("id", "a_aura_of_purity"),
+        "caster_id": actor.id,
+        "named_effect": action.get("named_effect"),
+    }
+    buffed = []
+    for candidate in state.encounter.actors:
+        if candidate.side != actor.side or not candidate.is_alive():
+            continue
+        if distance_ft(actor.position, candidate.position) > radius:
+            continue
+        candidate.active_modifiers.append({
+            "primitive": "damage_resistance",
+            "params": {"type": "poison"},
+            "lifetime": "until_short_rest",
+            "source": source,
+            "applied_at_round": state.round,
+            "owner_id": candidate.id,
+        })
+        candidate.active_modifiers.append({
+            "primitive": "condition_save_advantage",
+            "params": {"conditions": ["blinded", "charmed", "deafened",
+                                       "frightened", "paralyzed", "poisoned",
+                                       "stunned"]},
+            "lifetime": "until_short_rest",
+            "source": source,
+            "applied_at_round": state.round,
+            "owner_id": candidate.id,
+        })
+        buffed.append(candidate.id)
+    state.event_log.append({
+        "event": "aura_of_purity_applied",
+        "caster": actor.id,
+        "allies": buffed,
+    })
+
+
+def _fount_of_moonlight_buff(params: dict, state: CombatState,
+                               bus: EventBus) -> None:
+    """Fount of Moonlight — concentration self-buff (Druid/Bard, 4th-level).
+
+    RAW (PHB 2024): Resistance to Radiant damage + melee attacks deal
+    +2d6 Radiant on a hit (+ Reaction component deferred).
+
+    v1: apply two source-tagged entries to the caster:
+      1. weapon_damage_bonus {value: 7, when: melee_attack} — 2d6
+         radiant avg 7, gated to melee attacks via the existing
+         _eval_weapon_damage_when melee_attack clause.
+      2. damage_resistance {type: radiant} — consumed by _damage's
+         active_modifiers resistance gate.
+    Both entries are concentration-scrubbed on end_concentration.
+    """
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        return
+    action = (state.current_attack or {}).get("action") or {}
+    source = {
+        "type": "action_buff",
+        "action_id": action.get("id", "a_fount_of_moonlight"),
+        "caster_id": actor.id,
+        "named_effect": action.get("named_effect"),
+    }
+    actor.active_modifiers.append({
+        "primitive": "weapon_damage_bonus",
+        "params": {"value": 7, "when": "melee_attack"},
+        "lifetime": "until_short_rest",
+        "source": source,
+        "applied_at_round": state.round,
+        "owner_id": actor.id,
+    })
+    actor.active_modifiers.append({
+        "primitive": "damage_resistance",
+        "params": {"type": "radiant"},
+        "lifetime": "until_short_rest",
+        "source": source,
+        "applied_at_round": state.round,
+        "owner_id": actor.id,
+    })
+    state.event_log.append({
+        "event": "fount_of_moonlight_applied",
+        "caster": actor.id,
+    })
+
+
+def _circle_of_power_aura(params: dict, state: CombatState,
+                            bus: EventBus) -> None:
+    """Circle of Power — defensive ally aura (Paladin/Cleric/Wizard,
+    5th-level).
+
+    RAW (PHB 2024): a 30-ft Emanation for the concentration duration;
+    the caster and allies in it have Advantage on saving throws
+    against spells and other magical effects, and a successful save
+    that would normally halve damage negates it instead.
+
+    v1: cast-time snapshot (Crusader's Mantle discipline) — apply two
+    source-tagged entries to the caster and every living ally within
+    `radius_ft`:
+      1. save_modifier {modifier: advantage} — Advantage on ALL saves
+         (the engine doesn't tag saves as spell vs non-spell; most
+         simulated saves ARE magical, so this is a slight documented
+         overvalue).
+      2. magic_save_half_to_none — marker for the "half becomes none"
+         evasion-like rider; present + scrubbed but not yet evaluated
+         by the damage path (deferred wiring).
+    Both entries are scrubbed by end_concentration.
+
+    Params:
+      - radius_ft (int, default 30)
+    """
+    from engine.core.geometry import distance_ft
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        return
+    action = (state.current_attack or {}).get("action") or {}
+    radius = int(params.get("radius_ft", 30))
+    source = {
+        "type": "action_buff",
+        "action_id": action.get("id", "a_circle_of_power"),
+        "caster_id": actor.id,
+        "named_effect": action.get("named_effect"),
+    }
+    buffed = []
+    for candidate in state.encounter.actors:
+        if candidate.side != actor.side or not candidate.is_alive():
+            continue
+        if distance_ft(actor.position, candidate.position) > radius:
+            continue
+        candidate.active_modifiers.append({
+            "primitive": "save_modifier",
+            "params": {"modifier": "advantage"},
+            "lifetime": "until_short_rest",
+            "source": source,
+            "applied_at_round": state.round,
+            "owner_id": candidate.id,
+        })
+        candidate.active_modifiers.append({
+            "primitive": "magic_save_half_to_none",
+            "params": {},
+            "lifetime": "until_short_rest",
+            "source": source,
+            "applied_at_round": state.round,
+            "owner_id": candidate.id,
+        })
+        buffed.append(candidate.id)
+    state.event_log.append({
+        "event": "circle_of_power_applied",
+        "caster": actor.id,
+        "allies": buffed,
+    })
+
+
+def _damage_resistance(params: dict, state: CombatState,
+                         bus: EventBus) -> None:
+    """Register a damage_resistance modifier on the target/actor.
+
+    Consumed by _damage's active_modifiers resistance gate: when
+    params.type matches the in-flight damage type and no higher-
+    priority resistance (template / rage / feature) has already halved,
+    damage is halved. Source-tagged for concentration scrub.
+    """
+    owner = _resolve_modifier_owner(params, state)
+    entry = _build_modifier_entry("damage_resistance", params, owner, state)
+    owner.active_modifiers.append(entry)
 
 
 def _zealous_presence(params: dict, state: CombatState,
@@ -3007,6 +3490,166 @@ def _wrathful_smite_arm(params: dict, state: CombatState,
                      action_id=action_id, state=state)
 
 
+def _thunderous_smite_arm(params: dict, state: CombatState,
+                             bus: EventBus) -> None:
+    """Arm the caster with Thunderous Smite's one-shot rider.
+
+    Called from f_thunderous_smite's cast pipeline. 1st-level spell;
+    reads cast slot level from state.current_attack.chosen_slot_level
+    and the caster's CHA-based spell save DC. Mirrors _searing_smite_arm.
+    """
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        raise ValueError("thunderous_smite_arm requires a current actor")
+    slot_level = int((state.current_attack or {}).get(
+        "chosen_slot_level") or 1)
+    if "dc" in params:
+        dc = int(params["dc"])
+    else:
+        dc = _caster_spell_save_dc(actor)
+    action = (state.current_attack or {}).get("action") or {}
+    action_id = action.get("id", "a_thunderous_smite")
+    from engine.core.thunderous_smite import register_armed
+    register_armed(actor, slot_level=slot_level, spell_save_dc=dc,
+                     action_id=action_id, state=state)
+
+
+def _hail_of_thorns_arm(params: dict, state: CombatState,
+                           bus: EventBus) -> None:
+    """Arm the caster with Hail of Thorns' one-shot ranged rider.
+
+    Called from f_hail_of_thorns' cast pipeline. 1st-level Ranger
+    spell; reads cast slot level from chosen_slot_level and the
+    caster's WIS-based spell save DC. Mirrors _searing_smite_arm; the
+    trigger (DEX-save thorn burst around the struck target) lives in
+    engine.core.hail_of_thorns.
+    """
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        raise ValueError("hail_of_thorns_arm requires a current actor")
+    slot_level = int((state.current_attack or {}).get(
+        "chosen_slot_level") or 1)
+    if "dc" in params:
+        dc = int(params["dc"])
+    else:
+        dc = _caster_spell_save_dc(actor)
+    action = (state.current_attack or {}).get("action") or {}
+    action_id = action.get("id", "a_hail_of_thorns")
+    from engine.core.hail_of_thorns import register_armed
+    register_armed(actor, slot_level=slot_level, spell_save_dc=dc,
+                     action_id=action_id, state=state)
+
+
+def _lightning_arrow_arm(params: dict, state: CombatState,
+                            bus: EventBus) -> None:
+    """Arm the caster with Lightning Arrow's one-shot ranged rider.
+
+    Called from f_lightning_arrow's cast pipeline. 3rd-level Ranger
+    spell; reads cast slot level from chosen_slot_level and the
+    caster's WIS-based spell save DC. The trigger (direct Nd8
+    lightning + 10-ft DEX-save burst) lives in
+    engine.core.lightning_arrow.
+    """
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        raise ValueError("lightning_arrow_arm requires a current actor")
+    slot_level = int((state.current_attack or {}).get(
+        "chosen_slot_level") or 3)
+    if "dc" in params:
+        dc = int(params["dc"])
+    else:
+        dc = _caster_spell_save_dc(actor)
+    action = (state.current_attack or {}).get("action") or {}
+    action_id = action.get("id", "a_lightning_arrow")
+    from engine.core.lightning_arrow import register_armed
+    register_armed(actor, slot_level=slot_level, spell_save_dc=dc,
+                     action_id=action_id, state=state)
+
+
+def _staggering_smite_arm(params: dict, state: CombatState,
+                             bus: EventBus) -> None:
+    """Arm the caster with Staggering Smite's one-shot melee rider.
+
+    Called from f_staggering_smite's cast pipeline. 4th-level Paladin
+    spell; 4d6 psychic bonus damage + WIS save → co_stunned. Trigger
+    lives in engine.core.staggering_smite.
+    """
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        raise ValueError("staggering_smite_arm requires a current actor")
+    slot_level = int((state.current_attack or {}).get(
+        "chosen_slot_level") or 4)
+    if "dc" in params:
+        dc = int(params["dc"])
+    else:
+        dc = _caster_spell_save_dc(actor)
+    action = (state.current_attack or {}).get("action") or {}
+    action_id = action.get("id", "a_staggering_smite")
+    from engine.core.staggering_smite import register_armed as _stg_arm
+    _stg_arm(actor, spell_save_dc=dc, action_id=action_id,
+              state=state, slot_level=slot_level)
+
+
+def _banishing_smite_arm(params: dict, state: CombatState,
+                            bus: EventBus) -> None:
+    """Arm the caster with Banishing Smite's one-shot melee rider.
+
+    Called from f_banishing_smite's cast pipeline. 5th-level Paladin
+    spell; 5d10 force bonus + (if the hit leaves the target at <=50 HP)
+    CHA save → banished. Trigger lives in engine.core.banishing_smite.
+    """
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        raise ValueError("banishing_smite_arm requires a current actor")
+    slot_level = int((state.current_attack or {}).get(
+        "chosen_slot_level") or 5)
+    if "dc" in params:
+        dc = int(params["dc"])
+    else:
+        dc = _caster_spell_save_dc(actor)
+    action = (state.current_attack or {}).get("action") or {}
+    action_id = action.get("id", "a_banishing_smite")
+    from engine.core.banishing_smite import register_armed as _ban_arm
+    _ban_arm(actor, spell_save_dc=dc, action_id=action_id,
+              state=state, slot_level=slot_level)
+
+
+def _swift_quiver_arm(params: dict, state: CombatState,
+                        bus: EventBus) -> None:
+    """Swift Quiver — stamp a concentration-scrubable marker on the caster.
+
+    RAW (PHB 2024): Concentration, 1 min. When cast AND as a BA each turn,
+    make two ranged weapon attacks (spell creates the ammunition).
+
+    v1: registers a `swift_quiver_active` active_modifier on the caster;
+    the actual BA double-attack execution hook is deferred (documented
+    undervalue — the marker is present and scrubbed correctly). Source-
+    tagged so end_concentration removes it.
+    """
+    actor = (state.current_attack or {}).get("actor") or state.current_actor()
+    if actor is None:
+        return
+    action = (state.current_attack or {}).get("action") or {}
+    source = {
+        "type": "action_buff",
+        "action_id": action.get("id", "a_swift_quiver"),
+        "caster_id": actor.id,
+        "named_effect": action.get("named_effect"),
+    }
+    actor.active_modifiers.append({
+        "primitive": "swift_quiver_active",
+        "params": {},
+        "lifetime": "until_short_rest",
+        "source": source,
+        "applied_at_round": state.round,
+        "owner_id": actor.id,
+    })
+    state.event_log.append({
+        "event": "swift_quiver_armed",
+        "caster": actor.id,
+    })
+
+
 def _wild_shape_transform(params: dict, state: CombatState,
                             bus: EventBus) -> None:
     """Druid Wild Shape — transform into a Beast form (form system).
@@ -3481,10 +4124,13 @@ def _resolve_save_targets(params: dict, state: CombatState) -> list[Actor]:
     if affected == "current_target":
         target = state.current_attack.get("target") or state.current_actor()
         return [target] if target else []
-    if affected == "all_creatures_in_area":
+    if affected in ("all_creatures_in_area", "enemies_in_area"):
         # AoE-aware path: dispatch on area.shape using state.current_attack's
         # area_origin (sphere) or area_origin + area_direction (cone, line).
-        # Living creatures only; includes allies (friendly fire is RAW).
+        # Living creatures only. 'all_creatures_in_area' includes allies
+        # (friendly fire is RAW); 'enemies_in_area' filters to the caster's
+        # enemies — the "each creature of your choice" spells (Word of
+        # Radiance), where the caster always chooses only foes.
         # Legacy fallback (no area declared) returns all living enemies.
         actor = state.current_actor() or state.current_attack.get("actor")
         if actor is None:
@@ -3507,12 +4153,16 @@ def _resolve_save_targets(params: dict, state: CombatState) -> list[Actor]:
             elif shape == "emanation":
                 # A self-centered Emanation is a sphere of `size_ft`
                 # radius originating from the actor (origin == caster's
-                # position). Used by Barbarian Intimidating Presence.
+                # position). Used by Barbarian Intimidating Presence and
+                # the emanation cantrips (Thunderclap, Word of Radiance).
+                # 2024 Emanation rule: the originator is NOT included in
+                # its own area.
                 size_ft = area.get("size_ft")
                 if size_ft is not None:
                     from engine.core.geometry import actors_in_radius
-                    members = actors_in_radius(tuple(origin), int(size_ft),
-                                                 living)
+                    members = [m for m in actors_in_radius(
+                                   tuple(origin), int(size_ft), living)
+                               if m.id != actor.id]
             elif shape == "cone":
                 length_ft = area.get("length_ft")
                 if length_ft is not None and direction is not None:
@@ -3535,8 +4185,11 @@ def _resolve_save_targets(params: dict, state: CombatState) -> list[Actor]:
             if _walls:
                 from engine.core.geometry import clear_line_of_effect
                 members = clear_line_of_effect(tuple(origin), members, _walls)
+            if affected == "enemies_in_area":
+                members = [m for m in members if m.side != actor.side]
             return members
-        # Legacy fallback: all living enemies
+        # Legacy fallback: all living enemies (already enemies-only,
+        # so it serves both affected modes)
         return [a for a in state.encounter.actors
                 if a.side != actor.side and a.is_alive()]
     return []
@@ -3598,6 +4251,7 @@ def _populate_handler_table() -> None:
     _PRIMITIVE_HANDLERS = {
         "attack_roll": _attack_roll,
         "damage": _damage,
+        "hp_threshold_drop": _hp_threshold_drop,
         "apply_condition": _apply_condition,
         "heal": _heal,
         "granted_action": _granted_action,
@@ -3633,6 +4287,18 @@ def _populate_handler_table() -> None:
         "recurring_damage": _recurring_damage,
         "searing_smite_arm": _searing_smite_arm,
         "ensnaring_strike_arm": _ensnaring_strike_arm,
+        "thunderous_smite_arm": _thunderous_smite_arm,
+        "hail_of_thorns_arm": _hail_of_thorns_arm,
+        "lightning_arrow_arm": _lightning_arrow_arm,
+        "recurring_heal": _recurring_heal,
+        "crusaders_mantle_aura": _crusaders_mantle_aura,
+        "aura_of_purity_aura": _aura_of_purity_aura,
+        "fount_of_moonlight_buff": _fount_of_moonlight_buff,
+        "circle_of_power_aura": _circle_of_power_aura,
+        "damage_resistance": _damage_resistance,
+        "staggering_smite_arm": _staggering_smite_arm,
+        "banishing_smite_arm": _banishing_smite_arm,
+        "swift_quiver_arm": _swift_quiver_arm,
         "hex_curse": _hex_curse,
         "hunters_mark_mark": _hunters_mark_mark,
         "forced_movement": _forced_movement,
@@ -3659,6 +4325,11 @@ def _all_primitives() -> list[Primitive]:
         # v0 (skeleton)
         Primitive("attack_roll", _attack_roll, implemented=True),
         Primitive("damage", _damage, implemented=True),
+        # Power-word-shape HP-threshold instant-drop (Banshee Deathly Wail;
+        # future Power Word Kill/Stun). Drops the target to 0 HP if at/under
+        # the threshold, else runs the `otherwise` fallback. Must stay in
+        # sync with _populate_handler_table.
+        Primitive("hp_threshold_drop", _hp_threshold_drop, implemented=True),
         Primitive("apply_condition", _apply_condition, implemented=True),
         Primitive("heal", _heal, implemented=True),
         Primitive("granted_action", _granted_action, implemented=True),
@@ -3770,6 +4441,54 @@ def _all_primitives() -> list[Primitive]:
         # pattern: registers a one-shot marker; _damage fires the
         # rider (1d6 psychic + WIS save -> Frightened).
         Primitive("wrathful_smite_arm", _wrathful_smite_arm,
+                    implemented=True),
+        # Thunderous Smite arming primitive (Paladin, 1st-level).
+        # Rider: 2d6 thunder bonus, STR save -> 10-ft push + Prone.
+        Primitive("thunderous_smite_arm", _thunderous_smite_arm,
+                    implemented=True),
+        # Hail of Thorns arming primitive (Ranger, 1st-level). RANGED
+        # rider: DEX-save thorn burst (Nd10 / half) around the struck
+        # target — trigger lives in engine.core.hail_of_thorns.
+        Primitive("hail_of_thorns_arm", _hail_of_thorns_arm,
+                    implemented=True),
+        # Lightning Arrow arming primitive (Ranger, 3rd-level). RANGED
+        # rider: direct Nd8 lightning + 10-ft DEX-save burst — trigger
+        # lives in engine.core.lightning_arrow.
+        Primitive("lightning_arrow_arm", _lightning_arrow_arm,
+                    implemented=True),
+        # Aura of Vitality — source-keyed per-turn heal tick (the
+        # ally-aura heal-over-time sub-shape).
+        Primitive("recurring_heal", _recurring_heal, implemented=True),
+        # Crusader's Mantle — offensive ally aura: weapon_damage_bonus
+        # fan-out to caster + allies in radius at cast time.
+        Primitive("crusaders_mantle_aura", _crusaders_mantle_aura,
+                    implemented=True),
+        # Aura of Purity — defensive ally aura: damage_resistance:poison
+        # + condition_save_advantage fan-out to caster + allies ≤30 ft.
+        Primitive("aura_of_purity_aura", _aura_of_purity_aura,
+                    implemented=True),
+        # Fount of Moonlight — concentration self-buff: weapon_damage_bonus
+        # 2d6 radiant (melee) + damage_resistance:radiant on self.
+        Primitive("fount_of_moonlight_buff", _fount_of_moonlight_buff,
+                    implemented=True),
+        # General damage_resistance primitive — registers a damage_resistance
+        # modifier in active_modifiers (consumed by _damage's resistance gate).
+        Primitive("damage_resistance", _damage_resistance, implemented=True),
+        # Staggering Smite arming primitive (Paladin, 4th-level).
+        # Rider: 4d6 psychic bonus, WIS save -> co_stunned.
+        Primitive("staggering_smite_arm", _staggering_smite_arm,
+                    implemented=True),
+        # Banishing Smite arming primitive (Paladin, 5th-level).
+        # Rider: 5d10 force bonus; if hit leaves target <=50 HP,
+        # CHA save -> banished (co_incapacitated + escape re-save).
+        Primitive("banishing_smite_arm", _banishing_smite_arm,
+                    implemented=True),
+        # Swift Quiver — concentration marker (Ranger, 5th-level).
+        # Stamps swift_quiver_active on caster; BA double-attack deferred.
+        Primitive("swift_quiver_arm", _swift_quiver_arm, implemented=True),
+        # Circle of Power — defensive ally aura: save advantage +
+        # half-to-none marker fan-out to caster + allies ≤30 ft.
+        Primitive("circle_of_power_aura", _circle_of_power_aura,
                     implemented=True),
         # Bardic Inspiration — grant a held die to an ally. The holder's
         # post-roll self-add lives in engine.core.bardic_inspiration

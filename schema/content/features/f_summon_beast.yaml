@@ -1,0 +1,57 @@
+# f_summon_beast — Summon Beast (2nd-level Conjuration, PHB 2024 —
+# NOT in SRD 5.2.1)
+#
+# RAW summary (own words, from owned PHB 2024): Action, V/S/M (gilded
+# acorn 200+ GP), 90 ft, Concentration up to 1 hour. Call a bestial
+# spirit (Bestial Spirit stat block; choose Air / Land / Water, which
+# sets HP, movement and one trait). It's an ally, shares your
+# initiative (acting right after you), obeys verbal commands, and
+# vanishes at 0 HP or spell end. Upcast: the stat block uses the
+# slot's level (AC/HP/attack count/damage all scale).
+#
+# Engine modeling: the lowest-level entry in the Summon X family —
+# a `summon` action_template (concentration) riding the same Stage
+# 2a/2b lifecycle + scorer as Summon Celestial. v1 summons the LAND
+# form (m_bestial_spirit_land — Pack Tactics flanking buddy, 30 HP,
+# the load-bearing pick for melee parties), with Rend's to-hit
+# resolved from the caster's spell attack at summon time.
+#
+# Deferred RAW bits:
+#   - Air (Flyby, fly 60, 20 HP) and Water (swim) forms — Land only,
+#     mirroring the Celestial Avenger-only precedent.
+#   - Upcast scaling of the stat block (AC/HP/attacks/damage by slot
+#     level) — base 2nd-level form only.
+
+id: f_summon_beast
+name: Summon Beast
+source: user_authored
+granted_by:
+  class: c_druid
+  level: 3                 # Druids gain 2nd-level slots at L3
+type: active
+spell:
+  class: c_druid
+  level: 2
+
+description: |
+  Summon a Bestial Spirit (Land form) within 90 ft for the duration
+  (Concentration, 1 hour). Pack Tactics melee ally attacking with
+  your spell attack modifier. (Air/Water forms + upcast deferred.)
+
+action_template:
+  id: a_summon_beast
+  name: Summon Beast
+  type: summon
+  spell_slot_level: 2
+  concentration: true
+  named_effect: summon_beast
+  range_ft: 90
+  pipeline:
+    - primitive: summon
+      params:
+        monster: m_bestial_spirit_land
+        count: 1
+        max_total: 1
+        # RAW: Rend uses the caster's spell attack modifier (resolved
+        # at cast time; the stat block's +6 is only a fallback).
+        attack_bonus_from: caster_spell_attack

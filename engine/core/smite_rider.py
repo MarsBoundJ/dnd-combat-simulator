@@ -51,12 +51,22 @@ class SmiteRiderSpec:
       any weapon hit (Ensnaring).
     - bonus_damage_die: die size for bonus damage on the empowering hit
       (6 → 1d6), or None for no bonus damage.
+    - bonus_damage_dice_base: base die COUNT for the bonus damage
+      (Thunderous Smite's 2d6 → 2; default 1).
     - bonus_scales_with_upcast: True → +1 die per slot level above 1st.
     - has_initial_save: True → forced save on hit (Wrathful);
       False → condition applied automatically on hit (Searing/Blinding).
     - burn_scales_with_upcast: True → post-process the condition's
       recurring_damage dice to match slot_level (Searing Smite:
       "All the damage increases by 1d6 per slot above 1st").
+    - on_fail_push_ft: push the target this far from the attacker on a
+      failed save, alongside the condition (Thunderous Smite's
+      10-ft-push + Prone). None → no push.
+    - repeat_save_to_end: PHB 2024 non-concentration smites — on a
+      failed save, also register an end-of-target-turn recurring save
+      (same ability/DC) that ends the condition on a success
+      (Wrathful Smite's "repeats the save at the end of each of its
+      turns, ending the spell on itself on a success").
     """
     key: str
     marker_primitive: str
@@ -69,6 +79,9 @@ class SmiteRiderSpec:
     bonus_scales_with_upcast: bool
     has_initial_save: bool = True
     burn_scales_with_upcast: bool = False
+    bonus_damage_dice_base: int = 1
+    on_fail_push_ft: int | None = None
+    repeat_save_to_end: bool = False
 
 
 def register_armed(caster: Actor, spec: SmiteRiderSpec, *,
@@ -141,7 +154,7 @@ def try_apply_followup(attacker: Actor, target: Actor, state: CombatState,
 
     bonus_damage = 0
     if spec.bonus_damage_die:
-        dice_count = 1
+        dice_count = spec.bonus_damage_dice_base
         if spec.bonus_scales_with_upcast:
             dice_count += max(0, slot_level - 1)
         rolls = dice_count * (2 if is_crit else 1)
@@ -168,15 +181,27 @@ def try_apply_followup(attacker: Actor, target: Actor, state: CombatState,
     try:
         if spec.has_initial_save:
             from engine.primitives import _forced_save
+            on_fail = [
+                {"primitive": "apply_condition",
+                  "params": {"condition_id": spec.on_fail_condition,
+                              "duration": "until_spell_ends"}},
+            ]
+            if spec.on_fail_push_ft:
+                on_fail.append(
+                    {"primitive": "forced_movement",
+                      "params": {"distance_ft": spec.on_fail_push_ft}})
+            if spec.repeat_save_to_end:
+                on_fail.append(
+                    {"primitive": "recurring_save",
+                      "params": {"ability": spec.save_ability, "dc": dc,
+                                  "trigger_event": "target_turn_end",
+                                  "on_success": "end_spell_on_target",
+                                  "condition_id": spec.on_fail_condition}})
             _forced_save({
                 "ability": spec.save_ability,
                 "dc": dc,
                 "affected": "current_target",
-                "on_fail": [
-                    {"primitive": "apply_condition",
-                      "params": {"condition_id": spec.on_fail_condition,
-                                  "duration": "until_spell_ends"}},
-                ],
+                "on_fail": on_fail,
                 "on_success": [],
             }, state, _NoOpBus())
         else:
@@ -185,6 +210,16 @@ def try_apply_followup(attacker: Actor, target: Actor, state: CombatState,
                 "condition_id": spec.on_fail_condition,
                 "duration": "until_spell_ends",
             }, state, _NoOpBus())
+            if spec.repeat_save_to_end:
+                # Auto-applied conditions (Blinding Smite 2024) still
+                # get the end-of-turn escape save.
+                from engine.primitives import _recurring_save
+                _recurring_save({
+                    "ability": spec.save_ability, "dc": dc,
+                    "trigger_event": "target_turn_end",
+                    "on_success": "end_spell_on_target",
+                    "condition_id": spec.on_fail_condition,
+                }, state, _NoOpBus())
     finally:
         state.current_attack["action"] = saved_action
 

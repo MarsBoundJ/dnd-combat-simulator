@@ -1,0 +1,65 @@
+# f_blade_ward — Blade Ward (Abjuration cantrip, PHB 2024 — NOT in SRD 5.2.1)
+#
+# RAW summary (own words, from owned PHB 2024): for the duration, any
+# creature attacking you subtracts 1d4 from its attack roll.
+# Concentration, up to 1 minute. V, S. Classes: Bard, Sorcerer,
+# Warlock, Wizard. (Complete 2024 redesign — the 2014 version granted
+# weapon-damage resistance and ate your whole action for one round.)
+#
+# Engine modeling: "attackers subtract 1d4 from attack rolls against
+# you" is mathematically identical to "+1d4 to your AC", so this rides
+# the Shield of Faith shape: a defensive_buff applying an ac_modifier
+# to SELF, +2 flat (avg of 1d4 = 2.5, floored — the same conservative
+# flat-die convention as Bless/Bane). Concentration, spell_slot_level
+# 0 (cantrip, no slot). range_ft 0 / target self → the candidate
+# generator only ever offers the caster (Divine Favor precedent).
+#
+# Deferred RAW bits:
+#   - Per-roll 1d4 (flat −2 ≈ −1d4 until a roll_modifier primitive
+#     exists; tracked with Bless's identical deferral).
+#
+# AI note: an action spent on ~+2 AC concentration rarely beats a
+# damage cantrip for a backline caster — RAW-faithful; it exists for
+# pressured-caster turns and profile-driven defensive play.
+
+id: f_blade_ward
+name: Blade Ward
+source: user_authored
+granted_by:
+  class: c_wizard
+  level: 1
+type: active
+spell:
+  class: c_wizard
+  level: 0
+
+description: |
+  Cantrip. Concentration, 1 minute, self only: attackers subtract 1d4
+  from attack rolls against the caster (modeled as +2 AC, the flat
+  floor of the 1d4 average).
+
+action_template:
+  id: a_blade_ward
+  name: Blade Ward
+  type: defensive_buff
+  spell_slot_level: 0
+  slot: action
+  concentration: true
+  named_effect: blade_ward
+  range_ft: 0                # self-only
+  pipeline:
+    # Attackers' −1d4 ≡ defender's +1d4 AC; flat-2 convention. An
+    # ac_modifier on self bumps effective_ac for every incoming
+    # attack query — no attacker-side bookkeeping needed.
+    - primitive: attack_modifier
+      params:
+        target: self
+        modifier: ac_modifier
+        value: 2
+        lifetime: until_short_rest
+
+contract:
+  reads: [actor.ac]
+  writes: [actor.active_modifiers]
+  event: action
+  scope: self_defensive_buff

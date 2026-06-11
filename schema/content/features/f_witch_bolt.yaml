@@ -1,0 +1,73 @@
+# f_witch_bolt — Witch Bolt (1st-level Evocation, PHB 2024 — NOT in
+# SRD 5.2.1)
+#
+# RAW summary (own words, from owned PHB 2024): Action, 60 ft, V/S/M
+# (a lightning-struck twig), Concentration up to 1 minute. Ranged
+# spell attack; on a hit 2d12 lightning, and a sustained arc forms.
+# On later turns you can take a Bonus Action to deal 1d12 lightning
+# to the target automatically — EVEN IF the first attack missed
+# (2024 change). Ends if the target is ever out of range or behind
+# Total Cover. Upcast: the INITIAL damage +1d12 per slot above 1st
+# (the channel tick stays 1d12).
+#
+# Engine modeling: pc_builder spell_attack with the two extensions
+# shipped for it — `concentration` + `extra_pipeline`. The pipeline is
+# attack_roll → 2d12-on-hit → an UNCONDITIONAL recurring_damage
+# registration (1d12 lightning per round on the target), matching the
+# 2024 "even on a miss" clause. The channel entry carries
+# source_action_id a_witch_bolt, so end_concentration scrubs it the
+# moment the Warlock drops or loses concentration.
+#
+# Deferred RAW bits (the sustained-channel system, roadmap §F):
+#   - The Bonus Action COST of each tick. v1 ticks automatically at
+#     the target's turn start with no action spent — this OVERVALUES
+#     Witch Bolt for casters with busy bonus actions (and undervalues
+#     the option not to channel). Revisit when a chosen-channel
+#     action-economy mechanism exists.
+#   - Tick timing: target's turn start, not the caster's turn (one
+#     tick per round either way).
+#   - Range/Total-Cover break conditions (concentration is the only
+#     end condition modeled).
+
+id: f_witch_bolt
+name: Witch Bolt
+source: user_authored
+granted_by:
+  class: c_warlock
+  level: 1
+type: passive
+spell:
+  class: c_warlock
+  level: 1
+
+pc_builder:
+  kind: spell_attack
+  action_id: a_witch_bolt
+  name: Witch Bolt
+  params:
+    slot_level: 1
+    range_ft: 60
+    damage_dice: "2d12"
+    damage_type: lightning
+    upcast_dice: "1d12"
+    concentration: true
+    extra_pipeline:
+      # The arc latches on hit OR miss (PHB 2024): 1d12 lightning per
+      # round while concentration holds. Scrubbed by end_concentration
+      # via source_action_id.
+      - primitive: recurring_damage
+        params:
+          dice: "1d12"
+          type: lightning
+
+description: |
+  Ranged spell attack at 60 ft: 2d12 lightning on a hit (+1d12/upcast
+  on the initial damage). Hit or miss, a lightning arc latches on —
+  1d12 lightning per round while concentration holds (v1: automatic
+  tick; the RAW Bonus Action cost is deferred).
+
+contract:
+  reads: [actor.spell_ability_mod, actor.proficiency_bonus]
+  writes: [combat.attack_roll, combat.damage_total, state.recurring_damage]
+  event: passive
+  scope: builds_spell_attack_action

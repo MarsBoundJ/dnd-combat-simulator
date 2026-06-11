@@ -1,0 +1,28 @@
+# f_evocation_savant — Evocation Savant (Evoker L3)
+# Source: SRD CC v5.2.1 p82
+#
+# RAW: "Choose two Wizard spells from the Evocation school, each of which
+# must be no higher than level 2, and add them to your spellbook for free.
+# In addition, when you gain access to a new level of spell slots in this
+# class, you can add one Wizard spell from the Evocation school to your
+# spellbook for free. The chosen spells must be of a level for which you
+# have spell slots."
+#
+# Stub: pure spell-preparation economy (no combat-round effect). Deferred
+# until the spellbook / always-prepared infrastructure is built.
+
+id: f_evocation_savant
+name: Evocation Savant
+source: srd_5.2.1
+granted_by:
+  subclass: sc_evoker
+  level: 3
+type: passive
+
+effect_primitives: []
+
+contract:
+  reads: [actor.spellbook]
+  writes: [actor.spellbook]
+  event: pc_build
+  scope: build_time

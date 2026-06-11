@@ -1,0 +1,50 @@
+# f_grasping_vine — Grasping Vine (4th-level Conjuration, PHB 2024 —
+# NOT in SRD 5.2.1)
+#
+# RAW summary (own words, from owned PHB 2024): Bonus Action, V/S,
+# 60 ft, Concentration up to 1 minute. Conjure a vine in an unoccupied
+# space within 60 ft. Make a melee spell attack against a creature
+# within 30 ft of the vine: on a hit, 4d8 Bludgeoning damage; if Huge
+# or smaller it is Grappled (escape DC = spell save DC) and pulled up to
+# 30 ft toward the vine. BA on later turns: repeat the attack. Upcast:
+# +1 grapple capacity per slot above 4th. Classes: Druid, Ranger,
+# Nature Domain.
+#
+# Engine modeling: Bonus-Action concentration spell attack modeled as a
+# ranged spell attack with 90-ft effective range (60-ft vine placement +
+# 30-ft vine attack reach simplified). pc_builder spell_attack kind bakes
+# in the caster's spell attack modifier at PC-build time.
+#
+# Deferred RAW bits:
+#   - Grapple condition on hit (engine item: grapple application).
+#   - 30-ft pull toward the vine on hit (engine item: forced pull).
+#   - BA repeat-attack channel on subsequent turns.
+#   - Upcast grapple-count scaling.
+# Available for: Druid, Ranger, Nature Domain (primary: c_druid)
+
+id: f_grasping_vine
+name: Grasping Vine
+source: user_authored
+granted_by:
+  class: c_druid
+  level: 7              # Full caster: 4th-level slots at L7
+type: active
+spell:
+  class: c_druid
+  level: 4
+
+description: |
+  Bonus Action. Concentration 1 min. Vine within 60 ft makes a melee
+  spell attack (90 ft effective range) — on a hit: 4d8 Bludgeoning
+  damage. Pull 30 ft + Grapple deferred; BA repeat attack deferred.
+
+pc_builder:
+  kind: spell_attack
+  action_id: a_grasping_vine
+  name: Grasping Vine
+  params:
+    slot_level: 4
+    range_ft: 90
+    damage_dice: "4d8"
+    damage_type: bludgeoning
+    concentration: true

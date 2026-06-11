@@ -1,0 +1,54 @@
+# f_lightning_arrow — Lightning Arrow (3rd-level Transmutation,
+# PHB 2024 — NOT in SRD 5.2.1)
+#
+# RAW summary (own words, from owned PHB 2024): Bonus Action taken
+# immediately after hitting or missing with a ranged weapon attack;
+# V/S, Self, Instantaneous. The ammunition becomes lightning:
+# INSTEAD of the attack's normal damage, the target takes 4d8
+# lightning on a hit (half on a miss), then each creature within
+# 10 ft of the target makes a DEX save — 2d8 lightning on a fail,
+# half on a success. +1d8 to both effects per slot above 3.
+# Classes: Ranger.
+#
+# Engine modeling: a RANGED smite rider with a custom trigger
+# (engine.core.lightning_arrow), the Hail of Thorns pattern at
+# 3rd-level scale: `lightning_arrow_arm` registers the one-shot
+# marker; on the next ranged weapon hit the target takes Nd8
+# lightning folded into the hit and every OTHER creature within
+# 10 ft makes the DEX-save burst (Md8 / half).
+#
+# Deferred RAW bits:
+#   - Fires on HIT only (the on-a-miss half-damage conversion needs
+#     a miss hook the rider system doesn't have).
+#   - RAW REPLACES the weapon's damage; v1 adds the 4d8 on top —
+#     overvalues by ~one weapon die + mod until a damage-replace
+#     hook exists (documented in engine.core.lightning_arrow).
+#   - Burst dice rolled per creature (Hail of Thorns nuance).
+
+id: f_lightning_arrow
+name: Lightning Arrow
+source: user_authored
+granted_by:
+  class: c_ranger
+  level: 9                 # Rangers gain 3rd-level slots at L9
+type: active
+spell:
+  class: c_ranger
+  level: 3
+
+description: |
+  Self-buff. The Ranger's next ranged weapon hit becomes lightning:
+  4d8 to the target (+1d8/upcast) plus a 10-ft DEX-save burst of 2d8
+  (+1d8/upcast) around it. Instantaneous, no concentration. BA cast.
+
+action_template:
+  id: a_lightning_arrow
+  name: Lightning Arrow
+  type: defensive_buff
+  spell_slot_level: 3
+  slot: bonus_action
+  named_effect: lightning_arrow
+  range_ft: 0              # self-only
+  pipeline:
+    - primitive: lightning_arrow_arm
+      params: {}

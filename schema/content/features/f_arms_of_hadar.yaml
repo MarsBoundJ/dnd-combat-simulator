@@ -1,0 +1,69 @@
+# f_arms_of_hadar — Arms of Hadar (1st-level Conjuration, PHB 2024 —
+# NOT in SRD 5.2.1)
+#
+# RAW summary (own words, from owned PHB 2024): Action, V/S, Self
+# (10-ft Emanation), Instantaneous. Dark tendrils erupt from you;
+# each creature in the Emanation makes a STR save — 2d6 necrotic and
+# no Reactions until the start of its next turn on a fail, half
+# damage only on a success. +1d6 per slot above 1st. Classes:
+# Warlock (Aberrant Sorcery granted).
+#
+# Engine modeling: a Thunderwave recolor on the emanation geometry
+# shipped with the cantrip batch — type aoe_attack, area emanation
+# size 10 / range 0 (origin locked to the caster's square; the 2024
+# Emanation rule excludes the caster from its own area). STR save vs
+# spell DC: 2d6 necrotic on fail, half on success, +1d6/slot.
+# Friendly fire is RAW ("each creature") → all_creatures_in_area;
+# the AoE scorer charges allies caught in the burst.
+#
+# Deferred RAW bits:
+#   - The no-Reactions-until-its-next-turn rider on a failed save (no
+#     reaction-denial condition exists yet; the necrotic damage is the
+#     load-bearing effect). Revisit if/when a co_reactions_denied
+#     condition lands — opportunity-attack-free retreats are the main
+#     sim-visible payoff.
+
+id: f_arms_of_hadar
+name: Arms of Hadar
+source: user_authored
+granted_by:
+  class: c_warlock
+  level: 1
+type: active
+spell:
+  class: c_warlock
+  level: 1
+
+description: |
+  10-ft emanation around the caster (allies included; caster
+  excluded). STR save vs spell DC: 2d6 necrotic on a fail, half on a
+  success. +1d6 per slot above 1st. Reaction-denial rider deferred.
+
+action_template:
+  id: a_arms_of_hadar
+  name: Arms of Hadar
+  type: aoe_attack
+  spell_slot_level: 1
+  named_effect: arms_of_hadar
+  school: conjuration
+  range_ft: 10
+  area:
+    shape: emanation
+    size_ft: 10
+    range_ft: 0          # origin locked to the caster's own square
+    origin: caster
+  upcast_scaling:
+    extra_dice_per_level: "1d6"
+    damage_type: necrotic
+  pipeline:
+    - primitive: forced_save
+      params:
+        ability: strength
+        dc_source: caster_spell_save_dc
+        affected: all_creatures_in_area
+        on_fail:
+          - primitive: damage
+            params: { dice: "2d6", modifier: 0, type: necrotic }
+        on_success:
+          - primitive: damage
+            params: { dice: "2d6", modifier: 0, type: necrotic, multiplier: 0.5 }

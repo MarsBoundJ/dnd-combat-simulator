@@ -1,0 +1,58 @@
+# f_conjure_barrage — Conjure Barrage (3rd-level Conjuration,
+# PHB 2024 — NOT in SRD 5.2.1)
+#
+# RAW summary (own words, from owned PHB 2024): Action, V/S/M (a
+# weapon worth 1+ CP), Self (60-ft Cone), Instantaneous. Spectral
+# copies of your weapon launch forward: each creature OF YOUR CHOICE
+# you can see in the cone makes a DEX save — 5d8 force on a fail,
+# half on a success. +1d8 per slot above 3. Classes: Ranger.
+#
+# Engine modeling: a Burning Hands recolor at 60-ft scale — type
+# aoe_attack with a cone area (apex at the caster, direction chosen
+# by the candidate generator). "Of your choice" → forced_save
+# affected: enemies_in_area (the Word of Radiance option): allies in
+# the cone are never hit and cost no friendly-fire eHP, which is the
+# spell's whole point for a mid-line Ranger.
+
+id: f_conjure_barrage
+name: Conjure Barrage
+source: user_authored
+granted_by:
+  class: c_ranger
+  level: 9                 # Rangers gain 3rd-level slots at L9
+type: active
+spell:
+  class: c_ranger
+  level: 3
+
+description: |
+  60-ft cone: every ENEMY in it makes a DEX save — 5d8 force on a
+  fail, half on a success; allies are never affected ("of your
+  choice"). +1d8 per slot above 3rd.
+
+action_template:
+  id: a_conjure_barrage
+  name: Conjure Barrage
+  type: aoe_attack
+  spell_slot_level: 3
+  named_effect: conjure_barrage
+  school: conjuration
+  range_ft: 60
+  area:
+    shape: cone
+    length_ft: 60
+  upcast_scaling:
+    extra_dice_per_level: "1d8"
+    damage_type: force
+  pipeline:
+    - primitive: forced_save
+      params:
+        ability: dexterity
+        dc_source: caster_spell_save_dc
+        affected: enemies_in_area
+        on_fail:
+          - primitive: damage
+            params: { dice: "5d8", modifier: 0, type: force }
+        on_success:
+          - primitive: damage
+            params: { dice: "5d8", modifier: 0, type: force, multiplier: 0.5 }

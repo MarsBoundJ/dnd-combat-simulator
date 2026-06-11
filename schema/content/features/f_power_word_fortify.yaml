@@ -1,0 +1,47 @@
+# f_power_word_fortify — Power Word Fortify (7th-level Enchantment,
+# PHB 2024 — NOT in SRD 5.2.1)
+#
+# RAW summary (own words, from owned PHB 2024): Action, V, 60 ft,
+# Instantaneous. Fortify up to six creatures you can see within range.
+# The spell bestows 120 Temporary Hit Points total, which you divide
+# among the recipients. Classes: Bard, Cleric.
+#
+# Engine modeling: single-target temp HP grant (120 to self) using the
+# existing temp_hp_grant primitive. The multi-target fan (up to 6
+# creatures, player-chosen split) is deferred — v1 is a documented
+# undervalue when used to shield the party, and a full-value model when
+# the caster self-grants all 120.
+#
+# Deferred RAW bits:
+#   - Multi-target fan: choose up to 6 recipients and split 120 temp HP
+#     among them (requires a multi-target action shape + AI split
+#     heuristic).
+# Available for: Bard (c_bard L13), Cleric (c_cleric L13)
+
+id: f_power_word_fortify
+name: Power Word Fortify
+source: user_authored
+granted_by:
+  class: c_cleric
+  level: 13             # Full caster: 7th-level slots at L13
+type: active
+spell:
+  class: c_cleric
+  level: 7
+
+description: |
+  Instantaneous. Grant 120 Temporary Hit Points split among up to 6
+  creatures within 60 ft. v1 grants all 120 to the caster
+  (multi-target split deferred).
+
+action_template:
+  id: a_power_word_fortify
+  name: Power Word Fortify
+  type: defensive_buff
+  spell_slot_level: 7
+  named_effect: power_word_fortify
+  pipeline:
+    - primitive: temp_hp_grant
+      params:
+        target: self
+        amount: 120

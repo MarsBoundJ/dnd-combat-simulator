@@ -1,0 +1,46 @@
+# f_overchannel — Overchannel (Evoker, Wizard L14)
+# Source: SRD CC v5.2.1 p82
+#
+# RAW: "When you cast a Wizard spell of level 1 through 5 that deals
+# damage, you can deal maximum damage with that spell on the turn you
+# cast it. The first time you do so, you suffer no adverse effect. If you
+# use this feature again before you finish a Long Rest, you take 2d12
+# Necrotic damage per level of the spell immediately after you cast it.
+# This damage ignores Resistance and Immunity. Each time you use this
+# feature again before you finish a Long Rest, the Necrotic damage per
+# spell level increases by 1d12."
+#
+# Engine modeling: engine.core.overchannel.apply_overchannel stamps
+# `maximize_dice: True` on the spell's damage steps (honored by the
+# `damage` primitive's _roll_dice_maximized branch) and, on a reuse
+# before a Long Rest, applies the escalating necrotic self-damage. The
+# per-rest counter `overchannel_uses_this_rest` is stamped by pc_schema
+# and reset in rest.apply_long_rest (Wizard block).
+#
+# Wiring status: the maximize + self-damage mechanic is WIRED and
+# directly testable (see tests/test_overchannel.py). Like Metamagic, the
+# proactive AI decision of WHICH spell to overchannel — and whether to
+# pay an escalating reuse cost — is deferred to engine/ai: the free
+# first use is strictly beneficial, the reuses are a cost trade-off that
+# belongs with the scoring heuristics.
+#
+# v1 limitation: maximize covers base + crit damage dice; per-slot-level
+# upcast extra dice are not maximized (the base dice dominate).
+
+id: f_overchannel
+name: Overchannel
+source: srd_5.2.1
+granted_by:
+  subclass: sc_evoker
+  level: 14
+type: passive
+
+effect_primitives: []
+
+contract:
+  reads: [actor.template.features_known, action.spell_slot_level,
+           actor.resources.overchannel_uses_this_rest]
+  writes: [combat.pending_damage, actor.hp_current,
+            actor.resources.overchannel_uses_this_rest]
+  event: spell_cast
+  scope: per_cast

@@ -1,0 +1,57 @@
+# f_circle_of_power — Circle of Power (5th-level Abjuration, PHB 2024
+# — NOT in SRD 5.2.1)
+#
+# RAW summary (own words, from owned PHB 2024): Action, V, Self (30-ft
+# Emanation), Concentration up to 10 minutes. While in the aura, you
+# and your allies have Advantage on saving throws against spells and
+# other magical effects. When an affected creature succeeds on a save
+# against a spell/magical effect that deals half damage on a success,
+# it takes NO damage instead. Classes: Cleric, Paladin, Wizard,
+# Artificer + Twilight Domain, Oath of the Crown.
+#
+# Engine modeling: `circle_of_power_aura` cast-time fan-out (Crusader's
+# Mantle discipline) applies to the caster + every living ally within
+# 30 ft:
+#   1. save_modifier {modifier: advantage} — live: consumed by
+#      query_save_modifiers at every save roll.
+#   2. magic_save_half_to_none — marker for the "half becomes none"
+#      rider (present + scrubbed; damage-path wiring deferred).
+# Both entries are concentration-scrubbed.
+#
+# Deferred RAW bits:
+#   - Advantage is granted on ALL saves, not just spell/magical ones —
+#     the engine doesn't tag save sources (slight overvalue; most
+#     simulated saves are magical).
+#   - The half-to-none evasion rider isn't evaluated by _damage yet.
+#   - Dynamic membership (allies entering/leaving the emanation).
+# Available for: Cleric, Paladin, Wizard, Artificer (primary: c_paladin)
+
+id: f_circle_of_power
+name: Circle of Power
+source: user_authored
+granted_by:
+  class: c_paladin
+  level: 17             # Half-caster: 5th-level slots at L17
+type: active
+spell:
+  class: c_paladin
+  level: 5
+
+description: |
+  30-ft emanation for concentration duration (10 min). You and allies
+  in the aura have Advantage on saving throws (RAW: vs spells and
+  magical effects), and successful half-damage saves deal no damage
+  instead (marker only — wiring deferred). Cast-time snapshot.
+
+action_template:
+  id: a_circle_of_power
+  name: Circle of Power
+  type: defensive_buff
+  spell_slot_level: 5
+  concentration: true
+  named_effect: circle_of_power
+  range_ft: 0
+  pipeline:
+    - primitive: circle_of_power_aura
+      params:
+        radius_ft: 30

@@ -1,0 +1,27 @@
+# f_heroic_warrior — Heroic Warrior (Champion L10)
+# Source: SRD CC v5.2.1 p49
+#
+# RAW: "The thrill of battle fills you with heroic energy. At the start of
+# each of your turns in combat, you gain the benefits of the Heroism spell
+# (no Concentration required) until the start of your next turn."
+#
+# Stub: on-turn-start self-buff granting Heroism's Temp HP + frightened
+# immunity. Deferred — needs an initiative/turn-start trigger that fires
+# the benefit each turn without Concentration tracking. No existing
+# primitive covers a per-turn free-Heroism rider.
+
+id: f_heroic_warrior
+name: Heroic Warrior
+source: srd_5.2.1
+granted_by:
+  subclass: sc_champion
+  level: 10
+type: passive
+
+effect_primitives: []
+
+contract:
+  reads: [actor.template.features_known]
+  writes: [actor.temp_hp, actor.applied_conditions]
+  event: actor_turn_start
+  scope: passive

@@ -1,0 +1,41 @@
+# f_feign_death — Feign Death (3rd-level Necromancy, PHB 2024 — NOT
+# in SRD 5.2.1)
+#
+# RAW summary (own words, from owned PHB 2024): Action (Ritual),
+# V/S/M (graveyard dirt), Touch, 1 hour. A willing creature enters a
+# death-like catalepsy: appears dead to inspection and divination,
+# is Blinded and Incapacitated with Speed 0, has Resistance to all
+# damage except Psychic, and Immunity to the Poisoned condition.
+# Classes: Bard, Cleric, Druid, Wizard.
+#
+# STUB — deliberately not modeled (master-list tier D). A deception /
+# infiltration ritual: voluntarily incapacitating an ally has no
+# rational use inside a sim combat (the resistance never beats just
+# fighting), and the play-dead ruse needs a deception layer the sim
+# doesn't have. Same never-modeled bucket as Friends / Beast Sense /
+# Telepathy (docs/spell-content-roadmap.md "non-combat" set). The
+# stub exists so the spell is loadable/inventoried; no
+# action_template or pc_builder on purpose.
+
+id: f_feign_death
+name: Feign Death
+source: user_authored
+granted_by:
+  class: c_cleric
+  level: 5                 # Clerics gain 3rd-level slots at L5
+type: passive
+spell:
+  class: c_cleric
+  level: 3
+
+description: |
+  3rd level (STUB — non-combat). Puts a willing creature into a
+  death-like trance for an hour (Blinded, Incapacitated, Speed 0,
+  near-total damage resistance). Deception utility with no rational
+  combat-sim use; deliberately left unmodeled.
+
+contract:
+  reads: []
+  writes: []
+  event: passive
+  scope: noncombat_stub

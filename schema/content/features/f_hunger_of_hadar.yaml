@@ -1,11 +1,13 @@
-# f_hunger_of_hadar — Hunger of Hadar (Warlock 3rd-level, SRD CC v5.2.1)
+# f_hunger_of_hadar — Hunger of Hadar (Warlock 3rd-level, PHB 2024 — NOT in SRD 5.2.1)
 #
-# RAW summary: A 20-ft-radius Sphere of otherworldly darkness centered
+# RAW summary (PHB 2024, verified vs the owned book 2026-06-10):
+# A 20-ft-radius Sphere of otherworldly darkness centered
 # on a point within 150 ft. The area is filled with absolute darkness;
 # no light can illuminate it. Each creature that starts its turn in
-# the area takes 2d6 Cold damage. Each creature that enters the area
-# for the first time on a turn or starts its turn there must make a
-# Strength save or take 2d6 Acid damage (no save = no damage).
+# the area takes 2d6 Cold damage (no save). Each creature that ENDS
+# its turn there makes a DEXTERITY save or takes 2d6 Acid damage.
+# The sphere is Difficult Terrain; creatures fully inside are
+# Blinded; upcast +1d6 to the Cold or Acid damage (caster's choice).
 # Concentration, up to 1 minute.
 #
 # Engine modeling (PR #68):
@@ -33,7 +35,7 @@
 
 id: f_hunger_of_hadar
 name: Hunger of Hadar
-source: srd_5.2.1
+source: user_authored   # PHB 2024 / XGE spell NOT in SRD 5.2.1 — own-words re-expression
 granted_by:
   class: c_warlock
   level: 5                 # Warlocks gain access to 3rd-level Pact slots at L5
@@ -44,7 +46,7 @@ spell:
 
 description: |
   20-ft radius sphere of magical darkness. Each turn-start in area:
-  2d6 Cold + CON save vs 2d6 Acid (half on save). Concentration,
+  2d6 Cold + DEX save vs 2d6 Acid (half on save). Concentration,
   1 minute.
 
 action_template:
@@ -77,7 +79,7 @@ action_template:
         anchor: point
         trigger_event: target_turn_start_in_area
         affected: all_creatures
-        ability: constitution
+        ability: dexterity
         dc: 15                  # caster's spell save DC; fixture-overridable
         on_fail:
           # Combined cold + acid damage on failed save (v1 approximation

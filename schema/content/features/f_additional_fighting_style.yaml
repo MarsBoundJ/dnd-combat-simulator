@@ -1,0 +1,27 @@
+# f_additional_fighting_style — Additional Fighting Style (Champion L7)
+# Source: SRD CC v5.2.1 p49
+#
+# RAW: "You gain another Fighting Style feat of your choice."
+#
+# Stub: grants a second fighting style choice. Deferred — pc_schema
+# currently reads a single pc_spec.fighting_style slot and bakes it
+# into the build at construction time; a second slot requires either a
+# pc_spec.fighting_style_2 field or a list-valued fighting_style. No
+# existing build-config infrastructure supports two simultaneous
+# fighting style choices.
+
+id: f_additional_fighting_style
+name: Additional Fighting Style
+source: srd_5.2.1
+granted_by:
+  subclass: sc_champion
+  level: 7
+type: passive
+
+effect_primitives: []
+
+contract:
+  reads: [actor.template.features_known, pc_spec.fighting_style_2]
+  writes: [actor.attack_bonus, actor.damage_bonus, actor.ac]
+  event: pc_build
+  scope: build_time

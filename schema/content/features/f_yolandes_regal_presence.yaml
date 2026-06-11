@@ -1,0 +1,70 @@
+# f_yolandes_regal_presence — Yolande's Regal Presence (5th-level
+# Enchantment, PHB 2024 — NOT in SRD 5.2.1)
+#
+# RAW summary (own words, from owned PHB 2024): Action, V/S/M (a
+# miniature tiara), Self (10-ft Emanation), Concentration up to 1 minute.
+# When the emanation enters a creature's space, or a creature you can see
+# enters the emanation or ends its turn there (once per turn per creature),
+# you can force a WIS save. On a fail: 4d6 Psychic damage, Prone condition,
+# and you can push the creature up to 10 feet away. On a success: half
+# damage only. No upcast scaling. Classes: Bard (L9), Wizard (L9),
+# Oath of Glory (subclass).
+#
+# Engine modeling: persistent_aura (Spirit Guardians shape) — sphere
+# radius 10 ft, anchored to the caster, enemies_in_area WIS save.
+# on_fail: 4d6 psychic + co_prone + forced_movement 10 ft away from caster.
+# on_success: 4d6 psychic * 0.5 (half damage, no prone/push).
+# Turn-start-in-area trigger (zone precedent; enter-area trigger deferred).
+#
+# Deferred RAW bits:
+#   - Enter-the-area and emanation-enters-creature-space triggers
+#     (v1 fires at turn-start in area only).
+#   - "You can push" — push is optional; v1 always pushes.
+# Available for: Bard (c_bard L9), Wizard (c_wizard L9), Oath of Glory
+
+id: f_yolandes_regal_presence
+name: "Yolande's Regal Presence"
+source: user_authored
+granted_by:
+  class: c_wizard
+  level: 9              # Full caster: 5th-level slots at L9
+type: active
+spell:
+  class: c_wizard
+  level: 5
+
+description: |
+  10-ft emanation (Concentration, 1 min). Turn-start in area: WIS save —
+  on a fail, 4d6 Psychic + Prone + push 10 ft away; on a success,
+  half damage only. Enter-area trigger deferred.
+
+action_template:
+  id: a_yolandes_regal_presence
+  name: "Yolande's Regal Presence"
+  type: persistent_aura
+  spell_slot_level: 5
+  concentration: true
+  named_effect: yolandes_regal_presence
+  area:
+    shape: sphere
+    radius_ft: 10
+  pipeline:
+    - primitive: persistent_aura
+      params:
+        shape: sphere
+        radius_ft: 10
+        anchor: caster
+        trigger_event: target_turn_start_in_area
+        affected: enemies_in_area
+        ability: wisdom
+        dc: 15                  # caster's spell save DC; fixture-overridable
+        on_fail:
+          - primitive: damage
+            params: { dice: "4d6", type: psychic }
+          - primitive: apply_condition
+            params: { condition_id: co_prone }
+          - primitive: forced_movement
+            params: { distance_ft: 10, direction: away_from_caster }
+        on_success:
+          - primitive: damage
+            params: { dice: "4d6", type: psychic, multiplier: 0.5 }

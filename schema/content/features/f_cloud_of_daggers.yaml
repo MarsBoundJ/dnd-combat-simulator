@@ -1,9 +1,12 @@
-# f_cloud_of_daggers — Cloud of Daggers (Wizard 2nd-level, SRD CC v5.2.1)
+# f_cloud_of_daggers — Cloud of Daggers (Wizard 2nd-level, PHB 2024 — NOT in SRD 5.2.1)
 #
-# RAW: 5-foot Cube of whirling magical blades, centered on a point
-# within range. A creature takes 4d4 slashing damage when it enters
-# the area for the first time on a turn OR starts its turn there.
-# NO save. Concentration, 1 minute.
+# RAW (PHB 2024, verified vs the owned book 2026-06-10): 5-foot Cube
+# of spinning daggers centered on a point within 60 ft. A creature in
+# the Cube takes 4d4 slashing — also when it enters the Cube, ends
+# its turn there, or the Cube moves into its space; once per turn.
+# NO save. On later turns the caster can take a Magic action to
+# teleport the Cube up to 30 ft. Concentration, 1 minute.
+# Upcast: +2d4 per slot above 2.
 #
 # Engine application:
 #   - type: persistent_aura
@@ -11,12 +14,13 @@
 #   - anchor: point (placed at cast time, doesn't move)
 #   - affected: all_creatures (friendly fire — RAW has no exclusion)
 #   - ability: 'none' → no save, always damages on trigger
-#   - on_fail: 4d4 slashing
-#   - Trigger: turn-start (entry trigger deferred per PR #43)
+#   - on_fail: 4d4 slashing (+2d4/slot via upcast_scaling)
+#   - Trigger: turn-start (2024's enter / end-turn / cube-moves
+#     triggers are approximated at the same once-per-turn cadence)
 
 id: f_cloud_of_daggers
 name: Cloud of Daggers
-source: srd_5.2.1
+source: user_authored   # PHB 2024 / XGE spell NOT in SRD 5.2.1 — own-words re-expression
 granted_by:
   class: c_wizard
   level: 3                 # Wizards gain access to 2nd-level spells at L3
@@ -41,6 +45,9 @@ action_template:
     shape: cube
     size_ft: 5
     range_ft: 60
+  upcast_scaling:
+    extra_dice_per_level: "2d4"
+    damage_type: slashing
   pipeline:
     - primitive: persistent_aura
       params:
@@ -55,5 +62,5 @@ action_template:
             params: { dice: "4d4", type: slashing }
 
 deferred:
-  - entry_on_move_trigger: "RAW also fires on first-time-entry-this-turn; v1 turn-start only."
-  - bonus_action_recast: "RAW lets caster recast (uses a Spell Slot) to relocate the cube; v1 doesn't model spell-slot recasting mid-spell."
+  - entry_on_move_trigger: "RAW 2024 fires on enter / end-turn / cube-moves-into-space (once per turn); v1 ticks at turn-start — same cadence."
+  - magic_action_teleport: "RAW 2024 lets the caster take a Magic action to teleport the Cube up to 30 ft; v1's cube is static (same deferral family as Flaming Sphere's ram)."

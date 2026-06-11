@@ -1,0 +1,71 @@
+# m_aberrant_spirit_beholderkin — the Aberrant Spirit (Beholderkin form)
+# summoned by Summon Aberration (f_summon_aberration), PHB 2024 — NOT in
+# SRD 5.2.1.
+#
+# v1 models the BEHOLDERKIN form as the load-bearing pick: a 150-ft
+# ranged attacker firing Eye Rays at the caster's spell attack modifier
+# — the backline-friendly pick for a Wizard (Beholderkin = Grave Bolt
+# analog for aberrations). Mind Flayer and Slaad forms deferred.
+#
+# v1 modeled at the BASE 4th-level form:
+#   AC 11 + 4 = 15;  HP 40 + 10*(4-4) = 40;  Fly 30 hover (Beholderkin);
+#   Multiattack = floor(4/2) = 2;
+#   Eye Ray 1d8 + 3 + spell level (4) = 1d8 + 7 psychic, range 150 ft.
+# Upcast (AC/HP/attack count/damage by slot level) deferred with the
+# static block. The Eye Ray's to-hit is the caster's spell attack
+# modifier (attack_bonus_from at summon time); +6 is only a fallback.
+
+id: m_aberrant_spirit_beholderkin
+name: Aberrant Spirit (Beholderkin)
+source: user_authored
+
+size: medium
+creature_type: aberration
+alignment: neutral
+
+combat:
+  armor_class: 15              # 11 + spell level (4)
+  hit_points: { average: 40, dice: "0d0", con_contribution: 0 }
+  speed: { walk: 0, fly: 30, hover: true }
+  initiative: { modifier: 0, score: 10 }
+
+abilities:
+  str: { score: 16, save: 3 }
+  dex: { score: 10, save: 0 }
+  con: { score: 15, save: 2 }
+  int: { score: 16, save: 3 }
+  wis: { score: 10, save: 0 }
+  cha: { score: 6, save: -2 }
+
+skills: {}
+damage_resistances: []
+damage_vulnerabilities: []
+damage_immunities: [psychic]
+condition_immunities: []
+
+senses: { passive_perception: 10, special: { darkvision: 60 } }
+languages: []
+
+cr: { value: 0, xp: 0, proficiency_bonus: 3 }
+
+multiattack:
+  count: 2
+  action_id: a_eye_ray
+
+actions:
+  - id: a_eye_ray
+    name: Eye Ray
+    type: weapon_attack
+    # Ranged, 150 ft. Bonus is a static proxy for the caster's spell
+    # attack modifier (overridden by attack_bonus_from at summon time).
+    # 1d8 + 3 + spell level (4) = 1d8 + 7 psychic.
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: ranged, bonus: 6, range_ft: 150 }
+      - primitive: damage
+        params: { dice: "1d8", modifier: 7, type: psychic, average: 12 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: apex_predator
+  presets: { retreat: never, ability_selection: default, targeting: nearest_enemy, action_economy: signature }

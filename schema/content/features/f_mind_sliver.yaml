@@ -1,0 +1,51 @@
+# f_mind_sliver — Mind Sliver (Enchantment cantrip, PHB 2024 — NOT in SRD 5.2.1)
+#
+# RAW summary (own words, from owned PHB 2024): 60 ft, one creature you
+# can see. INT save or 1d6 psychic damage, and the target subtracts 1d4
+# from the next saving throw it makes before the end of your next turn.
+# V only. Cantrip Upgrade: +1d6 at character levels 5/11/17.
+# Classes: Sorcerer, Warlock, Wizard (Aberrant Sorcery signature).
+#
+# Engine modeling: a save_cantrip pc_builder (the INT-save sibling of
+# Vicious Mockery / Sacred Flame). Nd6 psychic, no half on success.
+#
+# Deferred RAW bits:
+#   - The −1d4-on-next-save rider (a save_modifier with a
+#     next-save-before-my-next-turn lifetime — no one-shot-save
+#     modifier lifetime exists yet). Same deferral class as Vicious
+#     Mockery's disadvantage rider / Ray of Frost's slow; the psychic
+#     damage is the load-bearing effect. The rider is what makes Mind
+#     Sliver a setup cantrip for save-spell combos — revisit when
+#     modifier lifetimes grow a "next_qualifying_roll" option.
+
+id: f_mind_sliver
+name: Mind Sliver
+source: user_authored
+granted_by:
+  class: c_sorcerer
+  level: 1
+type: passive
+spell:
+  class: c_sorcerer
+  level: 0
+
+pc_builder:
+  kind: save_cantrip
+  action_id: a_mind_sliver
+  name: Mind Sliver
+  params:
+    save_ability: intelligence
+    damage_type: psychic
+    die: 6
+    range_ft: 60
+
+description: |
+  Cantrip. A creature within 60 ft makes an INT save or takes Nd6
+  psychic damage (N scales 1/2/3/4 at character level 1/5/11/17).
+  The −1d4-next-save rider is deferred.
+
+contract:
+  reads: [target.saves.intelligence, actor.spell_save_dc]
+  writes: [combat.damage_total]
+  event: passive
+  scope: builds_save_attack_action

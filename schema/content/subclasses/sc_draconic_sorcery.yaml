@@ -9,7 +9,17 @@
 #     (pc_spec.draconic_element, default fire) + add CHA mod to one
 #     damage roll of spells of that type (the +CHA rider is deferred).
 #   - L14 Dragon Wings: 60-ft fly speed (deferred — flight not modeled).
-#   - Draconic Spells: always-prepared list (wire the built ones).
+#
+# **Phase 3B — Draconic Spells (always-prepared list):**
+# Wired progressively by tier at the level each slot rank unlocks.
+# All built entries are also on the base Sorcerer list; wired here for
+# subclass completeness per the 3B pattern.
+#   L3 (t1/t2): f_chromatic_orb, f_color_spray
+#               deferred (not built): Dragon's Breath (t2)
+#   L5 (t3):    f_fear, f_fly
+#   L7 (t4):    f_polymorph, f_vitriolic_sphere
+#   L9 (t5):    f_cone_of_cold
+#               deferred (not built): Summon Dragon (t5; wizard-only base)
 
 id: sc_draconic_sorcery
 name: Draconic Sorcery
@@ -23,6 +33,14 @@ archetype_tags:
 
 features_by_level:
   - level: 3
-    feature_ids: [f_draconic_resilience]
+    # deferred (not built): Dragon's Breath (t2)
+    feature_ids: [f_draconic_resilience, f_chromatic_orb, f_color_spray]
+  - level: 5
+    feature_ids: [f_fear, f_fly]
   - level: 6
     feature_ids: [f_elemental_affinity]
+  - level: 7
+    feature_ids: [f_polymorph, f_vitriolic_sphere]
+  - level: 9
+    # deferred (not built): Summon Dragon (t5; wizard-only base)
+    feature_ids: [f_cone_of_cold]

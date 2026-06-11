@@ -1,0 +1,41 @@
+# f_telepathy — Telepathy (8th-level Divination, PHB 2024 —
+# NOT in SRD 5.2.1)
+#
+# RAW summary (own words, from owned PHB 2024): Action, V/S/M (a pair
+# of linked silver rings), Unlimited range (same plane), 24 hours. Create
+# a telepathic link with one willing creature you are familiar with. Until
+# it ends, you and the target can instantly share words, images, sounds,
+# and other sensory messages. The creature understands the meaning of your
+# words and any sensory messages you send. Classes: Wizard.
+#
+# Engine modeling: stub. This is a communication-only spell with no combat
+# mechanics. The telepathic link has no interaction with the combat
+# simulation engine. V1 records the spell in the registry.
+#
+# Deferred RAW bits:
+#   - All mechanics (communication link, sensory sharing) — no combat
+#     relevance in the simulation engine.
+# Available for: Wizard (c_wizard L15)
+
+id: f_telepathy
+name: Telepathy
+source: user_authored
+granted_by:
+  class: c_wizard
+  level: 15             # Full caster: 8th-level slots at L15
+type: active
+spell:
+  class: c_wizard
+  level: 8
+
+description: |
+  24-hour telepathic link with one willing familiar creature (same plane).
+  Communication-only; no combat mechanics in v1.
+
+action_template:
+  id: a_telepathy
+  name: Telepathy
+  type: defensive_buff
+  spell_slot_level: 8
+  named_effect: telepathy
+  pipeline: []
