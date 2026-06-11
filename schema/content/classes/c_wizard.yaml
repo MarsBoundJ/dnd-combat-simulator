@@ -65,8 +65,13 @@ level_table:
   - level: 1
     proficiency_bonus: 2
     features: [f_spellcasting_wizard, f_ritual_adept, f_arcane_recovery,
-               f_fire_bolt, f_ray_of_frost, f_chill_touch,
-               f_magic_missile, f_shield]
+               f_blade_ward, f_burning_hands, f_charm_person,
+               f_chromatic_orb, f_chill_touch, f_color_spray, f_false_life,
+               f_fire_bolt, f_fog_cloud, f_grease, f_hideous_laughter,
+               f_mage_armor, f_magic_missile, f_mind_sliver, f_poison_spray,
+               f_protection_from_evil_and_good, f_ray_of_frost,
+               f_ray_of_sickness, f_shield, f_shocking_grasp, f_sleep,
+               f_thunderclap, f_thunderwave, f_toll_the_dead, f_witch_bolt]
     spellcasting: { cantrips_known: 3, prepared_spells: 4 }
     class_resources:
       spell_slots: { 1: 2 }
@@ -78,7 +83,11 @@ level_table:
       spell_slots: { 1: 3 }
   - level: 3
     proficiency_bonus: 2
-    features: [grant_subclass, f_web, f_scorching_ray]
+    features: [grant_subclass, f_acid_arrow, f_arcane_vigor,
+               f_blindness_deafness, f_blur, f_cloud_of_daggers,
+               f_crown_of_madness, f_darkness, f_flaming_sphere,
+               f_gust_of_wind, f_hold_person, f_magic_weapon, f_mind_spike,
+               f_scorching_ray, f_shatter, f_suggestion, f_web]
     spellcasting: { cantrips_known: 3, prepared_spells: 6 }
     class_resources:
       spell_slots: { 1: 4, 2: 2 }
@@ -90,8 +99,10 @@ level_table:
       spell_slots: { 1: 4, 2: 3 }
   - level: 5
     proficiency_bonus: 3
-    features: [f_memorize_spell, f_fireball, f_counterspell, f_lightning_bolt,
-               f_hypnotic_pattern, f_slow, f_fear, f_fly]
+    features: [f_memorize_spell, f_bestow_curse, f_counterspell, f_fear,
+               f_fireball, f_fly, f_hypnotic_pattern, f_lightning_bolt,
+               f_sleet_storm, f_slow, f_stinking_cloud, f_summon_fey,
+               f_summon_undead, f_vampiric_touch]
     spellcasting: { cantrips_known: 4, prepared_spells: 9 }
     class_resources:
       spell_slots: { 1: 4, 2: 3, 3: 2 }
@@ -103,7 +114,10 @@ level_table:
       spell_slots: { 1: 4, 2: 3, 3: 3 }
   - level: 7
     proficiency_bonus: 3
-    features: [f_polymorph, f_ice_storm, f_banishment, f_blight, f_sickening_radiance]
+    features: [f_banishment, f_blight, f_charm_monster, f_confusion,
+               f_ice_storm, f_phantasmal_killer, f_polymorph,
+               f_sickening_radiance, f_summon_aberration, f_summon_construct,
+               f_summon_elemental, f_vitriolic_sphere]
     spellcasting: { cantrips_known: 4, prepared_spells: 11 }
     class_resources:
       spell_slots: { 1: 4, 2: 3, 3: 3, 4: 1 }
@@ -115,9 +129,11 @@ level_table:
       spell_slots: { 1: 4, 2: 3, 3: 3, 4: 2 }
   - level: 9
     proficiency_bonus: 4
-    features: [f_cone_of_cold, f_hold_monster, f_cloudkill, f_wall_of_force,
-                f_wall_of_force_dome,
-                f_synaptic_static, f_bigbys_hand, f_animate_objects]
+    features: [f_animate_objects, f_bigbys_hand, f_circle_of_power,
+               f_cloudkill, f_cone_of_cold, f_dominate_person, f_hold_monster,
+               f_jallarzis_storm_of_radiance, f_steel_wind_strike,
+               f_synaptic_static, f_wall_of_force, f_wall_of_force_dome,
+               f_yolandes_regal_presence]
     spellcasting: { cantrips_known: 4, prepared_spells: 14 }
     class_resources:
       spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 1 }
@@ -129,7 +145,9 @@ level_table:
       spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2 }
   - level: 11
     proficiency_bonus: 4
-    features: [f_disintegrate]
+    features: [f_arcane_gate, f_circle_of_death, f_disintegrate, f_eyebite,
+               f_flesh_to_stone, f_freezing_sphere, f_irresistible_dance,
+               f_summon_fiend, f_sunbeam, f_tashas_bubbling_cauldron]
     spellcasting: { cantrips_known: 5, prepared_spells: 16 }
     class_resources:
       spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1 }
@@ -153,7 +171,8 @@ level_table:
       spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1, 7: 1 }
   - level: 15
     proficiency_bonus: 5
-    features: []
+    features: [f_befuddlement, f_dominate_monster, f_incendiary_cloud,
+               f_sunburst, f_telepathy]
     spellcasting: { cantrips_known: 5, prepared_spells: 19 }
     class_resources:
       spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1, 7: 1, 8: 1 }
@@ -165,7 +184,7 @@ level_table:
       spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1, 7: 1, 8: 1 }
   - level: 17
     proficiency_bonus: 6
-    features: []
+    features: [f_weird]
     spellcasting: { cantrips_known: 5, prepared_spells: 22 }
     class_resources:
       spell_slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1, 7: 1, 8: 1, 9: 1 }
