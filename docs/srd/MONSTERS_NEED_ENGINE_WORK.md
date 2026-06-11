@@ -184,17 +184,26 @@ v2).**
 - **Giant Owl** (CR 1/4, rating 2) — innate Spellcasting. Full defer.
 - **Multiattack + cast composite** (batch M10, also the M8 dragons'
   "replace one attack with Spellcasting"): 2024 stat blocks routinely
-  fold a cast into Multiattack — **Aarakocra Aeromancer** (CR 4, MM 2024)
-  "two Wind Staff attacks AND can cast Gust of Wind"; **Bullywug Bog
-  Sage** (CR 4, MM 2024) "can replace any attack with Ray of Sickness";
-  **Bone Naga** (CR 4, MM 2024) "can replace any attack with Serpentine
-  Gaze" (modeled as round-robin, not a choice). Both casters are BUILT
-  with the cast as a separate top-level action (action-economy
-  under-representation). Likely fix: allow `sub_actions` to reference a
-  `casts`-expanded action id — `_execute_multiattack` already looks
-  sub-actions up by id in the expanded template, so this may only need
-  verification + a test (Opus call: it composes the multiattack loop
-  with the spellcasting expansion, two systems with no joint coverage).
+  fold a cast into Multiattack.
+  **✅ SINGLE-TARGET casts now fold (batch M10/Opus).** A multiattack
+  `sub_actions` entry may reference a `casts`-expanded SINGLE-TARGET
+  action id; `_execute_multiattack` resolves it from the template and
+  runs it like any sub-attack (the spellcasting expansion stamps a full
+  `weapon_attack`/`save_effect` pipeline before execution). Done:
+  **Bullywug Bog Sage** "replace any attack with Ray of Sickness" →
+  `sub_actions: [a_bog_staff, a_cast_ray_of_sickness]`; **Bone Naga**
+  "replace any attack with Serpentine Gaze" (already a save_effect
+  sub-action). Both modeled as round-robin, not an AI choice.
+  **Still deferred: AoE / concentration casts in a multiattack.**
+  **Aarakocra Aeromancer** "two Wind Staff attacks AND cast Gust of
+  Wind" keeps Gust as a separate action — Gust of Wind is a line AoE
+  with `concentration: true`, and (a) the multiattack target-picker only
+  supplies a single-target, so an AoE sub-action falls back to the
+  degenerate "all enemies" save-target path with no origin/geometry, and
+  (b) the `_execute_multiattack → _execute_single` path bypasses the
+  concentration/slot bookkeeping `execute()` does. Folding AoE/
+  concentration casts into a multiattack needs the loop to route those
+  sub-actions through the AoE-origin + concentration path (Opus call).
 ## Regeneration / recurring self-heal
 **✅ SYSTEM BUILT (engine.core.regeneration).** Stat-block
 `regeneration: { amount: N, suppressed_by: [acid, fire],
@@ -263,30 +272,37 @@ without the rider** (its base damage is the core):
 ## HP-threshold instant-drop (power-word shape)
 A save/effect that checks the target's CURRENT HP against a threshold
 and drops it to 0 outright when at-or-under (otherwise a normal damage
-fallback). No primitive exists — needs something like
-`hp_threshold_drop { threshold: N, otherwise: [damage steps] }` inside a
-forced_save `on_fail`. Same shape as the Power Word Kill / Power Word
-Stun spell family, so building it serves the spell library too.
-**Opus-owned: new primitive.**
+fallback). Same shape as the Power Word Kill / Power Word Stun spell
+family.
+**✅ SYSTEM BUILT (the `hp_threshold_drop` primitive, batch M10/Opus).**
+`hp_threshold_drop { threshold: N, otherwise: [effect-primitives] }`,
+used inside a forced_save `on_fail`: if the current target is at or below
+`threshold` HP it drops straight to 0, else the `otherwise` fallback runs.
+The drop is a direct HP reduction (bypasses resistance/immunity + temp
+HP) carrying no overflow, so a dropped PC enters the dying state rather
+than suffering massive-damage instant death — RAW "drops to 0 Hit
+Points." Shares the `_resolve_zero_hp` death path the `damage` primitive
+uses (revivification reaction, form revert, regeneration-down, death
+saves). Reusable for the Power Word spell family.
 - **Banshee** (CR 4, MM 2024, batch M10) — Deathly Wail (1/Day):
   CON save DC 13, 30-ft emanation; on a fail a target at ≤25 HP drops
-  to 0, else takes 3d6 Psychic. **Built with the 3d6 Psychic fail-damage
-  only** (the wail under-represents its execute potential). Also
-  unmodeled: the sunlight precondition and Construct/Undead + hearing
-  exclusions (no creature-type/sense filters on AoE saves).
+  to 0, else takes 3d6 Psychic. **DONE.** Still unmodeled: the sunlight
+  precondition and Construct/Undead + hearing exclusions (no
+  creature-type/sense filters on AoE saves).
 
 ## Per-encounter save-immunity on targeted saves
 "Success: the target is immune to this creature's X for 24 hours." The
-aura-trait resolver already supports exactly this (`immune_on_success`
-in engine.core.aura_traits / runner), but targeted `forced_save` actions
-have no equivalent — a passed save grants nothing, so the monster can
-re-attempt every round (overstates the ability). Fix shape: an
-`immune_on_success: true` param on forced_save that stamps a
-per-(source, action) immunity set the save resolver checks.
-**Opus-owned: touches the forced_save hot path.**
+aura-trait resolver already supported this (`immune_on_success` in
+engine.core.aura_traits / runner); targeted `forced_save` actions now do
+too.
+**✅ SYSTEM BUILT (`immune_on_success` on forced_save, batch M10/Opus).**
+A forced_save with `immune_on_success: true` (+ optional `immunity_key`,
+defaulting to the action id) records a `(source_id, key)` pair in the
+target's `save_immunities` set on a success; a target already carrying
+that pair auto-succeeds with NO effect for the rest of the encounter.
+The targeted-save counterpart to the aura resolver's `_immune_ids`.
 - **Banshee** (CR 4, MM 2024, batch M10) — Horrify (part of its
-  Multiattack): WIS DC 13 → Frightened; success → 24h immunity.
-  **Built without the immunity.**
+  Multiattack): WIS DC 13 → Frightened; success → 24h immunity. **DONE.**
 
 ## Form change
 2024 SRD trait name is **"Shape-Shift"** (not "Change Shape").

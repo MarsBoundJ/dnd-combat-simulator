@@ -6,10 +6,11 @@
 # spell_attack pc_builder at the monster's +5 spell attack) and Vitriolic
 # Sphere (1/Day), both built spells at WIS DC 13.
 # Approximations / DEFERRED (see MONSTERS_NEED_ENGINE_WORK.md):
-#   - RAW Multiattack is "two Bog Staff attacks, can replace ANY attack
-#     with a Ray of Sickness cast" — the multiattack+cast composite isn't
-#     an established shape; Ray of Sickness is modeled as a separate
-#     at-will action. Logged → Monster Spellcasting bucket.
+#   - RAW Multiattack "can replace any attack with a Ray of Sickness cast"
+#     is now modeled by folding the at-will single-target cast into the
+#     multiattack (sub_actions: [a_bog_staff, a_cast_ray_of_sickness] →
+#     one staff + one Ray per turn). a_cast_ray_of_sickness also remains a
+#     standalone candidate.
 #   - Ray of Sickness's Poisoned-on-hit rider is deferred at the FEATURE
 #     level (the spell_attack builder emits attack + damage only — see
 #     f_ray_of_sickness.yaml).
@@ -53,7 +54,13 @@ actions:
     name: Multiattack
     type: multiattack
     count: 2
-    sub_actions: [a_bog_staff]
+    # RAW: "two Bog Staff attacks. It can replace any attack with a use of
+    # Spellcasting to cast Ray of Sickness." Modeled as one staff + one Ray
+    # (round-robin), folding the at-will single-target cast into the
+    # multiattack — same shape as the Bone Naga's Serpentine Gaze. The
+    # expanded a_cast_ray_of_sickness action (a single-target spell attack)
+    # is resolved by id from the template at execution time.
+    sub_actions: [a_bog_staff, a_cast_ray_of_sickness]
   - id: a_bog_staff
     name: Bog Staff
     type: weapon_attack

@@ -144,6 +144,41 @@ class M10BansheeTest(unittest.TestCase):
         self.assertEqual(far.hp_current, 50)      # outside it
         self.assertEqual(banshee.hp_current, banshee.hp_max)  # self-excluded
 
+    def test_deathly_wail_threshold_drop_vs_partial(self):
+        # On a failed save: a target at <=25 HP drops straight to 0 (and a PC
+        # enters dying, not instant death); a target above 25 takes 3d6.
+        banshee = _actor_from("m_banshee")
+        low = _dummy("low", position=(1, 0), con=-20, hp=20)    # <=25 -> drop
+        high = _dummy("high", position=(2, 0), con=-20, hp=80)  # >25 -> 3d6
+        st = _state([banshee, low, high])
+        wail = _action("m_banshee", "a_deathly_wail")
+        chosen = {"kind": "aoe_attack", "action": wail, "target": low,
+                    "origin_point": banshee.position, "actor": banshee}
+        pipeline.execute(chosen, st, EventBus(), PrimitiveRegistry.with_defaults())
+        self.assertEqual(low.hp_current, 0)
+        self.assertTrue(low.is_dying)             # PC drops to dying, not dead
+        self.assertFalse(low.is_dead)
+        self.assertTrue([e for e in st.event_log
+                          if e.get("event") == "hp_threshold_drop"])
+        self.assertLess(high.hp_current, 80)      # partial 3d6
+        self.assertGreater(high.hp_current, 0)    # but not dropped
+
+    def test_horrify_immune_on_success_is_per_encounter(self):
+        # A target that SUCCEEDS on Horrify can't be re-Frightened by this
+        # banshee for the rest of the fight (RAW 24h immunity).
+        banshee = _actor_from("m_banshee")
+        tough = _dummy("tough", ac=1, hp=120, wis=50)   # auto-passes WIS
+        st = _state([banshee, tough])
+        horrify = _action("m_banshee", "a_horrify")
+        for _ in range(2):
+            pipeline.execute({"kind": "save_effect", "action": horrify,
+                                "target": tough, "actor": banshee},
+                               st, EventBus(), PrimitiveRegistry.with_defaults())
+        self.assertIn((banshee.id, "horrify"), tough.save_immunities)
+        self.assertTrue([e for e in st.event_log if e.get("save_immune")])
+        self.assertFalse(any(c.get("condition_id") == "co_frightened"
+                              for c in tough.applied_conditions))
+
 
 class M10BoneNagaTest(unittest.TestCase):
 
@@ -170,6 +205,38 @@ class M10BoneNagaTest(unittest.TestCase):
         self.assertEqual(bolt["type"], "aoe_attack")
         self.assertEqual(bolt["recharge"], "daily:1")
         self.assertEqual(bolt["area"]["shape"], "line")
+
+
+class M10BogSageTest(unittest.TestCase):
+
+    def setUp(self):
+        primitives_module.set_rng(random.Random(10))
+
+    def test_multiattack_folds_ray_of_sickness_cast(self):
+        # RAW: "replace any attack with a Ray of Sickness cast" — modeled by
+        # folding the at-will single-target cast into the multiattack
+        # (sub_actions: [a_bog_staff, a_cast_ray_of_sickness]). The
+        # spellcasting expansion stamps a full weapon_attack pipeline on the
+        # cast, so the multiattack loop runs it like any sub-attack.
+        sage = _actor_from("m_bullywug_bog_sage")
+        ma = _action("m_bullywug_bog_sage", "a_multiattack")
+        self.assertEqual(ma["sub_actions"],
+                          ["a_bog_staff", "a_cast_ray_of_sickness"])
+        # the referenced cast expanded to a runnable single-target attack
+        ray = _action("m_bullywug_bog_sage", "a_cast_ray_of_sickness")
+        self.assertEqual(ray["type"], "weapon_attack")
+        target = _dummy(ac=1, hp=200)
+        st = _state([sage, target])
+        chosen = {"kind": "multiattack", "action": ma,
+                    "target": target, "actor": sage}
+        pipeline.execute(chosen, st, EventBus(), PrimitiveRegistry.with_defaults())
+        attacks = [e for e in st.event_log if e.get("event") == "attack_roll"]
+        self.assertEqual(len(attacks), 2)        # one staff + one ray
+        dmg_types = {e.get("type") for e in st.event_log
+                      if e.get("event") == "damage_dealt"}
+        # staff (bludgeoning + poison rider) and the ray (poison) both landed
+        self.assertIn("bludgeoning", dmg_types)
+        self.assertIn("poison", dmg_types)
 
 
 class M10AeromancerTest(unittest.TestCase):

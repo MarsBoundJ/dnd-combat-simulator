@@ -105,6 +105,16 @@ class Actor:
     death_save_successes: int = 0
     death_save_failures: int = 0
 
+    # Per-encounter save immunities (the "Success: immune to this creature's
+    # X for 24 hours" clause — Banshee Horrify, etc.). A set of
+    # (source_id, immunity_key) tuples: once a creature succeeds on such a
+    # save, the pair is recorded and that source can't re-attempt the same
+    # effect this encounter. Set by `_forced_save` when params carry
+    # `immune_on_success: true`; checked there before rolling. The aura
+    # resolver has its own equivalent on the aura dict (`_immune_ids`); this
+    # is the targeted-save counterpart. Fresh per encounter (Actors rebuilt).
+    save_immunities: set = field(default_factory=set)
+
     # Concentration tracking — at most ONE concentration spell active.
     # None when not concentrating; otherwise:
     #   {action_id: str, caster_id: str, applied_at_round: int}

@@ -855,61 +855,8 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
         attempt_concentration_save(target, total, state, rng)
 
     if target.hp_current == 0:
-        # Revivification (Zealot L14 Rage of the Gods): a raging Zealot
-        # within 30 ft may use a reaction + Rage use to save the target
-        # before death processing. Fires BEFORE forms/death/dying so HP
-        # can be restored in time.
-        from engine.core.reactions import resolve_reaction_triggers as _rtrig
-        _rtrig("creature_would_drop_to_zero", {
-            "target": target,
-            "target_id": target.id,
-        }, state, bus)
-
-    if target.hp_current == 0:
-        # Form system: a transformed creature dropping to 0 in its form
-        # REVERTS instead of dying (Wild Shape: back to the druid;
-        # Polymorph: back to true form with overflow carried). revert_form
-        # restores true-form HP and only marks death if the overflow
-        # itself zeroes the true form.
-        from engine.core import forms
-        from engine.core import regeneration as _regeneration
-        if forms.is_transformed(target):
-            forms.revert_form(target, state, reason="hp_zero",
-                                overflow=_form_overflow)
-        elif _regeneration.revives_from_zero(target):
-            # Troll rule: 0 HP is NOT death. The creature is downed and
-            # regenerates back at its next turn start — unless it took
-            # acid/fire (regen_suppressed), in which case the turn-start
-            # resolution kills it. Leave is_dead False here.
-            state.event_log.append({
-                "event": "downed_pending_regeneration", "actor": target.id,
-            })
-        else:
-            from engine.core import death_saves as _ds
-            # Massive damage (RAW): leftover after dropping to 0 >= HP max =
-            # instant death, even for a death-save creature.
-            _massive = _ds.is_massive_damage(_form_overflow, target.hp_max)
-            _is_crit = bool((state.current_attack or {}).get("is_crit"))
-            if _ds.uses_death_saves(target) and not _massive:
-                # PCs fall UNCONSCIOUS and roll death saves instead of dying.
-                if target.is_dying:
-                    # Already down — another hit is an auto death-save failure
-                    # (two on a crit); may finish them off.
-                    _ds.damage_while_dying(target, state, is_crit=_is_crit)
-                else:
-                    _ds.enter_dying(target, state)
-            else:
-                target.is_dead = True
-                # Death ends any concentration the deceased was maintaining
-                if target.concentration_on is not None:
-                    from engine.core.concentration import end_concentration
-                    end_concentration(target, state, reason="caster_died")
-                # A dying swallower frees whatever it had swallowed.
-                from engine.core import swallow as _swallow
-                _swallow.release_victims_of(target, state,
-                                              reason="swallower_died")
-        bus.emit("creature_dropped", {"creature": target})
-        state.event_log.append({"event": "creature_dropped", "creature": target.id})
+        _resolve_zero_hp(target, state, bus, form_overflow=_form_overflow,
+                         is_crit=bool((state.current_attack or {}).get("is_crit")))
     elif target.is_bloodied():
         bus.emit("creature_bloodied", {"creature": target})
 
@@ -947,6 +894,118 @@ def _damage(params: dict, state: CombatState, bus: EventBus) -> dict:
         _ra.on_ally_takes_damage(target, total, state, bus)
 
     return {"amount": total, "target_hp": target.hp_current}
+
+
+def _resolve_zero_hp(target: Actor, state: CombatState, bus: EventBus, *,
+                     form_overflow: int, is_crit: bool) -> None:
+    """Shared 0-HP processing for any path that brings a creature to 0 HP
+    (the `_damage` primitive and the `hp_threshold_drop` power-word effect).
+
+    Runs the revivification reaction first (a Zealot L14 may restore HP and
+    cancel the drop), then — if still at 0 — the form-revert / regeneration-
+    down / death-saves / death branch, and finally the `creature_dropped`
+    event. `form_overflow` is the leftover damage past 0 HP (0 for a direct
+    drop), feeding the RAW massive-damage instant-death check; `is_crit`
+    drives the extra death-save failure on a downed creature."""
+    # Revivification (Zealot L14 Rage of the Gods): a raging Zealot within
+    # 30 ft may use a reaction + Rage use to save the target before death
+    # processing. Fires BEFORE forms/death/dying so HP can be restored in
+    # time — a non-zero HP afterward cancels the rest.
+    from engine.core.reactions import resolve_reaction_triggers as _rtrig
+    _rtrig("creature_would_drop_to_zero", {
+        "target": target,
+        "target_id": target.id,
+    }, state, bus)
+    if target.hp_current != 0:
+        return
+
+    # Form system: a transformed creature dropping to 0 in its form
+    # REVERTS instead of dying (Wild Shape: back to the druid;
+    # Polymorph: back to true form with overflow carried). revert_form
+    # restores true-form HP and only marks death if the overflow
+    # itself zeroes the true form.
+    from engine.core import forms
+    from engine.core import regeneration as _regeneration
+    if forms.is_transformed(target):
+        forms.revert_form(target, state, reason="hp_zero",
+                            overflow=form_overflow)
+    elif _regeneration.revives_from_zero(target):
+        # Troll rule: 0 HP is NOT death. The creature is downed and
+        # regenerates back at its next turn start — unless it took
+        # acid/fire (regen_suppressed), in which case the turn-start
+        # resolution kills it. Leave is_dead False here.
+        state.event_log.append({
+            "event": "downed_pending_regeneration", "actor": target.id,
+        })
+    else:
+        from engine.core import death_saves as _ds
+        # Massive damage (RAW): leftover after dropping to 0 >= HP max =
+        # instant death, even for a death-save creature.
+        _massive = _ds.is_massive_damage(form_overflow, target.hp_max)
+        if _ds.uses_death_saves(target) and not _massive:
+            # PCs fall UNCONSCIOUS and roll death saves instead of dying.
+            if target.is_dying:
+                # Already down — another hit is an auto death-save failure
+                # (two on a crit); may finish them off.
+                _ds.damage_while_dying(target, state, is_crit=is_crit)
+            else:
+                _ds.enter_dying(target, state)
+        else:
+            target.is_dead = True
+            # Death ends any concentration the deceased was maintaining
+            if target.concentration_on is not None:
+                from engine.core.concentration import end_concentration
+                end_concentration(target, state, reason="caster_died")
+            # A dying swallower frees whatever it had swallowed.
+            from engine.core import swallow as _swallow
+            _swallow.release_victims_of(target, state,
+                                          reason="swallower_died")
+    bus.emit("creature_dropped", {"creature": target})
+    state.event_log.append({"event": "creature_dropped", "creature": target.id})
+
+
+def _hp_threshold_drop(params: dict, state: CombatState, bus: EventBus) -> dict:
+    """Power-word-shape effect: if the current target is at or below
+    `threshold` Hit Points, it drops straight to 0 HP; otherwise the
+    `otherwise` fallback sub-primitives run (typically a partial-damage step).
+
+    The drop is a direct HP reduction, NOT damage — it bypasses
+    resistance/immunity and temp HP, carries no overflow (so a dropped PC
+    enters the dying state rather than suffering massive-damage instant
+    death — the RAW outcome of "drops to 0 Hit Points"), and routes the
+    0-HP handling through the same `_resolve_zero_hp` path the damage
+    primitive uses (revivification reaction, form revert, regeneration-down,
+    death saves, the creature_dropped event).
+
+    Params:
+      threshold: int — at-or-below this current-HP value, drop to 0.
+      otherwise: list of effect-primitives run when the target is ABOVE the
+        threshold (e.g. the partial-damage fallback).
+
+    First consumer: Banshee Deathly Wail (<=25 HP -> 0, else 3d6 psychic);
+    the Power Word Kill / Stun family can reuse the same shape."""
+    target: Actor = state.current_attack.get("target")
+    actor = state.current_attack.get("actor")
+    if target is None:
+        return {"dropped": False}
+    # Already down (e.g. an AoE that dropped this creature on an earlier
+    # step) — nothing to do; don't run the fallback either.
+    if target.hp_current <= 0:
+        return {"dropped": False, "hp": target.hp_current}
+    threshold = int(params.get("threshold", 0))
+    if target.hp_current > threshold:
+        # Above the line — run the fallback (the spell's partial effect).
+        for sub in params.get("otherwise") or []:
+            _invoke_subprimitive(sub, state, bus)
+        return {"dropped": False, "hp": target.hp_current}
+    # At/under the threshold: straight to 0.
+    target.hp_current = 0
+    state.event_log.append({
+        "event": "hp_threshold_drop", "target": target.id,
+        "threshold": threshold,
+        "source": actor.id if actor is not None else None})
+    _resolve_zero_hp(target, state, bus, form_overflow=0, is_crit=False)
+    return {"dropped": True, "hp": 0}
 
 
 def _apply_condition(params: dict, state: CombatState, bus: EventBus) -> None:
@@ -1381,9 +1440,34 @@ def _forced_save(params: dict, state: CombatState, bus: EventBus) -> dict:
     heightened_applied = False
     mm_caster = (state.current_attack or {}).get("actor")
 
+    # Per-encounter save immunity ("Success: immune to this creature's X for
+    # 24 hours" — Banshee Horrify). When `immune_on_success` is set, a target
+    # that already succeeded against this (source, key) pair this encounter
+    # auto-succeeds with NO effect; a fresh success records the immunity.
+    # `immunity_key` lets one source's multiple such abilities stay distinct;
+    # it defaults to the action id.
+    immune_on_success = bool(params.get("immune_on_success"))
+    immunity_key = params.get("immunity_key") or (
+        (state.current_attack or {}).get("action") or {}).get("id")
+    immune_source_id = mm_caster.id if mm_caster is not None else None
+
     targets = _resolve_save_targets(params, state)
     rolls = []
     for target in targets:
+        # Already immune to this effect from this source (a prior success)
+        # — auto-succeed, run no on_fail/on_success, move on.
+        if (immune_on_success and immune_source_id is not None
+                and (immune_source_id, immunity_key) in target.save_immunities):
+            rolls.append({"target_id": target.id, "outcome": "success",
+                           "d20": None, "total": None, "dc": dc,
+                           "ability": ability, "immune": True})
+            state.current_save = {"target": target, "outcome": "success",
+                                   "ability": ability, "dc": dc}
+            state.event_log.append({
+                "event": "forced_save", "target": target.id,
+                "ability": ability, "dc": dc, "d20": None, "total": None,
+                "outcome": "success", "save_immune": True})
+            continue
         # Careful Spell: a chosen caster-ally automatically succeeds and
         # takes no damage (skip rolling + skip on_success/on_fail).
         if (careful_allies and mm_caster is not None
@@ -1510,6 +1594,12 @@ def _forced_save(params: dict, state: CombatState, bus: EventBus) -> dict:
         state.event_log.append({"event": "forced_save", "target": target.id,
                                 "ability": ability, "dc": dc,
                                 "d20": d20, "total": total, "outcome": outcome})
+
+        # Per-encounter immunity: a fresh success against an immune_on_success
+        # effect locks this (source, key) out for the rest of the fight.
+        if (immune_on_success and outcome == "success"
+                and immune_source_id is not None):
+            target.save_immunities.add((immune_source_id, immunity_key))
 
         # Swap state.current_attack.target to THIS iteration's target so
         # sub-primitives (damage, apply_condition) deal with the right
@@ -4127,6 +4217,7 @@ def _populate_handler_table() -> None:
     _PRIMITIVE_HANDLERS = {
         "attack_roll": _attack_roll,
         "damage": _damage,
+        "hp_threshold_drop": _hp_threshold_drop,
         "apply_condition": _apply_condition,
         "heal": _heal,
         "granted_action": _granted_action,
@@ -4200,6 +4291,11 @@ def _all_primitives() -> list[Primitive]:
         # v0 (skeleton)
         Primitive("attack_roll", _attack_roll, implemented=True),
         Primitive("damage", _damage, implemented=True),
+        # Power-word-shape HP-threshold instant-drop (Banshee Deathly Wail;
+        # future Power Word Kill/Stun). Drops the target to 0 HP if at/under
+        # the threshold, else runs the `otherwise` fallback. Must stay in
+        # sync with _populate_handler_table.
+        Primitive("hp_threshold_drop", _hp_threshold_drop, implemented=True),
         Primitive("apply_condition", _apply_condition, implemented=True),
         Primitive("heal", _heal, implemented=True),
         Primitive("granted_action", _granted_action, implemented=True),

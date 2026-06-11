@@ -1,20 +1,21 @@
 # m_banshee — Banshee
 # Source: Monster Manual (2024) — NOT in SRD 5.2.1. Mechanics-only
 # clean-room re-expression (no flavor prose) per schema-design.md §1.
-# Triage: GREEN for core kit — Multiattack of two Corrupting Touch + one
-# Horrify (the save_effect-in-multiattack shape, Giant Constrictor Snake
-# precedent), and Deathly Wail as a daily:1 30-ft-emanation CON save.
-# Approximations / DEFERRED (see MONSTERS_NEED_ENGINE_WORK.md):
-#   - Horrify's "Success: immune to this banshee's Horrify for 24 hours"
-#     is NOT modeled — `immune_on_success` exists only on the aura-trait
-#     resolver, not on targeted forced_save actions. Logged as a primitive
-#     gap (slightly OVERSTATES Horrify on save-passing targets).
-#   - Deathly Wail's "≤25 HP → drops to 0 HP" instant-down rider is NOT
-#     modeled (no HP-threshold-drop primitive — power-word-kill shape);
-#     built as the 3d6 Psychic fail-damage only. Logged as a primitive
-#     gap. The sunlight precondition and the Construct/Undead + hearing
-#     exclusions are also unmodeled (emanation hits all non-self
-#     creatures; allies included, which is RAW for non-Undead allies).
+# Triage: GREEN — Multiattack of two Corrupting Touch + one Horrify (the
+# save_effect-in-multiattack shape, Giant Constrictor Snake precedent),
+# and Deathly Wail as a daily:1 30-ft-emanation CON save. Both formerly-
+# deferred abilities are now fully wired against new engine primitives:
+#   - Horrify uses forced_save `immune_on_success: true` — RAW "Success:
+#     immune to this banshee's Horrify for 24 hours" -> per-encounter
+#     immunity (a target that saves once can't be re-Frightened by this
+#     banshee this fight).
+#   - Deathly Wail's on_fail uses the `hp_threshold_drop` primitive
+#     (threshold 25 -> drop to 0, else 3d6 psychic) — the power-word-shape
+#     execute, bypassing resistance + temp HP.
+# Remaining DEFERRED (see MONSTERS_NEED_ENGINE_WORK.md):
+#   - Deathly Wail's sunlight precondition and Construct/Undead + hearing
+#     exclusions are unmodeled (emanation hits all non-self creatures;
+#     allies included, which is RAW for non-Undead allies).
 #   - Incorporeal Movement (move through creatures/objects, 1d10 Force if
 #     ending inside one): no movement-through-occupied-space hook; omitted.
 #   - Detect Life: out-of-combat sense, omitted.
@@ -76,6 +77,10 @@ actions:
           ability: wisdom
           dc: 13
           affected: current_target
+          # RAW: on a success the target is immune to THIS banshee's Horrify
+          # for 24 hours -> per-encounter immunity (immune_on_success).
+          immune_on_success: true
+          immunity_key: horrify
           on_fail:
             - primitive: apply_condition
               params: { condition_id: co_frightened, duration: until_actor_next_turn_start }
@@ -91,9 +96,16 @@ actions:
           ability: constitution
           dc: 13
           affected: all_creatures_in_area
+          # RAW: on a failed save, a target at <=25 HP drops straight to 0;
+          # otherwise it takes 3d6 psychic. hp_threshold_drop models the
+          # power-word-shape execute (bypasses resistance + temp HP).
           on_fail:
-            - primitive: damage
-              params: { dice: "3d6", modifier: 0, type: psychic, average: 10 }
+            - primitive: hp_threshold_drop
+              params:
+                threshold: 25
+                otherwise:
+                  - primitive: damage
+                    params: { dice: "3d6", modifier: 0, type: psychic, average: 10 }
           on_success: []
 behavior_profile:
   archetype: apex_predator
