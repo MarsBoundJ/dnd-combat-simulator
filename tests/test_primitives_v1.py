@@ -186,6 +186,56 @@ class ImprovedCriticalTest(unittest.TestCase):
 
 
 # ============================================================================
+# Test: Champion Superior Critical lowers crit threshold to 18
+# ============================================================================
+
+class SuperiorCriticalTest(unittest.TestCase):
+
+    def test_crit_threshold_modifier_lowers_threshold_to_18(self) -> None:
+        attacker = _make_actor("champion_l15", "pc")
+        target = _make_actor("dummy", "enemy", hp=100, ac=10)
+        state = _make_state([attacker, target])
+
+        # Manually apply Superior Critical (same pattern as Improved Critical)
+        attacker.active_modifiers.append({
+            "primitive": "crit_threshold_modifier",
+            "params": {"new_threshold": 18},
+            "lifetime": "until_long_rest",
+            "source": {"type": "feature", "id": "f_superior_critical"},
+            "owner_id": attacker.id,
+        })
+
+        result = modifiers.query_crit_modifiers(attacker, target, state)
+        self.assertEqual(result.crit_threshold, 18,
+                          "Superior Critical should lower threshold to 18")
+
+    def test_superior_critical_beats_improved_critical(self) -> None:
+        """When both are active, query_crit_modifiers takes the minimum (18)."""
+        attacker = _make_actor("champion_l15", "pc")
+        target = _make_actor("dummy", "enemy", hp=100, ac=10)
+        state = _make_state([attacker, target])
+
+        attacker.active_modifiers.append({
+            "primitive": "crit_threshold_modifier",
+            "params": {"new_threshold": 19},
+            "lifetime": "until_long_rest",
+            "source": {"type": "feature", "id": "f_improved_critical"},
+            "owner_id": attacker.id,
+        })
+        attacker.active_modifiers.append({
+            "primitive": "crit_threshold_modifier",
+            "params": {"new_threshold": 18},
+            "lifetime": "until_long_rest",
+            "source": {"type": "feature", "id": "f_superior_critical"},
+            "owner_id": attacker.id,
+        })
+
+        result = modifiers.query_crit_modifiers(attacker, target, state)
+        self.assertEqual(result.crit_threshold, 18,
+                          "Superior Critical (18) should win over Improved Critical (19)")
+
+
+# ============================================================================
 # Test: Multiattack runs N attacks per turn
 # ============================================================================
 
