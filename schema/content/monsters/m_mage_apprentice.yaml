@@ -1,0 +1,52 @@
+# m_mage_apprentice — Mage Apprentice
+# Source: 2024 Monster Manual (MM-only; not in SRD 5.2.1)
+# Triage: GREEN — Arcane Burst (Force, melee/ranged).
+#   DEFERRED: spellcasting (Ice Knife, Thunderwave, etc.; not in library).
+
+id: m_mage_apprentice
+name: Mage Apprentice
+source: mm_2024
+
+size: medium
+creature_type: humanoid
+alignment: neutral
+
+combat:
+  armor_class: 15
+  hit_points: { average: 49, dice: "9d8", con_contribution: 9 }
+  speed: { walk: 30 }
+  initiative: { modifier: 2, score: 12 }
+
+abilities:
+  str: { score: 8, save: -1 }
+  dex: { score: 14, save: 2 }
+  con: { score: 12, save: 1 }
+  int: { score: 16, save: 5 }
+  wis: { score: 13, save: 3 }
+  cha: { score: 10, save: 0 }
+
+skills: { arcana: 5, perception: 3 }
+
+senses: { passive_perception: 13 }
+languages: ["Common"]
+
+cr: { value: 2, xp: 450, proficiency_bonus: 2 }
+
+habitat: [any]
+treasure: [arcana, individual]
+
+actions:
+  - id: a_arcane_burst
+    name: Arcane Burst
+    type: weapon_attack
+    is_signature: true
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: ranged, bonus: 5, reach_ft: 120 }
+      - primitive: damage
+        params: { dice: "2d10", modifier: 3, type: force, average: 14 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: artillery
+  presets: { retreat: cowardly, ability_selection: default, targeting: weakest_target, action_economy: casual }

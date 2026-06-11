@@ -1,0 +1,67 @@
+# m_gnoll_pack_lord — Gnoll Pack Lord
+# Source: 2024 Monster Manual (MM-only; not in SRD 5.2.1)
+# Triage: GREEN — Multiattack 2× Bone Whip / Bone Javelin.
+#   DEFERRED: Incite Rampage (grants ally a reaction attack; no ally-grant in v1);
+#   Rampage bonus action (bloodied trigger + bonus attack; no bloodied state).
+
+id: m_gnoll_pack_lord
+name: Gnoll Pack Lord
+source: mm_2024
+
+size: medium
+creature_type: fiend
+alignment: chaotic evil
+
+combat:
+  armor_class: 15
+  hit_points: { average: 49, dice: "9d8", con_contribution: 9 }
+  speed: { walk: 30 }
+  initiative: { modifier: 4, score: 14 }
+
+abilities:
+  str: { score: 16, save: 3 }
+  dex: { score: 14, save: 2 }
+  con: { score: 13, save: 1 }
+  int: { score: 8, save: -1 }
+  wis: { score: 11, save: 0 }
+  cha: { score: 9, save: -1 }
+
+senses: { passive_perception: 10, special: { darkvision: 60 } }
+languages: ["Gnoll"]
+
+cr: { value: 2, xp: 450, proficiency_bonus: 2 }
+
+habitat: [desert, forest, grassland, hill]
+treasure: [armaments, individual]
+
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 2
+    sub_actions: ["a_bone_whip"]
+
+  - id: a_bone_whip
+    name: Bone Whip
+    type: weapon_attack
+    is_signature: true
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: melee, bonus: 5, reach_ft: 10 }
+      - primitive: damage
+        params: { dice: "2d4", modifier: 3, type: slashing, average: 8 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  - id: a_bone_javelin
+    name: Bone Javelin
+    type: weapon_attack
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: ranged, bonus: 5, reach_ft: 30 }
+      - primitive: damage
+        params: { dice: "1d8", modifier: 3, type: piercing, average: 7 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: brute
+  presets: { retreat: never, ability_selection: default, targeting: closest_enemy, action_economy: aggressive }

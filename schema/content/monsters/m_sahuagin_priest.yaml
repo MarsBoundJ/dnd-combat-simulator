@@ -1,0 +1,68 @@
+# m_sahuagin_priest — Sahuagin Priest
+# Source: 2024 Monster Manual (MM-only; not in SRD 5.2.1)
+# Triage: GREEN — Multiattack 2× Spectral Jaws (Force, melee/ranged). Blood
+#   Frenzy declarative.
+#   DEFERRED: spellcasting + Fiendish Aid (Bless / Healing Word; not in library).
+
+id: m_sahuagin_priest
+name: Sahuagin Priest
+source: mm_2024
+
+size: medium
+creature_type: fiend
+alignment: lawful evil
+
+combat:
+  armor_class: 12
+  hit_points: { average: 38, dice: "7d8", con_contribution: 7 }
+  speed: { walk: 30, swim: 40 }
+  initiative: { modifier: 0, score: 10 }
+
+abilities:
+  str: { score: 13, save: 1 }
+  dex: { score: 11, save: 0 }
+  con: { score: 12, save: 1 }
+  int: { score: 12, save: 1 }
+  wis: { score: 14, save: 2 }
+  cha: { score: 13, save: 1 }
+
+skills: { perception: 6, religion: 3 }
+damage_resistances: [acid, cold]
+
+senses: { passive_perception: 16, special: { darkvision: 120 } }
+languages: ["Sahuagin"]
+
+cr: { value: 2, xp: 450, proficiency_bonus: 2 }
+
+habitat: [coastal, underwater]
+treasure: any
+
+traits:
+  - id: t_blood_frenzy
+    name: Blood Frenzy
+    type: trait_passive
+  - id: t_limited_amphibiousness
+    name: Limited Amphibiousness
+    type: trait_passive
+
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 2
+    sub_actions: ["a_spectral_jaws"]
+
+  - id: a_spectral_jaws
+    name: Spectral Jaws
+    type: weapon_attack
+    is_signature: true
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: ranged, bonus: 4, reach_ft: 120 }
+      - primitive: damage
+        params: { dice: "2d8", modifier: 2, type: force, average: 11 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+behavior_profile:
+  archetype: support
+  presets: { retreat: cowardly, ability_selection: default, targeting: weakest_target, action_economy: aggressive }

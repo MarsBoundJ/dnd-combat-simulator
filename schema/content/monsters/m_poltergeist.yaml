@@ -1,0 +1,80 @@
+# m_poltergeist — Poltergeist
+# Source: 2024 Monster Manual (MM-only; not in SRD 5.2.1)
+# Triage: GREEN — Multiattack (Object Slam + Telekinetic Thrust). Object Slam
+#   (Bludgeoning melee/ranged); Telekinetic Thrust (STR DC 12 → Force + push).
+#   DEFERRED: Vanish (Invisible toggle); Incorporeal Movement (positional).
+
+id: m_poltergeist
+name: Poltergeist
+source: mm_2024
+
+size: medium
+creature_type: undead
+alignment: chaotic neutral
+
+combat:
+  armor_class: 12
+  hit_points: { average: 22, dice: "5d8", con_contribution: 0 }
+  speed: { walk: 5, fly: 50 }
+  initiative: { modifier: 2, score: 12 }
+
+abilities:
+  str: { score: 1, save: -5 }
+  dex: { score: 14, save: 2 }
+  con: { score: 11, save: 0 }
+  int: { score: 10, save: 0 }
+  wis: { score: 10, save: 0 }
+  cha: { score: 14, save: 2 }
+
+damage_resistances: [acid, bludgeoning, cold, fire, lightning, piercing, slashing, thunder]
+damage_immunities: [necrotic, poison]
+condition_immunities: [co_charmed, co_exhaustion, co_grappled, co_paralyzed, co_petrified, co_poisoned, co_prone, co_restrained, co_unconscious]
+
+senses: { passive_perception: 10, special: { darkvision: 60 } }
+languages: ["Common"]
+
+cr: { value: 2, xp: 450, proficiency_bonus: 2 }
+
+habitat: [underdark, urban]
+treasure: any
+
+traits:
+  - id: t_incorporeal_movement
+    name: Incorporeal Movement
+    type: trait_passive
+
+actions:
+  - id: a_multiattack
+    name: Multiattack
+    type: multiattack
+    count: 2
+    sub_actions: ["a_object_slam", "a_telekinetic_thrust"]
+
+  - id: a_object_slam
+    name: Object Slam
+    type: weapon_attack
+    is_signature: true
+    pipeline:
+      - primitive: attack_roll
+        params: { kind: ranged, bonus: 4, reach_ft: 30 }
+      - primitive: damage
+        params: { dice: "2d4", modifier: 2, type: bludgeoning, average: 7 }
+        when: { event: damage_roll, condition: "combat.attack_state == hit" }
+
+  - id: a_telekinetic_thrust
+    name: Telekinetic Thrust
+    type: save_effect
+    pipeline:
+      - primitive: forced_save
+        params:
+          ability: strength
+          dc: 12
+          affected: current_target
+          on_fail:
+            - primitive: damage
+              params: { dice: "2d6", modifier: 2, type: force, average: 9 }
+          on_success: []
+
+behavior_profile:
+  archetype: skirmisher
+  presets: { retreat: cowardly, ability_selection: default, targeting: weakest_target, action_economy: casual }

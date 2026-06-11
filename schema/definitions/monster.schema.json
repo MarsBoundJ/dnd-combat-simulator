@@ -166,8 +166,11 @@
       "items": { "type": "string" }
     },
     "treasure": {
-      "description": "Treasure category carried or guarded: none, any, armaments, arcana, relics, individual, hoard.",
-      "type": "string"
+      "description": "Treasure category carried or guarded: none, any, armaments, arcana, relics, individual, hoard. A single string or a list when the creature lists multiple categories.",
+      "oneOf": [
+        { "type": "string" },
+        { "type": "array", "items": { "type": "string" } }
+      ]
     },
 
     "behavior_profile": {

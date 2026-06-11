@@ -1,11 +1,11 @@
-# m_faerie_dragon_youth — Faerie Dragon (Youth)
+# m_faerie_dragon_adult — Faerie Dragon (Adult)
 # Source: 2024 Monster Manual (MM-only; not in SRD 5.2.1)
 # Triage: GREEN — Bite (Piercing + Psychic dual); Euphoria Breath (Recharge 5-6,
-#   WIS DC 12, cone 15 ft → co_incapacitated).
-#   DEFERRED: spellcasting (Dancing Lights, Faerie Fire, etc. not in library).
+#   WIS DC 13, cone 15 ft → co_incapacitated).
+#   DEFERRED: spellcasting + Superior Invisibility (utility; not in library).
 
-id: m_faerie_dragon_youth
-name: Faerie Dragon (Youth)
+id: m_faerie_dragon_adult
+name: Faerie Dragon (Adult)
 source: mm_2024
 
 size: tiny
@@ -13,27 +13,27 @@ creature_type: dragon
 alignment: chaotic good
 
 combat:
-  armor_class: 13
-  hit_points: { average: 21, dice: "6d4", con_contribution: 6 }
+  armor_class: 15
+  hit_points: { average: 35, dice: "10d4", con_contribution: 10 }
   speed: { walk: 10, fly: 60 }
-  initiative: { modifier: 3, score: 13 }
+  initiative: { modifier: 5, score: 15 }
 
 abilities:
   str: { score: 3, save: -4 }
-  dex: { score: 16, save: 3 }
+  dex: { score: 20, save: 5 }
   con: { score: 13, save: 1 }
   int: { score: 14, save: 2 }
   wis: { score: 12, save: 1 }
   cha: { score: 16, save: 3 }
 
-skills: { perception: 3, stealth: 5 }
+skills: { arcana: 4, perception: 3, stealth: 7 }
 
 senses: { passive_perception: 13, special: { darkvision: 60 } }
 languages: ["Draconic", "Sylvan"]
 
-cr: { value: 1, xp: 200, proficiency_bonus: 2 }
+cr: { value: 2, xp: 450, proficiency_bonus: 2 }
 
-habitat: [forest, feywild]
+habitat: [forest]
 treasure: implements
 
 traits:
@@ -48,12 +48,12 @@ actions:
     is_signature: true
     pipeline:
       - primitive: attack_roll
-        params: { kind: melee, bonus: 5, reach_ft: 5 }
+        params: { kind: melee, bonus: 7, reach_ft: 5 }
       - primitive: damage
-        params: { dice: "1d4", modifier: 3, type: piercing, average: 5 }
+        params: { dice: "1d4", modifier: 5, type: piercing, average: 7 }
         when: { event: damage_roll, condition: "combat.attack_state == hit" }
       - primitive: damage
-        params: { dice: "1d4", modifier: 0, type: psychic, average: 2 }
+        params: { dice: "1d6", modifier: 0, type: psychic, average: 3 }
         when: { event: damage_roll, condition: "combat.attack_state == hit" }
 
   - id: a_euphoria_breath
@@ -65,7 +65,7 @@ actions:
       - primitive: forced_save
         params:
           ability: wisdom
-          dc: 12
+          dc: 13
           affected: all_creatures_in_area
           on_fail:
             - primitive: apply_condition
