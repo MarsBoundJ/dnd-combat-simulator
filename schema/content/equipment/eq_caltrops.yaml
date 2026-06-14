@@ -1,0 +1,25 @@
+# eq_caltrops — Caltrops
+# Source: SRD 5.2.1 (CC-BY-4.0) — Adventuring Gear
+# Utilize action: spread over a 5-ft square within 5 ft. A creature entering
+# the area must save (DC 15) or take 1 Piercing and have Speed 0 until the
+# start of its next turn. Area-entry trigger needs the hazard-zone system
+# (WS-D) — see PR flag. DC is static (15).
+
+id: eq_caltrops
+name: Caltrops
+source: srd_5.2.1
+kind: gear
+cost: { quantity: 1, unit: gp }
+weight_lb: 2
+consumable: false
+activation: { cost: action }
+effect_primitives:
+  - primitive: forced_save
+    params:
+      ability: dexterity
+      dc: 15
+      affected: creature_entering_area
+      on_fail:
+        - primitive: damage
+          params: { dice: "", modifier: 1, type: piercing }
+      on_success: []

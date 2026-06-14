@@ -1,0 +1,12 @@
+# eq_druidic_focus_yew_wand — Yew Wand (druidic focus)
+# Source: SRD 5.2.1 (CC-BY-4.0) — Equipment tables
+
+id: eq_druidic_focus_yew_wand
+name: Yew Wand
+source: srd_5.2.1
+kind: focus
+cost: { quantity: 10, unit: gp }
+weight_lb: 1
+focus:
+  focus_type: druidic
+  form: wand

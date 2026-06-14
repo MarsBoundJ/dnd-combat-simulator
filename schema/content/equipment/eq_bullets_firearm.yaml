@@ -1,0 +1,13 @@
+# eq_bullets_firearm — Firearm Bullets
+# Source: SRD 5.2.1 (CC-BY-4.0) — Equipment tables
+
+id: eq_bullets_firearm
+name: Firearm Bullets
+source: srd_5.2.1
+kind: ammunition
+cost: { quantity: 3, unit: gp }
+weight_lb: 2
+ammunition:
+  ammo_type: bullet
+  quantity: 10
+  storage: pouch

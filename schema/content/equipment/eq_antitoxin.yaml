@@ -1,0 +1,21 @@
+# eq_antitoxin — Antitoxin
+# Source: SRD 5.2.1 (CC-BY-4.0) — Adventuring Gear
+# Bonus Action: drink a vial to gain Advantage on saving throws to avoid or end
+# the Poisoned condition for 1 hour. The condition-scoped save buff is modeled
+# as a save_modifier; the engine's save_modifier may not yet filter by the
+# condition being saved against — see PR flag.
+
+id: eq_antitoxin
+name: Antitoxin
+source: srd_5.2.1
+kind: gear
+cost: { quantity: 50, unit: gp }
+consumable: true
+activation: { cost: bonus_action }
+effect_primitives:
+  - primitive: save_modifier
+    params:
+      target: self
+      grants: advantage
+      applies_to: saves_vs_poisoned
+    lifetime: { type: timed, duration: { unit: hour, value: 1 } }

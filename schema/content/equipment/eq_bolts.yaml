@@ -1,0 +1,13 @@
+# eq_bolts — Bolts
+# Source: SRD 5.2.1 (CC-BY-4.0) — Equipment tables
+
+id: eq_bolts
+name: Bolts
+source: srd_5.2.1
+kind: ammunition
+cost: { quantity: 1, unit: gp }
+weight_lb: 1.5
+ammunition:
+  ammo_type: bolt
+  quantity: 20
+  storage: case

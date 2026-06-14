@@ -1,0 +1,11 @@
+# eq_shield — Shield
+# Source: SRD 5.2.1 (CC-BY-4.0) — Equipment tables
+
+id: eq_shield
+name: Shield
+source: srd_5.2.1
+kind: shield
+cost: { quantity: 10, unit: gp }
+weight_lb: 6
+shield:
+  ac_bonus: 2

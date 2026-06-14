@@ -1,0 +1,16 @@
+# eq_dagger — Dagger
+# Source: SRD 5.2.1 (CC-BY-4.0) — Equipment tables
+
+id: eq_dagger
+name: Dagger
+source: srd_5.2.1
+kind: weapon
+cost: { quantity: 2, unit: gp }
+weight_lb: 1
+weapon:
+  category: simple
+  range_type: melee
+  damage: { dice: "1d4", type: piercing }
+  properties: [finesse, light, thrown]
+  mastery: nick
+  range: { normal_ft: 20, long_ft: 60 }

@@ -1,0 +1,17 @@
+# eq_hand_crossbow — Hand Crossbow
+# Source: SRD 5.2.1 (CC-BY-4.0) — Equipment tables
+
+id: eq_hand_crossbow
+name: Hand Crossbow
+source: srd_5.2.1
+kind: weapon
+cost: { quantity: 75, unit: gp }
+weight_lb: 3
+weapon:
+  category: martial
+  range_type: ranged
+  damage: { dice: "1d6", type: piercing }
+  properties: [ammunition, light, loading]
+  mastery: vex
+  range: { normal_ft: 30, long_ft: 120 }
+  ammunition_type: bolt

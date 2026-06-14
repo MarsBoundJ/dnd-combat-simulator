@@ -1,0 +1,18 @@
+# eq_ring_mail — Ring Mail
+# Source: SRD 5.2.1 (CC-BY-4.0) — Equipment tables
+
+id: eq_ring_mail
+name: Ring Mail
+source: srd_5.2.1
+kind: armor
+cost: { quantity: 30, unit: gp }
+weight_lb: 40
+armor:
+  category: heavy
+  base_ac: 14
+  add_dex_modifier: false
+  max_dex_bonus: null
+  strength_requirement: 0
+  stealth_disadvantage: true
+  don_time: "10 minutes"
+  doff_time: "5 minutes"

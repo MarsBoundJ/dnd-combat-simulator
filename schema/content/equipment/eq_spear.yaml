@@ -1,0 +1,17 @@
+# eq_spear — Spear
+# Source: SRD 5.2.1 (CC-BY-4.0) — Equipment tables
+
+id: eq_spear
+name: Spear
+source: srd_5.2.1
+kind: weapon
+cost: { quantity: 1, unit: gp }
+weight_lb: 3
+weapon:
+  category: simple
+  range_type: melee
+  damage: { dice: "1d6", type: piercing }
+  versatile_damage: "1d8"
+  properties: [thrown, versatile]
+  mastery: sap
+  range: { normal_ft: 20, long_ft: 60 }

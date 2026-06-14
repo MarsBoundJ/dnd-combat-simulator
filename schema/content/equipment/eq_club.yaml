@@ -1,0 +1,15 @@
+# eq_club — Club
+# Source: SRD 5.2.1 (CC-BY-4.0) — Equipment tables
+
+id: eq_club
+name: Club
+source: srd_5.2.1
+kind: weapon
+cost: { quantity: 1, unit: sp }
+weight_lb: 2
+weapon:
+  category: simple
+  range_type: melee
+  damage: { dice: "1d4", type: bludgeoning }
+  properties: [light]
+  mastery: slow

@@ -1,0 +1,15 @@
+# eq_mace — Mace
+# Source: SRD 5.2.1 (CC-BY-4.0) — Equipment tables
+
+id: eq_mace
+name: Mace
+source: srd_5.2.1
+kind: weapon
+cost: { quantity: 5, unit: gp }
+weight_lb: 4
+weapon:
+  category: simple
+  range_type: melee
+  damage: { dice: "1d6", type: bludgeoning }
+  properties: []
+  mastery: sap

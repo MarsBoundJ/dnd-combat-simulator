@@ -1,0 +1,24 @@
+# eq_alchemists_fire — Alchemist's Fire
+# Source: SRD 5.2.1 (CC-BY-4.0) — Adventuring Gear
+# Attack action: throw at a creature within 20 ft. On a failed save: 1d4 Fire
+# AND the target starts burning (ongoing 1d4 Fire per turn until doused with
+# an action). The ongoing-burn rider needs an engine hook — see PR flag.
+
+id: eq_alchemists_fire
+name: Alchemist's Fire
+source: srd_5.2.1
+kind: gear
+cost: { quantity: 50, unit: gp }
+weight_lb: 1
+consumable: true
+activation: { cost: action }
+effect_primitives:
+  - primitive: forced_save
+    params:
+      ability: dexterity
+      dc_formula: "8 + thrower_dexterity_modifier + proficiency_bonus"
+      affected: current_target
+      on_fail:
+        - primitive: damage
+          params: { dice: "1d4", type: fire }
+      on_success: []

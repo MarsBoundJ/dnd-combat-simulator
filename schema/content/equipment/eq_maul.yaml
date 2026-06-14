@@ -1,0 +1,15 @@
+# eq_maul — Maul
+# Source: SRD 5.2.1 (CC-BY-4.0) — Equipment tables
+
+id: eq_maul
+name: Maul
+source: srd_5.2.1
+kind: weapon
+cost: { quantity: 10, unit: gp }
+weight_lb: 10
+weapon:
+  category: martial
+  range_type: melee
+  damage: { dice: "2d6", type: bludgeoning }
+  properties: [heavy, two_handed]
+  mastery: topple

@@ -1,0 +1,17 @@
+# eq_musket — Musket
+# Source: SRD 5.2.1 (CC-BY-4.0) — Equipment tables
+
+id: eq_musket
+name: Musket
+source: srd_5.2.1
+kind: weapon
+cost: { quantity: 500, unit: gp }
+weight_lb: 10
+weapon:
+  category: martial
+  range_type: ranged
+  damage: { dice: "1d12", type: piercing }
+  properties: [ammunition, loading, two_handed]
+  mastery: slow
+  range: { normal_ft: 40, long_ft: 120 }
+  ammunition_type: bullet

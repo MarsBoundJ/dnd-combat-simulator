@@ -1,0 +1,24 @@
+# eq_net — Net
+# Source: SRD 5.2.1 (CC-BY-4.0) — Adventuring Gear
+# Attack action: throw at a creature within 15 ft. On a failed save the target
+# is Restrained until it escapes; auto-succeeds if Huge or larger.
+
+id: eq_net
+name: Net
+source: srd_5.2.1
+kind: gear
+cost: { quantity: 1, unit: gp }
+weight_lb: 3
+consumable: false
+activation: { cost: action }
+effect_primitives:
+  - primitive: forced_save
+    params:
+      ability: dexterity
+      dc_formula: "8 + thrower_dexterity_modifier + proficiency_bonus"
+      affected: current_target
+      auto_success_size: huge
+      on_fail:
+        - primitive: apply_condition
+          params: { condition_id: co_restrained, duration: until_removed }
+      on_success: []

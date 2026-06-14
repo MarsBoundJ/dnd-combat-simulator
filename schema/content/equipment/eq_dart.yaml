@@ -1,0 +1,16 @@
+# eq_dart — Dart
+# Source: SRD 5.2.1 (CC-BY-4.0) — Equipment tables
+
+id: eq_dart
+name: Dart
+source: srd_5.2.1
+kind: weapon
+cost: { quantity: 5, unit: cp }
+weight_lb: 0.25
+weapon:
+  category: simple
+  range_type: ranged
+  damage: { dice: "1d4", type: piercing }
+  properties: [finesse, thrown]
+  mastery: vex
+  range: { normal_ft: 20, long_ft: 60 }

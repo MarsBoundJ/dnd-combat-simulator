@@ -1,0 +1,15 @@
+# eq_sickle — Sickle
+# Source: SRD 5.2.1 (CC-BY-4.0) — Equipment tables
+
+id: eq_sickle
+name: Sickle
+source: srd_5.2.1
+kind: weapon
+cost: { quantity: 1, unit: gp }
+weight_lb: 2
+weapon:
+  category: simple
+  range_type: melee
+  damage: { dice: "1d4", type: slashing }
+  properties: [light]
+  mastery: nick

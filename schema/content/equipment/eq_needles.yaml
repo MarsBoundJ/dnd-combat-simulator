@@ -1,0 +1,13 @@
+# eq_needles — Needles
+# Source: SRD 5.2.1 (CC-BY-4.0) — Equipment tables
+
+id: eq_needles
+name: Needles
+source: srd_5.2.1
+kind: ammunition
+cost: { quantity: 1, unit: gp }
+weight_lb: 1
+ammunition:
+  ammo_type: needle
+  quantity: 50
+  storage: pouch

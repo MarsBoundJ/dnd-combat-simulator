@@ -1,0 +1,25 @@
+# eq_hunting_trap — Hunting Trap
+# Source: SRD 5.2.1 (CC-BY-4.0) — Adventuring Gear
+# Utilize action: set the trap. A creature stepping on the plate saves (DC 13)
+# or takes 1d4 Piercing and has Speed 0 until the start of its next turn, then
+# is held by the chain until it breaks free. The placed-trap trigger needs the
+# trap system (WS-D) — see PR flag. DC is static (13).
+
+id: eq_hunting_trap
+name: Hunting Trap
+source: srd_5.2.1
+kind: gear
+cost: { quantity: 5, unit: gp }
+weight_lb: 25
+consumable: false
+activation: { cost: action }
+effect_primitives:
+  - primitive: forced_save
+    params:
+      ability: dexterity
+      dc: 13
+      affected: creature_entering_area
+      on_fail:
+        - primitive: damage
+          params: { dice: "1d4", type: piercing }
+      on_success: []

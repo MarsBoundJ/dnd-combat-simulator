@@ -1,0 +1,15 @@
+# eq_scimitar — Scimitar
+# Source: SRD 5.2.1 (CC-BY-4.0) — Equipment tables
+
+id: eq_scimitar
+name: Scimitar
+source: srd_5.2.1
+kind: weapon
+cost: { quantity: 25, unit: gp }
+weight_lb: 3
+weapon:
+  category: martial
+  range_type: melee
+  damage: { dice: "1d6", type: slashing }
+  properties: [finesse, light]
+  mastery: nick

@@ -1,0 +1,13 @@
+# eq_arrows — Arrows
+# Source: SRD 5.2.1 (CC-BY-4.0) — Equipment tables
+
+id: eq_arrows
+name: Arrows
+source: srd_5.2.1
+kind: ammunition
+cost: { quantity: 1, unit: gp }
+weight_lb: 1
+ammunition:
+  ammo_type: arrow
+  quantity: 20
+  storage: quiver

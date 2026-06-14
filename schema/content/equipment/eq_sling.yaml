@@ -1,0 +1,16 @@
+# eq_sling — Sling
+# Source: SRD 5.2.1 (CC-BY-4.0) — Equipment tables
+
+id: eq_sling
+name: Sling
+source: srd_5.2.1
+kind: weapon
+cost: { quantity: 1, unit: sp }
+weapon:
+  category: simple
+  range_type: ranged
+  damage: { dice: "1d4", type: bludgeoning }
+  properties: [ammunition]
+  mastery: slow
+  range: { normal_ft: 30, long_ft: 120 }
+  ammunition_type: bullet

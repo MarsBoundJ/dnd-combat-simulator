@@ -1,0 +1,16 @@
+# eq_javelin — Javelin
+# Source: SRD 5.2.1 (CC-BY-4.0) — Equipment tables
+
+id: eq_javelin
+name: Javelin
+source: srd_5.2.1
+kind: weapon
+cost: { quantity: 5, unit: sp }
+weight_lb: 2
+weapon:
+  category: simple
+  range_type: melee
+  damage: { dice: "1d6", type: piercing }
+  properties: [thrown]
+  mastery: slow
+  range: { normal_ft: 30, long_ft: 120 }

@@ -1,0 +1,16 @@
+# eq_war_pick — War Pick
+# Source: SRD 5.2.1 (CC-BY-4.0) — Equipment tables
+
+id: eq_war_pick
+name: War Pick
+source: srd_5.2.1
+kind: weapon
+cost: { quantity: 5, unit: gp }
+weight_lb: 2
+weapon:
+  category: martial
+  range_type: melee
+  damage: { dice: "1d8", type: piercing }
+  versatile_damage: "1d10"
+  properties: [versatile]
+  mastery: sap
