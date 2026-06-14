@@ -1,0 +1,17 @@
+# eq_healers_kit — Healer's Kit
+# Source: SRD 5.2.1 (CC-BY-4.0) — Adventuring Gear
+# Has ten uses. Utilize action: expend one use to stabilize an Unconscious
+# creature at 0 HP without a Wisdom (Medicine) check. The stabilize action has
+# no primitive in the vocabulary yet — modeled as data only; see PR flag.
+# (Equipment schema has no charge pool; the 10 uses are recorded here.)
+
+id: eq_healers_kit
+name: Healer's Kit
+source: srd_5.2.1
+kind: gear
+cost: { quantity: 5, unit: gp }
+weight_lb: 3
+consumable: false
+activation: { cost: action }
+stage4_stub:
+  uses: 10

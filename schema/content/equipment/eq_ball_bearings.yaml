@@ -1,0 +1,24 @@
+# eq_ball_bearings — Ball Bearings
+# Source: SRD 5.2.1 (CC-BY-4.0) — Adventuring Gear
+# Utilize action: spill over a 10-ft square within 10 ft. A creature entering
+# the area must save (DC 10) or have the Prone condition. Area-entry trigger
+# needs the hazard-zone system (WS-D) — see PR flag. DC is static (10).
+
+id: eq_ball_bearings
+name: Ball Bearings
+source: srd_5.2.1
+kind: gear
+cost: { quantity: 1, unit: gp }
+weight_lb: 2
+consumable: false
+activation: { cost: action }
+effect_primitives:
+  - primitive: forced_save
+    params:
+      ability: dexterity
+      dc: 10
+      affected: creature_entering_area
+      on_fail:
+        - primitive: apply_condition
+          params: { condition_id: co_prone, duration: until_removed }
+      on_success: []

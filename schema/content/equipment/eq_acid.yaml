@@ -1,0 +1,23 @@
+# eq_acid — Acid
+# Source: SRD 5.2.1 (CC-BY-4.0) — Adventuring Gear
+# Attack action: replace one attack with throwing a vial at a creature/object
+# within 20 ft. Dynamic DC (wielder-derived) — see dc_formula.
+
+id: eq_acid
+name: Acid
+source: srd_5.2.1
+kind: gear
+cost: { quantity: 25, unit: gp }
+weight_lb: 1
+consumable: true
+activation: { cost: action }
+effect_primitives:
+  - primitive: forced_save
+    params:
+      ability: dexterity
+      dc_formula: "8 + thrower_dexterity_modifier + proficiency_bonus"
+      affected: current_target
+      on_fail:
+        - primitive: damage
+          params: { dice: "2d6", type: acid }
+      on_success: []

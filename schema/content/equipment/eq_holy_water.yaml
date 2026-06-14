@@ -1,0 +1,25 @@
+# eq_holy_water — Holy Water
+# Source: SRD 5.2.1 (CC-BY-4.0) — Adventuring Gear
+# Attack action: throw at a creature within 20 ft. 2d8 Radiant on a failed
+# save. RAW affects only Fiends and Undead — the creature-type restriction has
+# no forced_save param yet; see PR flag.
+
+id: eq_holy_water
+name: Holy Water
+source: srd_5.2.1
+kind: gear
+cost: { quantity: 25, unit: gp }
+weight_lb: 1
+consumable: true
+activation: { cost: action }
+effect_primitives:
+  - primitive: forced_save
+    params:
+      ability: dexterity
+      dc_formula: "8 + thrower_dexterity_modifier + proficiency_bonus"
+      affected: current_target
+      target_restriction: [fiend, undead]
+      on_fail:
+        - primitive: damage
+          params: { dice: "2d8", type: radiant }
+      on_success: []

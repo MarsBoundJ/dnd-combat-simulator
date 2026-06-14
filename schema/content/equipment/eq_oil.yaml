@@ -1,0 +1,17 @@
+# eq_oil — Oil
+# Source: SRD 5.2.1 (CC-BY-4.0) — Adventuring Gear
+# Flask of Oil. Attack action: throw at a creature/object within 20 ft (save
+# or be covered in oil). A covered target that takes Fire damage before the oil
+# dries (1 minute) takes an extra 5 Fire damage. Also usable as lamp/lantern
+# fuel or poured to make a 5-ft square slippery and flammable. The "covered →
+# +5 Fire if ignited" rider has no engine hook — modeled as data only; see PR
+# flag.
+
+id: eq_oil
+name: Oil
+source: srd_5.2.1
+kind: gear
+cost: { quantity: 1, unit: sp }
+weight_lb: 1
+consumable: true
+activation: { cost: action }
