@@ -486,3 +486,22 @@ scoring/pipeline core lane (the only lane allowed to touch
   it off a `CombatState`), so no engine change is required — noted only so
   the archive/replay lane carries the roster (or stamps `hp_max`) when a bare
   event list is persisted without the encounter spec.
+
+## Combat-gear effect hooks (raised by WS-A2, equipment library)
+The SRD combat gear in `schema/content/equipment/` is authored schema-valid but
+six effects need engine hooks that don't exist yet. The data is inert (no action
+produced) until each lands — non-blocking. Consolidated here from PR #247 so the
+demand queue is durable. Mapped to the cycle that closes each:
+
+- **Hazard/trap area-entry triggers** → **WS-D2** (hazard zones + triggered
+  traps; already planned). Lights up Caltrops, Ball Bearings, Hunting Trap.
+- **Wielder-derived thrown-gear save DC** (`dc_formula`) → small primitive,
+  build alongside **A8** item primitives (the same hook items need). Acid,
+  Holy Water, etc.
+- **Alchemist's Fire ongoing burn** → recurring-damage rider; likely **reuse
+  `co_ignited`** (already built for Searing Smite). Small.
+- **Oil two-step ignite** (coat → ignite) and **Holy Water Fiend/Undead
+  damage restriction** (creature-type-gated rider) → small conditional riders;
+  bundle with the A8 item-primitive cycle.
+- **Healer's Kit stabilize** (stabilize a dying creature) and **Antitoxin**
+  (scoped save advantage vs poison) → small effects; A8-adjacent.
