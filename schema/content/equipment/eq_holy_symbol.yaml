@@ -1,0 +1,11 @@
+# eq_holy_symbol — Holy Symbol
+# Source: SRD 5.2.1 (CC-BY-4.0) — Equipment tables
+# Forms (Amulet/Emblem/Reliquary) and cost vary; a Cleric/Paladin can use
+# it as a Spellcasting Focus. May be emblazoned on a Shield.
+
+id: eq_holy_symbol
+name: Holy Symbol
+source: srd_5.2.1
+kind: focus
+focus:
+  focus_type: holy_symbol

@@ -1,0 +1,12 @@
+# eq_arcane_focus_wand — Wand (arcane focus)
+# Source: SRD 5.2.1 (CC-BY-4.0) — Equipment tables
+
+id: eq_arcane_focus_wand
+name: Wand
+source: srd_5.2.1
+kind: focus
+cost: { quantity: 10, unit: gp }
+weight_lb: 1
+focus:
+  focus_type: arcane
+  form: wand

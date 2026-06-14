@@ -1,0 +1,13 @@
+# eq_bullets_sling — Sling Bullets
+# Source: SRD 5.2.1 (CC-BY-4.0) — Equipment tables
+
+id: eq_bullets_sling
+name: Sling Bullets
+source: srd_5.2.1
+kind: ammunition
+cost: { quantity: 4, unit: cp }
+weight_lb: 1.5
+ammunition:
+  ammo_type: sling_bullet
+  quantity: 20
+  storage: pouch
