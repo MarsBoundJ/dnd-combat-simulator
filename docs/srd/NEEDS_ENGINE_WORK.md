@@ -456,3 +456,33 @@ Most map to buckets above; the genuinely-new gaps are noted here.
 - **Meteor Swarm** (L9, P5) — four simultaneous 40-ft-radius AoE points
 - **Gate** (L9, P4) — planar portal + summon
 - **Time Stop** (L9, P4) — grants 1d4+1 extra turns
+
+## Observability / event-stream gaps (raised by WS-F0, narrative renderer)
+These are not spell gaps — they are missing *fields on the typed event
+stream* (`CombatState.event_log`) that the narrative renderer (and any
+downstream replay/visualization) needs for a faithful line. Per the WS-F0
+escalation rule the renderer does NOT modify `engine/core/events.py` to add
+them; it renders what's present and degrades gracefully. Close these in the
+scoring/pipeline core lane (the only lane allowed to touch
+`pipeline.py`/`runner.py`/`primitives.py`).
+
+- **Action / spell name on attacks & single-target casts.** The common
+  weapon-attack and single-target-cast path emits `attack_roll` +
+  `damage_dealt` carrying actor/target **ids only** — no action id or spell
+  name. So the renderer produces "hits Orc (roll 18) for 11 fire" instead of
+  "casts Fire Bolt at Orc, hits …". Action-id-bearing events already exist
+  for *some* paths (`aoe_origin_placed`, `recharge_spent`,
+  `legendary_action_used`, `free_action_fired`, `granted_action`,
+  `spell_cancelled`), and the renderer names those. **Fix:** emit a single
+  `action_declared` (or `action_taken`) event in `pipeline.execute` /
+  `_run_slot` carrying `{actor, action_id, slot, target}` right before the
+  pipeline runs, so every chosen action is named and the following
+  attack_roll/damage can be attributed to it. Low-risk, additive — but it
+  touches a hot-core file, so it belongs to the pipeline lane.
+- **(Minor) HP maximum on damage events.** `damage_dealt` carries
+  `target_hp_remaining` but not `hp_max`, so the "cur/max (pct%)" fraction
+  needs the actor roster passed alongside the stream. The renderer already
+  handles this via its optional `actors=` roster (and `format_run` auto-pulls
+  it off a `CombatState`), so no engine change is required — noted only so
+  the archive/replay lane carries the roster (or stamps `hp_max`) when a bare
+  event list is persisted without the encounter spec.
