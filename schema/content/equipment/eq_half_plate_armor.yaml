@@ -1,0 +1,18 @@
+# eq_half_plate_armor — Half Plate Armor
+# Source: SRD 5.2.1 (CC-BY-4.0) — Equipment tables
+
+id: eq_half_plate_armor
+name: Half Plate Armor
+source: srd_5.2.1
+kind: armor
+cost: { quantity: 750, unit: gp }
+weight_lb: 40
+armor:
+  category: medium
+  base_ac: 15
+  add_dex_modifier: true
+  max_dex_bonus: 2
+  strength_requirement: 0
+  stealth_disadvantage: true
+  don_time: "5 minutes"
+  doff_time: "1 minute"

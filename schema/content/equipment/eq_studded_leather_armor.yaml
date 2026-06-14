@@ -1,0 +1,18 @@
+# eq_studded_leather_armor — Studded Leather Armor
+# Source: SRD 5.2.1 (CC-BY-4.0) — Equipment tables
+
+id: eq_studded_leather_armor
+name: Studded Leather Armor
+source: srd_5.2.1
+kind: armor
+cost: { quantity: 45, unit: gp }
+weight_lb: 13
+armor:
+  category: light
+  base_ac: 12
+  add_dex_modifier: true
+  max_dex_bonus: null
+  strength_requirement: 0
+  stealth_disadvantage: false
+  don_time: "1 minute"
+  doff_time: "1 minute"
