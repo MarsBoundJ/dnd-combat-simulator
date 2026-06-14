@@ -1,0 +1,63 @@
+# r_tiefling — Tiefling (SRD CC v5.2.1)
+# Source: SRD CC v5.2.1 p86 (PHB 2024 species)
+#
+# Wired racial fields (engine reads at runtime via pc_schema → Actor):
+#   - Size: Medium (RAW: Medium or Small, chosen at creation; we default to
+#     Medium — the per-PC Small choice is a pc_spec follow-up) · Speed: 30 ft
+#   - creature_type: humanoid
+#   - Darkvision 60 ft → stamped on Actor.darkvision_range_ft
+#
+# Captured as DATA (faithful sub-option table; not yet engine-wired):
+#   - Fiendish Legacy → Abyssal / Chthonic / Infernal (see `fiendish_legacy`):
+#     each grants a L1 damage Resistance + a cantrip, plus a prepared spell at
+#     character levels 3 and 5 (cast once/long rest without a slot).
+#
+# DEFERRED — need a pc_spec choice field + pc_schema wiring (flagged in PR):
+#   - Damage Resistance is the chosen legacy's type (Abyssal→poison,
+#     Chthonic→necrotic, Infernal→fire). We deliberately do NOT bake
+#     `damage_resistances` (baking one type would mis-model the other two
+#     legacies). Needs a pc_spec `fiendish_legacy:` field that pc_schema reads
+#     to stamp the resistance (same shape as the Dragonborn ancestry follow-up).
+#   - Otherworldly Presence (Thaumaturgy cantrip) + the L3/L5 legacy spells —
+#     utility / no race-spell-grant path wired.
+
+id: r_tiefling
+name: Tiefling
+source: srd_5.2.1
+
+creature_type: humanoid
+size: medium
+speed:
+  walk: 30
+darkvision_range_ft: 60
+
+# No INNATE resistance — the Tiefling's Resistance is its chosen Fiendish
+# Legacy type (deferred; see header). Left empty so no wrong type is baked.
+damage_resistances: []
+
+racial_traits:
+  - t_fiendish_legacy        # DEFERRED: chosen-legacy resistance + spells
+                              # (needs a pc_spec `fiendish_legacy:` choice)
+
+# Fiendish Legacies table (SRD p86). resistance is stamped from the chosen
+# legacy at build time (deferred wiring).
+fiendish_legacy:
+  abyssal:
+    resistance: poison
+    cantrip: poison_spray
+    level_3_spell: ray_of_sickness
+    level_5_spell: hold_person
+  chthonic:
+    resistance: necrotic
+    cantrip: chill_touch
+    level_3_spell: false_life
+    level_5_spell: ray_of_enfeeblement
+  infernal:
+    resistance: fire
+    cantrip: fire_bolt
+    level_3_spell: hellish_rebuke
+    level_5_spell: darkness
+
+# Otherworldly Presence — Thaumaturgy cantrip (utility; deferred).
+otherworldly_presence:
+  cantrip: thaumaturgy

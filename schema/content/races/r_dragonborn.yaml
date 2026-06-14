@@ -1,0 +1,87 @@
+# r_dragonborn — Dragonborn (SRD CC v5.2.1)
+# Source: SRD CC v5.2.1 p84 (PHB 2024 species)
+#
+# Wired racial fields (engine reads at runtime via pc_schema → Actor):
+#   - Size: Medium · Speed: 30 ft · creature_type: humanoid
+#   - Darkvision 60 ft → stamped on Actor.darkvision_range_ft
+#
+# Captured as DATA (faithful sub-option tables; not yet engine-wired):
+#   - Draconic Ancestry → choice of dragon sets the Breath Weapon /
+#     Damage Resistance damage type (see `draconic_ancestry` map below).
+#   - Breath Weapon (see `breath_weapon`): replace one Attack-action attack
+#     with a 15-ft Cone OR 30-ft Line (5 ft wide); each creature makes a DEX
+#     save (DC 8 + CON + PB); 1d10 of the ancestry type on a fail, half on a
+#     success; scales 2d10/3d10/4d10 at character levels 5/11/17; uses = PB,
+#     regained on a Long Rest.
+#
+# DEFERRED — need a new engine primitive / a pc_spec choice field + pc_schema
+# wiring (flagged in the PR, NOT in NEEDS_ENGINE_WORK.md per concurrency):
+#   - Damage Resistance: the Dragonborn resists ONE type chosen via Draconic
+#     Ancestry. We deliberately do NOT bake `damage_resistances` (baking any
+#     single type would mis-model the other ancestries). Needs a pc_spec
+#     `draconic_ancestry:` field that pc_schema reads to stamp the resistance
+#     (mirrors the existing Draconic-Sorcery `draconic_element` → resistance
+#     path) + a breath-weapon action builder (the breath is a recharge-style
+#     replace-an-attack AoE save, like a monster breath but PB-limited/LR).
+#   - Draconic Flight (character level 5 bonus-action temporary fly) — Fly
+#     speed grant exists, but the L5 gating + 10-min duration are unmodeled.
+
+id: r_dragonborn
+name: Dragonborn
+source: srd_5.2.1
+
+creature_type: humanoid
+size: medium
+speed:
+  walk: 30
+darkvision_range_ft: 60
+
+# No INNATE (always-on) resistance — the Dragonborn's Damage Resistance is
+# the chosen Draconic Ancestry type (deferred; see header). Left empty so no
+# wrong type is baked onto every Dragonborn.
+damage_resistances: []
+
+racial_traits:
+  - t_breath_weapon          # DEFERRED: replace-an-attack AoE breath (data
+                              # in `breath_weapon`); needs an action builder
+  - t_draconic_resistance    # DEFERRED: resist the chosen ancestry type;
+                              # needs a pc_spec `draconic_ancestry:` choice
+
+# Draconic Ancestors table (SRD p84) — chosen dragon → breath/resistance type.
+draconic_ancestry:
+  black:  acid
+  blue:   lightning
+  brass:  fire
+  bronze: lightning
+  copper: acid
+  gold:   fire
+  green:  poison
+  red:    fire
+  silver: cold
+  white:  cold
+
+# Breath Weapon spec (SRD p84). damage_type is resolved from the chosen
+# draconic_ancestry at build time (deferred wiring).
+breath_weapon:
+  trigger: replace_one_attack       # used in place of one Attack-action attack
+  shapes:                            # choose the shape on each use
+    - { shape: cone, length_ft: 15 }
+    - { shape: line, length_ft: 30, width_ft: 5 }
+  save:
+    ability: dexterity
+    dc_formula: "8 + con_mod + proficiency_bonus"
+  base_dice: "1d10"
+  half_on_success: true
+  # Character-level → total breath dice (SRD: +1d10 at 5/11/17).
+  scaling:
+    1: "1d10"
+    5: "2d10"
+    11: "3d10"
+    17: "4d10"
+  uses_per: proficiency_bonus
+  recharge: long_rest
+
+# Draconic Flight — captured for completeness; deferred (see header).
+draconic_flight:
+  level: 5
+  recharge: long_rest
