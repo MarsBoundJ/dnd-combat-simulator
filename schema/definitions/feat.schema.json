@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MarsBoundJ/dnd-combat-simulator/schema/definitions/feat.schema.json",
+  "title": "Feat",
+  "description": "A feat (2024 rules), in four categories: origin, general, fighting_style, epic_boon. Feats are an instance of the unified ability pattern — their mechanical effects are expressed as effect_primitives, mirroring feature.schema.json. See docs/srd/srd-coverage-audit.md §3 and stages-1-3-plan.md WS-A4.",
+
+  "type": "object",
+  "required": ["id", "name", "source", "category"],
+  "additionalProperties": false,
+
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^ft_[a-z0-9_]+$",
+      "description": "Stable id; ft_ prefix + lowercase snake_case (e.g. ft_great_weapon_master)."
+    },
+    "name": { "type": "string" },
+    "source": { "$ref": "common.schema.json#/$defs/source" },
+
+    "category": {
+      "type": "string",
+      "enum": ["origin", "general", "fighting_style", "epic_boon"],
+      "description": "Feat category (2024). Gates eligibility: origin = at character creation; general = level 4+ (typically); fighting_style = requires a Fighting Style feature; epic_boon = level 19+."
+    },
+
+    "prerequisites": {
+      "description": "Eligibility gates. Empty/absent = no prerequisite. Validated by engine/creation.py (WS-A6), which separates rules_valid from engine_supported.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "min_level": { "type": "integer", "minimum": 1 },
+        "ability_scores": {
+          "type": "array",
+          "description": "Minimum ability scores required (any-of unless all_required is true).",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "ability": { "$ref": "common.schema.json#/$defs/ability_score_label" },
+              "min": { "type": "integer", "minimum": 1, "maximum": 30 }
+            },
+            "required": ["ability", "min"]
+          }
+        },
+        "ability_scores_all_required": {
+          "type": "boolean",
+          "default": false,
+          "description": "false = any one listed ability meeting `min` qualifies (e.g. 'Str or Dex 13+'); true = all must meet their min."
+        },
+        "requires_feature": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Feature ids required (e.g. a Fighting Style feature for fighting_style feats; Spellcasting for some general feats)."
+        },
+        "other": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Free-text prerequisite facts that don't map to a structured gate (e.g. 'Spellcasting or Pact Magic feature')."
+        }
+      }
+    },
+
+    "repeatable": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether the feat can be taken more than once (e.g. Ability Score Improvement)."
+    },
+
+    "ability_score_increase": {
+      "description": "The ASI option many feats grant. `points` total to distribute; `per_ability_max` caps points per ability (1 or 2); `from` restricts which abilities; `max_score` is the per-score ceiling (20, or 30 for some epic boons).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "points": { "type": "integer", "minimum": 1 },
+        "per_ability_max": { "type": "integer", "minimum": 1 },
+        "from": {
+          "oneOf": [
+            { "type": "string", "enum": ["any"] },
+            { "type": "array", "items": { "$ref": "common.schema.json#/$defs/ability_score_label" } }
+          ]
+        },
+        "max_score": { "type": "integer", "default": 20 }
+      }
+    },
+
+    "grants": {
+      "description": "Non-effect things a feat confers at acquisition: proficiencies, spells/cantrips (Magic Initiate), a fighting style, speeds, etc. References use the relevant content ids where modeled.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "skill_proficiencies": { "type": "array", "items": { "type": "string" } },
+        "skill_proficiency_choices": { "type": "integer", "minimum": 1 },
+        "tool_proficiencies": { "type": "array", "items": { "type": "string" } },
+        "expertise": { "type": "array", "items": { "type": "string" } },
+        "cantrips": { "type": "array", "items": { "type": "string" } },
+        "spells": { "type": "array", "items": { "type": "string" } },
+        "fighting_style": { "type": "string", "description": "ft_* id of a fighting-style feat granted." },
+        "languages": { "type": "integer", "minimum": 1 },
+        "speeds": { "type": "object", "additionalProperties": { "type": "integer" } }
+      }
+    },
+
+    "activation": { "$ref": "common.schema.json#/$defs/activation" },
+    "usage": { "$ref": "common.schema.json#/$defs/usage" },
+    "resource_cost": { "$ref": "common.schema.json#/$defs/resource_cost" },
+
+    "trigger": {
+      "description": "For feats whose effects fire on an event (e.g. an opportunity-attack-shaped feat). Mirrors feature.schema.json#trigger.",
+      "type": "object",
+      "properties": {
+        "event": { "$ref": "common.schema.json#/$defs/event_name" },
+        "conditions": { "type": "array", "items": { "type": "string" } },
+        "chosen_by": { "type": "string", "enum": ["actor", "automatic"] }
+      }
+    },
+
+    "effect_primitives": {
+      "description": "The mechanical-effect hook — the engine-real part of the feat, expressed as primitives (e.g. attack_modifier, save_modifier, damage). Mirrors feature.schema.json. Feats with no modeled combat effect (Skilled, Tavern Brawler's social bits) omit this.",
+      "type": "array",
+      "items": { "$ref": "common.schema.json#/$defs/effect_primitive" }
+    },
+
+    "aliases": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Alternate internal names for content resolution (WS-I import matching)."
+    },
+    "public_name": {
+      "type": "string",
+      "description": "PI-safe public display name override (WS-I rename layer, plan §3.8)."
+    },
+
+    "stage4_stub": {
+      "type": "object",
+      "description": "Namespaced Stage-4 extension blob (plan §3.10): non-combat / exploration / social facets of the feat. No engine semantics; speculative data only.",
+      "additionalProperties": true
+    }
+  }
+}

@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MarsBoundJ/dnd-combat-simulator/schema/definitions/magic_item.schema.json",
+  "title": "Magic Item",
+  "description": "Magic items & potions, treated as a primitive family with an interaction matrix (stages-1-3-plan.md A8): attunement, activation timing, charges, consumable action-economy, and three mechanical hooks — +X via the modifier registry (`bonus` / `effect_primitives`), charges via feature-uses (`charges`), spell-granting via `casts`. See docs/srd/srd-coverage-audit.md §5. The mi_* content library is WS-A8.",
+
+  "type": "object",
+  "required": ["id", "name", "source", "category", "rarity"],
+  "additionalProperties": false,
+
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^mi_[a-z0-9_]+$",
+      "description": "Stable id; mi_ prefix + lowercase snake_case (e.g. mi_ring_of_protection, mi_potion_of_healing_greater)."
+    },
+    "name": { "type": "string" },
+    "source": { "$ref": "common.schema.json#/$defs/source" },
+
+    "category": {
+      "type": "string",
+      "enum": ["armor", "potion", "ring", "rod", "scroll", "staff", "wand", "weapon", "wondrous"],
+      "description": "Magic-item category (SRD 5.2.1 Magic Item Categories)."
+    },
+    "rarity": {
+      "type": "string",
+      "enum": ["common", "uncommon", "rare", "very_rare", "legendary", "artifact"]
+    },
+
+    "attunement": {
+      "description": "Attunement gate (cap of 3 attuned items validated in PCSpec, plan §3.1). `requirement` is a free-text restriction fact (e.g. 'by a Spellcaster', 'by a Bard, Cleric, or Druid') when present.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "required": { "type": "boolean" },
+        "requirement": { "type": "string" }
+      },
+      "required": ["required"]
+    },
+
+    "consumable": {
+      "type": "boolean",
+      "description": "True for one-shot items consumed on use (potions, scrolls, some wondrous items). Drives consumable action-economy scoring (plan A8)."
+    },
+
+    "activation": {
+      "description": "How the item is used in combat (drink a potion = action; command word; etc.). Reuses the shared activation shape.",
+      "$ref": "common.schema.json#/$defs/activation"
+    },
+
+    "charges": {
+      "description": "Charge pool (the feature_uses hook, plan A8). `max` charges; `recharge` describes daily/dawn recovery; `destroy_on_last_charge` for items that crumble (e.g. some staffs on the d20=1 rule).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max": { "type": "integer", "minimum": 0 },
+        "recharge": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "dice": { "type": "string", "description": "e.g. '1d6+4' regained." },
+            "fixed": { "type": "integer", "description": "Fixed charges regained." },
+            "period": { "type": "string", "enum": ["dawn", "short_rest", "long_rest", "day"] }
+          }
+        },
+        "destroy_on_last_charge": { "type": "boolean" }
+      }
+    },
+
+    "bonus": {
+      "description": "Static +X bonuses applied via the modifier registry (plan A8). Any subset; e.g. Ring of Protection = { ac: 1, saving_throws: 1 }; a +2 weapon = { attack: 2, damage: 2 }.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ac": { "type": "integer" },
+        "attack": { "type": "integer" },
+        "damage": { "type": "integer" },
+        "saving_throws": { "type": "integer", "description": "Bonus to all saving throws." },
+        "spell_attack": { "type": "integer" },
+        "spell_save_dc": { "type": "integer" }
+      }
+    },
+
+    "casts": {
+      "description": "Spell-granting hook (plan A8; mirrors monster `casts`). Each entry references a built spell and how the item pays for it (charge cost, at-will, or per-day) and the save DC / attack used.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "spell": { "type": "string", "description": "sp_* spell id the item can cast." },
+          "charge_cost": { "type": "integer", "minimum": 0 },
+          "at_will": { "type": "boolean" },
+          "per_day": { "type": "integer", "minimum": 1 },
+          "save_dc": { "type": "integer" },
+          "attack_bonus": { "type": "integer" },
+          "fixed_level": { "type": "integer", "minimum": 0, "description": "Slot level the item casts the spell at, if fixed." }
+        },
+        "required": ["spell"]
+      }
+    },
+
+    "effect_primitives": {
+      "description": "The general mechanical hook — modifier-ride and on-event effects expressed as primitives (same vocabulary as features), for items whose effect isn't a simple `bonus` or `casts` (e.g. resistance grants, on-hit riders, condition immunity). ",
+      "type": "array",
+      "items": { "$ref": "common.schema.json#/$defs/effect_primitive" }
+    },
+
+    "applies_to": {
+      "description": "For items that enhance a base item rather than stand alone (e.g. '+1 Armor', 'Armor of Resistance', 'Ammunition +1'). Names the base equipment kind and any restriction.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "equipment_kind": {
+          "type": "string",
+          "enum": ["weapon", "armor", "shield", "ammunition"]
+        },
+        "restriction": { "type": "string", "description": "e.g. 'any Light, Medium, or Heavy', 'Battleaxe, Greataxe, or Halberd'." }
+      }
+    },
+
+    "aliases": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Alternate internal names for content resolution (WS-I import matching)."
+    },
+    "public_name": {
+      "type": "string",
+      "description": "PI-safe public display name override (WS-I rename layer, plan §3.8). The #1 use case for non-SRD popular items shipped in the public bundle."
+    },
+
+    "stage4_stub": {
+      "type": "object",
+      "description": "Namespaced Stage-4 extension blob (plan §3.10): item lore, sentience facts, crafting/curse flavor. No engine semantics; speculative data only.",
+      "additionalProperties": true
+    }
+  }
+}
