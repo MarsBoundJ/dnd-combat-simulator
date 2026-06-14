@@ -98,15 +98,35 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
       KeyError if the referenced class isn't in the registry.
       ValueError if required fields are missing or out of range.
     """
-    class_id = pc_spec.get("class")
-    if not class_id:
-        raise ValueError("pc spec missing required field: class")
-    level = int(pc_spec.get("level", 1))
-    if level < 1 or level > 20:
-        raise ValueError(f"pc level must be in [1, 20], got {level}")
+    from engine.core import multiclass as mc
+
+    # B2: normalize the class declaration. Accepts the ordered multiclass
+    # `classes: [{class, level, subclass?}, ...]` form OR the single-class
+    # `class:`+`level:` sugar (one-entry list). The FIRST entry is the initial
+    # class — it drives saving-throw proficiencies, the L1 (max-die) Hit Points,
+    # armor training, and (for B2) the primary feature/action derivation below.
+    # normalize_classes validates levels (>=1) and total character level [1,20].
+    classes = mc.normalize_classes(pc_spec)
+    total_character_level = mc.total_level(classes)
+    primary = classes[0]
+    class_id = primary["class"]
+    level = int(primary["level"])
 
     abilities_raw = pc_spec.get("ability_scores") or {}
     ability_scores = _resolve_ability_scores(abilities_raw)
+
+    # SRD multiclass prerequisite (page 24): >= 13 in the primary ability of
+    # EVERY class in a multiclass build (the new class AND your current ones).
+    # A single-class character's initial class has no ability-score prereq, so
+    # this only fires for genuine multiclass specs.
+    if mc.is_multiclass(classes):
+        _prereq_failures = mc.check_prerequisites(
+            [c["class"] for c in classes], ability_scores)
+        if _prereq_failures:
+            raise ValueError(
+                "multiclass prerequisites not met (SRD requires score >= 13 "
+                "in each class's primary ability): "
+                + "; ".join(_prereq_failures))
 
     class_def = content_registry.get("class", class_id)
 
@@ -128,7 +148,8 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
                 f"r_halfling, r_human."
             )
 
-    proficiency_bonus = _lookup_pb(class_def, level)
+    # PB is by TOTAL character level (SRD page 25), never per class.
+    proficiency_bonus = mc.proficiency_bonus(total_character_level)
     save_profs = set(class_def.get("core_traits", {})
                        .get("save_proficiencies", []))
 
@@ -194,10 +215,15 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
     _validate_weapon_masteries_cap(
         weapon_masteries, class_def, level, class_id)
 
-    # Derive HP
+    # Derive HP across ALL hit dice (SRD page 25): the first class's first
+    # level (= character level 1) uses the max die; every other class-level
+    # uses the fixed average; CON applies to each. Single-class reduces to the
+    # prior _compute_hp result exactly. `hit_die` (primary class) is retained
+    # for the cosmetic single-class dice string fallback.
     hit_die = class_def.get("core_traits", {}).get("hit_die", "d8")
     con_mod = ability_modifier(ability_scores["con"]["score"])
-    hp = _compute_hp(hit_die, level, con_mod)
+    _class_levels = [(c["class"], c["level"]) for c in classes]
+    hp = mc.multiclass_hit_points(_class_levels, con_mod)
 
     # Derive AC (Defense Fighting Style adds +1 when armor is present)
     armor_spec = pc_spec.get("armor") or {}
@@ -252,7 +278,8 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
     # resource derivation, runtime feature gates — pick them up with no
     # subclass-specific branching. A PC without a subclass is unchanged.
     subclass_def = _resolve_subclass(
-        pc_spec, class_def, class_id, level, content_registry)
+        pc_spec, class_def, class_id, level, content_registry,
+        subclass_id=primary.get("subclass"))
     if subclass_def:
         features_known = set(features_known) | _subclass_features_at_level(
             subclass_def, level)
@@ -384,8 +411,10 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
             "armor_class": ac,
             "hit_points": {
                 "average": hp,
-                "dice": f"{level}{hit_die}",
-                "con_contribution": con_mod * level,
+                # Pooled Hit Dice across all classes (e.g. "2d10+3d6");
+                # reduces to "5d10" for a single-class PC.
+                "dice": mc.hit_dice_string(_class_levels),
+                "con_contribution": con_mod * total_character_level,
             },
             "speed": speed,
             "initiative": {
@@ -439,7 +468,8 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
         # `levels.barbarian`; PR #72's SA reads `levels.rogue`;
         # PR #73's Divine Smite reads `levels.paladin`. Same
         # convention everywhere.
-        "levels": {_short_class_name(class_id): level},
+        "levels": {_short_class_name(c["class"]): int(c["level"])
+                   for c in classes},
         # PR #85: features the PC has at this level — passive +
         # active feature ids accumulated from class.level_table.features
         # entries up to and including `level`. Read by runtime gates
@@ -458,7 +488,18 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
         # as a fallback when the actor_spec doesn't declare its own
         # `spell_slots:`. Empty dict for non-casters or for classes
         # whose table doesn't declare the field.
-        "spell_slots": _derive_class_spell_slots(class_def, level),
+        #
+        # B2/B4 boundary: for a MULTICLASS PC the shared slot pool comes from
+        # the Multiclass Spellcaster table (combined caster level), NOT the
+        # primary class's single-class progression. That ALLOCATION is B4
+        # (engine.core.multiclass.multiclass_spell_slots is the locked, tested
+        # source it will consume). Until then we leave a multiclass caster's
+        # pool EMPTY rather than stamp the primary class's single-class slots —
+        # an obviously-incomplete pool is safe; subtly-wrong slot math is the
+        # exact corruption the §9 G#1 blocker warns against. Single-class PCs
+        # are unchanged (byte-identical to prior behavior).
+        "spell_slots": ({} if mc.is_multiclass(classes)
+                        else _derive_class_spell_slots(class_def, level)),
         # PR #104: spellcasting ability (from the class's spellcasting
         # block — 'charisma' for Paladin/Warlock, 'intelligence' for
         # Wizard, etc.). Read by _resolve_dc to compute the correct
@@ -466,10 +507,15 @@ def build_pc_template(pc_spec: dict, content_registry: Any) -> dict:
         # non-casters; _resolve_dc falls back to INT.
         "spellcasting_ability": (
             (class_def.get("spellcasting") or {}).get("ability")),
-        # Tag for telemetry / debugging
+        # Tag for telemetry / debugging. `class`/`level` remain the PRIMARY
+        # (initial) class for back-compat with single-class readers; the full
+        # ordered multiclass set + total character level are recorded too.
         "derived_from_pc_schema": {
             "class": class_id,
             "level": level,
+            "classes": [{"class": c["class"], "level": int(c["level"]),
+                          "subclass": c.get("subclass")} for c in classes],
+            "total_level": total_character_level,
             "fighting_style": fighting_style,    # None if not chosen
             "skill_proficiencies": list(skill_proficiencies),
             "skill_expertise": list(skill_expertise),
@@ -555,10 +601,18 @@ def derive_pc_resources(pc_spec: dict, content_registry: Any) -> dict:
     registry (e.g., custom inline-template fixtures that happen to
     declare a PC without a registry class).
     """
-    class_id = pc_spec.get("class")
-    if not class_id:
+    # B2: resolve the PRIMARY (initial) class from either the `classes:` list
+    # or the `class:`+`level:` sugar. Resources from SECONDARY multiclass
+    # classes are a later cycle (B3+); B2 derives the primary class's resources
+    # (and is defensive — a malformed/empty spec returns {} per the contract).
+    from engine.core import multiclass as mc
+    try:
+        _classes = mc.normalize_classes(pc_spec)
+    except ValueError:
         return {}
-    level = int(pc_spec.get("level", 1))
+    primary = _classes[0]
+    class_id = primary["class"]
+    level = int(primary["level"])
     if level < 1:
         return {}
     try:
@@ -573,7 +627,8 @@ def derive_pc_resources(pc_spec: dict, content_registry: Any) -> dict:
     # grants a use-limited feature). Merge them in the same way
     # build_pc_template does, so resource derivation sees the full set.
     subclass_def = _resolve_subclass(
-        pc_spec, class_def, class_id, level, content_registry)
+        pc_spec, class_def, class_id, level, content_registry,
+        subclass_id=primary.get("subclass"))
     if subclass_def:
         features_known = set(features_known) | _subclass_features_at_level(
             subclass_def, level)
@@ -1154,10 +1209,13 @@ def _subclass_features_at_level(subclass_def: dict, level: int) -> set[str]:
 
 
 def _resolve_subclass(pc_spec: dict, class_def: dict, class_id: str,
-                       level: int, content_registry: Any) -> dict | None:
+                       level: int, content_registry: Any,
+                       subclass_id: str | None = None) -> dict | None:
     """Validate + return the PC's chosen subclass definition, or None.
 
-    `pc_spec.subclass` (e.g. "sc_champion") is optional. When set it must:
+    The subclass id is `subclass_id` when provided (B2: the PRIMARY class's
+    subclass, read from the normalized `classes:` entry), else the legacy
+    top-level `pc_spec.subclass`. When set it must:
       - resolve to a subclass in the content registry,
       - have `parent_class` equal to the PC's class, and
       - be allowed at the PC's level (>= the class's subclass_grant_level,
@@ -1167,7 +1225,7 @@ def _resolve_subclass(pc_spec: dict, class_def: dict, class_id: str,
     or chosen below the grant level). Returns None when no subclass is
     specified — backward-compatible with every existing subclass-less PC.
     """
-    sub_id = pc_spec.get("subclass")
+    sub_id = subclass_id if subclass_id is not None else pc_spec.get("subclass")
     if not sub_id:
         return None
     try:
