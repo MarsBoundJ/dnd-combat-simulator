@@ -1,0 +1,49 @@
+# r_gnome — Gnome (SRD CC v5.2.1)
+# Source: SRD CC v5.2.1 p85 (PHB 2024 species)
+#
+# Wired racial fields (engine reads at runtime via pc_schema → Actor):
+#   - Size: Small → stamped on Actor.size (gates size-based mechanics, e.g.
+#     Push immunity is Large-or-smaller, so Small is pushable)
+#   - Speed: 30 ft · creature_type: humanoid
+#   - Darkvision 60 ft → stamped on Actor.darkvision_range_ft
+#
+# Captured as DATA (faithful sub-options; not yet engine-wired):
+#   - Gnomish Lineage → Forest or Rock (see `gnomish_lineage`).
+#
+# DEFERRED — need new engine wiring (flagged in the PR):
+#   - Gnomish Cunning: Advantage on INT / WIS / CHA saving throws. The
+#     racial save-advantage mechanism (engine.core.racial_traits.
+#     SAVE_CONDITION_TRIGGERS) keys off the CONDITION applied on a failed
+#     save, not the save ABILITY, so an ability-keyed advantage needs a new
+#     trigger path in racial_traits/query_save_modifiers. Flag `t_gnomish_
+#     cunning` is registered as data for that future hook.
+#   - Forest/Rock lineage spells + cantrips (Minor Illusion, Speak with
+#     Animals; Mending, Prestidigitation + the clockwork device) — utility /
+#     out-of-combat; no spell-grant-from-race path wired.
+
+id: r_gnome
+name: Gnome
+source: srd_5.2.1
+
+creature_type: humanoid
+size: small
+speed:
+  walk: 30
+darkvision_range_ft: 60
+
+damage_resistances: []
+
+racial_traits:
+  - t_gnomish_cunning        # DEFERRED: advantage on INT/WIS/CHA saves
+                              # (needs an ability-keyed save-advantage path)
+
+# Gnomish Lineage (SRD p85) — choose one; INT/WIS/CHA is the spellcasting
+# ability for the granted spells (chosen with the lineage). All effects are
+# utility/out-of-combat → captured as data, deferred for wiring.
+gnomish_lineage:
+  forest_gnome:
+    cantrips: [minor_illusion]
+    prepared_spells: [speak_with_animals]   # PB casts/long rest, no slot
+  rock_gnome:
+    cantrips: [mending, prestidigitation]
+    feature: clockwork_device               # AC 5, 1 HP tiny device (utility)

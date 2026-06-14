@@ -1,0 +1,54 @@
+# r_orc — Orc (SRD CC v5.2.1)
+# Source: SRD CC v5.2.1 p86 (PHB 2024 species)
+#
+# Wired racial fields (engine reads at runtime via pc_schema → Actor):
+#   - Size: Medium · Speed: 30 ft · creature_type: humanoid
+#   - Darkvision 120 ft → stamped on Actor.darkvision_range_ft (the Orc's
+#     signature long-range Darkvision; vision queries read this directly)
+#
+# Captured as DATA (faithful trait specs; not yet engine-wired):
+#   - Adrenaline Rush (see `adrenaline_rush`) · Relentless Endurance
+#     (see `relentless_endurance`).
+#
+# DEFERRED — need new engine primitives (flagged in the PR):
+#   - Adrenaline Rush: Dash as a Bonus Action + Temp HP = PB; PB uses, regained
+#     on a Short OR Long Rest. A bonus-action Dash exists (Cunning Action's
+#     `dash` primitive) and temp-HP grants exist (`temp_hp_grant`), but a
+#     race-granted, PB-use-limited, short-rest-recharging bonus action needs a
+#     small builder + resource (`adrenaline_rush_uses_remaining`).
+#   - Relentless Endurance: when reduced to 0 HP but not killed outright, drop
+#     to 1 HP instead; once per Long Rest. This is a drop-to-1-HP-on-zero
+#     death-prevention trigger (the Zombie "Undead Fortitude" / Half-Orc
+#     shape) — no such trigger hook exists at the _damage 0-HP processing
+#     site. `t_relentless_endurance` is registered as the data hook.
+
+id: r_orc
+name: Orc
+source: srd_5.2.1
+
+creature_type: humanoid
+size: medium
+speed:
+  walk: 30
+darkvision_range_ft: 120
+
+damage_resistances: []
+
+racial_traits:
+  - t_adrenaline_rush        # DEFERRED: BA Dash + PB temp HP, PB/short rest
+  - t_relentless_endurance   # DEFERRED: drop to 1 HP instead of 0, 1/long rest
+
+# Adrenaline Rush (SRD p86).
+adrenaline_rush:
+  slot: bonus_action
+  grants: dash
+  temp_hp: proficiency_bonus
+  uses_per: proficiency_bonus
+  recharge: short_or_long_rest
+
+# Relentless Endurance (SRD p86) — drop-to-1-HP death-prevention trigger.
+relentless_endurance:
+  trigger: reduced_to_zero_not_killed_outright
+  effect: drop_to_1_hp
+  uses: 1
+  recharge: long_rest

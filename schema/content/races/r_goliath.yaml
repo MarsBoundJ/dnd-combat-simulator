@@ -1,0 +1,79 @@
+# r_goliath — Goliath (SRD CC v5.2.1)
+# Source: SRD CC v5.2.1 p85-86 (PHB 2024 species)
+#
+# Wired racial fields (engine reads at runtime via pc_schema → Actor):
+#   - Size: Medium · creature_type: humanoid
+#   - Speed: 35 ft → stamped on Actor.speed (Goliaths are the fast Medium
+#     species; runtime movement/positioning reads template.combat.speed)
+#   - Darkvision: NONE (RAW — Goliaths have no Darkvision)
+#
+# Captured as DATA (faithful sub-options; not yet engine-wired):
+#   - Giant Ancestry → choose one supernatural boon (see `giant_ancestry`);
+#     uses = PB, regained on a Long Rest.
+#
+# DEFERRED — need new engine primitives (flagged in the PR):
+#   - Giant Ancestry boons are PB/long-rest limited triggered effects:
+#       * Fire's Burn / Frost's Chill / Hill's Tumble — on-hit damage/condition
+#         riders (like the Giant-ancestry monster trait primitives, but
+#         PB-use-limited and player-chosen)
+#       * Cloud's Jaunt — bonus-action 30-ft teleport
+#       * Stone's Endurance — reaction damage reduction (1d12 + CON)
+#       * Storm's Thunder — reaction retaliation (1d8 thunder ≤60 ft)
+#     `t_giant_ancestry` + `t_powerful_build` are registered as data hooks.
+#   - Large Form (character level 5 bonus-action grow to Large) — size-change
+#     exists (shape_shift), but the L5 gating + STR-check/speed buff unmodeled.
+#   - Powerful Build: advantage to end Grappled + carry as one size larger —
+#     no grapple-escape ability-check path / encumbrance modeled.
+
+id: r_goliath
+name: Goliath
+source: srd_5.2.1
+
+creature_type: humanoid
+size: medium
+speed:
+  walk: 35
+darkvision_range_ft: 0
+
+damage_resistances: []
+
+racial_traits:
+  - t_powerful_build         # DEFERRED: adv to end Grappled + carry capacity
+  - t_giant_ancestry         # DEFERRED: the chosen boon (see giant_ancestry)
+
+# Giant Ancestry (SRD p85-86) — choose ONE boon; PB uses / long rest.
+giant_ancestry:
+  uses_per: proficiency_bonus
+  recharge: long_rest
+  options:
+    clouds_jaunt:            # Cloud Giant
+      kind: teleport
+      slot: bonus_action
+      distance_ft: 30
+    fires_burn:             # Fire Giant
+      kind: on_hit_damage
+      dice: "1d10"
+      damage_type: fire
+    frosts_chill:           # Frost Giant
+      kind: on_hit_damage_and_slow
+      dice: "1d6"
+      damage_type: cold
+      speed_reduction_ft: 10
+    hills_tumble:           # Hill Giant — Large or smaller target → Prone
+      kind: on_hit_condition
+      condition: co_prone
+      size_gate: large_or_smaller
+    stones_endurance:       # Stone Giant
+      kind: reaction_damage_reduction
+      dice: "1d12"
+      add_modifier: con_mod
+    storms_thunder:         # Storm Giant
+      kind: reaction_retaliation
+      dice: "1d8"
+      damage_type: thunder
+      range_ft: 60
+
+# Large Form — captured for completeness; deferred (see header).
+large_form:
+  level: 5
+  recharge: long_rest
