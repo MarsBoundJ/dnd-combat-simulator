@@ -1,0 +1,17 @@
+# eq_pistol — Pistol
+# Source: SRD 5.2.1 (CC-BY-4.0) — Equipment tables
+
+id: eq_pistol
+name: Pistol
+source: srd_5.2.1
+kind: weapon
+cost: { quantity: 250, unit: gp }
+weight_lb: 3
+weapon:
+  category: martial
+  range_type: ranged
+  damage: { dice: "1d10", type: piercing }
+  properties: [ammunition, loading]
+  mastery: vex
+  range: { normal_ft: 30, long_ft: 90 }
+  ammunition_type: bullet

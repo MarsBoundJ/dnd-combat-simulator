@@ -1,0 +1,17 @@
+# eq_longbow — Longbow
+# Source: SRD 5.2.1 (CC-BY-4.0) — Equipment tables
+
+id: eq_longbow
+name: Longbow
+source: srd_5.2.1
+kind: weapon
+cost: { quantity: 50, unit: gp }
+weight_lb: 2
+weapon:
+  category: martial
+  range_type: ranged
+  damage: { dice: "1d8", type: piercing }
+  properties: [ammunition, heavy, two_handed]
+  mastery: slow
+  range: { normal_ft: 150, long_ft: 600 }
+  ammunition_type: arrow

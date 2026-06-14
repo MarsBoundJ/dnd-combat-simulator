@@ -1,0 +1,15 @@
+# eq_morningstar — Morningstar
+# Source: SRD 5.2.1 (CC-BY-4.0) — Equipment tables
+
+id: eq_morningstar
+name: Morningstar
+source: srd_5.2.1
+kind: weapon
+cost: { quantity: 15, unit: gp }
+weight_lb: 4
+weapon:
+  category: martial
+  range_type: melee
+  damage: { dice: "1d8", type: piercing }
+  properties: []
+  mastery: sap

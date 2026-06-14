@@ -1,0 +1,17 @@
+# eq_heavy_crossbow — Heavy Crossbow
+# Source: SRD 5.2.1 (CC-BY-4.0) — Equipment tables
+
+id: eq_heavy_crossbow
+name: Heavy Crossbow
+source: srd_5.2.1
+kind: weapon
+cost: { quantity: 50, unit: gp }
+weight_lb: 18
+weapon:
+  category: martial
+  range_type: ranged
+  damage: { dice: "1d10", type: piercing }
+  properties: [ammunition, heavy, loading, two_handed]
+  mastery: push
+  range: { normal_ft: 100, long_ft: 400 }
+  ammunition_type: bolt

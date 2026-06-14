@@ -1,0 +1,17 @@
+# eq_blowgun — Blowgun
+# Source: SRD 5.2.1 (CC-BY-4.0) — Equipment tables
+
+id: eq_blowgun
+name: Blowgun
+source: srd_5.2.1
+kind: weapon
+cost: { quantity: 10, unit: gp }
+weight_lb: 1
+weapon:
+  category: martial
+  range_type: ranged
+  damage: { dice: "", modifier: 1, type: piercing }   # fixed 1 damage
+  properties: [ammunition, loading]
+  mastery: vex
+  range: { normal_ft: 25, long_ft: 100 }
+  ammunition_type: needle

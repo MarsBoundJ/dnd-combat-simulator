@@ -1,0 +1,15 @@
+# eq_whip — Whip
+# Source: SRD 5.2.1 (CC-BY-4.0) — Equipment tables
+
+id: eq_whip
+name: Whip
+source: srd_5.2.1
+kind: weapon
+cost: { quantity: 2, unit: gp }
+weight_lb: 3
+weapon:
+  category: martial
+  range_type: melee
+  damage: { dice: "1d4", type: slashing }
+  properties: [finesse, reach]
+  mastery: slow

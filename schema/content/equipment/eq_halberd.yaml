@@ -1,0 +1,15 @@
+# eq_halberd — Halberd
+# Source: SRD 5.2.1 (CC-BY-4.0) — Equipment tables
+
+id: eq_halberd
+name: Halberd
+source: srd_5.2.1
+kind: weapon
+cost: { quantity: 20, unit: gp }
+weight_lb: 6
+weapon:
+  category: martial
+  range_type: melee
+  damage: { dice: "1d10", type: slashing }
+  properties: [heavy, reach, two_handed]
+  mastery: cleave

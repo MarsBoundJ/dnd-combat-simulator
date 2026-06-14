@@ -1,0 +1,16 @@
+# eq_longsword — Longsword
+# Source: SRD 5.2.1 (CC-BY-4.0) — Equipment tables
+
+id: eq_longsword
+name: Longsword
+source: srd_5.2.1
+kind: weapon
+cost: { quantity: 15, unit: gp }
+weight_lb: 3
+weapon:
+  category: martial
+  range_type: melee
+  damage: { dice: "1d8", type: slashing }
+  versatile_damage: "1d10"
+  properties: [versatile]
+  mastery: sap
