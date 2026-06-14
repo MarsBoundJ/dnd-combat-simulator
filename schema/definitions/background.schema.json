@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MarsBoundJ/dnd-combat-simulator/schema/definitions/background.schema.json",
+  "title": "Background",
+  "description": "Character background (2024 rules). Grants three ability-score increases, one Origin feat, two skill proficiencies, one tool proficiency, and an equipment-or-gold package. Clean-room mechanical facts only — no flavor prose (lore facts, if captured, go in the namespaced stage4_stub blob per stages-1-3-plan.md §3.10). See docs/srd/srd-coverage-audit.md §1.",
+
+  "type": "object",
+  "required": ["id", "name", "source", "ability_scores", "feat", "skill_proficiencies"],
+  "additionalProperties": false,
+
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^bg_[a-z0-9_]+$",
+      "description": "Stable id; bg_ prefix + lowercase snake_case (e.g. bg_soldier)."
+    },
+    "name": { "type": "string" },
+    "source": { "$ref": "common.schema.json#/$defs/source" },
+
+    "ability_scores": {
+      "description": "The three ability scores this background can raise. 2024 rule: increase one by 2 and another by 1, OR increase all three by 1 (none above 20). The specific allocation is a per-PC choice resolved at build time (engine/creation.py, WS-A6).",
+      "type": "object",
+      "required": ["choices"],
+      "additionalProperties": false,
+      "properties": {
+        "choices": {
+          "type": "array",
+          "items": { "$ref": "common.schema.json#/$defs/ability_score_label" },
+          "minItems": 3,
+          "maxItems": 3
+        },
+        "increase_rule": {
+          "type": "string",
+          "enum": ["plus2_plus1_or_plus1_each"],
+          "default": "plus2_plus1_or_plus1_each",
+          "description": "RAW 2024 allocation rule; fixed for SRD backgrounds."
+        }
+      }
+    },
+
+    "feat": {
+      "type": "string",
+      "pattern": "^ft_[a-z0-9_]+$",
+      "description": "Origin feat id granted by this background (resolves to a feat with category=origin)."
+    },
+
+    "skill_proficiencies": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Skill names granted (RAW: exactly two). Lowercase skill names, e.g. ['athletics', 'intimidation'].",
+      "minItems": 1
+    },
+
+    "tool_proficiency": {
+      "description": "One tool proficiency: either a specific tool (string, e.g. 'thieves_tools') or a category the PC chooses from at build time.",
+      "oneOf": [
+        { "type": "string" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "choose_from": {
+              "type": "string",
+              "enum": ["artisans_tools", "gaming_set", "musical_instrument"]
+            }
+          },
+          "required": ["choose_from"]
+        }
+      ]
+    },
+
+    "equipment": {
+      "description": "The 2024 'Choose A or B' starting package: an equipment bundle (option A) versus a flat gold amount (option B, typically 50 GP). Each option lists item refs (eq_* ids or plain item names for unmodeled gear) and a gold amount.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "options": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "label": { "type": "string", "description": "e.g. 'A' or 'B'." },
+              "items": {
+                "type": "array",
+                "items": {
+                  "oneOf": [
+                    { "type": "string" },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "item": { "type": "string" },
+                        "quantity": { "type": "integer", "minimum": 1 }
+                      },
+                      "required": ["item"]
+                    }
+                  ]
+                }
+              },
+              "gold_gp": { "type": "integer", "minimum": 0 }
+            }
+          }
+        }
+      }
+    },
+
+    "aliases": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Alternate internal names for content resolution (WS-I import matching)."
+    },
+    "public_name": {
+      "type": "string",
+      "description": "PI-safe public display name override (WS-I rename layer, plan §3.8). Keyed off `source`; non-SRD entities ship under this name in the public bundle."
+    },
+
+    "stage4_stub": {
+      "type": "object",
+      "description": "Namespaced Stage-4 extension blob (plan §3.10): non-combat lore facts (personality traits / ideals / bonds / flaws references, background hooks). No engine semantics; never dropped, never wired. Speculative data only.",
+      "additionalProperties": true
+    }
+  }
+}

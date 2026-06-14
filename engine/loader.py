@@ -26,6 +26,12 @@ _ENTITY_DIRS = {
     "spell": "spells",
     "condition": "conditions",
     "race": "races",     # PR #75 — SRD species (Dwarf/Elf/Halfling/Human)
+    # WS-A1 — PC building-block entities (content authored in A2–A8).
+    # Dirs may not exist yet; the load loop skips absent dirs.
+    "background": "backgrounds",
+    "feat": "feats",
+    "equipment": "equipment",
+    "magic_item": "magic_items",
 }
 
 # Entity type → JSON Schema filename
@@ -40,6 +46,11 @@ _ENTITY_SCHEMAS = {
     # entity types without a corresponding schema file. PR #75 ships
     # the race YAMLs + loader registration; a follow-up PR can add
     # the strict JSON Schema.
+    # WS-A1 — PC building-block schemas.
+    "background": "background.schema.json",
+    "feat": "feat.schema.json",
+    "equipment": "equipment.schema.json",
+    "magic_item": "magic_item.schema.json",
 }
 
 

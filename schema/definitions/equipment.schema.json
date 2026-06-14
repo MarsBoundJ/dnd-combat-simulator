@@ -1,0 +1,188 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MarsBoundJ/dnd-combat-simulator/schema/definitions/equipment.schema.json",
+  "title": "Equipment",
+  "description": "Mundane equipment: weapons, armor, shields, adventuring gear, ammunition, spellcasting focuses, and equipment packs. Kind-specific stat blocks nest under a per-kind key. Mirrors the SRD 5.2.1 Equipment tables (docs/srd/srd-coverage-audit.md §4). The eq_* content library is WS-A2.",
+
+  "type": "object",
+  "required": ["id", "name", "source", "kind"],
+  "additionalProperties": false,
+
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^eq_[a-z0-9_]+$",
+      "description": "Stable id; eq_ prefix + lowercase snake_case (e.g. eq_longsword, eq_chain_mail)."
+    },
+    "name": { "type": "string" },
+    "source": { "$ref": "common.schema.json#/$defs/source" },
+
+    "kind": {
+      "type": "string",
+      "enum": ["weapon", "armor", "shield", "gear", "ammunition", "focus", "pack"],
+      "description": "Top-level discriminator. The matching per-kind block (weapon/armor/shield/...) carries the stat-specific fields."
+    },
+
+    "cost": {
+      "description": "Purchase price. `quantity` in the given coin `unit`.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "quantity": { "type": "number", "minimum": 0 },
+        "unit": { "type": "string", "enum": ["cp", "sp", "ep", "gp", "pp"] }
+      }
+    },
+    "weight_lb": {
+      "description": "Weight in pounds (number; fractional allowed, e.g. 0.25 for a Dart).",
+      "type": "number",
+      "minimum": 0
+    },
+
+    "weapon": {
+      "description": "Required-in-practice when kind=weapon. SRD weapon stat line.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "category": { "type": "string", "enum": ["simple", "martial"] },
+        "range_type": { "type": "string", "enum": ["melee", "ranged"] },
+        "damage": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "dice": { "type": "string", "description": "e.g. '1d8'; '' or absent for fixed-only damage." },
+            "modifier": { "type": "integer", "description": "Flat damage modifier baked into the weapon (rare; ability mod is applied by the engine)." },
+            "type": { "$ref": "common.schema.json#/$defs/damage_type" }
+          }
+        },
+        "versatile_damage": {
+          "type": "string",
+          "description": "Two-handed damage dice for Versatile weapons (e.g. '1d10' for a Longsword)."
+        },
+        "properties": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["ammunition", "finesse", "heavy", "light", "loading", "range", "reach", "thrown", "two_handed", "versatile"]
+          }
+        },
+        "mastery": {
+          "type": "string",
+          "enum": ["cleave", "graze", "nick", "push", "sap", "slow", "topple", "vex"],
+          "description": "The weapon's mastery property (2024). Usable only by a creature with a feature that unlocks mastery."
+        },
+        "range": {
+          "description": "Normal / long range in feet (for Ranged or Thrown weapons).",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "normal_ft": { "type": "integer", "minimum": 5 },
+            "long_ft": { "type": "integer", "minimum": 5 }
+          }
+        },
+        "ammunition_type": {
+          "type": "string",
+          "description": "For Ammunition-property weapons: which ammo it fires (e.g. 'arrow', 'bolt', 'bullet', 'needle')."
+        }
+      }
+    },
+
+    "armor": {
+      "description": "Required-in-practice when kind=armor. SRD armor stat line.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "category": { "type": "string", "enum": ["light", "medium", "heavy"] },
+        "base_ac": { "type": "integer", "description": "Base AC before Dexterity (e.g. 14 for Scale Mail, 16 for Chain Mail)." },
+        "add_dex_modifier": { "type": "boolean", "description": "Whether the Dexterity modifier is added (Light/Medium = true, Heavy = false)." },
+        "max_dex_bonus": {
+          "description": "Cap on the Dexterity modifier added (Medium = 2). null/absent = uncapped (Light) or N/A (Heavy).",
+          "type": ["integer", "null"]
+        },
+        "strength_requirement": { "type": "integer", "description": "Min Strength score or the wearer's Speed drops 10 ft (e.g. 13 for Chain Mail). 0/absent = none." },
+        "stealth_disadvantage": { "type": "boolean" },
+        "don_time": { "type": "string", "description": "e.g. '1 minute', '5 minutes', '10 minutes'." },
+        "doff_time": { "type": "string" }
+      }
+    },
+
+    "shield": {
+      "description": "Required-in-practice when kind=shield.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ac_bonus": { "type": "integer", "default": 2 }
+      }
+    },
+
+    "ammunition": {
+      "description": "Required-in-practice when kind=ammunition.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ammo_type": { "type": "string", "description": "arrow / bolt / bullet / needle / sling_bullet." },
+        "quantity": { "type": "integer", "minimum": 1, "description": "Amount per purchase (e.g. 20 arrows)." },
+        "storage": { "type": "string", "description": "Typical storage item (quiver / case / pouch)." }
+      }
+    },
+
+    "focus": {
+      "description": "Required-in-practice when kind=focus (spellcasting focus).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "focus_type": { "type": "string", "enum": ["arcane", "druidic", "holy_symbol"] },
+        "form": { "type": "string", "description": "e.g. 'crystal', 'orb', 'rod', 'staff', 'wand' for an arcane focus." }
+      }
+    },
+
+    "pack": {
+      "description": "Required-in-practice when kind=pack (an equipment bundle).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "contents": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "item": { "type": "string", "description": "eq_* id or plain item name for unmodeled gear." },
+              "quantity": { "type": "integer", "minimum": 1 }
+            },
+            "required": ["item"]
+          }
+        }
+      }
+    },
+
+    "activation": {
+      "description": "For consumable / usable gear that takes an action (e.g. throwing a vial of Acid, drinking Antitoxin, spreading Caltrops). Reuses the shared activation shape.",
+      "$ref": "common.schema.json#/$defs/activation"
+    },
+    "consumable": {
+      "type": "boolean",
+      "description": "True for single-use gear (Acid, Alchemist's Fire, Holy Water, Healer's Kit charges, Spell Scroll)."
+    },
+    "effect_primitives": {
+      "description": "Mechanical hook for combat-relevant gear (e.g. Acid/Alchemist's Fire thrown-attack damage, Ball Bearings/Caltrops save-or-condition, Healer's Kit heal). Same primitive vocabulary as features. Most gear omits this.",
+      "type": "array",
+      "items": { "$ref": "common.schema.json#/$defs/effect_primitive" }
+    },
+
+    "aliases": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Alternate internal names for content resolution (WS-I import matching)."
+    },
+    "public_name": {
+      "type": "string",
+      "description": "PI-safe public display name override (WS-I rename layer, plan §3.8)."
+    },
+
+    "stage4_stub": {
+      "type": "object",
+      "description": "Namespaced Stage-4 extension blob (plan §3.10): item flavor-facts, crafting links, non-combat utility. No engine semantics; speculative data only.",
+      "additionalProperties": true
+    }
+  }
+}
