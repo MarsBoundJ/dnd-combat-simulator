@@ -4,7 +4,7 @@
 AI-Cadre external red-team (Perplexity / ChatGPT / Gemini, 2026-06-14; resolved
 in §9) and Phil's three calls: Foundry two-mode model (§3.9), public-monster
 renaming (§3.8), and subclass-currency policy (§3.4 / WS-I).
-**Companions:** `docs/stages-1-3-redteam-brief.md` (the review brief that elicited §9), `docs/phase-3-plan.md` (complete),
+**Companions:** `docs/stages-1-3-redteam-brief.md` (the review brief that elicited §9), `docs/stages-1-3-execution.md` (parallel-execution & conflict-avoidance), `docs/phase-3-plan.md` (complete),
 `docs/stocktake-2026-06-02.md`, `sims/FINDINGS.md`, `docs/sim-modes.md`,
 `docs/data-sources.md`, `docs/architecture/browser-deployment.md`,
 `docs/positioning-model.md`.
