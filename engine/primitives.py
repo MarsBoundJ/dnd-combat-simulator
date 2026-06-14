@@ -4017,6 +4017,10 @@ def _ready_action(params: dict, state: CombatState, bus: EventBus) -> None:
       - trigger (str, required): trigger key (see KNOWN_TRIGGERS in
         engine/core/ready_action.py)
       - trigger_params (dict, optional): trigger-specific params
+      - spell_ready (bool, optional): True for Ready-a-Spell (dial >= 4).
+        Consumes slot + applies concentration at register time.
+      - chosen_slot_level (int, optional): slot level consumed for
+        spell-ready (0 = non-spell)
 
     The action slot is consumed by the normal pipeline.execute path
     (Ready is a full Action). The reaction slot is NOT pre-consumed
@@ -4031,9 +4035,18 @@ def _ready_action(params: dict, state: CombatState, bus: EventBus) -> None:
         raise ValueError(
             "ready_action requires sub_action_id + trigger params"
         )
+    spell_ready = bool(params.get("spell_ready"))
+    chosen_slot_level = int(params.get("chosen_slot_level", 0))
+    sub_action = None
+    if spell_ready:
+        from engine.core.ready_action import _find_action
+        sub_action = _find_action(actor, sub_action_id)
     from engine.core.ready_action import register
     register(actor, sub_action_id, trigger, state,
-              trigger_params=params.get("trigger_params"))
+             trigger_params=params.get("trigger_params"),
+             spell_ready=spell_ready,
+             sub_action=sub_action,
+             chosen_slot_level=chosen_slot_level)
 
 
 def _rage_start(params: dict, state: CombatState, bus: EventBus) -> None:

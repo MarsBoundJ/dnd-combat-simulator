@@ -1387,6 +1387,19 @@ def _action_traps_in_dome(action: dict) -> bool:
     return False
 
 
+def is_trapped_in_dome(target: Actor, state: CombatState) -> bool:
+    """True if `target` already sits inside a movement-blocking Wall-of-Force
+    sphere (a dome). Used to (a) stop a second caster redundantly re-doming an
+    already-trapped creature and (b) reward dropping a damaging zone on it (the
+    target can't escape the cloud — the 'microwave')."""
+    from engine.core.geometry import Sphere
+    pos = (float(target.position[0]), float(target.position[1]))
+    for w in (getattr(state, "walls", None) or []):
+        if isinstance(w, Sphere) and w.blocks("move") and w.contains(pos):
+            return True
+    return False
+
+
 def defensive_ehp_containment(actor: Actor, target_enemy: Actor,
                               action: dict, state: CombatState) -> float:
     """Defensive eHP from trapping `target_enemy` in a Wall-of-Force dome — a
@@ -1406,6 +1419,11 @@ def defensive_ehp_containment(actor: Actor, target_enemy: Actor,
     in after; that compounds via the zone scorer, not here)."""
     if target_enemy is None or not target_enemy.is_alive() \
             or target_enemy.side == actor.side:
+        return 0.0
+    # Don't redundantly re-dome a creature that's already trapped — a second
+    # dome adds nothing, and this frees a second caster (a Simulacrum) to drop
+    # the damaging zone inside instead (the microwave's other half).
+    if is_trapped_in_dome(target_enemy, state):
         return 0.0
     dpr = estimate_dpr(target_enemy)
     if dpr <= 0:

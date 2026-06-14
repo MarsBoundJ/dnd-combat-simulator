@@ -1,13 +1,20 @@
 # m_adult_red_dragon — Adult Red Dragon
-# Source: SRD CC v5.2.1 p317-318
-# Triage: GREEN for core kit — Multiattack of Rend (+ fire rider),
-# recharge Fire Breath (DEX-save cone), Legendary Resistance (3/Day),
-# and Legendary Actions (Pounce Rend).
-# DEFERRED (see MONSTERS_NEED_ENGINE_WORK.md): innate Spellcasting and the
-# "replace one attack with Spellcasting" Multiattack option; the Commanding
-# Presence and Fiery Rays legendary actions (both cast spells via
-# Spellcasting). Fly/Climb omitted (walk stand-in). Pounce's half-Speed
-# move omitted; modeled as one Rend.
+# Source: 2024 Monster Manual / SRD CC v5.2.1 p317-318
+# Full 2024 stat block: Multiattack (3× Rend with fire rider, or replace
+# one with Scorching Ray), recharge Fire Breath (DEX-save 60-ft cone),
+# At-Will Spellcasting (Command L2, Scorching Ray), 1/Day Fireball,
+# Legendary Resistance (3/Day, 4 in lair), Legendary Actions
+# (Commanding Presence, Fiery Rays, Pounce).
+#
+# DEFERRED:
+#   - Multiattack "replace one Rend with Scorching Ray" option — modeled
+#     as separate actions; the AI picks between 3×Rend vs Scorching Ray.
+#   - Command L2 multi-target (upcast +1 creature) — single-target Halt.
+#   - Per-round cooldowns for Bronze Dragon's Guiding Light (same
+#     once_per_round field, just not tagged yet).
+#   - Lair Actions (initiative-20 environmental effects).
+#   - Pounce's half-Speed move; modeled as 1× Rend.
+#   - Detect Magic (non-combat utility).
 id: m_adult_red_dragon
 name: Adult Red Dragon
 source: srd_5.2.1
@@ -36,6 +43,7 @@ senses: { passive_perception: 23, special: { blindsight: 60, darkvision: 120 } }
 languages: [common, draconic]
 cr: { value: 17, xp: 18000, proficiency_bonus: 6 }
 legendary_resistance: { uses: 3 }
+spellcasting: { ability: charisma, save_dc: 20, attack_bonus: 12 }
 traits: []
 actions:
   - id: a_multiattack
@@ -72,9 +80,32 @@ actions:
           on_success:
             - primitive: damage
               params: { dice: "17d6", modifier: 0, type: fire, average: 59, multiplier: 0.5 }
+  # At Will — Scorching Ray (3 rays, +12 to hit, 2d6 fire each, 120 ft)
+  - id: a_scorching_ray
+    name: Scorching Ray
+    casts: f_scorching_ray
+  # 1/Day — Fireball (20-ft sphere, DEX DC 20, 8d6 fire, 150 ft)
+  - id: a_fireball
+    name: Fireball
+    casts: f_fireball
+    recharge: "daily:1"
 legendary_actions:
   uses_per_round: 3
   options:
+    # Command (L2) — WIS DC 20 or waste next turn (Halt). At will,
+    # but RAW "can't take this action again until start of next turn."
+    - id: la_commanding_presence
+      name: Commanding Presence
+      casts: f_command
+      cost: 1
+      once_per_round: true
+    # Scorching Ray — 3 rays +12 to hit, 2d6 fire each. At will,
+    # but RAW "can't take this action again until start of next turn."
+    - id: la_fiery_rays
+      name: Fiery Rays
+      casts: f_scorching_ray
+      cost: 1
+      once_per_round: true
     - id: la_pounce
       name: Pounce
       type: multiattack

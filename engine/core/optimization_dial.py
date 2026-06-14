@@ -29,6 +29,7 @@ from engine.core.state import Actor, CombatState
 DEFAULT_DIAL = 1
 MIN_DIAL = 1
 MAX_DIAL = 5
+READY_SPELL_MIN_DIAL = 4
 
 # P(apply a warranted tactic) by dial — Phil's mapping (2026-06-05).
 FOCUS_FIRE_CHANCE: dict[int, float] = {

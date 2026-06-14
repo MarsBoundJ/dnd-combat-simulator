@@ -773,6 +773,42 @@ def _emit_ready_candidates(actor: Actor, state: CombatState,
                     trigger_params={"within_ft": 60,
                                       "min_damage": 1},
                 ))
+
+    # Ready-a-Spell candidates (dial >= 4): zone spells + dome.
+    from engine.core.optimization_dial import (
+        dial_for, READY_SPELL_MIN_DIAL)
+    from engine.core.spell_slots import has_slot_for_action, required_slot_level
+    if dial_for(actor, state) >= READY_SPELL_MIN_DIAL:
+        spell_ready_actions = [
+            a for a in actions
+            if a.get("type") in ("persistent_aura", "hard_control")
+            and int(a.get("spell_slot_level", 0)) >= 1
+            and a.get("concentration")
+            and has_slot_for_action(actor, a)
+            and actor.concentration_on is None
+        ]
+        for spa in spell_ready_actions:
+            slot_lvl = required_slot_level(spa)
+            range_ft = int(spa.get("range_ft", 120))
+            if spa.get("type") == "persistent_aura":
+                # Zone spell: ready on enemy approach.
+                out.append(_make_spell_ready_candidate(
+                    actor, spa, trigger="enemy_enters_range",
+                    trigger_params={"range_ft": range_ft},
+                    chosen_slot_level=slot_lvl,
+                ))
+            if spa.get("type") == "hard_control":
+                # Dome: ready on ally casting a spell at a target
+                # (microwave coordination). Only emit when a same-side
+                # ally has a zone spell (otherwise no zone to follow).
+                if _ally_has_zone_spell(actor, state):
+                    out.append(_make_spell_ready_candidate(
+                        actor, spa,
+                        trigger="ally_casts_spell_at_target",
+                        trigger_params={"range_ft": range_ft},
+                        chosen_slot_level=slot_lvl,
+                    ))
+
     return out
 
 
@@ -853,6 +889,56 @@ def _make_ready_candidate(actor: Actor, sub_action: dict, *,
         "target": actor,
         "actor": actor,
     }
+
+
+def _make_spell_ready_candidate(actor: Actor, sub_action: dict, *,
+                                trigger: str, trigger_params: dict,
+                                chosen_slot_level: int) -> dict:
+    """Build a spell-ready candidate (Ready-a-Spell, dial >= 4). Like
+    _make_ready_candidate but adds spell_ready + chosen_slot_level to
+    the pipeline params so the _ready_action primitive consumes the
+    slot and applies concentration at register time."""
+    sub_id = sub_action.get("id")
+    synthetic = {
+        "id": f"a_ready__{sub_id}__on__{trigger}",
+        "name": f"Ready {sub_action.get('name', sub_id)} on {trigger}",
+        "type": "ready",
+        "slot": "action",
+        "pipeline": [{
+            "primitive": "ready_action",
+            "params": {
+                "sub_action_id": sub_id,
+                "trigger": trigger,
+                "trigger_params": dict(trigger_params),
+                "spell_ready": True,
+                "chosen_slot_level": chosen_slot_level,
+            },
+        }],
+        "_ready_sub_action": sub_action,
+        "_ready_trigger": trigger,
+    }
+    return {
+        "kind": "ready",
+        "action": synthetic,
+        "target": actor,
+        "actor": actor,
+    }
+
+
+def _ally_has_zone_spell(actor: Actor, state: CombatState) -> bool:
+    """True if a same-side ally (not the actor) has a concentration
+    zone spell (persistent_aura) available. Gate for dome-ready
+    emission: no point readying a dome if nobody can drop a zone."""
+    from engine.core.spell_slots import has_slot_for_action
+    for a in state.encounter.actors:
+        if a.side != actor.side or a.id == actor.id or not a.is_alive():
+            continue
+        for act in (a.template.get("actions") or []):
+            if (act.get("type") == "persistent_aura"
+                    and int(act.get("spell_slot_level", 0)) >= 1
+                    and has_slot_for_action(a, act)):
+                return True
+    return False
 
 
 def _persistent_aura_radius(action: dict) -> int:
