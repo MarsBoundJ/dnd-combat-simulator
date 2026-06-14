@@ -505,3 +505,28 @@ demand queue is durable. Mapped to the cycle that closes each:
   bundle with the A8 item-primitive cycle.
 - **Healer's Kit stabilize** (stabilize a dying creature) and **Antitoxin**
   (scoped save advantage vs poison) → small effects; A8-adjacent.
+
+## Species combat-trait hooks (raised by WS-A3, SRD species)
+The 5 new species in `schema/content/races/` wire their generic traits (size,
+speed, creature_type, darkvision) now; these combat traits are captured as data
+(trait-flag hooks `t_*` in each YAML) but need engine work. Inert until built —
+non-blocking. Consolidated from PR #248. Suggest a single **"species combat
+traits"** mini-cycle (most are small action-builders + a couple of triggers):
+
+- **Ancestry/legacy resistance choice** (Dragonborn, Tiefling) → a `pc_spec`
+  choice field consumed by `pc_schema`, **mirroring the existing Draconic-Sorcery
+  `draconic_element` → resistance path**. Resistances are deliberately left empty
+  in the YAML until this exists (baking one type would mis-model the others).
+- **Dragonborn Breath Weapon** → player-owned, PB-use-limited, replace-an-attack
+  AoE save action (monster-breath-shaped + long-rest recharge) — needs an action
+  builder. Plus **Draconic Flight** (L5 BA temp fly).
+- **Orc Relentless Endurance** → drop-to-1-HP-on-zero death-prevention trigger
+  (the Zombie "Undead Fortitude" shape) — no hook at the `_damage` 0-HP site yet.
+  Plus **Adrenaline Rush** (PB-use BA Dash + temp HP, short-rest recharge).
+- **Goliath Giant Ancestry** (on-hit riders, BA teleport, reaction reduction/
+  retaliation, all PB-use-limited) + **Large Form** + **Powerful Build**.
+- **Gnome Gnomish Cunning** → advantage on INT/WIS/CHA saves. The existing racial
+  save-advantage mechanism (`racial_traits.SAVE_CONDITION_TRIGGERS`) is
+  *condition*-keyed, not *ability*-keyed → needs a new trigger path.
+- **Tiefling/Gnome lineage spells, Otherworldly Presence** → out-of-combat
+  utility / no race-spell-grant path (mostly Stage-4-stub territory).
